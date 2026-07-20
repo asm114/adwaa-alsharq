@@ -44,6 +44,19 @@ nav{grid-template-columns:repeat(6,minmax(78px,1fr))}
 .view,.section,.list,.customer-card{overflow:visible}
 .customer-card:last-child{margin-bottom:24px}
 button{position:relative;z-index:1}
+
+.top-customers-list{display:grid;gap:12px}
+.top-customer-card{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;background:#fff;border:1px solid #e4ebe8;border-radius:16px;padding:14px}
+.top-rank{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#eef7f3;font-weight:800;font-size:18px;color:#073d33}
+.top-customer-name{font-weight:800;margin-bottom:4px}
+.top-customer-stats{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:7px}
+.top-customer-stats span{font-size:13px;color:var(--muted)}
+.top-customer-card button{white-space:nowrap}
+@media(max-width:620px){
+  .top-customer-card{grid-template-columns:auto 1fr}
+  .top-customer-card button{grid-column:1/-1;width:100%}
+}
+
 </style>
 </head>
 <body>
@@ -80,6 +93,13 @@ button{position:relative;z-index:1}
   <div class="section">
     <div class="section-head"><div><h3>أقرب الحجوزات</h3><div class="meta">الحجوزات القادمة حسب التاريخ</div></div><button class="link" onclick="switchView('bookings')">عرض الجميع ←</button></div>
     <div id="nearList" class="list"></div>
+  </div>
+  <div class="section">
+    <div class="section-head">
+      <div><h3>🏆 أفضل العملاء</h3><div class="meta">مرتبون حسب عدد الحجوزات ثم إجمالي المبالغ المدفوعة</div></div>
+      <button class="link" onclick="switchView('customers')">صفحة العملاء ←</button>
+    </div>
+    <div id="topCustomersList" class="top-customers-list"></div>
   </div>
 </section>
 
@@ -293,6 +313,31 @@ function upcoming(){return db.bookings.filter(b=>b.status!=='ملغي'&&b.status
 function statusClass(s){return s==='مؤكد'?'confirmed':s==='غير مؤكد'?'pending':s==='تم الدخول'?'entered':'cancelled'}
 function switchView(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));(btn||document.querySelector(`nav button[data-view="${id}"]`))?.classList.add('active');const t={dashboard:['لوحة إدارة المنتجع','متابعة الحجوزات والمبالغ من مكان واحد'],bookings:['إدارة الحجوزات','إضافة وتعديل ومتابعة جميع الحجوزات'],customers:['سجل العملاء','عدد الزيارات والمدفوعات وآخر حجز'],calendarView:['تقويم الحجوزات','عرض الأيام المحجوزة ومنع التداخل'],expenses:['المصاريف والدخل','متابعة المصروفات وصافي الدخل'],settings:['الإعدادات','النسخ الاحتياطي وبيانات واتساب']}[id];pageTitle.textContent=t[0];pageSub.textContent=t[1];window.scrollTo(0,0);renderAll()}
 function renderAll(){renderDashboard();renderBookings();renderCustomers();renderExpenses();renderCalendar();waNumber.value=db.settings.waNumber||'';welcomeMsg.value=db.settings.welcomeMsg||DEFAULT_MSG}
+function renderTopCustomers(){
+  if(typeof topCustomersList==='undefined')return;
+  const ranked=getCustomers()
+    .sort((a,b)=>b.bookings.length-a.bookings.length||b.totalPaid-a.totalPaid||String(b.lastVisit||'').localeCompare(String(a.lastVisit||'')))
+    .slice(0,10);
+
+  topCustomersList.innerHTML=ranked.map((c,index)=>{
+    const rank=index===0?'🥇':index===1?'🥈':index===2?'🥉':String(index+1);
+    const key=encodeURIComponent(c.phone||c.name||'');
+    return `<div class="top-customer-card">
+      <div class="top-rank">${rank}</div>
+      <div>
+        <div class="top-customer-name">${escapeHtml(c.name||'بدون اسم')}</div>
+        <div class="meta">${escapeHtml(c.phone||'بدون رقم')}</div>
+        <div class="top-customer-stats">
+          <span>الحجوزات: <b>${c.bookings.length}</b></span>
+          <span>إجمالي المدفوع: <b>${money(c.totalPaid)}</b></span>
+          <span>آخر حجز: <b>${c.lastVisit||'-'}</b></span>
+        </div>
+      </div>
+      <button class="secondary" onclick="filterBookingsForCustomer('${key}')">عرض حجوزاته</button>
+    </div>`;
+  }).join('')||'<div class="empty">لا توجد بيانات عملاء حتى الآن</div>';
+}
+
 function renderDashboard(){
   const active=db.bookings.filter(b=>b.status!=='ملغي');
   const ups=upcoming();
@@ -342,6 +387,7 @@ function renderDashboard(){
     nextMeta.textContent='';
   }
   nearList.innerHTML=ups.slice(0,5).map(itemHTML).join('')||'<div class="empty">لا توجد حجوزات قادمة</div>';
+  renderTopCustomers();
 }
 function itemHTML(b){
   const due=Math.max(0,Number(b.total||0)-Number(b.paid||0));
