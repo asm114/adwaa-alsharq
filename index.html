@@ -68,6 +68,22 @@ button{position:relative;z-index:1}
 .alert-card.success{border-right:5px solid #238b57}
 .alert-card.info{border-right:5px solid #2d6cdf}
 
+
+.analytics-grid{display:grid;grid-template-columns:1fr;gap:16px}
+.chart-card{background:#fff;border:1px solid #e3e9e7;border-radius:18px;padding:16px}
+.chart-title{font-weight:800;margin-bottom:12px}
+.chart-wrap{overflow-x:auto}
+.chart-svg{width:100%;min-width:720px;height:280px;display:block}
+.chart-axis{stroke:#cfd9d5;stroke-width:1}
+.chart-grid{stroke:#e8efec;stroke-width:1}
+.chart-label{font-size:11px;fill:#66736e}
+.chart-value{font-size:11px;fill:#073d33;font-weight:700}
+.chart-bar{fill:currentColor}
+.chart-empty{padding:28px;text-align:center;color:var(--muted)}
+@media(max-width:620px){
+  .chart-svg{min-width:640px;height:250px}
+}
+
 </style>
 </head>
 <body>
@@ -117,6 +133,25 @@ button{position:relative;z-index:1}
       <div><h3>🔔 مركز التنبيهات</h3><div class="meta">تنبيهات تلقائية حسب الحجوزات والمدفوعات</div></div>
     </div>
     <div id="alertsList" class="alerts-list"></div>
+  </div>
+  <div class="section">
+    <div class="section-head">
+      <div><h3>📊 التحليلات الشهرية</h3><div class="meta">آخر 12 شهرًا: الإيرادات والحجوزات ونسبة الإشغال</div></div>
+    </div>
+    <div class="analytics-grid">
+      <div class="chart-card">
+        <div class="chart-title">الإيرادات الشهرية</div>
+        <div id="revenueChart" class="chart-wrap"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">عدد الحجوزات شهريًا</div>
+        <div id="bookingsChart" class="chart-wrap"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">نسبة الإشغال الشهرية</div>
+        <div id="occupancyChart" class="chart-wrap"></div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -425,6 +460,77 @@ function renderAlerts(){
     </div>`).join('')||'<div class="empty">لا توجد تنبيهات حاليًا</div>';
 }
 
+function getLast12MonthsData(){
+  const months=[];
+  const now=new Date();
+  for(let i=11;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label=d.toLocaleDateString('ar-SA',{month:'short'});
+    months.push({key,label,year:d.getFullYear(),month:d.getMonth(),revenue:0,bookings:0,occupancy:0});
+  }
+
+  const active=db.bookings.filter(b=>b.status!=='ملغي');
+  active.forEach(b=>{
+    const key=String(b.date||'').slice(0,7);
+    const m=months.find(x=>x.key===key);
+    if(m){
+      m.bookings+=1;
+      m.revenue+=Number(b.paid||0);
+    }
+  });
+
+  months.forEach(m=>{
+    const daysInMonth=new Date(m.year,m.month+1,0).getDate();
+    m.occupancy=Math.min(100,Math.round((m.bookings/daysInMonth)*100));
+  });
+
+  return months;
+}
+
+function renderBarChart(containerId,data,valueKey,formatter){
+  const el=document.getElementById(containerId);
+  if(!el)return;
+  const values=data.map(d=>Number(d[valueKey]||0));
+  const max=Math.max(...values,1);
+  const width=840,height=280,padL=42,padR=16,padT=20,padB=46;
+  const innerW=width-padL-padR,innerH=height-padT-padB;
+  const step=innerW/data.length;
+  const barW=Math.max(18,step*0.58);
+
+  let grid='';
+  for(let i=0;i<=4;i++){
+    const y=padT+(innerH/4)*i;
+    const val=max-(max/4)*i;
+    grid+=`<line class="chart-grid" x1="${padL}" y1="${y}" x2="${width-padR}" y2="${y}"></line>`;
+    grid+=`<text class="chart-label" x="${padL-6}" y="${y+4}" text-anchor="end">${formatter(val,true)}</text>`;
+  }
+
+  let bars='';
+  data.forEach((d,i)=>{
+    const v=Number(d[valueKey]||0);
+    const h=(v/max)*innerH;
+    const x=padL+i*step+(step-barW)/2;
+    const y=padT+innerH-h;
+    bars+=`<rect class="chart-bar" x="${x}" y="${y}" width="${barW}" height="${h}" rx="5" style="color:#0f6b59"></rect>`;
+    bars+=`<text class="chart-value" x="${x+barW/2}" y="${Math.max(14,y-6)}" text-anchor="middle">${formatter(v,false)}</text>`;
+    bars+=`<text class="chart-label" x="${x+barW/2}" y="${height-22}" text-anchor="middle">${escapeHtml(d.label)}</text>`;
+  });
+
+  el.innerHTML=`<svg class="chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="رسم بياني">
+    <line class="chart-axis" x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+innerH}"></line>
+    <line class="chart-axis" x1="${padL}" y1="${padT+innerH}" x2="${width-padR}" y2="${padT+innerH}"></line>
+    ${grid}${bars}
+  </svg>`;
+}
+
+function renderAnalytics(){
+  const data=getLast12MonthsData();
+  renderBarChart('revenueChart',data,'revenue',(v,axis)=>axis?Math.round(v).toLocaleString('ar-SA'):money(Math.round(v)));
+  renderBarChart('bookingsChart',data,'bookings',(v)=>String(Math.round(v)));
+  renderBarChart('occupancyChart',data,'occupancy',(v)=>`${Math.round(v)}٪`);
+}
+
 function renderDashboard(){
   const active=db.bookings.filter(b=>b.status!=='ملغي');
   const ups=upcoming();
@@ -476,6 +582,7 @@ function renderDashboard(){
   nearList.innerHTML=ups.slice(0,5).map(itemHTML).join('')||'<div class="empty">لا توجد حجوزات قادمة</div>';
   renderTopCustomers();
   renderAlerts();
+  renderAnalytics();
 }
 function itemHTML(b){
   const due=Math.max(0,Number(b.total||0)-Number(b.paid||0));
