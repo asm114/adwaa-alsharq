@@ -17,7 +17,7 @@ main{padding:0 18px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1
 .stat .k{color:var(--muted);font-size:14px}.stat .v{font-size:26px;font-weight:900;margin-top:8px}.hero{margin-top:14px;background:linear-gradient(135deg,var(--green),var(--green2));color:#fff;border-radius:26px;padding:22px;display:flex;justify-content:space-between;align-items:center;gap:16px;box-shadow:0 10px 28px #0d4c3f2b}
 .hero small{color:#c5d9d2}.hero h2{margin:8px 0 12px;font-size:27px}.soft-btn{background:#ffffff12;color:#fff;border:1px solid #ffffff55;border-radius:16px;padding:12px 18px}
 .section{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:24px;overflow:hidden}.section-head{padding:18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line)}.section h3{margin:0}.link{color:#8c6515;font-weight:800;border:0;background:none}
-.list{display:flex;flex-direction:column}.item{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.item:last-child{border-bottom:0}.item h4{margin:0 0 5px}.meta{color:var(--muted);font-size:14px;line-height:1.7}.badge{padding:7px 10px;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap}.confirmed{background:#e4f4ee;color:#14785f}.pending{background:#fff3d9;color:#996a00}.entered{background:#e8eefb;color:#315ea8}.cancelled{background:#fde5e5;color:#a63c3c}
+.list{display:flex;flex-direction:column}.item{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.item:last-child{border-bottom:0}.item h4{margin:0 0 5px}.meta{color:var(--muted);font-size:14px;line-height:1.7}.badge{padding:7px 10px;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap}.confirmed{background:#e4f4ee;color:#14785f}.pending{background:#fff3d9;color:#996a00}.entered{background:#e8eefb;color:#315ea8}.cancelled{background:#fde5e5;color:#a63c3c}.paid-badge{background:#e4f4ee;color:#14785f}.due-badge{background:#fff3d9;color:#996a00}
 nav{position:fixed;bottom:0;left:0;right:0;background:#073d33;color:#fff;display:grid;grid-template-columns:repeat(5,1fr);padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:30;box-shadow:0 -8px 25px #0002}nav button{border:0;background:none;color:#c7d7d1;padding:8px 4px;border-radius:15px;font-size:12px}nav button b{display:block;font-size:21px;margin-bottom:2px}nav button.active{background:#ffffff16;color:#fff;box-shadow:inset -4px 0 var(--gold)}
 .view{display:none}.view.active{display:block}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.toolbar input,.toolbar select{flex:1;min-width:150px}
@@ -69,9 +69,12 @@ input,select,textarea{width:100%;border:1px solid #d9ddd9;border-radius:14px;pad
 <section id="expenses" class="view">
   <div class="grid">
     <div class="stat"><div class="k">إجمالي المصروفات</div><div class="v money" id="expTotal">0 ر.س</div></div>
-    <div class="stat"><div class="k">صافي الدخل</div><div class="v money" id="netIncome">0 ر.س</div></div>
+    <div class="stat"><div class="k">عمولات المدير المستحقة</div><div class="v money" id="commissionTotal">0 ر.س</div></div>
+    <div class="stat"><div class="k">صافي دخل المنتجع</div><div class="v money" id="netIncome">0 ر.س</div></div>
+    <div class="stat"><div class="k">حجوزات مكتملة السداد</div><div class="v" id="fullyPaidCount">0</div></div>
   </div>
   <div class="section"><div class="section-head"><h3>المصروفات</h3><button class="primary" onclick="openExpense()">+ إضافة مصروف</button></div><div id="expenseList" class="list"></div></div>
+  <div class="section"><div class="section-head"><div><h3>تقرير عمولة المدير</h3><div class="meta">100 ريال فقط لكل حجز مكتمل السداد</div></div></div><div id="commissionList" class="list"></div></div>
 </section>
 
 <section id="settings" class="view">
@@ -242,8 +245,12 @@ function statusClass(s){return s==='مؤكد'?'confirmed':s==='غير مؤكد'?
 function switchView(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));(btn||document.querySelector(`nav button[data-view="${id}"]`))?.classList.add('active');const t={dashboard:['لوحة إدارة المنتجع','متابعة الحجوزات والمبالغ من مكان واحد'],bookings:['إدارة الحجوزات','إضافة وتعديل ومتابعة جميع الحجوزات'],calendarView:['تقويم الحجوزات','عرض الأيام المحجوزة ومنع التداخل'],expenses:['المصاريف والدخل','متابعة المصروفات وصافي الدخل'],settings:['الإعدادات','النسخ الاحتياطي وبيانات واتساب']}[id];pageTitle.textContent=t[0];pageSub.textContent=t[1];window.scrollTo(0,0);renderAll()}
 function renderAll(){renderDashboard();renderBookings();renderExpenses();renderCalendar();waNumber.value=db.settings.waNumber||'';welcomeMsg.value=db.settings.welcomeMsg||DEFAULT_MSG}
 function renderDashboard(){let ups=upcoming(),paid=db.bookings.filter(b=>b.status!=='ملغي').reduce((s,b)=>s+Number(b.paid||0),0),tot=db.bookings.filter(b=>b.status!=='ملغي').reduce((s,b)=>s+Number(b.total||0),0);sUpcoming.textContent=ups.length;sPaid.textContent=money(paid);sDue.textContent=money(tot-paid);sTotal.textContent=db.bookings.length;let n=ups[0];nextBooking.textContent=n?n.name:'لا يوجد حجز قادم';nextMeta.textContent=n?`${n.date} • متبقي ${Math.max(0,daysUntil(n.date))} يوم • ${n.type}`:'';nearList.innerHTML=ups.slice(0,5).map(itemHTML).join('')||'<div class="empty">لا توجد حجوزات قادمة</div>'}
-function itemHTML(b){return `<div class="item" onclick="openBooking('${b.id}')"><div><h4>${escapeHtml(b.name)} <span class="small">#${b.code}</span></h4><div class="meta">${b.date} • ${b.type}<br>${b.phone||''} • المتبقي ${money(Number(b.total)-Number(b.paid))}</div></div><span class="badge ${statusClass(b.status)}">${b.status}</span></div>`}
-function renderBookings(){let q=(search?.value||'').trim(),s=statusFilter?.value||'';let arr=[...db.bookings].sort((a,b)=>b.date.localeCompare(a.date)).filter(b=>(!q||b.name.includes(q)||String(b.phone).includes(q))&&(!s||b.status===s));bookingList.innerHTML=arr.map(itemHTML).join('')||'<div class="empty">لا توجد نتائج</div>'}
+function itemHTML(b){
+  const due=Math.max(0,Number(b.total||0)-Number(b.paid||0));
+  const fullyPaid=Number(b.total||0)>0&&Number(b.paid||0)>=Number(b.total||0)&&b.status!=='ملغي';
+  return `<div class="item" onclick="openBooking('${b.id}')"><div><h4>${escapeHtml(b.name)} <span class="small">#${b.code}</span></h4><div class="meta">${b.date} • ${b.type}<br>${b.phone||''} • المتبقي ${money(due)}<br><span class="badge ${fullyPaid?'paid-badge':'due-badge'}">${fullyPaid?'مكتمل السداد':'غير مكتمل السداد'}</span></div></div><span class="badge ${statusClass(b.status)}">${b.status}</span></div>`
+}
+function renderBookings(){let q=(search?.value||'').trim(),s=statusFilter?.value||'';let arr=[...db.bookings].sort((a,b)=>b.date.localeCompare(a.date)).filter(b=>(!q||b.name.includes(q)||String(b.phone).includes(q)||String(b.code||'').includes(q))&&(!s||b.status===s));bookingList.innerHTML=arr.map(itemHTML).join('')||'<div class="empty">لا توجد نتائج</div>'}
 function openBooking(id){bookingForm.reset();bPaid.value=0;bTotal.value=0;bDate.value=isoToday();bStatus.value='مؤكد';bType.value='يومي';bId.value='';bCode.value='AD-'+String(db.seq).padStart(4,'0');deleteBookingBtn.style.display='none';bookingModalTitle.textContent='إضافة حجز';if(id){let b=db.bookings.find(x=>x.id===id);if(!b)return;bId.value=b.id;bName.value=b.name;bPhone.value=b.phone;bDate.value=b.date;bType.value=b.type;bPaid.value=b.paid;bTotal.value=b.total;bStatus.value=b.status;bNotes.value=b.notes||'';bCode.value=b.code;deleteBookingBtn.style.display='inline-block';bookingModalTitle.textContent='تعديل الحجز'}bookingModal.classList.add('open')}
 function closeModal(id){document.getElementById(id).classList.remove('open')}
 function nextAvailableDate(fromDate){
@@ -273,7 +280,28 @@ function saveBooking(e){
 function deleteBooking(){if(confirm('هل تريد حذف هذا الحجز نهائيًا؟')){db.bookings=db.bookings.filter(x=>x.id!==bId.value);persist();closeModal('bookingModal')}}
 function openExpense(){eDate.value=isoToday();eTitle.value='';eAmount.value='';eNotes.value='';expenseModal.classList.add('open')}
 function saveExpense(e){e.preventDefault();db.expenses.push({id:crypto.randomUUID(),title:eTitle.value,amount:Number(eAmount.value),date:eDate.value,cat:eCat.value,notes:eNotes.value});persist();closeModal('expenseModal')}
-function renderExpenses(){let sum=db.expenses.reduce((s,e)=>s+Number(e.amount),0),paid=db.bookings.filter(b=>b.status!=='ملغي').reduce((s,b)=>s+Number(b.paid||0),0);expTotal.textContent=money(sum);netIncome.textContent=money(paid-sum);expenseList.innerHTML=[...db.expenses].sort((a,b)=>b.date.localeCompare(a.date)).map(e=>`<div class="item"><div><h4>${escapeHtml(e.title)}</h4><div class="meta">${e.date} • ${e.cat}<br>${escapeHtml(e.notes||'')}</div></div><div><b>${money(e.amount)}</b><br><button class="danger small" onclick="removeExpense('${e.id}')">حذف</button></div></div>`).join('')||'<div class="empty">لا توجد مصروفات</div>'}
+function renderExpenses(){
+  const expensesSum=db.expenses.reduce((s,e)=>s+Number(e.amount||0),0);
+  const activeBookings=db.bookings.filter(b=>b.status!=='ملغي');
+  const collected=activeBookings.reduce((s,b)=>s+Number(b.paid||0),0);
+  const fullyPaidBookings=activeBookings.filter(b=>Number(b.total||0)>0&&Number(b.paid||0)>=Number(b.total||0));
+  const commission=fullyPaidBookings.length*100;
+
+  expTotal.textContent=money(expensesSum);
+  commissionTotal.textContent=money(commission);
+  fullyPaidCount.textContent=fullyPaidBookings.length;
+  netIncome.textContent=money(collected-expensesSum-commission);
+
+  expenseList.innerHTML=[...db.expenses]
+    .sort((a,b)=>b.date.localeCompare(a.date))
+    .map(e=>`<div class="item"><div><h4>${escapeHtml(e.title)}</h4><div class="meta">${e.date} • ${e.cat}<br>${escapeHtml(e.notes||'')}</div></div><div><b>${money(e.amount)}</b><br><button class="danger small" onclick="removeExpense('${e.id}')">حذف</button></div></div>`)
+    .join('')||'<div class="empty">لا توجد مصروفات</div>';
+
+  commissionList.innerHTML=[...fullyPaidBookings]
+    .sort((a,b)=>b.date.localeCompare(a.date))
+    .map(b=>`<div class="item"><div><h4>${escapeHtml(b.name)} <span class="small">#${b.code}</span></h4><div class="meta">${b.date} • إجمالي الحجز ${money(b.total)} • مكتمل السداد</div></div><b>${money(100)}</b></div>`)
+    .join('')||'<div class="empty">لا توجد عمولات مستحقة حتى الآن</div>';
+}
 function removeExpense(id){if(confirm('حذف المصروف؟')){db.expenses=db.expenses.filter(e=>e.id!==id);persist()}}
 function renderCalendar(){let y=calDate.getFullYear(),m=calDate.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0);calTitle.textContent=first.toLocaleDateString('ar-SA',{month:'long',year:'numeric'});let names=['ح','ن','ث','ر','خ','ج','س'];let html=names.map(n=>`<div class="day" style="min-height:auto;text-align:center;font-weight:800">${n}</div>`).join('');for(let i=0;i<first.getDay();i++)html+='<div></div>';for(let d=1;d<=last.getDate();d++){let iso=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`,bs=db.bookings.filter(b=>b.date===iso&&b.status!=='ملغي');html+=`<div class="day ${bs.length?'busy':''}"><span class="num">${d}</span>${bs.map(b=>`<span class="dot">${escapeHtml(b.name)}</span>`).join('')}</div>`}calendar.innerHTML=html}
 function changeMonth(n){calDate.setMonth(calDate.getMonth()+n);renderCalendar()}
