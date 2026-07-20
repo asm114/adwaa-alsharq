@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0d4c3f">
-<title>v7.5 — إدارة منتجع أضواء الشرق</title>
+<title>v7.6 — نظام إدارة منتجع أضواء الشرق</title>
 <link rel="manifest" href="manifest.json">
 <style>
 :root{--green:#0d4c3f;--green2:#155f50;--gold:#d8a33e;--bg:#f7f5ef;--card:#fff;--text:#10251f;--muted:#7d8a85;--danger:#b54545;--line:#e7e5df}
@@ -53,6 +53,25 @@ nav{grid-template-columns:repeat(6,minmax(78px,1fr))}
 .customer-history-item{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;justify-content:space-between;gap:12px;align-items:center}
 .customer-history-item .actions{margin:0}
 @media(max-width:620px){.customer-profile-stats{grid-template-columns:1fr 1fr}.customer-profile-head{grid-template-columns:1fr}}
+.finance-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px}
+.finance-toolbar>div{min-width:150px;flex:1}
+.finance-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.finance-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px}
+.finance-card .amount{font-size:23px;font-weight:900;margin-top:6px}
+.finance-card small{color:var(--muted)}
+.finance-table{overflow:auto}
+.finance-table table{width:100%;border-collapse:collapse;min-width:760px}
+.finance-table th,.finance-table td{padding:11px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.finance-table th{background:#f8faf9;font-size:12px;color:var(--muted)}
+.finance-positive{color:#147d5b}.finance-negative{color:#b13b3b}
+.finance-chart{height:230px;display:flex;align-items:end;gap:8px;padding:16px 8px 4px;overflow-x:auto}
+.finance-bar-col{min-width:54px;flex:1;text-align:center}
+.finance-bar-stack{height:170px;display:flex;align-items:end;justify-content:center;gap:4px}
+.finance-bar{width:18px;border-radius:7px 7px 2px 2px;background:var(--green);min-height:2px}
+.finance-bar.expense{background:#d88a8a}
+.finance-bar-label{font-size:11px;color:var(--muted);margin-top:7px}
+@media(max-width:760px){.finance-summary{grid-template-columns:1fr 1fr}}
+
 
 button{position:relative;z-index:1}
 
@@ -222,14 +241,44 @@ button{position:relative;z-index:1}
 </section>
 
 <section id="expenses" class="view">
-  <div class="grid">
-    <div class="stat"><div class="k">إجمالي المصروفات</div><div class="v money" id="expTotal">0 ر.س</div></div>
-    <div class="stat"><div class="k">عمولات المدير المستحقة</div><div class="v money" id="commissionTotal">0 ر.س</div></div>
-    <div class="stat"><div class="k">صافي دخل المنتجع</div><div class="v money" id="netIncome">0 ر.س</div></div>
-    <div class="stat"><div class="k">حجوزات مكتملة السداد</div><div class="v" id="fullyPaidCount">0</div></div>
+  <div class="finance-toolbar">
+    <div><label class="label">الفترة</label><select id="financePeriod" onchange="renderExpenses()"><option value="month">هذا الشهر</option><option value="year">هذه السنة</option><option value="all">كل الفترات</option></select></div>
+    <div><label class="label">التصنيف</label><select id="financeCategory" onchange="renderExpenses()"><option value="">جميع التصنيفات</option><option>تنظيف</option><option>صيانة</option><option>كهرباء</option><option>مياه</option><option>منظفات</option><option>مشتريات</option><option>رواتب</option><option>أخرى</option></select></div>
+    <div><label class="label">طريقة الدفع</label><select id="financePayment" onchange="renderExpenses()"><option value="">جميع الطرق</option><option>نقد</option><option>تحويل</option><option>بطاقة</option><option>أخرى</option></select></div>
+    <button class="primary" onclick="openExpense()">+ إضافة مصروف</button>
   </div>
-  <div class="section"><div class="section-head"><h3>المصروفات</h3><button class="primary" onclick="openExpense()">+ إضافة مصروف</button></div><div id="expenseList" class="list"></div></div>
-  <div class="section"><div class="section-head"><div><h3>تقرير عمولة المدير</h3><div class="meta">100 ريال فقط لكل حجز مكتمل السداد</div></div></div><div id="commissionList" class="list"></div></div>
+
+  <div class="finance-summary">
+    <div class="finance-card"><small>إجمالي الإيرادات المحصلة</small><div class="amount finance-positive" id="finRevenue">0 ر.س</div></div>
+    <div class="finance-card"><small>إجمالي المصروفات</small><div class="amount finance-negative" id="finExpenses">0 ر.س</div></div>
+    <div class="finance-card"><small>صافي الربح بعد العمولة</small><div class="amount" id="finProfit">0 ر.س</div></div>
+    <div class="finance-card"><small>المبالغ المستحقة على العملاء</small><div class="amount" id="finDue">0 ر.س</div></div>
+  </div>
+
+  <div class="grid">
+    <div class="stat"><div class="k">عمولات المدير المستحقة</div><div class="v money" id="commissionTotal">0 ر.س</div></div>
+    <div class="stat"><div class="k">حجوزات مكتملة السداد</div><div class="v" id="fullyPaidCount">0</div></div>
+    <div class="stat"><div class="k">عدد المصروفات</div><div class="v" id="expenseCount">0</div></div>
+    <div class="stat"><div class="k">متوسط المصروف</div><div class="v money" id="expenseAverage">0 ر.س</div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-head"><div><h3>📊 مقارنة شهرية</h3><div class="meta">الإيرادات مقابل المصروفات خلال آخر 12 شهرًا</div></div></div>
+    <div id="financeChart" class="finance-chart"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-head"><div><h3>سجل المصروفات</h3><div class="meta">مع المرجع والتصنيف وطريقة الدفع</div></div></div>
+    <div class="finance-table"><table>
+      <thead><tr><th>المرجع</th><th>التاريخ</th><th>البيان</th><th>التصنيف</th><th>طريقة الدفع</th><th>المبلغ</th><th>الإجراء</th></tr></thead>
+      <tbody id="expenseTableBody"></tbody>
+    </table></div>
+  </div>
+
+  <div class="section">
+    <div class="section-head"><div><h3>تقرير عمولة المدير</h3><div class="meta">100 ريال لكل حجز مكتمل السداد</div></div></div>
+    <div id="commissionList" class="list"></div>
+  </div>
 </section>
 
 <section id="settings" class="view">
@@ -324,14 +373,18 @@ button{position:relative;z-index:1}
 </div></div>
 
 <div class="modal" id="expenseModal"><div class="sheet">
-<div class="sheet-head"><h2>إضافة مصروف</h2><button class="close" onclick="closeModal('expenseModal')">×</button></div>
+<div class="sheet-head"><h2 id="expenseModalTitle">إضافة مصروف</h2><button class="close" onclick="closeModal('expenseModal')">×</button></div>
 <form class="form-grid" onsubmit="saveExpense(event)">
-<div><label class="label">البيان</label><input id="eTitle" required></div>
-<div><label class="label">المبلغ</label><input id="eAmount" type="number" min="0" required></div>
+<input id="eId" type="hidden">
+<div><label class="label">رقم المرجع</label><input id="eRef" readonly></div>
 <div><label class="label">التاريخ</label><input id="eDate" type="date" required></div>
-<div><label class="label">التصنيف</label><select id="eCat"><option>تنظيف</option><option>صيانة</option><option>كهرباء</option><option>مياه</option><option>مشتريات</option><option>أخرى</option></select></div>
+<div class="full"><label class="label">البيان</label><input id="eTitle" required placeholder="مثال: فاتورة كهرباء شهر يوليو"></div>
+<div><label class="label">المبلغ</label><input id="eAmount" type="number" min="0" step="0.01" required></div>
+<div><label class="label">التصنيف</label><select id="eCat"><option>تنظيف</option><option>صيانة</option><option>كهرباء</option><option>مياه</option><option>منظفات</option><option>مشتريات</option><option>رواتب</option><option>أخرى</option></select></div>
+<div><label class="label">طريقة الدفع</label><select id="ePayment"><option>نقد</option><option>تحويل</option><option>بطاقة</option><option>أخرى</option></select></div>
+<div><label class="label">رقم الفاتورة/التحويل</label><input id="eExternalRef" placeholder="اختياري"></div>
 <div class="full"><label class="label">ملاحظات</label><textarea id="eNotes"></textarea></div>
-<div class="full"><button class="primary" type="submit">حفظ المصروف</button></div>
+<div class="full actions"><button class="primary" type="submit">حفظ المصروف</button><button id="deleteExpenseBtn" class="danger" type="button" onclick="deleteCurrentExpense()" style="display:none">حذف</button></div>
 </form></div></div>
 
 
@@ -840,7 +893,7 @@ function bookingDocumentHTML(b,type){
       <div>هذه الفاتورة صادرة آليًا من نظام إدارة الحجوزات.</div>
     </div>`;
 
-  return `<!doctype html><html lang="ar"><head><meta charset="utf-8"><title>v7.5 — ${title} ${escapeHtml(b.code||'')}</title>${documentStyle()}</head>
+  return `<!doctype html><html lang="ar"><head><meta charset="utf-8"><title>v7.6 — نظام إدارة منتجع أضواء الشرق</title>${documentStyle()}</head>
   <body><div class="actions"><button onclick="window.print()">طباعة / حفظ PDF</button></div>
   <div class="page">${common}${type==='invoice'?invoice:contract}<div class="footer">تم إنشاء هذا المستند إلكترونيًا بواسطة نظام إدارة منتجع أضواء الشرق، ولا يحتاج إلى توقيع أو ختم يدوي من الإدارة.</div></div></body></html>`;
 }
@@ -964,31 +1017,74 @@ async function completeCleaning(id){const t=db.cleaningTasks.find(x=>x.id===id);
 async function reopenCleaning(id){const t=db.cleaningTasks.find(x=>x.id===id);if(!t)return;t.status='pending';t.completedAt='';db.settings.resortStatus='cleaning';db.settings.resortStatusUpdated=new Date().toISOString();await persist()}
 async function deleteCleaningTask(){const id=cleanId.value;if(!id||!confirm('حذف مهمة التنظيف؟'))return;db.cleaningTasks=db.cleaningTasks.filter(x=>x.id!==id);await persist();closeModal('cleaningModal')}
 
-function openExpense(){eDate.value=isoToday();eTitle.value='';eAmount.value='';eNotes.value='';expenseModal.classList.add('open')}
-function saveExpense(e){e.preventDefault();db.expenses.push({id:crypto.randomUUID(),title:eTitle.value,amount:Number(eAmount.value),date:eDate.value,cat:eCat.value,notes:eNotes.value});persist();closeModal('expenseModal')}
+
+function expenseReference(){
+  const nums=(db.expenses||[]).map(e=>Number(String(e.ref||'').replace(/\D/g,''))||0);
+  return 'EXP-'+String(Math.max(0,...nums)+1).padStart(4,'0');
+}
+function openExpense(id){
+  eId.value=id||'';
+  expenseModalTitle.textContent=id?'تعديل مصروف':'إضافة مصروف';
+  deleteExpenseBtn.style.display=id?'inline-flex':'none';
+  eRef.value=expenseReference();eDate.value=isoToday();eTitle.value='';eAmount.value='';eCat.value='تنظيف';ePayment.value='نقد';eExternalRef.value='';eNotes.value='';
+  if(id){
+    const x=db.expenses.find(e=>e.id===id);if(!x)return;
+    eRef.value=x.ref||expenseReference();eDate.value=x.date||isoToday();eTitle.value=x.title||'';eAmount.value=x.amount||'';eCat.value=x.cat||'أخرى';ePayment.value=x.paymentMethod||'نقد';eExternalRef.value=x.externalRef||'';eNotes.value=x.notes||'';
+  }
+  expenseModal.classList.add('open');
+}
+async function saveExpense(e){
+  e.preventDefault();
+  const item={id:eId.value||crypto.randomUUID(),ref:eRef.value||expenseReference(),title:eTitle.value.trim(),amount:Number(eAmount.value),date:eDate.value,cat:eCat.value,paymentMethod:ePayment.value,externalRef:eExternalRef.value.trim(),notes:eNotes.value.trim(),updatedAt:new Date().toISOString()};
+  const i=db.expenses.findIndex(x=>x.id===item.id);
+  if(i>=0)db.expenses[i]={...db.expenses[i],...item};else db.expenses.push({...item,createdAt:new Date().toISOString()});
+  await persist();closeModal('expenseModal');
+}
+function financeDateMatch(date,period){
+  const d=String(date||'');
+  const today=isoToday();
+  if(period==='month')return d.slice(0,7)===today.slice(0,7);
+  if(period==='year')return d.slice(0,4)===today.slice(0,4);
+  return true;
+}
+function renderFinanceChart(){
+  if(typeof financeChart==='undefined')return;
+  const now=new Date(), months=[];
+  for(let i=11;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({key:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,label:d.toLocaleDateString('ar-SA',{month:'short'})})}
+  const rows=months.map(m=>{
+    const revenue=db.bookings.filter(b=>b.status!=='ملغي'&&String(b.date||'').slice(0,7)===m.key).reduce((s,b)=>s+Number(b.paid||0),0);
+    const expense=db.expenses.filter(e=>String(e.date||'').slice(0,7)===m.key).reduce((s,e)=>s+Number(e.amount||0),0);
+    return {...m,revenue,expense};
+  });
+  const max=Math.max(1,...rows.flatMap(r=>[r.revenue,r.expense]));
+  financeChart.innerHTML=rows.map(r=>`<div class="finance-bar-col" title="${r.label}: إيرادات ${money(r.revenue)}، مصروفات ${money(r.expense)}"><div class="finance-bar-stack"><div class="finance-bar" style="height:${Math.max(2,r.revenue/max*160)}px"></div><div class="finance-bar expense" style="height:${Math.max(2,r.expense/max*160)}px"></div></div><div class="finance-bar-label">${r.label}</div></div>`).join('');
+}
 function renderExpenses(){
-  const expensesSum=db.expenses.reduce((s,e)=>s+Number(e.amount||0),0);
-  const activeBookings=db.bookings.filter(b=>b.status!=='ملغي');
-  const collected=activeBookings.reduce((s,b)=>s+Number(b.paid||0),0);
+  if(typeof financePeriod==='undefined')return;
+  const period=financePeriod.value||'month', cat=financeCategory.value||'', payment=financePayment.value||'';
+  const activeBookings=db.bookings.filter(b=>b.status!=='ملغي'&&financeDateMatch(b.date,period));
+  const filteredExpenses=db.expenses.filter(e=>financeDateMatch(e.date,period)&&(!cat||e.cat===cat)&&(!payment||e.paymentMethod===payment));
+  const allPeriodExpenses=db.expenses.filter(e=>financeDateMatch(e.date,period));
+  const revenue=activeBookings.reduce((s,b)=>s+Number(b.paid||0),0);
+  const due=activeBookings.reduce((s,b)=>s+Math.max(0,Number(b.total||0)-Number(b.paid||0)),0);
+  const expensesSum=allPeriodExpenses.reduce((s,e)=>s+Number(e.amount||0),0);
   const fullyPaidBookings=activeBookings.filter(b=>Number(b.total||0)>0&&Number(b.paid||0)>=Number(b.total||0));
   const commission=fullyPaidBookings.length*100;
+  const profit=revenue-expensesSum-commission;
 
-  expTotal.textContent=money(expensesSum);
-  commissionTotal.textContent=money(commission);
-  fullyPaidCount.textContent=fullyPaidBookings.length;
-  netIncome.textContent=money(collected-expensesSum-commission);
+  finRevenue.textContent=money(revenue);finExpenses.textContent=money(expensesSum);finProfit.textContent=money(profit);finProfit.className='amount '+(profit>=0?'finance-positive':'finance-negative');finDue.textContent=money(due);
+  commissionTotal.textContent=money(commission);fullyPaidCount.textContent=fullyPaidBookings.length;expenseCount.textContent=filteredExpenses.length;expenseAverage.textContent=money(filteredExpenses.length?filteredExpenses.reduce((s,e)=>s+Number(e.amount||0),0)/filteredExpenses.length:0);
 
-  expenseList.innerHTML=[...db.expenses]
-    .sort((a,b)=>b.date.localeCompare(a.date))
-    .map(e=>`<div class="item"><div><h4>${escapeHtml(e.title)}</h4><div class="meta">${e.date} • ${e.cat}<br>${escapeHtml(e.notes||'')}</div></div><div><b>${money(e.amount)}</b><br><button class="danger small" onclick="removeExpense('${e.id}')">حذف</button></div></div>`)
-    .join('')||'<div class="empty">لا توجد مصروفات</div>';
+  expenseTableBody.innerHTML=[...filteredExpenses].sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(e=>`<tr><td>${escapeHtml(e.ref||'-')}</td><td>${escapeHtml(e.date||'-')}</td><td><b>${escapeHtml(e.title||'')}</b>${e.notes?`<div class="meta">${escapeHtml(e.notes)}</div>`:''}</td><td>${escapeHtml(e.cat||'-')}</td><td>${escapeHtml(e.paymentMethod||'غير محدد')}${e.externalRef?`<div class="meta">${escapeHtml(e.externalRef)}</div>`:''}</td><td><b>${money(e.amount)}</b></td><td><button class="secondary small" onclick="openExpense('${e.id}')">تعديل</button></td></tr>`).join('')||'<tr><td colspan="7" class="empty">لا توجد مصروفات مطابقة</td></tr>';
 
-  commissionList.innerHTML=[...fullyPaidBookings]
-    .sort((a,b)=>b.date.localeCompare(a.date))
-    .map(b=>`<div class="item"><div><h4>${escapeHtml(b.name)} <span class="small">#${b.code}</span></h4><div class="meta">${b.date} • إجمالي الحجز ${money(b.total)} • مكتمل السداد</div></div><b>${money(100)}</b></div>`)
-    .join('')||'<div class="empty">لا توجد عمولات مستحقة حتى الآن</div>';
+  commissionList.innerHTML=[...fullyPaidBookings].sort((a,b)=>b.date.localeCompare(a.date)).map(b=>`<div class="item"><div><h4>${escapeHtml(b.name)} <span class="small">#${b.code}</span></h4><div class="meta">${b.date} • إجمالي الحجز ${money(b.total)} • مكتمل السداد</div></div><b>${money(100)}</b></div>`).join('')||'<div class="empty">لا توجد عمولات مستحقة في الفترة المختارة</div>';
+  renderFinanceChart();
 }
-function removeExpense(id){if(confirm('حذف المصروف؟')){db.expenses=db.expenses.filter(e=>e.id!==id);persist()}}
+async function deleteCurrentExpense(){
+  const id=eId.value;if(!id||!confirm('حذف المصروف؟'))return;
+  db.expenses=db.expenses.filter(e=>e.id!==id);await persist();closeModal('expenseModal');
+}
+function removeExpense(id){openExpense(id)}
 
 function normalizePhone(v){return String(v||'').replace(/\D/g,'')}
 
