@@ -32,7 +32,7 @@ input,select,textarea{width:100%;border:1px solid #d9ddd9;border-radius:14px;pad
 .day.today{outline:3px solid #d9534f;outline-offset:-3px}
 .day .num{font-weight:900;font-size:13px}.day .dot{display:block;margin-top:5px;color:var(--green);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .day.partial .dot{color:#8b6500}
-.cal-legend{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}.cal-key{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}.cal-swatch{width:13px;height:13px;border-radius:4px;border:1px solid var(--line)}.sw-free{background:#fff}.sw-paid{background:#e7f5ef;border-color:#7ebda9}.sw-partial{background:#fff4d6;border-color:#e7bf61}.sw-today{background:#fff;border:3px solid #d9534f}
+.cal-legend{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}.cal-key{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}.cal-swatch{width:13px;height:13px;border-radius:4px;border:1px solid var(--line)}.sw-free{background:#fff}.sw-paid{background:#e7f5ef;border-color:#7ebda9}.sw-partial{background:#fff4d6;border-color:#e7bf61}.sw-today{background:#fff;border:3px solid #d9534f}.customer-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;display:grid;gap:8px}.customer-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.customer-stat{background:#f8faf9;border-radius:12px;padding:10px;text-align:center}.customer-stat b{display:block;font-size:18px}.suggestions{position:absolute;z-index:20;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.12);width:100%;max-height:220px;overflow:auto}.suggestion{padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--line)}.suggestion:hover{background:#f4f8f6}.field-wrap{position:relative}
 @media(max-width:620px){.grid{grid-template-columns:1fr 1fr}.title{font-size:27px}.form-grid{grid-template-columns:1fr}.full{grid-column:auto}}
 </style>
 </head>
@@ -68,6 +68,16 @@ input,select,textarea{width:100%;border:1px solid #d9ddd9;border-radius:14px;pad
 <section id="bookings" class="view">
   <div class="toolbar"><input id="search" placeholder="بحث بالاسم أو الجوال" oninput="renderBookings()"><select id="statusFilter" onchange="renderBookings()"><option value="">كل الحالات</option><option>مؤكد</option><option>غير مؤكد</option><option>تم الدخول</option><option>تم الخروج</option><option>ملغي</option></select></div>
   <div class="section"><div class="section-head"><h3>الحجوزات</h3><button class="primary" onclick="openBooking()">+ حجز جديد</button></div><div id="bookingList" class="list"></div></div>
+</section>
+
+<section id="customers" class="view">
+  <div class="section">
+    <div class="section-head">
+      <div><h3>سجل العملاء</h3><div class="meta">يتكوّن تلقائيًا من الحجوزات المسجلة</div></div>
+      <input id="customerSearch" placeholder="ابحث بالاسم أو الجوال" oninput="renderCustomers()" style="max-width:280px">
+    </div>
+    <div id="customerList" class="list"></div>
+  </div>
 </section>
 
 <section id="calendarView" class="view">
@@ -116,6 +126,7 @@ input,select,textarea{width:100%;border:1px solid #d9ddd9;border-radius:14px;pad
 <nav>
 <button class="active" data-view="dashboard" onclick="switchView('dashboard',this)"><b>أ</b>الرئيسية</button>
 <button data-view="bookings" onclick="switchView('bookings',this)"><b>▣</b>الحجوزات</button>
+<button data-view="customers" onclick="switchView('customers',this)"><b>♟</b>العملاء</button>
 <button data-view="calendarView" onclick="switchView('calendarView',this)"><b>▦</b>التقويم</button>
 <button data-view="expenses" onclick="switchView('expenses',this)"><b>◫</b>المصاريف</button>
 <button data-view="settings" onclick="switchView('settings',this)"><b>⚙</b>الإعدادات</button>
@@ -128,7 +139,7 @@ input,select,textarea{width:100%;border:1px solid #d9ddd9;border-radius:14px;pad
 <div id="voiceHint" class="meta" style="margin:8px 0 12px">مثال: محمد العتيبي يوم 25 يوليو عربون 200 الإجمالي 700 مبيت</div>
 <form id="bookingForm" class="form-grid" onsubmit="saveBooking(event)">
 <input type="hidden" id="bId">
-<div><label class="label">اسم العميل</label><input id="bName" required></div>
+<div class="field-wrap"><label class="label">اسم العميل</label><input id="bName" required oninput="showCustomerSuggestions()"><div id="customerSuggestions" class="suggestions" style="display:none"></div></div>
 <div><label class="label">رقم الجوال</label><input id="bPhone" inputmode="tel"></div>
 <div><label class="label">تاريخ الحجز</label><input id="bDate" type="date" required onchange="checkSelectedDate()"><div id="dateHint" class="meta" style="margin-top:5px"></div></div>
 <div><label class="label">نوع الحجز</label><select id="bType"><option>يومي</option><option>مبيت</option></select></div>
@@ -262,8 +273,8 @@ function isoToday(){return new Date().toISOString().slice(0,10)}
 function daysUntil(d){let a=new Date();a.setHours(0,0,0,0);let b=new Date(d+'T00:00:00');return Math.ceil((b-a)/86400000)}
 function upcoming(){return db.bookings.filter(b=>b.status!=='ملغي'&&b.status!=='تم الخروج'&&daysUntil(b.date)>=0).sort((a,b)=>a.date.localeCompare(b.date))}
 function statusClass(s){return s==='مؤكد'?'confirmed':s==='غير مؤكد'?'pending':s==='تم الدخول'?'entered':'cancelled'}
-function switchView(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));(btn||document.querySelector(`nav button[data-view="${id}"]`))?.classList.add('active');const t={dashboard:['لوحة إدارة المنتجع','متابعة الحجوزات والمبالغ من مكان واحد'],bookings:['إدارة الحجوزات','إضافة وتعديل ومتابعة جميع الحجوزات'],calendarView:['تقويم الحجوزات','عرض الأيام المحجوزة ومنع التداخل'],expenses:['المصاريف والدخل','متابعة المصروفات وصافي الدخل'],settings:['الإعدادات','النسخ الاحتياطي وبيانات واتساب']}[id];pageTitle.textContent=t[0];pageSub.textContent=t[1];window.scrollTo(0,0);renderAll()}
-function renderAll(){renderDashboard();renderBookings();renderExpenses();renderCalendar();waNumber.value=db.settings.waNumber||'';welcomeMsg.value=db.settings.welcomeMsg||DEFAULT_MSG}
+function switchView(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));(btn||document.querySelector(`nav button[data-view="${id}"]`))?.classList.add('active');const t={dashboard:['لوحة إدارة المنتجع','متابعة الحجوزات والمبالغ من مكان واحد'],bookings:['إدارة الحجوزات','إضافة وتعديل ومتابعة جميع الحجوزات'],customers:['سجل العملاء','عدد الزيارات والمدفوعات وآخر حجز'],calendarView:['تقويم الحجوزات','عرض الأيام المحجوزة ومنع التداخل'],expenses:['المصاريف والدخل','متابعة المصروفات وصافي الدخل'],settings:['الإعدادات','النسخ الاحتياطي وبيانات واتساب']}[id];pageTitle.textContent=t[0];pageSub.textContent=t[1];window.scrollTo(0,0);renderAll()}
+function renderAll(){renderDashboard();renderBookings();renderCustomers();renderExpenses();renderCalendar();waNumber.value=db.settings.waNumber||'';welcomeMsg.value=db.settings.welcomeMsg||DEFAULT_MSG}
 function renderDashboard(){let ups=upcoming(),paid=db.bookings.filter(b=>b.status!=='ملغي').reduce((s,b)=>s+Number(b.paid||0),0),tot=db.bookings.filter(b=>b.status!=='ملغي').reduce((s,b)=>s+Number(b.total||0),0);sUpcoming.textContent=ups.length;sPaid.textContent=money(paid);sDue.textContent=money(tot-paid);sTotal.textContent=db.bookings.length;let n=ups[0];nextBooking.textContent=n?n.name:'لا يوجد حجز قادم';if(n){
   const left=Math.max(0,daysUntil(n.date));
   const leftText=left===0?'الحجز اليوم':left===1?'متبقي يوم واحد':`متبقي ${left} أيام`;
@@ -290,6 +301,8 @@ function openBooking(id,presetDate){
     bookingModalTitle.textContent='تعديل الحجز';
   }
   dateHint.textContent='';
+  customerSuggestions.style.display='none';
+  customerSuggestions.innerHTML='';
   bookingModal.classList.add('open');
 }
 function closeModal(id){document.getElementById(id).classList.remove('open')}
@@ -356,6 +369,82 @@ function renderExpenses(){
     .join('')||'<div class="empty">لا توجد عمولات مستحقة حتى الآن</div>';
 }
 function removeExpense(id){if(confirm('حذف المصروف؟')){db.expenses=db.expenses.filter(e=>e.id!==id);persist()}}
+
+function normalizePhone(v){return String(v||'').replace(/\D/g,'')}
+
+function getCustomers(){
+  const map=new Map();
+  db.bookings.filter(b=>b.status!=='ملغي').forEach(b=>{
+    const phone=normalizePhone(b.phone);
+    const key=phone||String(b.name||'').trim().toLowerCase();
+    if(!key)return;
+    if(!map.has(key))map.set(key,{name:b.name||'',phone:b.phone||'',bookings:[],totalPaid:0,lastVisit:''});
+    const c=map.get(key);
+    c.bookings.push(b);
+    c.totalPaid+=Number(b.paid||0);
+    if(!c.lastVisit||b.date>c.lastVisit)c.lastVisit=b.date;
+    if(!c.phone&&b.phone)c.phone=b.phone;
+    if(!c.name&&b.name)c.name=b.name;
+  });
+  return [...map.values()].sort((a,b)=>b.lastVisit.localeCompare(a.lastVisit));
+}
+
+function renderCustomers(){
+  if(typeof customerList==='undefined')return;
+  const raw=String(customerSearch?.value||'').trim();
+  const q=raw.toLowerCase();
+  const qPhone=normalizePhone(raw);
+  const list=getCustomers().filter(c=>!q||c.name.toLowerCase().includes(q)||(qPhone&&normalizePhone(c.phone).includes(qPhone)));
+  customerList.innerHTML=list.map(c=>`
+    <div class="customer-card">
+      <div><h4>${escapeHtml(c.name||'بدون اسم')}</h4><div class="meta">${escapeHtml(c.phone||'بدون رقم')}</div></div>
+      <div class="customer-stats">
+        <div class="customer-stat"><span class="meta">عدد الحجوزات</span><b>${c.bookings.length}</b></div>
+        <div class="customer-stat"><span class="meta">إجمالي المدفوع</span><b>${money(c.totalPaid)}</b></div>
+        <div class="customer-stat"><span class="meta">آخر حجز</span><b style="font-size:14px">${c.lastVisit||'-'}</b></div>
+      </div>
+      <button class="secondary" onclick="filterBookingsForCustomer('${encodeURIComponent(c.phone||c.name)}')">عرض حجوزاته</button>
+    </div>`).join('')||'<div class="empty">لا يوجد عملاء مطابقون</div>';
+}
+
+function filterBookingsForCustomer(value){
+  const decoded=decodeURIComponent(value);
+  switchView('bookings');
+  search.value=decoded;
+  renderBookings();
+}
+
+function showCustomerSuggestions(){
+  const q=String(bName.value||'').trim().toLowerCase();
+  if(!q){
+    customerSuggestions.style.display='none';
+    customerSuggestions.innerHTML='';
+    return;
+  }
+  const matches=getCustomers().filter(c=>c.name.toLowerCase().includes(q)).slice(0,6);
+  customerSuggestions._matches=matches;
+  if(!matches.length){
+    customerSuggestions.style.display='none';
+    customerSuggestions.innerHTML='';
+    return;
+  }
+  customerSuggestions.innerHTML=matches.map((c,i)=>`
+    <div class="suggestion" onclick="selectCustomerSuggestion(${i})">
+      <b>${escapeHtml(c.name)}</b>
+      <div class="meta">${escapeHtml(c.phone||'بدون رقم')} • ${c.bookings.length} حجوزات</div>
+    </div>`).join('');
+  customerSuggestions.style.display='block';
+}
+
+function selectCustomerSuggestion(index){
+  const c=customerSuggestions._matches?.[index];
+  if(!c)return;
+  bName.value=c.name||'';
+  bPhone.value=c.phone||'';
+  customerSuggestions.style.display='none';
+  customerSuggestions.innerHTML='';
+}
+
 function renderCalendar(){
   let y=calDate.getFullYear(),m=calDate.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0);
   calTitle.textContent=first.toLocaleDateString('ar-SA',{month:'long',year:'numeric'});
