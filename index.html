@@ -57,6 +57,17 @@ button{position:relative;z-index:1}
   .top-customer-card button{grid-column:1/-1;width:100%}
 }
 
+
+.alerts-list{display:grid;gap:10px}
+.alert-card{display:flex;align-items:flex-start;gap:12px;padding:14px;border-radius:15px;border:1px solid #e3e9e7;background:#fff}
+.alert-icon{font-size:22px;line-height:1}
+.alert-card h4{margin:0 0 5px;font-size:15px}
+.alert-card p{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
+.alert-card.danger{border-right:5px solid #c0392b}
+.alert-card.warning{border-right:5px solid #d59b00}
+.alert-card.success{border-right:5px solid #238b57}
+.alert-card.info{border-right:5px solid #2d6cdf}
+
 </style>
 </head>
 <body>
@@ -100,6 +111,12 @@ button{position:relative;z-index:1}
       <button class="link" onclick="switchView('customers')">صفحة العملاء ←</button>
     </div>
     <div id="topCustomersList" class="top-customers-list"></div>
+  </div>
+  <div class="section">
+    <div class="section-head">
+      <div><h3>🔔 مركز التنبيهات</h3><div class="meta">تنبيهات تلقائية حسب الحجوزات والمدفوعات</div></div>
+    </div>
+    <div id="alertsList" class="alerts-list"></div>
   </div>
 </section>
 
@@ -338,6 +355,76 @@ function renderTopCustomers(){
   }).join('')||'<div class="empty">لا توجد بيانات عملاء حتى الآن</div>';
 }
 
+function renderAlerts(){
+  if(typeof alertsList==='undefined')return;
+
+  const active=db.bookings.filter(b=>b.status!=='ملغي');
+  const today=isoToday();
+  const tomorrowDate=new Date(today+'T00:00:00');
+  tomorrowDate.setDate(tomorrowDate.getDate()+1);
+  const tomorrow=tomorrowDate.toISOString().slice(0,10);
+
+  const weekEndDate=new Date(today+'T00:00:00');
+  weekEndDate.setDate(weekEndDate.getDate()+7);
+  const weekEnd=weekEndDate.toISOString().slice(0,10);
+
+  const tomorrowBookings=active.filter(b=>b.date===tomorrow);
+  const unpaid=active.filter(b=>Math.max(0,Number(b.total||0)-Number(b.paid||0))>0);
+  const nextWeek=active.filter(b=>b.date>today&&b.date<=weekEnd);
+  const repeatCustomers=getCustomers().filter(c=>c.bookings.length>=3);
+  const alerts=[];
+
+  if(tomorrowBookings.length){
+    alerts.push({
+      type:'danger',
+      icon:'📅',
+      title:`يوجد ${tomorrowBookings.length} حجز ${tomorrowBookings.length===1?'غدًا':'غدًا'}`,
+      text:tomorrowBookings.map(b=>b.name).join('، ')
+    });
+  }
+
+  if(unpaid.length){
+    const totalDue=unpaid.reduce((s,b)=>s+Math.max(0,Number(b.total||0)-Number(b.paid||0)),0);
+    alerts.push({
+      type:'warning',
+      icon:'💰',
+      title:`${unpaid.length} حجز غير مكتمل السداد`,
+      text:`إجمالي المبالغ المتبقية: ${money(totalDue)}`
+    });
+  }
+
+  if(!nextWeek.length){
+    alerts.push({
+      type:'info',
+      icon:'📭',
+      title:'لا توجد حجوزات خلال الأيام السبعة القادمة',
+      text:'يمكن متابعة التسويق أو تقديم عرض للفترة القادمة.'
+    });
+  }else{
+    alerts.push({
+      type:'success',
+      icon:'✅',
+      title:`لديك ${nextWeek.length} حجز خلال الأيام السبعة القادمة`,
+      text:'راجع بيانات العملاء ومواعيد الدخول قبل موعد كل حجز.'
+    });
+  }
+
+  if(repeatCustomers.length){
+    alerts.push({
+      type:'success',
+      icon:'⭐',
+      title:`${repeatCustomers.length} عميل متكرر`,
+      text:'هؤلاء العملاء لديهم 3 حجوزات أو أكثر وقد يستحقون عرضًا خاصًا.'
+    });
+  }
+
+  alertsList.innerHTML=alerts.map(a=>`
+    <div class="alert-card ${a.type}">
+      <div class="alert-icon">${a.icon}</div>
+      <div><h4>${escapeHtml(a.title)}</h4><p>${escapeHtml(a.text)}</p></div>
+    </div>`).join('')||'<div class="empty">لا توجد تنبيهات حاليًا</div>';
+}
+
 function renderDashboard(){
   const active=db.bookings.filter(b=>b.status!=='ملغي');
   const ups=upcoming();
@@ -388,6 +475,7 @@ function renderDashboard(){
   }
   nearList.innerHTML=ups.slice(0,5).map(itemHTML).join('')||'<div class="empty">لا توجد حجوزات قادمة</div>';
   renderTopCustomers();
+  renderAlerts();
 }
 function itemHTML(b){
   const due=Math.max(0,Number(b.total||0)-Number(b.paid||0));
