@@ -22,6 +22,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#073d33;color:#fff;display
 .view{display:none}.view.active{display:block}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.toolbar input,.toolbar select{flex:1;min-width:150px}
 input,select,textarea{width:100%;border:1px solid #d9ddd9;border-radius:14px;padding:13px;background:#fff;color:var(--text)}textarea{min-height:90px;resize:vertical}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}.label{font-size:13px;color:var(--muted);margin:0 4px 6px;display:block}.primary{border:0;background:var(--green);color:#fff;padding:13px 18px;border-radius:14px;font-weight:800}.secondary{border:1px solid #cfd7d3;background:#fff;color:var(--green);padding:12px 16px;border-radius:14px;font-weight:800}.danger{border:0;background:#fde8e8;color:var(--danger);padding:10px 14px;border-radius:13px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.send-center{grid-column:1/-1;background:#fff;border:1px solid var(--line);border-radius:18px;padding:14px;margin-top:6px}.send-center h3{margin:0 0 5px}.send-center .meta{margin-bottom:10px}.send-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.send-grid button{width:100%;text-align:center}.send-status{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.send-chip{font-size:12px;padding:6px 9px;border-radius:999px;background:#fff3d9;color:#8b6500}.send-chip.sent{background:#e4f4ee;color:#14785f}@media(max-width:620px){.send-grid{grid-template-columns:1fr}}
 .modal{position:fixed;inset:0;background:#0007;display:none;align-items:flex-end;z-index:50}.modal.open{display:flex}.sheet{background:var(--bg);width:100%;max-height:93vh;overflow:auto;border-radius:28px 28px 0 0;padding:18px}.sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.close{border:0;background:#e9ece9;border-radius:12px;width:40px;height:40px;font-size:20px}
 .empty{padding:34px;text-align:center;color:var(--muted)}.money{font-variant-numeric:tabular-nums}.voice{background:var(--gold);color:#fff;border:0;border-radius:999px;padding:13px 17px;font-weight:900}
 .notice{background:#fff8e7;border:1px solid #f0d494;color:#76520b;border-radius:16px;padding:12px;margin:12px 0}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.grow{flex:1}.small{font-size:13px}.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
@@ -240,10 +241,22 @@ button{position:relative;z-index:1}
 <div class="full"><label class="label">ملاحظات</label><textarea id="bNotes"></textarea></div>
 <div class="full actions">
 <button class="primary" type="submit">حفظ الحجز</button>
-<button class="secondary" type="button" onclick="printBookingDocument('contract')">📄 العقد</button>
-<button class="secondary" type="button" onclick="printBookingDocument('invoice')">🧾 الفاتورة</button>
-<button class="secondary" type="button" onclick="sendBookingDocumentWhatsApp()">📲 واتساب</button>
 <button class="danger" id="deleteBookingBtn" type="button" onclick="deleteBooking()" style="display:none">حذف</button>
+</div>
+<div class="send-center">
+  <h3>📲 مركز الإرسال اليدوي</h3>
+  <div class="meta">أنشئ العقد أو الفاتورة واحفظه PDF، ثم افتح واتساب وأرفق الملف يدويًا.</div>
+  <div class="send-grid">
+    <button class="secondary" type="button" onclick="printBookingDocument('contract')">📄 إنشاء العقد / PDF</button>
+    <button class="secondary" type="button" onclick="sendManualWhatsApp('contract')">📲 رسالة إرسال العقد</button>
+    <button class="secondary" type="button" onclick="printBookingDocument('invoice')">🧾 إنشاء الفاتورة / PDF</button>
+    <button class="secondary" type="button" onclick="sendManualWhatsApp('invoice')">📲 رسالة إرسال الفاتورة</button>
+    <button class="secondary" type="button" onclick="sendManualWhatsApp('welcome')">🌹 رسالة الترحيب</button>
+    <button class="secondary" type="button" onclick="sendManualWhatsApp('reminder')">⏰ تذكير بموعد الحجز</button>
+    <button class="secondary" type="button" onclick="sendManualWhatsApp('due')">💰 تذكير بالمبلغ المتبقي</button>
+    <button class="secondary" type="button" onclick="sendManualWhatsApp('thanks')">🙏 رسالة شكر بعد المغادرة</button>
+  </div>
+  <div id="sendStatus" class="send-status"></div>
 </div>
 </form></div></div>
 
@@ -370,7 +383,7 @@ function daysUntil(d){let a=new Date();a.setHours(0,0,0,0);let b=new Date(d+'T00
 function upcoming(){return db.bookings.filter(b=>b.status!=='ملغي'&&b.status!=='تم الخروج'&&daysUntil(b.date)>=0).sort((a,b)=>a.date.localeCompare(b.date))}
 function statusClass(s){return s==='مؤكد'?'confirmed':s==='غير مؤكد'?'pending':s==='تم الدخول'?'entered':'cancelled'}
 function switchView(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));(btn||document.querySelector(`nav button[data-view="${id}"]`))?.classList.add('active');const t={dashboard:['لوحة إدارة المنتجع','متابعة الحجوزات والمبالغ من مكان واحد'],bookings:['إدارة الحجوزات','إضافة وتعديل ومتابعة جميع الحجوزات'],customers:['سجل العملاء','عدد الزيارات والمدفوعات وآخر حجز'],calendarView:['تقويم الحجوزات','عرض الأيام المحجوزة ومنع التداخل'],expenses:['المصاريف والدخل','متابعة المصروفات وصافي الدخل'],settings:['الإعدادات','النسخ الاحتياطي وبيانات واتساب']}[id];pageTitle.textContent=t[0];pageSub.textContent=t[1];window.scrollTo(0,0);renderAll()}
-function renderAll(){renderDashboard();renderBookings();renderCustomers();renderExpenses();renderCalendar();waNumber.value=db.settings.waNumber||'';welcomeMsg.value=db.settings.welcomeMsg||DEFAULT_MSG}
+function renderAll(){renderDashboard();renderBookings();renderCustomers();renderExpenses();renderCalendar();waNumber.value=db.settings.waNumber||'';welcomeMsg.value=db.settings.welcomeMsg||DEFAULT_MSG;renderSendStatus()}
 function renderTopCustomers(){
   if(typeof topCustomersList==='undefined')return;
   const ranked=getCustomers()
@@ -614,6 +627,7 @@ function openBooking(id,presetDate){
   customerSuggestions.style.display='none';
   customerSuggestions.innerHTML='';
   bookingModal.classList.add('open');
+  renderSendStatus();
 }
 function closeModal(id){document.getElementById(id).classList.remove('open')}
 function nextAvailableDate(fromDate){
@@ -675,7 +689,7 @@ function documentStyle(){
       .terms{margin-top:22px;line-height:1.9}
       .terms h3{margin-bottom:8px}
       .signatures{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:60px}
-      .sig{border-top:1px solid #7d8a85;padding-top:9px;text-align:center}
+      .sig{border-top:1px solid #7d8a85;padding-top:9px;text-align:center}.signature-name{font-family:"Segoe Script","Brush Script MT",cursive;font-size:30px;color:#153d73;font-weight:700;margin:8px 0 3px}.signed-note{font-size:12px;color:#66736e}.customer-approval{font-size:12px;line-height:1.8;color:#40534c;margin-top:7px}
       .footer{margin-top:30px;text-align:center;color:#66736e;font-size:12px}
       .actions{position:fixed;left:20px;top:20px}
       .actions button{padding:10px 16px;border:0;border-radius:8px;background:#0f6b59;color:#fff;cursor:pointer}
@@ -724,8 +738,8 @@ function bookingDocumentHTML(b,type){
       <div>6. العربون يثبت الحجز، ويخضع الإلغاء للاتفاق مع إدارة المنتجع.</div>
     </div>
     <div class="signatures">
-      <div class="sig">توقيع العميل</div>
-      <div class="sig">إدارة منتجع أضواء الشرق</div>
+      <div class="sig"><b>توقيع العميل</b><div class="customer-approval">باستكمال إجراءات الحجز أو سداد العربون أو تأكيد الحجز إلكترونيًا، يقر العميل بأنه اطلع على جميع شروط العقد ووافق عليها، ويُعد هذا العقد موقعًا إلكترونيًا من قبله.</div></div>
+      <div class="sig"><b>إدارة منتجع أضواء الشرق</b><div class="signature-name">الفوزان</div><div class="signed-note">تم التوقيع والختم إلكترونيًا</div></div>
     </div>`;
 
   const invoice=`
@@ -738,7 +752,7 @@ function bookingDocumentHTML(b,type){
 
   return `<!doctype html><html lang="ar"><head><meta charset="utf-8"><title>${title} ${escapeHtml(b.code||'')}</title>${documentStyle()}</head>
   <body><div class="actions"><button onclick="window.print()">طباعة / حفظ PDF</button></div>
-  <div class="page">${common}${type==='invoice'?invoice:contract}<div class="footer">منتجع أضواء الشرق — نظام إدارة الحجوزات</div></div></body></html>`;
+  <div class="page">${common}${type==='invoice'?invoice:contract}<div class="footer">تم إنشاء هذا المستند إلكترونيًا بواسطة نظام إدارة منتجع أضواء الشرق، ولا يحتاج إلى توقيع أو ختم يدوي من الإدارة.</div></div></body></html>`;
 }
 
 function printBookingDocument(type){
@@ -757,24 +771,63 @@ function printBookingDocument(type){
   w.document.close();
 }
 
-function sendBookingDocumentWhatsApp(){
+function getCurrentStoredBooking(){
   const b=getBookingFromForm();
-  if(!b.name||!b.date){
-    alert('أدخل اسم العميل وتاريخ الحجز أولًا.');
-    return;
-  }
+  return db.bookings.find(x=>x.id===b.id)||b;
+}
+
+function messageStatusLabel(key){
+  return {contract:'العقد',invoice:'الفاتورة',welcome:'الترحيب',reminder:'تذكير الموعد',due:'تذكير المتبقي',thanks:'الشكر'}[key]||key;
+}
+
+function renderSendStatus(){
+  const el=document.getElementById('sendStatus');
+  if(!el)return;
+  const id=bId.value;
+  const stored=id?db.bookings.find(x=>x.id===id):null;
+  const log=stored?.manualMessages||{};
+  const keys=['contract','invoice','welcome','reminder','due','thanks'];
+  el.innerHTML=keys.map(k=>`<span class="send-chip ${log[k]?'sent':''}">${log[k]?'✓ تم إرسال ':'○ لم يُرسل '}${messageStatusLabel(k)}</span>`).join('');
+}
+
+function manualMessageText(type,b){
   const due=Math.max(0,Number(b.total||0)-Number(b.paid||0));
-  const text=`مرحبًا ${b.name}
-تم تسجيل حجزك في منتجع أضواء الشرق.
-رقم الحجز: ${b.code}
-التاريخ: ${b.date}
-نوع الحجز: ${b.type}
-الإجمالي: ${money(b.total)}
-المدفوع: ${money(b.paid)}
-المتبقي: ${money(due)}
-يمكنك طلب نسخة العقد أو الفاتورة من إدارة المنتجع.`;
+  const base=`رقم الحجز: ${b.code||'-'}\nتاريخ الحجز: ${b.date||'-'}\nنوع الحجز: ${b.type||'-'}`;
+  const messages={
+    contract:`مرحبًا ${b.name}\nمرفق لكم عقد حجز منتجع أضواء الشرق.\n${base}\nنأمل الاطلاع على العقد، ويُعد استكمال الحجز أو سداد العربون موافقة على شروطه.`,
+    invoice:`مرحبًا ${b.name}\nمرفق لكم فاتورة حجز منتجع أضواء الشرق.\n${base}\nالإجمالي: ${money(b.total)}\nالمدفوع: ${money(b.paid)}\nالمتبقي: ${money(due)}`,
+    welcome:`مرحبًا ${b.name} 🌿\n${db.settings.welcomeMsg||DEFAULT_MSG}\n${base}`,
+    reminder:`مرحبًا ${b.name}\nنذكركم بموعد حجزكم في منتجع أضواء الشرق.\n${base}\nوقت الدخول الساعة 3:30 عصرًا. نتشرف بخدمتكم.`,
+    due:`مرحبًا ${b.name}\nنود تذكيركم بأن المبلغ المتبقي على الحجز هو ${money(due)}.\n${base}\nشاكرين تعاونكم.`,
+    thanks:`شكرًا لاختياركم منتجع أضواء الشرق يا ${b.name} 🌿\nسعدنا باستضافتكم، ونتطلع لخدمتكم مرة أخرى.\nرقم الحجز: ${b.code||'-'}`
+  };
+  return messages[type]||'';
+}
+
+async function markManualMessageSent(type){
+  const id=bId.value;
+  if(!id)return;
+  const i=db.bookings.findIndex(x=>x.id===id);
+  if(i<0)return;
+  db.bookings[i].manualMessages={...(db.bookings[i].manualMessages||{}),[type]:new Date().toISOString()};
+  await persist();
+  renderSendStatus();
+}
+
+function sendManualWhatsApp(type){
+  const b=getBookingFromForm();
+  if(!b.name||!b.date){alert('أدخل اسم العميل وتاريخ الحجز أولًا.');return;}
   const phone=normalizePhone(b.phone);
-  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`,'_blank');
+  if(!phone){alert('أدخل رقم جوال العميل أولًا.');return;}
+  if((type==='contract'||type==='invoice')){
+    alert(`تأكد أولًا من حفظ ${type==='contract'?'العقد':'الفاتورة'} بصيغة PDF. بعد فتح واتساب أرفق الملف يدويًا ثم أرسل الرسالة.`);
+  }
+  const url=`https://wa.me/${phone}?text=${encodeURIComponent(manualMessageText(type,b))}`;
+  const opened=window.open(url,'_blank');
+  if(!opened){alert('تعذر فتح واتساب. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.');return;}
+  setTimeout(async()=>{
+    if(confirm(`هل أرسلت ${messageStatusLabel(type)} للعميل بالفعل؟`)) await markManualMessageSent(type);
+  },700);
 }
 
 function saveBooking(e){
