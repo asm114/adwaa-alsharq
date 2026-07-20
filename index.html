@@ -238,7 +238,13 @@ button{position:relative;z-index:1}
 <div><label class="label">الحالة</label><select id="bStatus"><option>مؤكد</option><option>غير مؤكد</option><option>تم الدخول</option><option>تم الخروج</option><option>ملغي</option></select></div>
 <div><label class="label">رقم الحجز</label><input id="bCode" readonly></div>
 <div class="full"><label class="label">ملاحظات</label><textarea id="bNotes"></textarea></div>
-<div class="full actions"><button class="primary" type="submit">حفظ الحجز</button><button class="secondary" type="button" onclick="sendWhatsAppFromForm()">واتساب</button><button class="danger" id="deleteBookingBtn" type="button" onclick="deleteBooking()" style="display:none">حذف</button></div>
+<div class="full actions">
+<button class="primary" type="submit">حفظ الحجز</button>
+<button class="secondary" type="button" onclick="printBookingDocument('contract')">📄 العقد</button>
+<button class="secondary" type="button" onclick="printBookingDocument('invoice')">🧾 الفاتورة</button>
+<button class="secondary" type="button" onclick="sendBookingDocumentWhatsApp()">📲 واتساب</button>
+<button class="danger" id="deleteBookingBtn" type="button" onclick="deleteBooking()" style="display:none">حذف</button>
+</div>
 </form></div></div>
 
 <div class="modal" id="expenseModal"><div class="sheet">
@@ -633,6 +639,144 @@ function checkSelectedDate(){
     dateHint.style.color='#14785f';
   }
 }
+function getBookingFromForm(){
+  return {
+    id:bId.value||'',
+    code:bCode.value||'',
+    name:bName.value.trim(),
+    phone:bPhone.value.trim(),
+    date:bDate.value,
+    type:bType.value,
+    paid:Number(bPaid.value||0),
+    total:Number(bTotal.value||0),
+    status:bStatus.value,
+    notes:bNotes.value.trim()
+  };
+}
+
+function documentStyle(){
+  return `
+    <style>
+      *{box-sizing:border-box}
+      body{font-family:Arial,Tahoma,sans-serif;direction:rtl;margin:0;background:#f4f6f5;color:#17332d}
+      .page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;padding:18mm}
+      .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0f6b59;padding-bottom:14px;margin-bottom:18px}
+      h1{margin:0;color:#0f6b59;font-size:25px}
+      .sub{font-size:13px;color:#66736e;margin-top:6px}
+      .code{font-weight:800;border:1px solid #cfd9d5;border-radius:10px;padding:10px 14px}
+      .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin:16px 0}
+      .field{border:1px solid #dfe8e4;border-radius:10px;padding:10px}
+      .label{font-size:12px;color:#66736e;margin-bottom:5px}
+      .value{font-weight:700}
+      .totals{margin-top:18px;border:1px solid #dfe8e4;border-radius:12px;overflow:hidden}
+      .row{display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid #edf2f0}
+      .row:last-child{border-bottom:0}
+      .row.total{font-size:18px;font-weight:800;background:#eef7f3}
+      .terms{margin-top:22px;line-height:1.9}
+      .terms h3{margin-bottom:8px}
+      .signatures{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:60px}
+      .sig{border-top:1px solid #7d8a85;padding-top:9px;text-align:center}
+      .footer{margin-top:30px;text-align:center;color:#66736e;font-size:12px}
+      .actions{position:fixed;left:20px;top:20px}
+      .actions button{padding:10px 16px;border:0;border-radius:8px;background:#0f6b59;color:#fff;cursor:pointer}
+      @media print{
+        body{background:#fff}
+        .page{margin:0;padding:14mm}
+        .actions{display:none}
+      }
+    </style>`;
+}
+
+function bookingDocumentHTML(b,type){
+  const due=Math.max(0,Number(b.total||0)-Number(b.paid||0));
+  const title=type==='invoice'?'فاتورة حجز':'عقد حجز';
+  const bookingTimes=b.type==='مبيت'
+    ?'الدخول الساعة 3:30 عصرًا، والخروج الساعة 8:00 صباحًا مع سماح حتى الساعة 10:00 صباحًا.'
+    :'الدخول الساعة 3:30 عصرًا، والخروج الساعة 3:00 فجرًا.';
+  const notes=escapeHtml(b.notes||'لا توجد ملاحظات');
+  const common=`
+    <div class="head">
+      <div><h1>منتجع أضواء الشرق</h1><div class="sub">${title} — القاع البارد</div></div>
+      <div class="code">رقم الحجز: ${escapeHtml(b.code||'-')}</div>
+    </div>
+    <div class="grid">
+      <div class="field"><div class="label">اسم العميل</div><div class="value">${escapeHtml(b.name||'-')}</div></div>
+      <div class="field"><div class="label">رقم الجوال</div><div class="value">${escapeHtml(b.phone||'-')}</div></div>
+      <div class="field"><div class="label">تاريخ الحجز</div><div class="value">${escapeHtml(b.date||'-')}</div></div>
+      <div class="field"><div class="label">نوع الحجز</div><div class="value">${escapeHtml(b.type||'-')}</div></div>
+      <div class="field"><div class="label">حالة الحجز</div><div class="value">${escapeHtml(b.status||'-')}</div></div>
+      <div class="field"><div class="label">الملاحظات</div><div class="value">${notes}</div></div>
+    </div>
+    <div class="totals">
+      <div class="row"><span>المبلغ الإجمالي</span><b>${money(b.total)}</b></div>
+      <div class="row"><span>المدفوع</span><b>${money(b.paid)}</b></div>
+      <div class="row total"><span>المتبقي</span><b>${money(due)}</b></div>
+    </div>`;
+
+  const contract=`
+    <div class="terms">
+      <h3>شروط الحجز</h3>
+      <div>1. ${bookingTimes}</div>
+      <div>2. يلتزم العميل بالمحافظة على نظافة الموقع ومحتوياته.</div>
+      <div>3. يمنع العبث بالأجهزة أو نقل الأثاث دون موافقة الإدارة.</div>
+      <div>4. يتحمل العميل قيمة أي تلفيات ناتجة عن سوء الاستخدام.</div>
+      <div>5. يجب التأكد من إغلاق المياه والأنوار عند المغادرة.</div>
+      <div>6. العربون يثبت الحجز، ويخضع الإلغاء للاتفاق مع إدارة المنتجع.</div>
+    </div>
+    <div class="signatures">
+      <div class="sig">توقيع العميل</div>
+      <div class="sig">إدارة منتجع أضواء الشرق</div>
+    </div>`;
+
+  const invoice=`
+    <div class="terms">
+      <h3>بيان الفاتورة</h3>
+      <div>الخدمة: حجز منتجع أضواء الشرق — ${escapeHtml(b.type||'')}</div>
+      <div>تاريخ إصدار الفاتورة: ${new Date().toLocaleDateString('ar-SA')}</div>
+      <div>هذه الفاتورة صادرة آليًا من نظام إدارة الحجوزات.</div>
+    </div>`;
+
+  return `<!doctype html><html lang="ar"><head><meta charset="utf-8"><title>${title} ${escapeHtml(b.code||'')}</title>${documentStyle()}</head>
+  <body><div class="actions"><button onclick="window.print()">طباعة / حفظ PDF</button></div>
+  <div class="page">${common}${type==='invoice'?invoice:contract}<div class="footer">منتجع أضواء الشرق — نظام إدارة الحجوزات</div></div></body></html>`;
+}
+
+function printBookingDocument(type){
+  const b=getBookingFromForm();
+  if(!b.name||!b.date){
+    alert('أدخل اسم العميل وتاريخ الحجز أولًا.');
+    return;
+  }
+  const w=window.open('','_blank');
+  if(!w){
+    alert('المتصفح منع فتح نافذة الطباعة. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.');
+    return;
+  }
+  w.document.open();
+  w.document.write(bookingDocumentHTML(b,type));
+  w.document.close();
+}
+
+function sendBookingDocumentWhatsApp(){
+  const b=getBookingFromForm();
+  if(!b.name||!b.date){
+    alert('أدخل اسم العميل وتاريخ الحجز أولًا.');
+    return;
+  }
+  const due=Math.max(0,Number(b.total||0)-Number(b.paid||0));
+  const text=`مرحبًا ${b.name}
+تم تسجيل حجزك في منتجع أضواء الشرق.
+رقم الحجز: ${b.code}
+التاريخ: ${b.date}
+نوع الحجز: ${b.type}
+الإجمالي: ${money(b.total)}
+المدفوع: ${money(b.paid)}
+المتبقي: ${money(due)}
+يمكنك طلب نسخة العقد أو الفاتورة من إدارة المنتجع.`;
+  const phone=normalizePhone(b.phone);
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`,'_blank');
+}
+
 function saveBooking(e){
   e.preventDefault();
   let id=bId.value;
