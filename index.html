@@ -76,7 +76,7 @@ input,select,textarea{width:100%;border:1px solid #d9ddd9;border-radius:14px;pad
 
 <section id="settings" class="view">
   <div class="section"><div class="section-head"><h3>النسخ الاحتياطي والإعدادات</h3></div><div style="padding:18px">
-    <div class="notice">البيانات محفوظة داخل هذا الجهاز والمتصفح. خذ نسخة احتياطية بانتظام.</div>
+    <div id="syncStatus" class="notice">جاري الاتصال بقاعدة البيانات...</div>
     <div class="actions">
       <button class="primary" onclick="exportData()">تصدير نسخة احتياطية</button>
       <label class="secondary">استيراد نسخة<input type="file" accept=".json" onchange="importData(event)" hidden></label>
@@ -128,14 +128,112 @@ input,select,textarea{width:100%;border:1px solid #d9ddd9;border-radius:14px;pad
 <div class="full"><button class="primary" type="submit">حفظ المصروف</button></div>
 </form></div></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+const SUPABASE_URL='https://pgdvlklpyrvmwzitsmbw.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_BFTIR_8VK2qQuKnl2c-jDA_cMnWz0E-';
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+const STATE_ROW_ID='main';
+let remoteReady=false;
 const DEFAULT_MSG=`حياكم الله في منتجع أضواء الشرق 🌿
 نأمل المحافظة على نظافة المكان ومحتوياته، وعدم العبث بالأجهزة أو نقل الأثاث.
 يرجى التأكد من إغلاق المياه والأنوار عند المغادرة.
 نذكركم بأن انتهاء الحجز الساعة 3:00 صباحًا.`;
 let db=JSON.parse(localStorage.getItem('adwaaDB')||'null')||{bookings:[],expenses:[],settings:{waNumber:'',welcomeMsg:DEFAULT_MSG},seq:1};
 let calDate=new Date();
-function persist(){localStorage.setItem('adwaaDB',JSON.stringify(db));renderAll()}
+
+function normalizeDB(value){
+  const x=value&&typeof value==='object'?value:{};
+  return {
+    bookings:Array.isArray(x.bookings)?x.bookings:[],
+    expenses:Array.isArray(x.expenses)?x.expenses:[],
+    settings:{
+      waNumber:x.settings?.waNumber||'',
+      welcomeMsg:x.settings?.welcomeMsg||DEFAULT_MSG
+    },
+    seq:Number(x.seq||1)
+  };
+}
+
+async function loadRemoteData(){
+  try{
+    const {data,error}=await supabaseClient
+      .from('app_state')
+      .select('data')
+      .eq('id',STATE_ROW_ID)
+      .maybeSingle();
+
+    if(error) throw error;
+
+    if(data?.data){
+      db=normalizeDB(data.data);
+    }else{
+      db=normalizeDB(db);
+      const {error:insertError}=await supabaseClient
+        .from('app_state')
+        .upsert({id:STATE_ROW_ID,data:db,updated_at:new Date().toISOString()});
+      if(insertError) throw insertError;
+    }
+
+    remoteReady=true;
+    localStorage.setItem('adwaaDB',JSON.stringify(db));
+    renderAll();
+    setSyncStatus('متصل ومتزامن مع جميع الأجهزة','ok');
+  }catch(err){
+    console.error(err);
+    remoteReady=false;
+    renderAll();
+    setSyncStatus('تعذر الاتصال بالسحابة؛ يعمل مؤقتًا من هذا الجهاز','error');
+  }
+}
+
+async function persist(){
+  db=normalizeDB(db);
+  localStorage.setItem('adwaaDB',JSON.stringify(db));
+  renderAll();
+
+  try{
+    const {error}=await supabaseClient
+      .from('app_state')
+      .upsert({id:STATE_ROW_ID,data:db,updated_at:new Date().toISOString()});
+    if(error) throw error;
+    remoteReady=true;
+    setSyncStatus('تم الحفظ والمزامنة','ok');
+  }catch(err){
+    console.error(err);
+    remoteReady=false;
+    setSyncStatus('تعذر رفع آخر تعديل؛ محفوظ مؤقتًا على هذا الجهاز','error');
+    alert('تعذر مزامنة البيانات مع Supabase. تأكد من المفتاح والاتصال ثم أعد المحاولة.');
+  }
+}
+
+function setSyncStatus(text,type){
+  const el=document.getElementById('syncStatus');
+  if(!el)return;
+  el.textContent=text;
+  el.style.background=type==='ok'?'#e4f4ee':'#fde5e5';
+  el.style.color=type==='ok'?'#14785f':'#a63c3c';
+}
+
+function subscribeRealtime(){
+  supabaseClient
+    .channel('adwaa-app-state')
+    .on('postgres_changes',{
+      event:'*',
+      schema:'public',
+      table:'app_state',
+      filter:`id=eq.${STATE_ROW_ID}`
+    },payload=>{
+      const next=payload.new?.data;
+      if(next){
+        db=normalizeDB(next);
+        localStorage.setItem('adwaaDB',JSON.stringify(db));
+        renderAll();
+        setSyncStatus('تم تحديث البيانات من جهاز آخر','ok');
+      }
+    })
+    .subscribe();
+}
 function money(n){return Number(n||0).toLocaleString('ar-SA')+' ر.س'}
 function isoToday(){return new Date().toISOString().slice(0,10)}
 function daysUntil(d){let a=new Date();a.setHours(0,0,0,0);let b=new Date(d+'T00:00:00');return Math.ceil((b-a)/86400000)}
@@ -163,11 +261,11 @@ function exportData(){download(`adwaa-backup-${isoToday()}.json`,JSON.stringify(
 function importData(ev){let f=ev.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);persist();alert('تم استيراد النسخة بنجاح')}catch(e){alert('الملف غير صالح')}};r.readAsText(f)}
 function exportCSV(){let rows=[['رقم الحجز','العميل','الجوال','التاريخ','النوع','المدفوع','الإجمالي','المتبقي','الحالة','ملاحظات'],...db.bookings.map(b=>[b.code,b.name,b.phone,b.date,b.type,b.paid,b.total,b.total-b.paid,b.status,b.notes])];let csv='\ufeff'+rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n');download(`bookings-${isoToday()}.csv`,csv,'text/csv;charset=utf-8')}
 function download(name,content,type){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
-function resetAll(){if(confirm('سيتم مسح كل الحجوزات والمصروفات من هذا الجهاز. هل أنت متأكد؟')){localStorage.removeItem('adwaaDB');location.reload()}}
+async function resetAll(){if(confirm('سيتم مسح كل الحجوزات والمصروفات من جميع الأجهزة. هل أنت متأكد؟')){db={bookings:[],expenses:[],settings:{waNumber:'',welcomeMsg:DEFAULT_MSG},seq:1};await persist();alert('تم مسح البيانات من جميع الأجهزة')}}
 function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function startVoice(){let SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert('الإدخال الصوتي غير مدعوم في هذا المتصفح. استخدم Chrome أو Safari الحديث.');return}let r=new SR();r.lang='ar-SA';r.interimResults=false;r.onresult=e=>parseVoice(e.results[0][0].transcript);r.onerror=()=>alert('تعذر التقاط الصوت');r.start();voiceHint.textContent='جاري الاستماع...'}
 function parseVoice(t){voiceHint.textContent='تم سماع: '+t;let paid=t.match(/(?:عربون|دفع|مدفوع)\s*(\d+)/),total=t.match(/(?:الإجمالي|اجمالي|المبلغ)\s*(\d+)/),phone=t.match(/05\d{8}/),day=t.match(/(?:يوم|بتاريخ)\s*(\d{1,2})\s*(?:\/|-|\s)\s*(\d{1,2})?/);let name=t.split(/يوم|بتاريخ|عربون|دفع|مدفوع|الإجمالي|اجمالي|المبلغ/)[0].replace(/سجل|حجز|جديد|للعميل/g,'').trim();if(name)bName.value=name;if(paid)bPaid.value=paid[1];if(total)bTotal.value=total[1];if(phone)bPhone.value=phone[0];if(/مبيت/.test(t))bType.value='مبيت';if(day){let y=new Date().getFullYear(),m=day[2]?Number(day[2]):new Date().getMonth()+1,d=Number(day[1]);bDate.value=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`}}
-window.addEventListener('load',()=>{if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});renderAll()});
+window.addEventListener('load',async()=>{if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});renderAll();await loadRemoteData();subscribeRealtime()});
 </script>
 </body>
 </html>
