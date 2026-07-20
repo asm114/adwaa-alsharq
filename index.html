@@ -246,7 +246,30 @@ function itemHTML(b){return `<div class="item" onclick="openBooking('${b.id}')">
 function renderBookings(){let q=(search?.value||'').trim(),s=statusFilter?.value||'';let arr=[...db.bookings].sort((a,b)=>b.date.localeCompare(a.date)).filter(b=>(!q||b.name.includes(q)||String(b.phone).includes(q))&&(!s||b.status===s));bookingList.innerHTML=arr.map(itemHTML).join('')||'<div class="empty">لا توجد نتائج</div>'}
 function openBooking(id){bookingForm.reset();bPaid.value=0;bTotal.value=0;bDate.value=isoToday();bStatus.value='مؤكد';bType.value='يومي';bId.value='';bCode.value='AD-'+String(db.seq).padStart(4,'0');deleteBookingBtn.style.display='none';bookingModalTitle.textContent='إضافة حجز';if(id){let b=db.bookings.find(x=>x.id===id);if(!b)return;bId.value=b.id;bName.value=b.name;bPhone.value=b.phone;bDate.value=b.date;bType.value=b.type;bPaid.value=b.paid;bTotal.value=b.total;bStatus.value=b.status;bNotes.value=b.notes||'';bCode.value=b.code;deleteBookingBtn.style.display='inline-block';bookingModalTitle.textContent='تعديل الحجز'}bookingModal.classList.add('open')}
 function closeModal(id){document.getElementById(id).classList.remove('open')}
-function saveBooking(e){e.preventDefault();let id=bId.value;let obj={id:id||crypto.randomUUID(),code:bCode.value,name:bName.value.trim(),phone:bPhone.value.trim(),date:bDate.value,type:bType.value,paid:Number(bPaid.value||0),total:Number(bTotal.value||0),status:bStatus.value,notes:bNotes.value.trim(),updatedAt:new Date().toISOString()};let conflict=db.bookings.find(x=>x.id!==obj.id&&x.date===obj.date&&x.status!=='ملغي');if(conflict&&!confirm(`يوجد حجز آخر في هذا التاريخ باسم ${conflict.name}. هل تريد الحفظ رغم ذلك؟`))return;if(id){let i=db.bookings.findIndex(x=>x.id===id);db.bookings[i]=obj}else{db.bookings.push(obj);db.seq++}persist();closeModal('bookingModal')}
+function nextAvailableDate(fromDate){
+  const taken=new Set(db.bookings.filter(x=>x.status!=='ملغي').map(x=>x.date));
+  let d=new Date(fromDate+'T00:00:00');
+  for(let i=0;i<365;i++){
+    const iso=d.toISOString().slice(0,10);
+    if(!taken.has(iso)) return iso;
+    d.setDate(d.getDate()+1);
+  }
+  return '';
+}
+function saveBooking(e){
+  e.preventDefault();
+  let id=bId.value;
+  let obj={id:id||crypto.randomUUID(),code:bCode.value,name:bName.value.trim(),phone:bPhone.value.trim(),date:bDate.value,type:bType.value,paid:Number(bPaid.value||0),total:Number(bTotal.value||0),status:bStatus.value,notes:bNotes.value.trim(),updatedAt:new Date().toISOString()};
+  let conflict=db.bookings.find(x=>x.id!==obj.id&&x.date===obj.date&&x.status!=='ملغي');
+  if(conflict){
+    const alt=nextAvailableDate(obj.date);
+    alert(`هذا التاريخ محجوز باسم ${conflict.name}. لا يمكن تسجيل حجزين في اليوم نفسه.${alt?`\nأقرب تاريخ متاح: ${alt}`:''}`);
+    return;
+  }
+  if(id){let i=db.bookings.findIndex(x=>x.id===id);db.bookings[i]=obj}else{db.bookings.push(obj);db.seq++}
+  persist();
+  closeModal('bookingModal');
+}
 function deleteBooking(){if(confirm('هل تريد حذف هذا الحجز نهائيًا؟')){db.bookings=db.bookings.filter(x=>x.id!==bId.value);persist();closeModal('bookingModal')}}
 function openExpense(){eDate.value=isoToday();eTitle.value='';eAmount.value='';eNotes.value='';expenseModal.classList.add('open')}
 function saveExpense(e){e.preventDefault();db.expenses.push({id:crypto.randomUUID(),title:eTitle.value,amount:Number(eAmount.value),date:eDate.value,cat:eCat.value,notes:eNotes.value});persist();closeModal('expenseModal')}
