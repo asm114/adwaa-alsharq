@@ -44,6 +44,13 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
       <button class="big-btn secondary" onclick="location.href='index.html'">العودة إلى لوحة المدير</button>
     </section>
 
+<section id="stages" class="card hidden">
+ <div class="center"><div class="hero-icon">🚗</div><h2 class="title">متابعة العميل</h2><p class="sub">اضغط الخطوة عند حدوثها، وسيصل التنبيه فورًا إلى المدير.</p></div>
+ <button id="arriveBtn" class="big-btn primary" onclick="markStage('arrived')">🟢 وصل العميل</button>
+ <button id="handoverBtn" class="big-btn secondary" onclick="markStage('handed_over')">🏡 تم تسليم المنتجع</button>
+ <button id="departBtn" class="big-btn danger" onclick="markStage('departed')">🚗 غادر العميل</button>
+ <div class="status" id="stageStatus"></div>
+</section>
 <section id="start" class="card center hidden">
  <div class="hero-icon">🧹</div><h2 class="title">مرحبًا جميل</h2>
  <div class="task-info"><b>رقم الحجز:</b> <span id="bookingCode"></span><br><b>تاريخ الحجز:</b> <span id="bookingDate"></span></div>
@@ -78,7 +85,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
 </section>
 
 <section id="middle" class="card center hidden"><div class="hero-icon">🧼</div><h2 class="title">ابدأ التنظيف</h2><p class="sub">تم حفظ صور قبل التنظيف. بعد أن تنتهي اضغط الزر الأخضر.</p><button class="big-btn primary" onclick="beginAfter()">✅ انتهيت من التنظيف</button></section>
-<section id="finish" class="card center hidden"><div class="done">✅</div><h2 class="title">انتهت المهمة</h2><p class="sub">شكرًا يا جميل، وصلت الصور والملاحظات إلى لوحة المدير.</p><div class="meta"><div><b id="photoCount">0</b><br><span class="mini">صورة</span></div><div><b id="issueCount">0</b><br><span class="mini">عطل</span></div></div><div class="status" id="finishStatus"></div></section>
+<section id="finish" class="card center hidden"><div class="done">✅</div><h2 class="title">انتهت المهمة</h2><p class="sub">شكرًا يا جميل، وصلت الصور والملاحظات إلى المدير وبانتظار اعتماده.</p><div class="meta"><div><b id="photoCount">0</b><br><span class="mini">صورة</span></div><div><b id="issueCount">0</b><br><span class="mini">عطل</span></div></div><div class="status" id="finishStatus"></div></section>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -88,10 +95,11 @@ const SUPABASE_PUBLISHABLE_KEY='sb_publishable_BFTIR_8VK2qQuKnl2c-jDA_cMnWz0E-';
 const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const ROW_ID='main';
 const params=new URLSearchParams(location.search),taskId=params.get('task'),token=params.get('token');
-const places=[{name:'المجلس',icon:'🛋️'},{name:'المطبخ',icon:'🍽️'},{name:'المسبح',icon:'🏊'},{name:'دورات المياه',icon:'🚻'},{name:'الجلسات الخارجية',icon:'🌴'}];
+let places=[];
+function buildPlaces(){places=[{name:'المجلس أو الصالة',icon:'🛋️'},{name:'المطبخ الداخلي',icon:'🍽️'},{name:'المطبخ الخارجي',icon:'🔥'},{name:'المسبح',icon:'🏊'},{name:'دورات المياه',icon:'🚻'},{name:'الجلسات الخارجية',icon:'🌴'},{name:'مدخل المنتجع',icon:'🚪'}];if(task?.bookingType==='مبيت')places.push({name:'غرف النوم',icon:'🛏️'});}
 let db=null,task=null,state={phase:'before',index:0,photos:[],issues:[]},currentPhoto=null,currentIssuePhoto=null,currentIssueTypes=[];
 
-function show(id){['loading','invalid','start','work','issues','middle','finish'].forEach(x=>document.getElementById(x).classList.add('hidden'));document.getElementById(id).classList.remove('hidden')}
+function show(id){['loading','invalid','stages','start','work','issues','middle','finish'].forEach(x=>document.getElementById(x).classList.add('hidden'));document.getElementById(id).classList.remove('hidden')}
 function syncState(text,type=''){sync.textContent=text;sync.className='sync '+type}
 function speak(text){if(!('speechSynthesis'in window))return; speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='ar-SA';u.rate=.85;speechSynthesis.speak(u)}
 function fmt(x){return x?new Date(x).toLocaleString('ar-SA'):'-'}
@@ -103,9 +111,11 @@ async function load(){
   if(!task)throw new Error('المهمة غير موجودة أو الرابط غير صالح');
   task.photos=Array.isArray(task.photos)?task.photos:[];task.issues=Array.isArray(task.issues)?task.issues:[];
   state.photos=task.photos;state.issues=task.issues;
-  bookingCode.textContent=task.bookingCode||'-';bookingDate.textContent=task.bookingDate||'-';
+  bookingCode.textContent=task.bookingCode||'-';bookingDate.textContent=task.bookingDate||'-';buildPlaces();
   syncState('متصل بلوحة المدير','ok');
-  if(task.status==='done'){showFinish()}else show('start');
+  if(['pending_approval','approved','done'].includes(task.status)){showFinish()}
+  else if(task.departedAt){show('start')}
+  else {show('stages');renderStages();}
  }catch(e){console.error(e);invalidText.textContent=e.message||'تعذر فتح المهمة';show('invalid');syncState('تعذر الاتصال','bad')}
 }
 async function saveRemote(){
@@ -115,7 +125,25 @@ async function saveRemote(){
  const {error}=await client.from('app_state').upsert({id:ROW_ID,data:db,updated_at:new Date().toISOString()});
  if(error)throw error;syncState('تم الحفظ والمزامنة','ok');
 }
-async function beginTask(){task.status='in_progress';task.startedAt=task.startedAt||new Date().toISOString();await saveRemote();state.phase='before';state.index=0;show('work');renderStep();speakCurrent()}
+function notifyManager(type,message){
+ db.notifications=Array.isArray(db.notifications)?db.notifications:[];
+ db.notifications.unshift({id:crypto.randomUUID(),type,message,taskId:task.id,bookingId:task.bookingId,createdAt:new Date().toISOString(),read:false});
+ db.notifications=db.notifications.slice(0,100);
+}
+function renderStages(){
+ const a=!!task.arrivedAt,h=!!task.handedOverAt,d=!!task.departedAt;
+ arriveBtn.disabled=a;handoverBtn.disabled=!a||h;departBtn.disabled=!h||d;
+ stageStatus.innerHTML=`${a?'✅':'⬜'} وصل العميل<br>${h?'✅':'⬜'} تم تسليم المنتجع<br>${d?'✅':'⬜'} غادر العميل`;
+ if(d){show('start')}
+}
+async function markStage(stage){
+ const now=new Date().toISOString();
+ if(stage==='arrived'){task.arrivedAt=now;task.status='arrived';db.settings=db.settings||{};db.settings.resortStatus='occupied';notifyManager('arrival',`وصل العميل للحجز ${task.bookingCode?'#'+task.bookingCode:''}`);}
+ if(stage==='handed_over'){task.handedOverAt=now;task.status='handed_over';notifyManager('handover',`تم تسليم المنتجع للعميل في الحجز ${task.bookingCode?'#'+task.bookingCode:''}`);}
+ if(stage==='departed'){task.departedAt=now;task.status='departed';db.settings=db.settings||{};db.settings.resortStatus='cleaning';notifyManager('departure',`غادر العميل وبدأت مرحلة التنظيف للحجز ${task.bookingCode?'#'+task.bookingCode:''}`);}
+ await saveRemote();renderStages();speak(stage==='arrived'?'تم إبلاغ المدير بوصول العميل':stage==='handed_over'?'تم تسجيل تسليم المنتجع': 'تم إبلاغ المدير بمغادرة العميل. يمكنك بدء التنظيف.');
+}
+async function beginTask(){task.status='in_progress';task.startedAt=task.startedAt||new Date().toISOString();notifyManager('cleaning_started',`بدأ جميل تنظيف الحجز ${task.bookingCode?'#'+task.bookingCode:''}`);await saveRemote();state.phase='before';state.index=0;show('work');renderStep();speakCurrent()}
 function renderStep(){const p=places[state.index];placeText.textContent=p.name;placeIcon.textContent=p.icon;phaseText.textContent=state.phase==='before'?'صور قبل التنظيف':'صور بعد التنظيف';countText.textContent=(state.index+1)+' من '+places.length;bar.style.width=((state.index+1)/places.length*100)+'%';preview.classList.add('hidden');nextBtn.classList.add('hidden');camera.value='';currentPhoto=null}
 function speakCurrent(){speak('صوّر '+places[state.index].name+' '+(state.phase==='before'?'قبل التنظيف':'بعد التنظيف')+'. ثم اضغط حفظ ثم التالي.')}
 function compress(file,max=900,q=.62){return new Promise((resolve,reject)=>{const r=new FileReader();r.onerror=reject;r.onload=()=>{const img=new Image();img.onerror=reject;img.onload=()=>{const s=Math.min(1,max/img.width);const c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.width*s));c.height=Math.max(1,Math.round(img.height*s));c.getContext('2d').drawImage(img,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',q))};img.src=r.result};r.readAsDataURL(file)})}
@@ -127,15 +155,15 @@ function toggleIssue(btn,type){btn.classList.toggle('selected');currentIssueType
 async function handleIssuePhoto(e){const f=e.target.files[0];if(!f)return;try{currentIssuePhoto=await compress(f,800,.6);issueImg.src=currentIssuePhoto;issuePreview.classList.remove('hidden')}catch(err){alert('تعذر فتح الصورة')}}
 async function saveIssue(){if(!currentIssueTypes.length)return alert('اختر نوع العطل');state.issues.push({id:crypto.randomUUID(),types:currentIssueTypes,place:places[state.index].name,phase:state.phase,time:new Date().toISOString(),photoDataUrl:currentIssuePhoto||''});await saveRemote();currentIssueTypes=[];currentIssuePhoto=null;document.querySelectorAll('.issue').forEach(x=>x.classList.remove('selected'));issuePreview.classList.add('hidden');issueCamera.value='';show('work');speak('تم حفظ ملاحظة العطل.')}
 async function finishTask(){
- task.status='done';task.completedAt=new Date().toISOString();task.worker='جميل';task.photos=state.photos;task.issues=state.issues;
+ task.status='pending_approval';task.completedAt=new Date().toISOString();task.worker='جميل';task.photos=state.photos;task.issues=state.issues;
  const booking=(db.bookings||[]).find(b=>b.id===task.bookingId);
  if(booking){
   booking.photos=(Array.isArray(booking.photos)?booking.photos:[]).filter(p=>p.cleaningTaskId!==task.id);
   const mapped=state.photos.map(p=>({id:p.id||crypto.randomUUID(),type:p.phase==='after'?'after':'before',dataUrl:p.dataUrl,note:p.place,uploadedBy:'جميل',uploadedAt:p.time,originalName:'',cleaningTaskId:task.id}));
   booking.photos=[...booking.photos,...mapped].slice(-12);
-  booking.cleaningStatus='تم التنظيف';booking.cleaningCompletedAt=task.completedAt;
+  booking.cleaningStatus='بانتظار اعتماد المدير';booking.cleaningCompletedAt=task.completedAt;
  }
- if(!(db.cleaningTasks||[]).some(t=>t.id!==task.id&&t.status!=='done'&&t.status!=='ملغي')){db.settings=db.settings||{};db.settings.resortStatus='ready';db.settings.resortStatusUpdated=new Date().toISOString()}
+ db.settings=db.settings||{};db.settings.resortStatus='cleaning';db.settings.resortStatusUpdated=new Date().toISOString();notifyManager('cleaning_complete',`أنهى جميل التنظيف ورفع ${(state.photos||[]).length} صورة للحجز ${task.bookingCode?'#'+task.bookingCode:''}. بانتظار اعتمادك.`)
  await saveRemote();showFinish();speak('شكرًا يا جميل، تم استلام المهمة.');
 }
 function showFinish(){show('finish');photoCount.textContent=(task.photos||[]).length;issueCount.textContent=(task.issues||[]).length;finishStatus.innerHTML='بدأت المهمة: '+fmt(task.startedAt)+'<br>انتهت المهمة: '+fmt(task.completedAt)}
