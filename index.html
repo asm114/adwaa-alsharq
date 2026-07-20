@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d4c3f">
+<title>إدارة منتجع أضواء الشرق</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root{--green:#0d4c3f;--green2:#155f50;--gold:#d8a33e;--bg:#f7f5ef;--card:#fff;--text:#10251f;--muted:#7d8a85;--danger:#b54545;--line:#e7e5df}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text)}
+button,input,select,textarea{font:inherit}button{cursor:pointer}.app{min-height:100vh;padding-bottom:88px}
+header{padding:28px 20px 14px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.eyebrow{color:var(--gold);font-weight:800}.title{font-size:30px;margin:6px 0 4px}.subtitle{color:var(--muted);font-size:16px}
+.icon-btn{border:0;border-radius:18px;background:var(--green);color:#fff;width:64px;height:64px;font-size:34px;box-shadow:0 8px 25px #0d4c3f26}
+main{padding:0 18px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.stat{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:18px;box-shadow:0 3px 14px #00000008}
+.stat .k{color:var(--muted);font-size:14px}.stat .v{font-size:26px;font-weight:900;margin-top:8px}.hero{margin-top:14px;background:linear-gradient(135deg,var(--green),var(--green2));color:#fff;border-radius:26px;padding:22px;display:flex;justify-content:space-between;align-items:center;gap:16px;box-shadow:0 10px 28px #0d4c3f2b}
+.hero small{color:#c5d9d2}.hero h2{margin:8px 0 12px;font-size:27px}.soft-btn{background:#ffffff12;color:#fff;border:1px solid #ffffff55;border-radius:16px;padding:12px 18px}
+.section{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:24px;overflow:hidden}.section-head{padding:18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line)}.section h3{margin:0}.link{color:#8c6515;font-weight:800;border:0;background:none}
+.list{display:flex;flex-direction:column}.item{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.item:last-child{border-bottom:0}.item h4{margin:0 0 5px}.meta{color:var(--muted);font-size:14px;line-height:1.7}.badge{padding:7px 10px;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap}.confirmed{background:#e4f4ee;color:#14785f}.pending{background:#fff3d9;color:#996a00}.entered{background:#e8eefb;color:#315ea8}.cancelled{background:#fde5e5;color:#a63c3c}
+nav{position:fixed;bottom:0;left:0;right:0;background:#073d33;color:#fff;display:grid;grid-template-columns:repeat(5,1fr);padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:30;box-shadow:0 -8px 25px #0002}nav button{border:0;background:none;color:#c7d7d1;padding:8px 4px;border-radius:15px;font-size:12px}nav button b{display:block;font-size:21px;margin-bottom:2px}nav button.active{background:#ffffff16;color:#fff;box-shadow:inset -4px 0 var(--gold)}
+.view{display:none}.view.active{display:block}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.toolbar input,.toolbar select{flex:1;min-width:150px}
+input,select,textarea{width:100%;border:1px solid #d9ddd9;border-radius:14px;padding:13px;background:#fff;color:var(--text)}textarea{min-height:90px;resize:vertical}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}.label{font-size:13px;color:var(--muted);margin:0 4px 6px;display:block}.primary{border:0;background:var(--green);color:#fff;padding:13px 18px;border-radius:14px;font-weight:800}.secondary{border:1px solid #cfd7d3;background:#fff;color:var(--green);padding:12px 16px;border-radius:14px;font-weight:800}.danger{border:0;background:#fde8e8;color:var(--danger);padding:10px 14px;border-radius:13px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.modal{position:fixed;inset:0;background:#0007;display:none;align-items:flex-end;z-index:50}.modal.open{display:flex}.sheet{background:var(--bg);width:100%;max-height:93vh;overflow:auto;border-radius:28px 28px 0 0;padding:18px}.sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.close{border:0;background:#e9ece9;border-radius:12px;width:40px;height:40px;font-size:20px}
+.empty{padding:34px;text-align:center;color:var(--muted)}.money{font-variant-numeric:tabular-nums}.voice{background:var(--gold);color:#fff;border:0;border-radius:999px;padding:13px 17px;font-weight:900}
+.notice{background:#fff8e7;border:1px solid #f0d494;color:#76520b;border-radius:16px;padding:12px;margin:12px 0}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.grow{flex:1}.small{font-size:13px}.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}.day{background:#fff;border:1px solid var(--line);border-radius:12px;min-height:60px;padding:6px;font-size:12px}.day.busy{background:#edf7f3;border-color:#8ecab8}.day .num{font-weight:800}.day .dot{display:block;margin-top:5px;color:var(--green);font-size:10px}
+@media(max-width:620px){.grid{grid-template-columns:1fr 1fr}.title{font-size:27px}.form-grid{grid-template-columns:1fr}.full{grid-column:auto}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div>
+    <div class="eyebrow">منتجع أضواء الشرق</div>
+    <h1 class="title" id="pageTitle">لوحة إدارة المنتجع</h1>
+    <div class="subtitle" id="pageSub">متابعة الحجوزات والمبالغ من مكان واحد</div>
+  </div>
+  <button class="icon-btn" onclick="openBooking()">+</button>
+</header>
+
+<main>
+<section id="dashboard" class="view active">
+  <div class="grid">
+    <div class="stat"><div class="k">الحجوزات القادمة</div><div class="v" id="sUpcoming">0</div></div>
+    <div class="stat"><div class="k">المبالغ المحصلة</div><div class="v money" id="sPaid">0 ر.س</div></div>
+    <div class="stat"><div class="k">المبالغ المتبقية</div><div class="v money" id="sDue">0 ر.س</div></div>
+    <div class="stat"><div class="k">إجمالي الحجوزات</div><div class="v" id="sTotal">0</div></div>
+  </div>
+  <div class="hero">
+    <div><small>أقرب عميل</small><h2 id="nextBooking">لا يوجد حجز قادم</h2><div id="nextMeta"></div><button class="soft-btn" onclick="openBooking()">إضافة حجز</button></div>
+    <div style="font-size:44px">◷</div>
+  </div>
+  <div class="section">
+    <div class="section-head"><div><h3>أقرب الحجوزات</h3><div class="meta">الحجوزات القادمة حسب التاريخ</div></div><button class="link" onclick="switchView('bookings')">عرض الجميع ←</button></div>
+    <div id="nearList" class="list"></div>
+  </div>
+</section>
+
+<section id="bookings" class="view">
+  <div class="toolbar"><input id="search" placeholder="بحث بالاسم أو الجوال" oninput="renderBookings()"><select id="statusFilter" onchange="renderBookings()"><option value="">كل الحالات</option><option>مؤكد</option><option>غير مؤكد</option><option>تم الدخول</option><option>تم الخروج</option><option>ملغي</option></select></div>
+  <div class="section"><div class="section-head"><h3>الحجوزات</h3><button class="primary" onclick="openBooking()">+ حجز جديد</button></div><div id="bookingList" class="list"></div></div>
+</section>
+
+<section id="calendarView" class="view">
+  <div class="section"><div class="section-head"><button class="secondary" onclick="changeMonth(-1)">السابق</button><h3 id="calTitle"></h3><button class="secondary" onclick="changeMonth(1)">التالي</button></div><div style="padding:14px"><div class="calendar" id="calendar"></div></div></div>
+</section>
+
+<section id="expenses" class="view">
+  <div class="grid">
+    <div class="stat"><div class="k">إجمالي المصروفات</div><div class="v money" id="expTotal">0 ر.س</div></div>
+    <div class="stat"><div class="k">صافي الدخل</div><div class="v money" id="netIncome">0 ر.س</div></div>
+  </div>
+  <div class="section"><div class="section-head"><h3>المصروفات</h3><button class="primary" onclick="openExpense()">+ إضافة مصروف</button></div><div id="expenseList" class="list"></div></div>
+</section>
+
+<section id="settings" class="view">
+  <div class="section"><div class="section-head"><h3>النسخ الاحتياطي والإعدادات</h3></div><div style="padding:18px">
+    <div class="notice">البيانات محفوظة داخل هذا الجهاز والمتصفح. خذ نسخة احتياطية بانتظام.</div>
+    <div class="actions">
+      <button class="primary" onclick="exportData()">تصدير نسخة احتياطية</button>
+      <label class="secondary">استيراد نسخة<input type="file" accept=".json" onchange="importData(event)" hidden></label>
+      <button class="secondary" onclick="exportCSV()">تصدير Excel/CSV</button>
+      <button class="danger" onclick="resetAll()">مسح جميع البيانات</button>
+    </div>
+    <hr style="border:0;border-top:1px solid var(--line);margin:20px 0">
+    <label class="label">رقم واتساب المنتجع</label><input id="waNumber" placeholder="9665xxxxxxxx" onchange="saveSetting()">
+    <label class="label" style="margin-top:12px">رسالة الترحيب عند الدخول</label><textarea id="welcomeMsg" onchange="saveSetting()"></textarea>
+  </div></div>
+</section>
+</main>
+
+<nav>
+<button class="active" data-view="dashboard" onclick="switchView('dashboard',this)"><b>أ</b>الرئيسية</button>
+<button data-view="bookings" onclick="switchView('bookings',this)"><b>▣</b>الحجوزات</button>
+<button data-view="calendarView" onclick="switchView('calendarView',this)"><b>▦</b>التقويم</button>
+<button data-view="expenses" onclick="switchView('expenses',this)"><b>◫</b>المصاريف</button>
+<button data-view="settings" onclick="switchView('settings',this)"><b>⚙</b>الإعدادات</button>
+</nav>
+</div>
+
+<div class="modal" id="bookingModal"><div class="sheet">
+<div class="sheet-head"><h2 id="bookingModalTitle">إضافة حجز</h2><button class="close" onclick="closeModal('bookingModal')">×</button></div>
+<button class="voice" onclick="startVoice()">🎙️ إدخال صوتي</button>
+<div id="voiceHint" class="meta" style="margin:8px 0 12px">مثال: محمد العتيبي يوم 25 يوليو عربون 200 الإجمالي 700 مبيت</div>
+<form id="bookingForm" class="form-grid" onsubmit="saveBooking(event)">
+<input type="hidden" id="bId">
+<div><label class="label">اسم العميل</label><input id="bName" required></div>
+<div><label class="label">رقم الجوال</label><input id="bPhone" inputmode="tel"></div>
+<div><label class="label">تاريخ الحجز</label><input id="bDate" type="date" required></div>
+<div><label class="label">نوع الحجز</label><select id="bType"><option>يومي</option><option>مبيت</option></select></div>
+<div><label class="label">العربون/المدفوع</label><input id="bPaid" type="number" min="0" value="0"></div>
+<div><label class="label">المبلغ الإجمالي</label><input id="bTotal" type="number" min="0" value="0"></div>
+<div><label class="label">الحالة</label><select id="bStatus"><option>مؤكد</option><option>غير مؤكد</option><option>تم الدخول</option><option>تم الخروج</option><option>ملغي</option></select></div>
+<div><label class="label">رقم الحجز</label><input id="bCode" readonly></div>
+<div class="full"><label class="label">ملاحظات</label><textarea id="bNotes"></textarea></div>
+<div class="full actions"><button class="primary" type="submit">حفظ الحجز</button><button class="secondary" type="button" onclick="sendWhatsAppFromForm()">واتساب</button><button class="danger" id="deleteBookingBtn" type="button" onclick="deleteBooking()" style="display:none">حذف</button></div>
+</form></div></div>
+
+<div class="modal" id="expenseModal"><div class="sheet">
+<div class="sheet-head"><h2>إضافة مصروف</h2><button class="close" onclick="closeModal('expenseModal')">×</button></div>
+<form class="form-grid" onsubmit="saveExpense(event)">
+<div><label class="label">البيان</label><input id="eTitle" required></div>
+<div><label class="label">المبلغ</label><input id="eAmount" type="number" min="0" required></div>
+<div><label class="label">التاريخ</label><input id="eDate" type="date" required></div>
+<div><label class="label">التصنيف</label><select id="eCat"><option>تنظيف</option><option>صيانة</option><option>كهرباء</option><option>مياه</option><option>مشتريات</option><option>أخرى</option></select></div>
+<div class="full"><label class="label">ملاحظات</label><textarea id="eNotes"></textarea></div>
+<div class="full"><button class="primary" type="submit">حفظ المصروف</button></div>
+</form></div></div>
+
+<script>
+const DEFAULT_MSG=`حياكم الله في منتجع أضواء الشرق 🌿
+نأمل المحافظة على نظافة المكان ومحتوياته، وعدم العبث بالأجهزة أو نقل الأثاث.
+يرجى التأكد من إغلاق المياه والأنوار عند المغادرة.
+نذكركم بأن انتهاء الحجز الساعة 3:00 صباحًا.`;
+let db=JSON.parse(localStorage.getItem('adwaaDB')||'null')||{bookings:[],expenses:[],settings:{waNumber:'',welcomeMsg:DEFAULT_MSG},seq:1};
+let calDate=new Date();
+function persist(){localStorage.setItem('adwaaDB',JSON.stringify(db));renderAll()}
+function money(n){return Number(n||0).toLocaleString('ar-SA')+' ر.س'}
+function isoToday(){return new Date().toISOString().slice(0,10)}
+function daysUntil(d){let a=new Date();a.setHours(0,0,0,0);let b=new Date(d+'T00:00:00');return Math.ceil((b-a)/86400000)}
+function upcoming(){return db.bookings.filter(b=>b.status!=='ملغي'&&b.status!=='تم الخروج'&&daysUntil(b.date)>=0).sort((a,b)=>a.date.localeCompare(b.date))}
+function statusClass(s){return s==='مؤكد'?'confirmed':s==='غير مؤكد'?'pending':s==='تم الدخول'?'entered':'cancelled'}
+function switchView(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));(btn||document.querySelector(`nav button[data-view="${id}"]`))?.classList.add('active');const t={dashboard:['لوحة إدارة المنتجع','متابعة الحجوزات والمبالغ من مكان واحد'],bookings:['إدارة الحجوزات','إضافة وتعديل ومتابعة جميع الحجوزات'],calendarView:['تقويم الحجوزات','عرض الأيام المحجوزة ومنع التداخل'],expenses:['المصاريف والدخل','متابعة المصروفات وصافي الدخل'],settings:['الإعدادات','النسخ الاحتياطي وبيانات واتساب']}[id];pageTitle.textContent=t[0];pageSub.textContent=t[1];window.scrollTo(0,0);renderAll()}
+function renderAll(){renderDashboard();renderBookings();renderExpenses();renderCalendar();waNumber.value=db.settings.waNumber||'';welcomeMsg.value=db.settings.welcomeMsg||DEFAULT_MSG}
+function renderDashboard(){let ups=upcoming(),paid=db.bookings.filter(b=>b.status!=='ملغي').reduce((s,b)=>s+Number(b.paid||0),0),tot=db.bookings.filter(b=>b.status!=='ملغي').reduce((s,b)=>s+Number(b.total||0),0);sUpcoming.textContent=ups.length;sPaid.textContent=money(paid);sDue.textContent=money(tot-paid);sTotal.textContent=db.bookings.length;let n=ups[0];nextBooking.textContent=n?n.name:'لا يوجد حجز قادم';nextMeta.textContent=n?`${n.date} • متبقي ${Math.max(0,daysUntil(n.date))} يوم • ${n.type}`:'';nearList.innerHTML=ups.slice(0,5).map(itemHTML).join('')||'<div class="empty">لا توجد حجوزات قادمة</div>'}
+function itemHTML(b){return `<div class="item" onclick="openBooking('${b.id}')"><div><h4>${escapeHtml(b.name)} <span class="small">#${b.code}</span></h4><div class="meta">${b.date} • ${b.type}<br>${b.phone||''} • المتبقي ${money(Number(b.total)-Number(b.paid))}</div></div><span class="badge ${statusClass(b.status)}">${b.status}</span></div>`}
+function renderBookings(){let q=(search?.value||'').trim(),s=statusFilter?.value||'';let arr=[...db.bookings].sort((a,b)=>b.date.localeCompare(a.date)).filter(b=>(!q||b.name.includes(q)||String(b.phone).includes(q))&&(!s||b.status===s));bookingList.innerHTML=arr.map(itemHTML).join('')||'<div class="empty">لا توجد نتائج</div>'}
+function openBooking(id){bookingForm.reset();bPaid.value=0;bTotal.value=0;bDate.value=isoToday();bStatus.value='مؤكد';bType.value='يومي';bId.value='';bCode.value='AD-'+String(db.seq).padStart(4,'0');deleteBookingBtn.style.display='none';bookingModalTitle.textContent='إضافة حجز';if(id){let b=db.bookings.find(x=>x.id===id);if(!b)return;bId.value=b.id;bName.value=b.name;bPhone.value=b.phone;bDate.value=b.date;bType.value=b.type;bPaid.value=b.paid;bTotal.value=b.total;bStatus.value=b.status;bNotes.value=b.notes||'';bCode.value=b.code;deleteBookingBtn.style.display='inline-block';bookingModalTitle.textContent='تعديل الحجز'}bookingModal.classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+function saveBooking(e){e.preventDefault();let id=bId.value;let obj={id:id||crypto.randomUUID(),code:bCode.value,name:bName.value.trim(),phone:bPhone.value.trim(),date:bDate.value,type:bType.value,paid:Number(bPaid.value||0),total:Number(bTotal.value||0),status:bStatus.value,notes:bNotes.value.trim(),updatedAt:new Date().toISOString()};let conflict=db.bookings.find(x=>x.id!==obj.id&&x.date===obj.date&&x.status!=='ملغي');if(conflict&&!confirm(`يوجد حجز آخر في هذا التاريخ باسم ${conflict.name}. هل تريد الحفظ رغم ذلك؟`))return;if(id){let i=db.bookings.findIndex(x=>x.id===id);db.bookings[i]=obj}else{db.bookings.push(obj);db.seq++}persist();closeModal('bookingModal')}
+function deleteBooking(){if(confirm('هل تريد حذف هذا الحجز نهائيًا؟')){db.bookings=db.bookings.filter(x=>x.id!==bId.value);persist();closeModal('bookingModal')}}
+function openExpense(){eDate.value=isoToday();eTitle.value='';eAmount.value='';eNotes.value='';expenseModal.classList.add('open')}
+function saveExpense(e){e.preventDefault();db.expenses.push({id:crypto.randomUUID(),title:eTitle.value,amount:Number(eAmount.value),date:eDate.value,cat:eCat.value,notes:eNotes.value});persist();closeModal('expenseModal')}
+function renderExpenses(){let sum=db.expenses.reduce((s,e)=>s+Number(e.amount),0),paid=db.bookings.filter(b=>b.status!=='ملغي').reduce((s,b)=>s+Number(b.paid||0),0);expTotal.textContent=money(sum);netIncome.textContent=money(paid-sum);expenseList.innerHTML=[...db.expenses].sort((a,b)=>b.date.localeCompare(a.date)).map(e=>`<div class="item"><div><h4>${escapeHtml(e.title)}</h4><div class="meta">${e.date} • ${e.cat}<br>${escapeHtml(e.notes||'')}</div></div><div><b>${money(e.amount)}</b><br><button class="danger small" onclick="removeExpense('${e.id}')">حذف</button></div></div>`).join('')||'<div class="empty">لا توجد مصروفات</div>'}
+function removeExpense(id){if(confirm('حذف المصروف؟')){db.expenses=db.expenses.filter(e=>e.id!==id);persist()}}
+function renderCalendar(){let y=calDate.getFullYear(),m=calDate.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0);calTitle.textContent=first.toLocaleDateString('ar-SA',{month:'long',year:'numeric'});let names=['ح','ن','ث','ر','خ','ج','س'];let html=names.map(n=>`<div class="day" style="min-height:auto;text-align:center;font-weight:800">${n}</div>`).join('');for(let i=0;i<first.getDay();i++)html+='<div></div>';for(let d=1;d<=last.getDate();d++){let iso=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`,bs=db.bookings.filter(b=>b.date===iso&&b.status!=='ملغي');html+=`<div class="day ${bs.length?'busy':''}"><span class="num">${d}</span>${bs.map(b=>`<span class="dot">${escapeHtml(b.name)}</span>`).join('')}</div>`}calendar.innerHTML=html}
+function changeMonth(n){calDate.setMonth(calDate.getMonth()+n);renderCalendar()}
+function saveSetting(){db.settings.waNumber=waNumber.value.trim();db.settings.welcomeMsg=welcomeMsg.value;persist()}
+function waLink(phone,msg){let p=(phone||'').replace(/\D/g,'');if(p.startsWith('05'))p='966'+p.slice(1);return `https://wa.me/${p}?text=${encodeURIComponent(msg)}`}
+function sendWhatsAppFromForm(){let msg=`مرحبًا ${bName.value||''}\nتم تسجيل حجزكم في منتجع أضواء الشرق\nالتاريخ: ${bDate.value}\nنوع الحجز: ${bType.value}\nالمدفوع: ${money(bPaid.value)}\nالمتبقي: ${money(Number(bTotal.value)-Number(bPaid.value))}`;window.open(waLink(bPhone.value,msg),'_blank')}
+function exportData(){download(`adwaa-backup-${isoToday()}.json`,JSON.stringify(db,null,2),'application/json')}
+function importData(ev){let f=ev.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);persist();alert('تم استيراد النسخة بنجاح')}catch(e){alert('الملف غير صالح')}};r.readAsText(f)}
+function exportCSV(){let rows=[['رقم الحجز','العميل','الجوال','التاريخ','النوع','المدفوع','الإجمالي','المتبقي','الحالة','ملاحظات'],...db.bookings.map(b=>[b.code,b.name,b.phone,b.date,b.type,b.paid,b.total,b.total-b.paid,b.status,b.notes])];let csv='\ufeff'+rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n');download(`bookings-${isoToday()}.csv`,csv,'text/csv;charset=utf-8')}
+function download(name,content,type){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
+function resetAll(){if(confirm('سيتم مسح كل الحجوزات والمصروفات من هذا الجهاز. هل أنت متأكد؟')){localStorage.removeItem('adwaaDB');location.reload()}}
+function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function startVoice(){let SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert('الإدخال الصوتي غير مدعوم في هذا المتصفح. استخدم Chrome أو Safari الحديث.');return}let r=new SR();r.lang='ar-SA';r.interimResults=false;r.onresult=e=>parseVoice(e.results[0][0].transcript);r.onerror=()=>alert('تعذر التقاط الصوت');r.start();voiceHint.textContent='جاري الاستماع...'}
+function parseVoice(t){voiceHint.textContent='تم سماع: '+t;let paid=t.match(/(?:عربون|دفع|مدفوع)\s*(\d+)/),total=t.match(/(?:الإجمالي|اجمالي|المبلغ)\s*(\d+)/),phone=t.match(/05\d{8}/),day=t.match(/(?:يوم|بتاريخ)\s*(\d{1,2})\s*(?:\/|-|\s)\s*(\d{1,2})?/);let name=t.split(/يوم|بتاريخ|عربون|دفع|مدفوع|الإجمالي|اجمالي|المبلغ/)[0].replace(/سجل|حجز|جديد|للعميل/g,'').trim();if(name)bName.value=name;if(paid)bPaid.value=paid[1];if(total)bTotal.value=total[1];if(phone)bPhone.value=phone[0];if(/مبيت/.test(t))bType.value='مبيت';if(day){let y=new Date().getFullYear(),m=day[2]?Number(day[2]):new Date().getMonth()+1,d=Number(day[1]);bDate.value=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`}}
+window.addEventListener('load',()=>{if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});renderAll()});
+</script>
+</body>
+</html>
