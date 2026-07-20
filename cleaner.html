@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#166534">
+<title>بوابة جميل | منتجع أضواء الشرق</title>
+<style>
+:root{
+  --green:#166534;--green2:#22c55e;--soft:#f0fdf4;--ink:#17352a;
+  --muted:#688277;--line:#d9e9df;--danger:#c2410c;--card:#fff;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Tahoma,Arial,sans-serif;background:linear-gradient(180deg,#effaf3,#f8fbf9);color:var(--ink)}
+button,input{font:inherit}
+.app{max-width:620px;margin:auto;min-height:100vh;padding:18px 14px 95px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.brand h1{font-size:24px;margin:0}.brand p{margin:5px 0 0;color:var(--muted)}
+.badge{background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:8px 11px;border-radius:999px;font-weight:800}
+.card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:20px;box-shadow:0 14px 35px #163b2520}
+.center{text-align:center}.hidden{display:none!important}
+.hero-icon{font-size:82px;line-height:1;margin:16px}
+.title{font-size:30px;margin:10px 0}.sub{color:var(--muted);font-size:18px;line-height:1.8}
+.big-btn{width:100%;border:0;border-radius:22px;padding:22px 16px;font-size:24px;font-weight:900;cursor:pointer;margin-top:16px}
+.primary{background:linear-gradient(135deg,var(--green),#15803d);color:#fff;box-shadow:0 12px 25px #16653445}
+.secondary{background:#fff;color:var(--ink);border:2px solid var(--line)}
+.danger{background:#fff7ed;color:var(--danger);border:2px solid #fed7aa}
+.progress{height:12px;background:#e6f0e9;border-radius:999px;overflow:hidden;margin:14px 0}
+.progress span{display:block;height:100%;background:linear-gradient(90deg,#22c55e,#15803d);width:0;transition:.3s}
+.step-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.step-icon{font-size:64px}.place{font-size:32px;font-weight:900;margin:8px 0}
+.camera-label{display:block;width:100%;border-radius:24px;background:#0f5132;color:white;padding:26px;text-align:center;font-size:26px;font-weight:900;cursor:pointer;margin-top:18px}
+.camera-label small{display:block;font-size:14px;margin-top:8px;opacity:.85}
+.preview{margin-top:14px;border-radius:20px;overflow:hidden;border:2px solid #bbf7d0;background:#f5fff7}
+.preview img{width:100%;display:block;max-height:360px;object-fit:cover}
+.ok{padding:12px;text-align:center;font-size:18px;font-weight:900;color:#166534}
+.audio-btn{border:0;background:#eaf8ef;border-radius:16px;padding:12px 16px;font-size:18px;font-weight:800;cursor:pointer}
+.issue-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:15px}
+.issue{border:2px solid var(--line);background:#fff;border-radius:20px;padding:18px 10px;font-size:18px;font-weight:900;cursor:pointer}
+.issue .i{display:block;font-size:40px;margin-bottom:7px}
+.issue.selected{border-color:#f97316;background:#fff7ed}
+.status{background:#f7faf8;border:1px dashed #b9d4c5;border-radius:18px;padding:14px;line-height:1.9;margin-top:15px}
+.footer-nav{position:fixed;bottom:0;left:0;right:0;background:#ffffffed;backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:10px}
+.footer-inner{max-width:620px;margin:auto;display:flex;gap:10px}
+.footer-inner button{flex:1;border:0;border-radius:14px;padding:13px;font-weight:900}
+.mini{font-size:14px;color:var(--muted)}
+.done{font-size:90px;margin:8px}
+.meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.meta div{background:#f7faf8;border-radius:14px;padding:12px}
+@media(max-width:430px){.title{font-size:27px}.place{font-size:28px}.big-btn{font-size:22px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="brand"><h1>منتجع أضواء الشرق</h1><p>بوابة العامل جميل</p></div>
+  <div class="badge">خاص بالتنظيف</div>
+</header>
+
+<section id="start" class="card center">
+  <div class="hero-icon">🧹</div>
+  <h2 class="title">مرحبًا جميل</h2>
+  <p class="sub">اضغط الزر الأخضر واتبع الصور خطوة بخطوة.</p>
+  <button class="big-btn primary" onclick="beginTask()">▶ ابدأ المهمة</button>
+  <button class="big-btn secondary" onclick="speak('مرحبًا جميل. اضغط ابدأ المهمة، ثم صوّر كل مكان يظهر أمامك.')">🔊 اسمع التعليمات</button>
+</section>
+
+<section id="work" class="card hidden">
+  <div class="step-head">
+    <div>
+      <div class="mini" id="phaseText">صور قبل التنظيف</div>
+      <div class="place" id="placeText">المجلس</div>
+    </div>
+    <div class="step-icon" id="placeIcon">🛋️</div>
+  </div>
+  <div class="progress"><span id="bar"></span></div>
+  <div class="mini" id="countText">1 من 5</div>
+  <button class="audio-btn" onclick="speakCurrent()">🔊 اسمع المطلوب</button>
+  <label class="camera-label">
+    📷 صوّر المكان
+    <small>اضغط هنا لفتح الكاميرا</small>
+    <input id="camera" type="file" accept="image/*" capture="environment" hidden onchange="handlePhoto(event)">
+  </label>
+  <div id="preview" class="preview hidden">
+    <img id="previewImg" alt="الصورة الملتقطة">
+    <div class="ok">✅ تم حفظ الصورة على هذا الجهاز</div>
+  </div>
+  <button id="nextBtn" class="big-btn primary hidden" onclick="nextStep()">التالي ←</button>
+  <button class="big-btn danger" onclick="openIssues()">⚠️ يوجد عطل</button>
+</section>
+
+<section id="issues" class="card hidden">
+  <div class="center">
+    <div class="hero-icon" style="font-size:62px">🛠️</div>
+    <h2 class="title">اختر نوع العطل</h2>
+  </div>
+  <div class="issue-grid">
+    <button class="issue" onclick="toggleIssue(this,'أثاث')"><span class="i">🪑</span>أثاث</button>
+    <button class="issue" onclick="toggleIssue(this,'كهرباء')"><span class="i">💡</span>كهرباء</button>
+    <button class="issue" onclick="toggleIssue(this,'مياه')"><span class="i">🚰</span>مياه</button>
+    <button class="issue" onclick="toggleIssue(this,'مسبح')"><span class="i">🏊</span>مسبح</button>
+    <button class="issue" onclick="toggleIssue(this,'دورة مياه')"><span class="i">🚽</span>دورة مياه</button>
+    <button class="issue" onclick="toggleIssue(this,'تنظيف')"><span class="i">🧽</span>تنظيف</button>
+  </div>
+  <label class="camera-label" style="background:#9a3412">
+    📷 صوّر العطل
+    <input id="issueCamera" type="file" accept="image/*" capture="environment" hidden onchange="handleIssuePhoto(event)">
+  </label>
+  <div id="issuePreview" class="preview hidden"><img id="issueImg"><div class="ok">✅ تم حفظ صورة العطل</div></div>
+  <button class="big-btn primary" onclick="saveIssue()">✅ حفظ والعودة</button>
+  <button class="big-btn secondary" onclick="closeIssues()">رجوع</button>
+</section>
+
+<section id="middle" class="card center hidden">
+  <div class="hero-icon">🧼</div>
+  <h2 class="title">ابدأ التنظيف</h2>
+  <p class="sub">تم الانتهاء من صور قبل التنظيف. بعد أن تنتهي، اضغط الزر الأخضر لتصوير المكان بعد التنظيف.</p>
+  <button class="big-btn primary" onclick="beginAfter()">✅ انتهيت من التنظيف</button>
+  <button class="big-btn secondary" onclick="speak('ابدأ التنظيف الآن. بعد الانتهاء اضغط انتهيت من التنظيف.')">🔊 اسمع التعليمات</button>
+</section>
+
+<section id="finish" class="card center hidden">
+  <div class="done">✅</div>
+  <h2 class="title">انتهت المهمة</h2>
+  <p class="sub">شكرًا يا جميل، تم حفظ صور قبل وبعد التنظيف.</p>
+  <div class="meta">
+    <div><b id="photoCount">0</b><br><span class="mini">صورة</span></div>
+    <div><b id="issueCount">0</b><br><span class="mini">ملاحظة</span></div>
+  </div>
+  <div class="status" id="finishStatus"></div>
+  <button class="big-btn primary" onclick="downloadReport()">⬇ تنزيل تقرير المهمة</button>
+  <button class="big-btn secondary" onclick="restart()">مهمة جديدة</button>
+</section>
+</div>
+
+<script>
+const places=[
+ {name:'المجلس',icon:'🛋️'},
+ {name:'المطبخ',icon:'🍽️'},
+ {name:'المسبح',icon:'🏊'},
+ {name:'دورات المياه',icon:'🚻'},
+ {name:'الجلسات الخارجية',icon:'🌴'}
+];
+let state={phase:'before',index:0,photos:[],issues:[],startedAt:null,finishedAt:null};
+let currentPhoto=null,currentIssuePhoto=null,currentIssueTypes=[];
+
+function show(id){
+  for(const x of ['start','work','issues','middle','finish']) document.getElementById(x).classList.add('hidden');
+  document.getElementById(id).classList.remove('hidden');
+}
+function beginTask(){
+  state={phase:'before',index:0,photos:[],issues:[],startedAt:new Date().toISOString(),finishedAt:null};
+  save();show('work');renderStep();speakCurrent();
+}
+function renderStep(){
+  const p=places[state.index];
+  placeText.textContent=p.name;placeIcon.textContent=p.icon;
+  phaseText.textContent=state.phase==='before'?'صور قبل التنظيف':'صور بعد التنظيف';
+  countText.textContent=(state.index+1)+' من '+places.length;
+  bar.style.width=((state.index+1)/places.length*100)+'%';
+  preview.classList.add('hidden');nextBtn.classList.add('hidden');camera.value='';currentPhoto=null;
+}
+function speakCurrent(){
+  const p=places[state.index].name;
+  const ph=state.phase==='before'?'قبل التنظيف':'بعد التنظيف';
+  speak('صوّر '+p+' '+ph+'. ثم اضغط التالي.');
+}
+function speak(text){
+  if(!('speechSynthesis' in window)) return alert(text);
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);u.lang='ar-SA';u.rate=.85;speechSynthesis.speak(u);
+}
+function handlePhoto(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();r.onload=()=>{
+    currentPhoto={place:places[state.index].name,phase:state.phase,time:new Date().toISOString(),data:r.result};
+    previewImg.src=r.result;preview.classList.remove('hidden');nextBtn.classList.remove('hidden');
+    speak('تم حفظ الصورة. اضغط التالي.');
+  };r.readAsDataURL(f);
+}
+function nextStep(){
+  if(!currentPhoto)return alert('التقط صورة أولًا');
+  state.photos.push(currentPhoto);save();
+  if(state.index<places.length-1){state.index++;renderStep();speakCurrent();}
+  else if(state.phase==='before'){show('middle');speak('تم الانتهاء من صور قبل التنظيف. ابدأ التنظيف الآن.');}
+  else finishTask();
+}
+function beginAfter(){state.phase='after';state.index=0;save();show('work');renderStep();speakCurrent()}
+function openIssues(){show('issues');speak('اختر نوع العطل، ثم صوّر العطل.')}
+function closeIssues(){show('work')}
+function toggleIssue(btn,type){
+  btn.classList.toggle('selected');
+  currentIssueTypes=Array.from(document.querySelectorAll('.issue.selected')).map(x=>x.textContent.trim());
+}
+function handleIssuePhoto(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();r.onload=()=>{currentIssuePhoto=r.result;issueImg.src=r.result;issuePreview.classList.remove('hidden')};r.readAsDataURL(f);
+}
+function saveIssue(){
+  if(!currentIssueTypes.length)return alert('اختر نوع العطل');
+  state.issues.push({types:currentIssueTypes,place:places[state.index].name,phase:state.phase,time:new Date().toISOString(),photo:currentIssuePhoto});
+  save();currentIssueTypes=[];currentIssuePhoto=null;
+  document.querySelectorAll('.issue').forEach(x=>x.classList.remove('selected'));
+  issuePreview.classList.add('hidden');issueCamera.value='';show('work');speak('تم حفظ ملاحظة العطل.');
+}
+function finishTask(){
+  state.finishedAt=new Date().toISOString();save();show('finish');
+  photoCount.textContent=state.photos.length;issueCount.textContent=state.issues.length;
+  finishStatus.innerHTML='بدأت المهمة: '+fmt(state.startedAt)+'<br>انتهت المهمة: '+fmt(state.finishedAt);
+  speak('شكرًا يا جميل، تم استلام المهمة.');
+}
+function fmt(x){return new Date(x).toLocaleString('ar-SA')}
+function save(){
+  try{localStorage.setItem('adwaa_cleaner_task',JSON.stringify(state))}catch(e){}
+}
+function downloadReport(){
+  const report={
+    resort:'منتجع أضواء الشرق',worker:'جميل',phone:'+966578804795',
+    startedAt:state.startedAt,finishedAt:state.finishedAt,
+    photos:state.photos.map(p=>({place:p.place,phase:p.phase,time:p.time})),
+    issues:state.issues.map(i=>({types:i.types,place:i.place,phase:i.phase,time:i.time}))
+  };
+  const blob=new Blob([JSON.stringify(report,null,2)],{type:'application/json;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='تقرير-مهمة-جميل.json';a.click();URL.revokeObjectURL(a.href);
+}
+function restart(){localStorage.removeItem('adwaa_cleaner_task');location.reload()}
+</script>
+</body>
+</html>
