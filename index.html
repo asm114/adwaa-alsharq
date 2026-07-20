@@ -24,7 +24,15 @@ nav{position:fixed;bottom:0;left:0;right:0;background:#073d33;color:#fff;display
 input,select,textarea{width:100%;border:1px solid #d9ddd9;border-radius:14px;padding:13px;background:#fff;color:var(--text)}textarea{min-height:90px;resize:vertical}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}.label{font-size:13px;color:var(--muted);margin:0 4px 6px;display:block}.primary{border:0;background:var(--green);color:#fff;padding:13px 18px;border-radius:14px;font-weight:800}.secondary{border:1px solid #cfd7d3;background:#fff;color:var(--green);padding:12px 16px;border-radius:14px;font-weight:800}.danger{border:0;background:#fde8e8;color:var(--danger);padding:10px 14px;border-radius:13px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .modal{position:fixed;inset:0;background:#0007;display:none;align-items:flex-end;z-index:50}.modal.open{display:flex}.sheet{background:var(--bg);width:100%;max-height:93vh;overflow:auto;border-radius:28px 28px 0 0;padding:18px}.sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.close{border:0;background:#e9ece9;border-radius:12px;width:40px;height:40px;font-size:20px}
 .empty{padding:34px;text-align:center;color:var(--muted)}.money{font-variant-numeric:tabular-nums}.voice{background:var(--gold);color:#fff;border:0;border-radius:999px;padding:13px 17px;font-weight:900}
-.notice{background:#fff8e7;border:1px solid #f0d494;color:#76520b;border-radius:16px;padding:12px;margin:12px 0}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.grow{flex:1}.small{font-size:13px}.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}.day{background:#fff;border:1px solid var(--line);border-radius:12px;min-height:60px;padding:6px;font-size:12px}.day.busy{background:#edf7f3;border-color:#8ecab8}.day .num{font-weight:800}.day .dot{display:block;margin-top:5px;color:var(--green);font-size:10px}
+.notice{background:#fff8e7;border:1px solid #f0d494;color:#76520b;border-radius:16px;padding:12px;margin:12px 0}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.grow{flex:1}.small{font-size:13px}.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.day{background:#fff;border:1px solid var(--line);border-radius:12px;min-height:72px;padding:7px;font-size:12px;transition:.15s;position:relative}
+.day.selectable{cursor:pointer}.day.selectable:hover{transform:translateY(-1px);border-color:var(--gold)}
+.day.busy{background:#e7f5ef;border-color:#7ebda9}
+.day.partial{background:#fff4d6;border-color:#e7bf61}
+.day.today{outline:3px solid #d9534f;outline-offset:-3px}
+.day .num{font-weight:900;font-size:13px}.day .dot{display:block;margin-top:5px;color:var(--green);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.day.partial .dot{color:#8b6500}
+.cal-legend{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}.cal-key{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}.cal-swatch{width:13px;height:13px;border-radius:4px;border:1px solid var(--line)}.sw-free{background:#fff}.sw-paid{background:#e7f5ef;border-color:#7ebda9}.sw-partial{background:#fff4d6;border-color:#e7bf61}.sw-today{background:#fff;border:3px solid #d9534f}
 @media(max-width:620px){.grid{grid-template-columns:1fr 1fr}.title{font-size:27px}.form-grid{grid-template-columns:1fr}.full{grid-column:auto}}
 </style>
 </head>
@@ -63,7 +71,19 @@ input,select,textarea{width:100%;border:1px solid #d9ddd9;border-radius:14px;pad
 </section>
 
 <section id="calendarView" class="view">
-  <div class="section"><div class="section-head"><button class="secondary" onclick="changeMonth(-1)">السابق</button><h3 id="calTitle"></h3><button class="secondary" onclick="changeMonth(1)">التالي</button></div><div style="padding:14px"><div class="calendar" id="calendar"></div></div></div>
+  <div class="section">
+    <div class="section-head"><button class="secondary" onclick="changeMonth(-1)">السابق</button><h3 id="calTitle"></h3><button class="secondary" onclick="changeMonth(1)">التالي</button></div>
+    <div style="padding:14px">
+      <div class="cal-legend">
+        <span class="cal-key"><span class="cal-swatch sw-free"></span>متاح</span>
+        <span class="cal-key"><span class="cal-swatch sw-paid"></span>محجوز ومكتمل السداد</span>
+        <span class="cal-key"><span class="cal-swatch sw-partial"></span>محجوز وباقي مبلغ</span>
+        <span class="cal-key"><span class="cal-swatch sw-today"></span>اليوم</span>
+      </div>
+      <div class="notice">اضغط على يوم متاح لإضافة حجز مباشرة، أو على يوم محجوز لفتح الحجز.</div>
+      <div class="calendar" id="calendar"></div>
+    </div>
+  </div>
 </section>
 
 <section id="expenses" class="view">
@@ -110,7 +130,7 @@ input,select,textarea{width:100%;border:1px solid #d9ddd9;border-radius:14px;pad
 <input type="hidden" id="bId">
 <div><label class="label">اسم العميل</label><input id="bName" required></div>
 <div><label class="label">رقم الجوال</label><input id="bPhone" inputmode="tel"></div>
-<div><label class="label">تاريخ الحجز</label><input id="bDate" type="date" required></div>
+<div><label class="label">تاريخ الحجز</label><input id="bDate" type="date" required onchange="checkSelectedDate()"><div id="dateHint" class="meta" style="margin-top:5px"></div></div>
 <div><label class="label">نوع الحجز</label><select id="bType"><option>يومي</option><option>مبيت</option></select></div>
 <div><label class="label">العربون/المدفوع</label><input id="bPaid" type="number" min="0" value="0"></div>
 <div><label class="label">المبلغ الإجمالي</label><input id="bTotal" type="number" min="0" value="0"></div>
@@ -244,14 +264,34 @@ function upcoming(){return db.bookings.filter(b=>b.status!=='ملغي'&&b.status
 function statusClass(s){return s==='مؤكد'?'confirmed':s==='غير مؤكد'?'pending':s==='تم الدخول'?'entered':'cancelled'}
 function switchView(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));(btn||document.querySelector(`nav button[data-view="${id}"]`))?.classList.add('active');const t={dashboard:['لوحة إدارة المنتجع','متابعة الحجوزات والمبالغ من مكان واحد'],bookings:['إدارة الحجوزات','إضافة وتعديل ومتابعة جميع الحجوزات'],calendarView:['تقويم الحجوزات','عرض الأيام المحجوزة ومنع التداخل'],expenses:['المصاريف والدخل','متابعة المصروفات وصافي الدخل'],settings:['الإعدادات','النسخ الاحتياطي وبيانات واتساب']}[id];pageTitle.textContent=t[0];pageSub.textContent=t[1];window.scrollTo(0,0);renderAll()}
 function renderAll(){renderDashboard();renderBookings();renderExpenses();renderCalendar();waNumber.value=db.settings.waNumber||'';welcomeMsg.value=db.settings.welcomeMsg||DEFAULT_MSG}
-function renderDashboard(){let ups=upcoming(),paid=db.bookings.filter(b=>b.status!=='ملغي').reduce((s,b)=>s+Number(b.paid||0),0),tot=db.bookings.filter(b=>b.status!=='ملغي').reduce((s,b)=>s+Number(b.total||0),0);sUpcoming.textContent=ups.length;sPaid.textContent=money(paid);sDue.textContent=money(tot-paid);sTotal.textContent=db.bookings.length;let n=ups[0];nextBooking.textContent=n?n.name:'لا يوجد حجز قادم';nextMeta.textContent=n?`${n.date} • متبقي ${Math.max(0,daysUntil(n.date))} يوم • ${n.type}`:'';nearList.innerHTML=ups.slice(0,5).map(itemHTML).join('')||'<div class="empty">لا توجد حجوزات قادمة</div>'}
+function renderDashboard(){let ups=upcoming(),paid=db.bookings.filter(b=>b.status!=='ملغي').reduce((s,b)=>s+Number(b.paid||0),0),tot=db.bookings.filter(b=>b.status!=='ملغي').reduce((s,b)=>s+Number(b.total||0),0);sUpcoming.textContent=ups.length;sPaid.textContent=money(paid);sDue.textContent=money(tot-paid);sTotal.textContent=db.bookings.length;let n=ups[0];nextBooking.textContent=n?n.name:'لا يوجد حجز قادم';if(n){
+  const left=Math.max(0,daysUntil(n.date));
+  const leftText=left===0?'الحجز اليوم':left===1?'متبقي يوم واحد':`متبقي ${left} أيام`;
+  nextMeta.textContent=`${n.date} • ${leftText} • ${n.type}`;
+}else{nextMeta.textContent=''};nearList.innerHTML=ups.slice(0,5).map(itemHTML).join('')||'<div class="empty">لا توجد حجوزات قادمة</div>'}
 function itemHTML(b){
   const due=Math.max(0,Number(b.total||0)-Number(b.paid||0));
   const fullyPaid=Number(b.total||0)>0&&Number(b.paid||0)>=Number(b.total||0)&&b.status!=='ملغي';
   return `<div class="item" onclick="openBooking('${b.id}')"><div><h4>${escapeHtml(b.name)} <span class="small">#${b.code}</span></h4><div class="meta">${b.date} • ${b.type}<br>${b.phone||''} • المتبقي ${money(due)}<br><span class="badge ${fullyPaid?'paid-badge':'due-badge'}">${fullyPaid?'مكتمل السداد':'غير مكتمل السداد'}</span></div></div><span class="badge ${statusClass(b.status)}">${b.status}</span></div>`
 }
 function renderBookings(){let q=(search?.value||'').trim(),s=statusFilter?.value||'';let arr=[...db.bookings].sort((a,b)=>b.date.localeCompare(a.date)).filter(b=>(!q||b.name.includes(q)||String(b.phone).includes(q)||String(b.code||'').includes(q))&&(!s||b.status===s));bookingList.innerHTML=arr.map(itemHTML).join('')||'<div class="empty">لا توجد نتائج</div>'}
-function openBooking(id){bookingForm.reset();bPaid.value=0;bTotal.value=0;bDate.value=isoToday();bStatus.value='مؤكد';bType.value='يومي';bId.value='';bCode.value='AD-'+String(db.seq).padStart(4,'0');deleteBookingBtn.style.display='none';bookingModalTitle.textContent='إضافة حجز';if(id){let b=db.bookings.find(x=>x.id===id);if(!b)return;bId.value=b.id;bName.value=b.name;bPhone.value=b.phone;bDate.value=b.date;bType.value=b.type;bPaid.value=b.paid;bTotal.value=b.total;bStatus.value=b.status;bNotes.value=b.notes||'';bCode.value=b.code;deleteBookingBtn.style.display='inline-block';bookingModalTitle.textContent='تعديل الحجز'}bookingModal.classList.add('open')}
+function openBooking(id,presetDate){
+  bookingForm.reset();
+  bPaid.value=0;bTotal.value=0;bDate.value=presetDate||isoToday();bStatus.value='مؤكد';bType.value='يومي';bId.value='';
+  bCode.value='AD-'+String(db.seq).padStart(4,'0');
+  deleteBookingBtn.style.display='none';
+  bookingModalTitle.textContent='إضافة حجز';
+  if(id){
+    let b=db.bookings.find(x=>x.id===id);
+    if(!b)return;
+    bId.value=b.id;bName.value=b.name;bPhone.value=b.phone;bDate.value=b.date;bType.value=b.type;
+    bPaid.value=b.paid;bTotal.value=b.total;bStatus.value=b.status;bNotes.value=b.notes||'';bCode.value=b.code;
+    deleteBookingBtn.style.display='inline-block';
+    bookingModalTitle.textContent='تعديل الحجز';
+  }
+  dateHint.textContent='';
+  bookingModal.classList.add('open');
+}
 function closeModal(id){document.getElementById(id).classList.remove('open')}
 function nextAvailableDate(fromDate){
   const taken=new Set(db.bookings.filter(x=>x.status!=='ملغي').map(x=>x.date));
@@ -262,6 +302,19 @@ function nextAvailableDate(fromDate){
     d.setDate(d.getDate()+1);
   }
   return '';
+}
+function checkSelectedDate(){
+  const date=bDate.value;
+  const editingId=bId.value;
+  const conflict=db.bookings.find(x=>x.id!==editingId&&x.date===date&&x.status!=='ملغي');
+  if(conflict){
+    const alt=nextAvailableDate(date);
+    dateHint.textContent=`محجوز باسم ${conflict.name}${alt?` — أقرب تاريخ متاح: ${alt}`:''}`;
+    dateHint.style.color='#a63c3c';
+  }else{
+    dateHint.textContent=date?'هذا التاريخ متاح':'';
+    dateHint.style.color='#14785f';
+  }
 }
 function saveBooking(e){
   e.preventDefault();
@@ -303,7 +356,29 @@ function renderExpenses(){
     .join('')||'<div class="empty">لا توجد عمولات مستحقة حتى الآن</div>';
 }
 function removeExpense(id){if(confirm('حذف المصروف؟')){db.expenses=db.expenses.filter(e=>e.id!==id);persist()}}
-function renderCalendar(){let y=calDate.getFullYear(),m=calDate.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0);calTitle.textContent=first.toLocaleDateString('ar-SA',{month:'long',year:'numeric'});let names=['ح','ن','ث','ر','خ','ج','س'];let html=names.map(n=>`<div class="day" style="min-height:auto;text-align:center;font-weight:800">${n}</div>`).join('');for(let i=0;i<first.getDay();i++)html+='<div></div>';for(let d=1;d<=last.getDate();d++){let iso=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`,bs=db.bookings.filter(b=>b.date===iso&&b.status!=='ملغي');html+=`<div class="day ${bs.length?'busy':''}"><span class="num">${d}</span>${bs.map(b=>`<span class="dot">${escapeHtml(b.name)}</span>`).join('')}</div>`}calendar.innerHTML=html}
+function renderCalendar(){
+  let y=calDate.getFullYear(),m=calDate.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0);
+  calTitle.textContent=first.toLocaleDateString('ar-SA',{month:'long',year:'numeric'});
+  let names=['ح','ن','ث','ر','خ','ج','س'];
+  let html=names.map(n=>`<div class="day" style="min-height:auto;text-align:center;font-weight:800">${n}</div>`).join('');
+  for(let i=0;i<first.getDay();i++)html+='<div></div>';
+  const today=isoToday();
+  for(let d=1;d<=last.getDate();d++){
+    let iso=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    let bs=db.bookings.filter(b=>b.date===iso&&b.status!=='ملغي');
+    let cls=['day'];
+    if(iso===today)cls.push('today');
+    if(bs.length){
+      const fullyPaid=bs.every(b=>Number(b.total||0)>0&&Number(b.paid||0)>=Number(b.total||0));
+      cls.push(fullyPaid?'busy':'partial');
+      html+=`<div class="${cls.join(' ')} selectable" onclick="openBooking('${bs[0].id}')"><span class="num">${d}</span>${bs.map(b=>`<span class="dot">${escapeHtml(b.name)}</span>`).join('')}</div>`;
+    }else{
+      cls.push('selectable');
+      html+=`<div class="${cls.join(' ')}" onclick="openBooking(null,'${iso}')"><span class="num">${d}</span><span class="dot" style="color:var(--muted)">متاح</span></div>`;
+    }
+  }
+  calendar.innerHTML=html;
+}
 function changeMonth(n){calDate.setMonth(calDate.getMonth()+n);renderCalendar()}
 function saveSetting(){db.settings.waNumber=waNumber.value.trim();db.settings.welcomeMsg=welcomeMsg.value;persist()}
 function waLink(phone,msg){let p=(phone||'').replace(/\D/g,'');if(p.startsWith('05'))p='966'+p.slice(1);return `https://wa.me/${p}?text=${encodeURIComponent(msg)}`}
