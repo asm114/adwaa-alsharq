@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0d4c3f">
-<title>v7.8 — معرض صور الحجوزات</title>
+<title>v7.9 — معرض صور الحجوزات</title>
 <link rel="manifest" href="manifest.json">
 <style>
 :root{--green:#0d4c3f;--green2:#155f50;--gold:#d8a33e;--bg:#f7f5ef;--card:#fff;--text:#10251f;--muted:#7d8a85;--danger:#b54545;--line:#e7e5df}
@@ -372,6 +372,7 @@ button{position:relative;z-index:1}
     <button class="secondary" type="button" onclick="sendManualWhatsApp('reminder')">⏰ تذكير بموعد الحجز</button>
     <button class="secondary" type="button" onclick="sendManualWhatsApp('due')">💰 تذكير بالمبلغ المتبقي</button>
     <button class="secondary" type="button" onclick="sendManualWhatsApp('thanks')">🙏 رسالة شكر بعد المغادرة</button>
+    <button class="primary" type="button" onclick="createCleaningLinkFromModal()">🧹 إنشاء رابط مهمة جميل</button>
   </div>
   <div id="sendStatus" class="send-status"></div>
 </div>
@@ -783,7 +784,19 @@ function renderDashboard(){
 function itemHTML(b){
   const due=Math.max(0,Number(b.total||0)-Number(b.paid||0));
   const fullyPaid=Number(b.total||0)>0&&Number(b.paid||0)>=Number(b.total||0)&&b.status!=='ملغي';
-  return `<div class="item" onclick="openBooking('${b.id}')"><div><h4>${escapeHtml(b.name)} <span class="small">#${b.code}</span></h4><div class="meta">${b.date} • ${b.type}<br>${b.phone||''} • المتبقي ${money(due)}<br><span class="badge ${fullyPaid?'paid-badge':'due-badge'}">${fullyPaid?'مكتمل السداد':'غير مكتمل السداد'}</span></div></div><span class="badge ${statusClass(b.status)}">${b.status}</span></div>`
+  const cleaning=(db.cleaningTasks||[]).find(t=>t.bookingId===b.id&&t.status!=='ملغي');
+  const cleanLabel=cleaning?(cleaning.status==='done'?'✅ تم التنظيف':cleaning.status==='in_progress'?'🟠 جاري التنظيف':'🧹 بانتظار جميل'):'🧹 إرسال مهمة تنظيف';
+  return `<div class="item" onclick="openBooking('${b.id}')">
+    <div>
+      <h4>${escapeHtml(b.name)} <span class="small">#${b.code}</span></h4>
+      <div class="meta">${b.date} • ${b.type}<br>${b.phone||''} • المتبقي ${money(due)}<br><span class="badge ${fullyPaid?'paid-badge':'due-badge'}">${fullyPaid?'مكتمل السداد':'غير مكتمل السداد'}</span></div>
+      <div class="task-actions" style="margin-top:9px">
+        <button class="secondary small" type="button" onclick="event.stopPropagation();createCleaningLink('${b.id}',false)">${cleanLabel}</button>
+        ${cleaning?`<button class="primary small" type="button" onclick="event.stopPropagation();sendCleaningTaskToJameel('${b.id}')">واتساب جميل</button>`:''}
+      </div>
+    </div>
+    <span class="badge ${statusClass(b.status)}">${b.status}</span>
+  </div>`
 }
 function renderBookings(){let q=(search?.value||'').trim(),s=statusFilter?.value||'';let arr=[...db.bookings].sort((a,b)=>b.date.localeCompare(a.date)).filter(b=>(!q||b.name.includes(q)||String(b.phone).includes(q)||String(b.code||'').includes(q))&&(!s||b.status===s));bookingList.innerHTML=arr.map(itemHTML).join('')||'<div class="empty">لا توجد نتائج</div>'}
 function openBooking(id,presetDate){if(!id&&['maintenance','closed'].includes(db.settings?.resortStatus)){alert('لا يمكن إضافة حجز جديد وحالة المنتجع: '+(RESORT_STATUSES[db.settings.resortStatus]?.label||''));return;}
@@ -930,7 +943,7 @@ function bookingDocumentHTML(b,type){
       <div>هذه الفاتورة صادرة آليًا من نظام إدارة الحجوزات.</div>
     </div>`;
 
-  return `<!doctype html><html lang="ar"><head><meta charset="utf-8"><title>v7.8 — معرض صور الحجوزات</title>${documentStyle()}</head>
+  return `<!doctype html><html lang="ar"><head><meta charset="utf-8"><title>v7.9 — معرض صور الحجوزات</title>${documentStyle()}</head>
   <body><div class="actions"><button onclick="window.print()">طباعة / حفظ PDF</button></div>
   <div class="page">${common}${type==='invoice'?invoice:contract}<div class="footer">تم إنشاء هذا المستند إلكترونيًا بواسطة نظام إدارة منتجع أضواء الشرق، ولا يحتاج إلى توقيع أو ختم يدوي من الإدارة.</div></div>
 <div id="photoLightbox" class="photo-lightbox" onclick="closePhotoLightbox()">
@@ -1134,7 +1147,7 @@ function ensureCleaningTaskForBooking(booking,previousStatus){
   if(booking.status!=='تم الخروج'||previousStatus==='تم الخروج')return;
   const exists=db.cleaningTasks.some(t=>t.bookingId===booking.id&&t.status!=='ملغي');
   if(exists)return;
-  db.cleaningTasks.push({id:crypto.randomUUID(),bookingId:booking.id,bookingCode:booking.code||'',customer:booking.name||'',bookingDate:booking.date||'',checkoutAt:new Date().toISOString(),worker:'',notes:'',status:'pending',createdAt:new Date().toISOString(),completedAt:''});
+  db.cleaningTasks.push({id:crypto.randomUUID(),token:randomTaskToken(),bookingId:booking.id,bookingCode:booking.code||'',customer:booking.name||'',bookingDate:booking.date||'',checkoutAt:new Date().toISOString(),worker:'جميل',notes:'',status:'pending',photos:[],issues:[],createdAt:new Date().toISOString(),startedAt:'',completedAt:''});
   db.settings.resortStatus='cleaning';db.settings.resortStatusUpdated=new Date().toISOString();
 }
 function renderCleaning(){
@@ -1142,7 +1155,30 @@ function renderCleaning(){
   const tasks=[...(db.cleaningTasks||[])].sort((a,b)=>String(b.checkoutAt||b.createdAt||'').localeCompare(String(a.checkoutAt||a.createdAt||'')));
   const pending=tasks.filter(t=>t.status!=='done').length,done=tasks.filter(t=>t.status==='done').length;
   cleanPendingCount.textContent=pending;cleanDoneCount.textContent=done;cleanTotalCount.textContent=tasks.length;
-  list.innerHTML=tasks.map(t=>`<div class="item cleaning-task ${t.status==='done'?'done':''}"><div><h4>${t.status==='done'?'✅':'🧹'} ${escapeHtml(t.customer||'مهمة تنظيف')} <span class="small">${t.bookingCode?'#'+escapeHtml(t.bookingCode):''}</span></h4><div class="meta">تاريخ الحجز: ${escapeHtml(t.bookingDate||'-')}<br>وقت الخروج: ${t.checkoutAt?new Date(t.checkoutAt).toLocaleString('ar-SA'):'غير محدد'}${t.completedAt?`<br>اكتمل: ${new Date(t.completedAt).toLocaleString('ar-SA')}`:''}</div>${t.notes?`<div class="task-note">${escapeHtml(t.notes)}</div>`:''}<div class="task-actions">${t.status!=='done'?`<button class="primary small" onclick="completeCleaning('${t.id}')">تم الانتهاء</button>`:`<button class="secondary small" onclick="reopenCleaning('${t.id}')">إعادة فتح</button>`}<button class="secondary small" onclick="openCleaningTask('${t.id}')">تعديل</button></div></div><div><span class="badge ${t.status==='done'?'confirmed':'pending'}">${t.status==='done'?'مكتمل':'بانتظار التنظيف'}</span>${t.worker?`<div class="meta" style="margin-top:7px">المنفذ: ${escapeHtml(t.worker)}</div>`:''}</div></div>`).join('')||'<div class="empty">لا توجد مهام تنظيف</div>';
+  list.innerHTML=tasks.map(t=>{
+    const count=Array.isArray(t.photos)?t.photos.length:0;
+    const issueCount=Array.isArray(t.issues)?t.issues.length:0;
+    const statusText=t.status==='done'?'مكتمل':t.status==='in_progress'?'جاري التنفيذ':'بانتظار التنظيف';
+    return `<div class="item cleaning-task ${t.status==='done'?'done':''}">
+      <div>
+        <h4>${t.status==='done'?'✅':t.status==='in_progress'?'🟠':'🧹'} مهمة الحجز <span class="small">${t.bookingCode?'#'+escapeHtml(t.bookingCode):''}</span></h4>
+        <div class="meta">تاريخ الحجز: ${escapeHtml(t.bookingDate||'-')}<br>
+        وقت إنشاء المهمة: ${t.createdAt?new Date(t.createdAt).toLocaleString('ar-SA'):'-'}
+        ${t.startedAt?`<br>بدأ جميل: ${new Date(t.startedAt).toLocaleString('ar-SA')}`:''}
+        ${t.completedAt?`<br>اكتمل: ${new Date(t.completedAt).toLocaleString('ar-SA')}`:''}
+        <br>الصور: ${count} • الأعطال: ${issueCount}</div>
+        ${t.notes?`<div class="task-note">${escapeHtml(t.notes)}</div>`:''}
+        <div class="task-actions">
+          <button class="primary small" onclick="copyCleaningTaskLink('${t.id}')">نسخ الرابط</button>
+          <button class="secondary small" onclick="openCleaningTaskLink('${t.id}')">فتح بوابة جميل</button>
+          <button class="secondary small" onclick="sendCleaningTaskById('${t.id}')">إرسال واتساب</button>
+          <button class="secondary small" onclick="openCleaningTask('${t.id}')">تعديل</button>
+          ${t.status==='done'?`<button class="secondary small" onclick="reopenCleaning('${t.id}')">إعادة فتح</button>`:''}
+        </div>
+      </div>
+      <div><span class="badge ${t.status==='done'?'confirmed':'pending'}">${statusText}</span><div class="meta" style="margin-top:7px">المنفذ: ${escapeHtml(t.worker||'جميل')}</div></div>
+    </div>`;
+  }).join('')||'<div class="empty">لا توجد مهام تنظيف</div>';
 }
 function openCleaningTask(id){
   cleanId.value=id||'';cleanCustomer.value='';cleanBookingDate.value=isoToday();cleanCheckout.value=localDateTimeValue(new Date().toISOString());cleanWorker.value='';cleanNotes.value='';deleteCleaningBtn.style.display=id?'inline-flex':'none';cleaningModalTitle.textContent=id?'تعديل مهمة التنظيف':'إضافة مهمة تنظيف';
@@ -1153,6 +1189,94 @@ async function saveCleaningTask(e){e.preventDefault();const id=cleanId.value;con
 async function completeCleaning(id){const t=db.cleaningTasks.find(x=>x.id===id);if(!t)return;const worker=prompt('اسم منفذ التنظيف:',t.worker||'')??t.worker;t.worker=String(worker||'').trim();t.status='done';t.completedAt=new Date().toISOString();if(!(db.cleaningTasks||[]).some(x=>x.id!==id&&x.status!=='done')){db.settings.resortStatus='ready';db.settings.resortStatusUpdated=new Date().toISOString()}await persist()}
 async function reopenCleaning(id){const t=db.cleaningTasks.find(x=>x.id===id);if(!t)return;t.status='pending';t.completedAt='';db.settings.resortStatus='cleaning';db.settings.resortStatusUpdated=new Date().toISOString();await persist()}
 async function deleteCleaningTask(){const id=cleanId.value;if(!id||!confirm('حذف مهمة التنظيف؟'))return;db.cleaningTasks=db.cleaningTasks.filter(x=>x.id!==id);await persist();closeModal('cleaningModal')}
+
+
+const JAMEEL_PHONE='966578804795';
+
+function randomTaskToken(){
+  const bytes=new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+}
+function cleanerTaskUrl(task){
+  const u=new URL('cleaner.html',window.location.href);
+  u.searchParams.set('task',task.id);
+  u.searchParams.set('token',task.token);
+  u.searchParams.set('v','79');
+  return u.href;
+}
+function cleaningTaskForBooking(bookingId){
+  return (db.cleaningTasks||[]).find(t=>t.bookingId===bookingId&&t.status!=='ملغي');
+}
+async function ensureCleanerTask(bookingId){
+  const booking=db.bookings.find(b=>b.id===bookingId);
+  if(!booking){alert('لم يتم العثور على الحجز.');return null;}
+  let task=cleaningTaskForBooking(bookingId);
+  if(!task){
+    task={
+      id:crypto.randomUUID(),
+      token:randomTaskToken(),
+      bookingId:booking.id,
+      bookingCode:booking.code||'',
+      customer:booking.name||'',
+      bookingDate:booking.date||'',
+      checkoutAt:'',
+      worker:'جميل',
+      notes:'',
+      status:'pending',
+      photos:[],
+      issues:[],
+      createdAt:new Date().toISOString(),
+      startedAt:'',
+      completedAt:''
+    };
+    db.cleaningTasks.push(task);
+  }else{
+    task.token=task.token||randomTaskToken();
+    task.worker=task.worker||'جميل';
+    task.photos=Array.isArray(task.photos)?task.photos:[];
+    task.issues=Array.isArray(task.issues)?task.issues:[];
+  }
+  await persist();
+  return task;
+}
+async function createCleaningLink(bookingId,sendWhatsApp=false){
+  const task=await ensureCleanerTask(bookingId);
+  if(!task)return;
+  const url=cleanerTaskUrl(task);
+  try{await navigator.clipboard.writeText(url)}catch(e){}
+  if(sendWhatsApp){
+    const text=`السلام عليكم جميل، هذه مهمة تنظيف منتجع أضواء الشرق للحجز رقم ${task.bookingCode||''} بتاريخ ${task.bookingDate||''}.\nافتح الرابط وابدأ التصوير:\n${url}`;
+    window.open(`https://wa.me/${JAMEEL_PHONE}?text=${encodeURIComponent(text)}`,'_blank');
+  }else{
+    prompt('تم إنشاء رابط جميل ونسخه. انسخه من هنا عند الحاجة:',url);
+  }
+}
+async function sendCleaningTaskToJameel(bookingId){return createCleaningLink(bookingId,true)}
+async function createCleaningLinkFromModal(){
+  const bookingId=bId.value;
+  if(!bookingId){alert('احفظ الحجز أولًا، ثم افتحه واضغط إنشاء رابط مهمة جميل.');return;}
+  await createCleaningLink(bookingId,false);
+}
+function findCleaningTask(taskId){return (db.cleaningTasks||[]).find(t=>t.id===taskId)}
+async function copyCleaningTaskLink(taskId){
+  const task=findCleaningTask(taskId);if(!task)return;
+  task.token=task.token||randomTaskToken();await persist();
+  const url=cleanerTaskUrl(task);
+  try{await navigator.clipboard.writeText(url);alert('تم نسخ رابط مهمة جميل.')}catch(e){prompt('انسخ الرابط:',url)}
+}
+async function openCleaningTaskLink(taskId){
+  const task=findCleaningTask(taskId);if(!task)return;
+  task.token=task.token||randomTaskToken();await persist();
+  window.open(cleanerTaskUrl(task),'_blank');
+}
+async function sendCleaningTaskById(taskId){
+  const task=findCleaningTask(taskId);if(!task)return;
+  task.token=task.token||randomTaskToken();await persist();
+  const url=cleanerTaskUrl(task);
+  const text=`السلام عليكم جميل، هذه مهمة تنظيف منتجع أضواء الشرق للحجز رقم ${task.bookingCode||''} بتاريخ ${task.bookingDate||''}.\nافتح الرابط وابدأ التصوير:\n${url}`;
+  window.open(`https://wa.me/${JAMEEL_PHONE}?text=${encodeURIComponent(text)}`,'_blank');
+}
 
 
 function expenseReference(){
