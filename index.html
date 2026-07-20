@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0d4c3f">
-<title>v7.9 — معرض صور الحجوزات</title>
+<title>v8.0 — معرض صور الحجوزات</title>
 <link rel="manifest" href="manifest.json">
 <style>
 :root{--green:#0d4c3f;--green2:#155f50;--gold:#d8a33e;--bg:#f7f5ef;--card:#fff;--text:#10251f;--muted:#7d8a85;--danger:#b54545;--line:#e7e5df}
@@ -246,6 +246,11 @@ button{position:relative;z-index:1}
 
 
 <section id="cleaning" class="view">
+  <div class="notice" style="margin-bottom:14px">
+    <b>طريقة استخدام بوابة جميل:</b>
+    افتح الحجز المطلوب، ثم اضغط <b>إنشاء رابط مهمة جميل</b> أو <b>واتساب جميل</b>.
+    لا تفتح صفحة جميل العامة دون رابط مهمة؛ لأن كل رابط مرتبط بحجز محدد.
+  </div>
   <div class="cleaning-summary">
     <div class="cleaning-card"><span class="meta">مهام بانتظار التنظيف</span><b id="cleanPendingCount">0</b></div>
     <div class="cleaning-card"><span class="meta">تم إنجازها</span><b id="cleanDoneCount">0</b></div>
@@ -321,7 +326,7 @@ button{position:relative;z-index:1}
 <button data-view="calendarView" onclick="switchView('calendarView',this)"><b>▦</b>التقويم</button>
 <button data-view="cleaning" onclick="switchView('cleaning',this)"><b>🧹</b>التنظيف</button>
 <button data-view="expenses" onclick="switchView('expenses',this)"><b>◫</b>المصاريف</button>
-<button onclick="window.open('cleaner.html','_blank')" title="فتح بوابة جميل"><b>👷</b>بوابة جميل</button>
+<button data-view="cleaning" onclick="switchView('cleaning',this)" title="إدارة مهام جميل"><b>👷</b>بوابة جميل</button>
 <button data-view="settings" onclick="switchView('settings',this)"><b>⚙</b>الإعدادات</button>
 </nav>
 </div>
@@ -785,7 +790,7 @@ function itemHTML(b){
   const due=Math.max(0,Number(b.total||0)-Number(b.paid||0));
   const fullyPaid=Number(b.total||0)>0&&Number(b.paid||0)>=Number(b.total||0)&&b.status!=='ملغي';
   const cleaning=(db.cleaningTasks||[]).find(t=>t.bookingId===b.id&&t.status!=='ملغي');
-  const cleanLabel=cleaning?(cleaning.status==='done'?'✅ تم التنظيف':cleaning.status==='in_progress'?'🟠 جاري التنظيف':'🧹 بانتظار جميل'):'🧹 إرسال مهمة تنظيف';
+  const cleanLabel=cleaning?(cleaning.status==='done'?'✅ تم التنظيف':cleaning.status==='in_progress'?'🟠 جاري التنظيف':'🧹 بانتظار جميل'):'🧹 إنشاء مهمة جميل';
   return `<div class="item" onclick="openBooking('${b.id}')">
     <div>
       <h4>${escapeHtml(b.name)} <span class="small">#${b.code}</span></h4>
@@ -943,7 +948,7 @@ function bookingDocumentHTML(b,type){
       <div>هذه الفاتورة صادرة آليًا من نظام إدارة الحجوزات.</div>
     </div>`;
 
-  return `<!doctype html><html lang="ar"><head><meta charset="utf-8"><title>v7.9 — معرض صور الحجوزات</title>${documentStyle()}</head>
+  return `<!doctype html><html lang="ar"><head><meta charset="utf-8"><title>v8.0 — معرض صور الحجوزات</title>${documentStyle()}</head>
   <body><div class="actions"><button onclick="window.print()">طباعة / حفظ PDF</button></div>
   <div class="page">${common}${type==='invoice'?invoice:contract}<div class="footer">تم إنشاء هذا المستند إلكترونيًا بواسطة نظام إدارة منتجع أضواء الشرق، ولا يحتاج إلى توقيع أو ختم يدوي من الإدارة.</div></div>
 <div id="photoLightbox" class="photo-lightbox" onclick="closePhotoLightbox()">

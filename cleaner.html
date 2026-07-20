@@ -37,7 +37,12 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
 </header>
 
 <section id="loading" class="card center"><div class="hero-icon">⏳</div><h2 class="title">جاري فتح المهمة</h2><p class="sub">انتظر قليلًا.</p></section>
-<section id="invalid" class="card center hidden"><div class="hero-icon">🔒</div><h2 class="title">الرابط غير صالح</h2><p class="sub" id="invalidText">اطلب من المدير إرسال رابط المهمة مرة أخرى.</p></section>
+<section id="invalid" class="card center hidden">
+      <div class="hero-icon">🧹</div>
+      <h2 class="title">لا توجد مهمة مفتوحة</h2>
+      <p class="sub" id="invalidText">يفتح جميل الرابط الذي يرسله المدير من داخل الحجز. هذا يحمي بيانات المنتجع ويربط الصور بالحجز الصحيح.</p>
+      <button class="big-btn secondary" onclick="location.href='index.html'">العودة إلى لوحة المدير</button>
+    </section>
 
 <section id="start" class="card center hidden">
  <div class="hero-icon">🧹</div><h2 class="title">مرحبًا جميل</h2>
@@ -91,7 +96,7 @@ function syncState(text,type=''){sync.textContent=text;sync.className='sync '+ty
 function speak(text){if(!('speechSynthesis'in window))return; speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='ar-SA';u.rate=.85;speechSynthesis.speak(u)}
 function fmt(x){return x?new Date(x).toLocaleString('ar-SA'):'-'}
 async function load(){
- if(!taskId||!token){show('invalid');syncState('رابط ناقص','bad');return}
+ if(!taskId||!token){show('invalid');syncState('بانتظار رابط مهمة');return}
  try{
   const {data,error}=await client.from('app_state').select('data').eq('id',ROW_ID).maybeSingle();
   if(error)throw error; db=data?.data; task=(db?.cleaningTasks||[]).find(t=>t.id===taskId&&t.token===token);
