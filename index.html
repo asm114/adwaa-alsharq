@@ -60,10 +60,18 @@ button{position:relative;z-index:1}
 <main>
 <section id="dashboard" class="view active">
   <div class="grid">
-    <div class="stat"><div class="k">الحجوزات القادمة</div><div class="v" id="sUpcoming">0</div></div>
-    <div class="stat"><div class="k">المبالغ المحصلة</div><div class="v money" id="sPaid">0 ر.س</div></div>
-    <div class="stat"><div class="k">المبالغ المتبقية</div><div class="v money" id="sDue">0 ر.س</div></div>
     <div class="stat"><div class="k">إجمالي الحجوزات</div><div class="v" id="sTotal">0</div></div>
+    <div class="stat"><div class="k">حجوزات اليوم</div><div class="v" id="sToday">0</div></div>
+    <div class="stat"><div class="k">حجوزات هذا الأسبوع</div><div class="v" id="sWeek">0</div></div>
+    <div class="stat"><div class="k">حجوزات هذا الشهر</div><div class="v" id="sMonth">0</div></div>
+    <div class="stat"><div class="k">إيرادات اليوم</div><div class="v money" id="sRevenueToday">0 ر.س</div></div>
+    <div class="stat"><div class="k">إيرادات هذا الشهر</div><div class="v money" id="sRevenueMonth">0 ر.س</div></div>
+    <div class="stat"><div class="k">العربون والمبالغ المعلقة</div><div class="v money" id="sPending">0 ر.س</div></div>
+    <div class="stat"><div class="k">عمولات المدير المستحقة</div><div class="v money" id="sCommission">0 ر.س</div></div>
+    <div class="stat"><div class="k">الحجوزات القادمة</div><div class="v" id="sUpcoming">0</div></div>
+    <div class="stat"><div class="k">إجمالي المحصل</div><div class="v money" id="sPaid">0 ر.س</div></div>
+    <div class="stat"><div class="k">إجمالي المتبقي</div><div class="v money" id="sDue">0 ر.س</div></div>
+    <div class="stat"><div class="k">حجوزات مكتملة السداد</div><div class="v" id="sFullyPaid">0</div></div>
   </div>
   <div class="hero">
     <div><small>أقرب عميل</small><h2 id="nextBooking">لا يوجد حجز قادم</h2><div id="nextMeta"></div><button class="soft-btn" onclick="openBooking()">إضافة حجز</button></div>
@@ -285,11 +293,56 @@ function upcoming(){return db.bookings.filter(b=>b.status!=='ملغي'&&b.status
 function statusClass(s){return s==='مؤكد'?'confirmed':s==='غير مؤكد'?'pending':s==='تم الدخول'?'entered':'cancelled'}
 function switchView(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));(btn||document.querySelector(`nav button[data-view="${id}"]`))?.classList.add('active');const t={dashboard:['لوحة إدارة المنتجع','متابعة الحجوزات والمبالغ من مكان واحد'],bookings:['إدارة الحجوزات','إضافة وتعديل ومتابعة جميع الحجوزات'],customers:['سجل العملاء','عدد الزيارات والمدفوعات وآخر حجز'],calendarView:['تقويم الحجوزات','عرض الأيام المحجوزة ومنع التداخل'],expenses:['المصاريف والدخل','متابعة المصروفات وصافي الدخل'],settings:['الإعدادات','النسخ الاحتياطي وبيانات واتساب']}[id];pageTitle.textContent=t[0];pageSub.textContent=t[1];window.scrollTo(0,0);renderAll()}
 function renderAll(){renderDashboard();renderBookings();renderCustomers();renderExpenses();renderCalendar();waNumber.value=db.settings.waNumber||'';welcomeMsg.value=db.settings.welcomeMsg||DEFAULT_MSG}
-function renderDashboard(){let ups=upcoming(),paid=db.bookings.filter(b=>b.status!=='ملغي').reduce((s,b)=>s+Number(b.paid||0),0),tot=db.bookings.filter(b=>b.status!=='ملغي').reduce((s,b)=>s+Number(b.total||0),0);sUpcoming.textContent=ups.length;sPaid.textContent=money(paid);sDue.textContent=money(tot-paid);sTotal.textContent=db.bookings.length;let n=ups[0];nextBooking.textContent=n?n.name:'لا يوجد حجز قادم';if(n){
-  const left=Math.max(0,daysUntil(n.date));
-  const leftText=left===0?'الحجز اليوم':left===1?'متبقي يوم واحد':`متبقي ${left} أيام`;
-  nextMeta.textContent=`${n.date} • ${leftText} • ${n.type}`;
-}else{nextMeta.textContent=''};nearList.innerHTML=ups.slice(0,5).map(itemHTML).join('')||'<div class="empty">لا توجد حجوزات قادمة</div>'}
+function renderDashboard(){
+  const active=db.bookings.filter(b=>b.status!=='ملغي');
+  const ups=upcoming();
+  const today=isoToday();
+  const now=new Date(today+'T00:00:00');
+  const day=(now.getDay()+6)%7;
+  const weekStart=new Date(now);
+  weekStart.setDate(now.getDate()-day);
+  const weekEnd=new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate()+6);
+  const weekStartIso=weekStart.toISOString().slice(0,10);
+  const weekEndIso=weekEnd.toISOString().slice(0,10);
+  const monthKey=today.slice(0,7);
+
+  const todayBookings=active.filter(b=>b.date===today);
+  const weekBookings=active.filter(b=>b.date>=weekStartIso&&b.date<=weekEndIso);
+  const monthBookings=active.filter(b=>String(b.date||'').slice(0,7)===monthKey);
+
+  const paid=active.reduce((s,b)=>s+Number(b.paid||0),0);
+  const total=active.reduce((s,b)=>s+Number(b.total||0),0);
+  const revenueToday=todayBookings.reduce((s,b)=>s+Number(b.paid||0),0);
+  const revenueMonth=monthBookings.reduce((s,b)=>s+Number(b.paid||0),0);
+  const pending=active.reduce((s,b)=>s+Math.max(0,Number(b.total||0)-Number(b.paid||0)),0);
+  const fullyPaid=active.filter(b=>Number(b.total||0)>0&&Number(b.paid||0)>=Number(b.total||0));
+  const commission=fullyPaid.length*100;
+
+  sTotal.textContent=active.length;
+  sToday.textContent=todayBookings.length;
+  sWeek.textContent=weekBookings.length;
+  sMonth.textContent=monthBookings.length;
+  sRevenueToday.textContent=money(revenueToday);
+  sRevenueMonth.textContent=money(revenueMonth);
+  sPending.textContent=money(pending);
+  sCommission.textContent=money(commission);
+  sUpcoming.textContent=ups.length;
+  sPaid.textContent=money(paid);
+  sDue.textContent=money(total-paid);
+  sFullyPaid.textContent=fullyPaid.length;
+
+  const n=ups[0];
+  nextBooking.textContent=n?n.name:'لا يوجد حجز قادم';
+  if(n){
+    const left=Math.max(0,daysUntil(n.date));
+    const leftText=left===0?'الحجز اليوم':left===1?'متبقي يوم واحد':`متبقي ${left} أيام`;
+    nextMeta.textContent=`${n.date} • ${leftText} • ${n.type}`;
+  }else{
+    nextMeta.textContent='';
+  }
+  nearList.innerHTML=ups.slice(0,5).map(itemHTML).join('')||'<div class="empty">لا توجد حجوزات قادمة</div>';
+}
 function itemHTML(b){
   const due=Math.max(0,Number(b.total||0)-Number(b.paid||0));
   const fullyPaid=Number(b.total||0)>0&&Number(b.paid||0)>=Number(b.total||0)&&b.status!=='ملغي';
