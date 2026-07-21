@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0d4c3f">
-<title>v8.1 — معرض صور الحجوزات</title>
+<title>v8.2 — معرض صور الحجوزات</title>
 <link rel="manifest" href="manifest.json">
 <style>
 :root{--green:#0d4c3f;--green2:#155f50;--gold:#d8a33e;--bg:#f7f5ef;--card:#fff;--text:#10251f;--muted:#7d8a85;--danger:#b54545;--line:#e7e5df}
@@ -348,8 +348,13 @@ button{position:relative;z-index:1}
 <input type="hidden" id="bId">
 <div class="field-wrap"><label class="label">اسم العميل</label><input id="bName" required oninput="showCustomerSuggestions()"><div id="customerSuggestions" class="suggestions" style="display:none"></div></div>
 <div><label class="label">رقم الجوال</label><input id="bPhone" inputmode="tel"></div>
-<div><label class="label">تاريخ الحجز</label><input id="bDate" type="date" required onchange="checkSelectedDate()"><div id="dateHint" class="meta" style="margin-top:5px"></div></div>
-<div><label class="label">نوع الحجز</label><select id="bType"><option>يومي</option><option>مبيت</option></select></div>
+<div><label class="label">تاريخ الحجز</label><input id="bDate" type="date" required onchange="updateStayFields();checkSelectedDate()"><div id="dateHint" class="meta" style="margin-top:5px"></div></div>
+<div><label class="label">نوع الحجز</label><select id="bType" onchange="updateStayFields()"><option>يومي</option><option>مبيت</option></select></div>
+<div id="stayDaysWrap" style="display:none">
+  <label class="label">عدد أيام المبيت</label>
+  <input id="bStayDays" type="number" min="1" max="30" value="1" oninput="updateStayFields()">
+  <div id="stayDateHint" class="meta" style="margin-top:5px"></div>
+</div>
 <div><label class="label">العربون/المدفوع</label><input id="bPaid" type="number" min="0" value="0"></div>
 <div><label class="label">المبلغ الإجمالي</label><input id="bTotal" type="number" min="0" value="0"></div>
 <div><label class="label">الحالة</label><select id="bStatus"><option>مؤكد</option><option>غير مؤكد</option><option>تم الدخول</option><option>تم الخروج</option><option>ملغي</option></select></div>
@@ -814,17 +819,61 @@ function itemHTML(b){
   </div>`
 }
 function renderBookings(){let q=(search?.value||'').trim(),s=statusFilter?.value||'';let arr=[...db.bookings].sort((a,b)=>b.date.localeCompare(a.date)).filter(b=>(!q||b.name.includes(q)||String(b.phone).includes(q)||String(b.code||'').includes(q))&&(!s||b.status===s));bookingList.innerHTML=arr.map(itemHTML).join('')||'<div class="empty">لا توجد نتائج</div>'}
+
+function addDaysISO(dateStr,days){
+  const d=new Date(dateStr+'T12:00:00');
+  d.setDate(d.getDate()+Number(days||0));
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function bookingEndDate(booking){
+  if(!booking?.date)return '';
+  return booking.type==='مبيت'
+    ? addDaysISO(booking.date,Math.max(1,Number(booking.stayDays||1)))
+    : booking.date;
+}
+function bookingOccupiedDates(booking){
+  if(!booking?.date)return [];
+  const days=booking.type==='مبيت'?Math.max(1,Number(booking.stayDays||1)):1;
+  const arr=[];
+  for(let i=0;i<days;i++)arr.push(addDaysISO(booking.date,i));
+  return arr;
+}
+function updateStayFields(){
+  const isStay=bType.value==='مبيت';
+  stayDaysWrap.style.display=isStay?'block':'none';
+  if(!isStay){
+    bStayDays.value=1;
+    stayDateHint.textContent='';
+    return;
+  }
+  const days=Math.max(1,Number(bStayDays.value||1));
+  bStayDays.value=days;
+  if(bDate.value){
+    const checkout=addDaysISO(bDate.value,days);
+    stayDateHint.textContent=`الخروج تلقائيًا: ${checkout} صباحًا — مدة المبيت ${days} ${days===1?'يوم':'أيام'}`;
+  }else{
+    stayDateHint.textContent='حدد تاريخ الدخول أولًا';
+  }
+}
+function findBookingConflict(candidate,editingId=''){
+  const candidateDates=new Set(bookingOccupiedDates(candidate));
+  return db.bookings.find(x=>{
+    if(x.id===editingId||x.status==='ملغي')return false;
+    return bookingOccupiedDates(x).some(d=>candidateDates.has(d));
+  });
+}
+
 function openBooking(id,presetDate){if(!id&&['maintenance','closed'].includes(db.settings?.resortStatus)){alert('لا يمكن إضافة حجز جديد وحالة المنتجع: '+(RESORT_STATUSES[db.settings.resortStatus]?.label||''));return;}
   bookingForm.reset();
   editingBookingPhotos=[];
-  bPaid.value=0;bTotal.value=0;bDate.value=presetDate||isoToday();bStatus.value='مؤكد';bType.value='يومي';bId.value='';
+  bPaid.value=0;bTotal.value=0;bDate.value=presetDate||isoToday();bStatus.value='مؤكد';bType.value='يومي';bStayDays.value=1;bId.value='';
   bCode.value='AD-'+String(db.seq).padStart(4,'0');
   deleteBookingBtn.style.display='none';
   bookingModalTitle.textContent='إضافة حجز';
   if(id){
     let b=db.bookings.find(x=>x.id===id);
     if(!b)return;
-    bId.value=b.id;bName.value=b.name;bPhone.value=b.phone;bDate.value=b.date;bType.value=b.type;
+    bId.value=b.id;bName.value=b.name;bPhone.value=b.phone;bDate.value=b.date;bType.value=b.type;bStayDays.value=b.stayDays||1;
     bPaid.value=b.paid;bTotal.value=b.total;bStatus.value=b.status;bNotes.value=b.notes||'';bCode.value=b.code;
     editingBookingPhotos=Array.isArray(b.photos)?JSON.parse(JSON.stringify(b.photos)):[];
     deleteBookingBtn.style.display='inline-block';
@@ -836,6 +885,7 @@ function openBooking(id,presetDate){if(!id&&['maintenance','closed'].includes(db
   bookingModal.classList.add('open');
   renderSendStatus();
   renderBookingPhotos();
+  updateStayFields();
 }
 function closeModal(id){document.getElementById(id).classList.remove('open')}
 function nextAvailableDate(fromDate){
@@ -851,13 +901,14 @@ function nextAvailableDate(fromDate){
 function checkSelectedDate(){
   const date=bDate.value;
   const editingId=bId.value;
-  const conflict=db.bookings.find(x=>x.id!==editingId&&x.date===date&&x.status!=='ملغي');
+  if(!date){dateHint.textContent='';return}
+  const candidate={date,type:bType.value,stayDays:bType.value==='مبيت'?Math.max(1,Number(bStayDays.value||1)):1};
+  const conflict=findBookingConflict(candidate,editingId);
   if(conflict){
-    const alt=nextAvailableDate(date);
-    dateHint.textContent=`محجوز باسم ${conflict.name}${alt?` — أقرب تاريخ متاح: ${alt}`:''}`;
+    dateHint.textContent=`يوجد تعارض مع حجز ${conflict.name} خلال هذه الفترة`;
     dateHint.style.color='#a63c3c';
   }else{
-    dateHint.textContent=date?'هذا التاريخ متاح':'';
+    dateHint.textContent=bType.value==='مبيت'?'الفترة كاملة متاحة':'هذا التاريخ متاح';
     dateHint.style.color='#14785f';
   }
 }
@@ -869,6 +920,7 @@ function getBookingFromForm(){
     phone:bPhone.value.trim(),
     date:bDate.value,
     type:bType.value,
+    stayDays:bType.value==='مبيت'?Math.max(1,Number(bStayDays.value||1)):1,
     paid:Number(bPaid.value||0),
     total:Number(bTotal.value||0),
     status:bStatus.value,
@@ -917,7 +969,7 @@ function bookingDocumentHTML(b,type){
   const due=Math.max(0,Number(b.total||0)-Number(b.paid||0));
   const title=type==='invoice'?'فاتورة حجز':'عقد حجز';
   const bookingTimes=b.type==='مبيت'
-    ?'الدخول الساعة 3:30 عصرًا، والخروج الساعة 8:00 صباحًا مع سماح حتى الساعة 10:00 صباحًا.'
+    ?`الدخول بتاريخ ${b.date} الساعة 3:30 عصرًا، لمدة ${Number(b.stayDays||1)} يوم، والخروج بتاريخ ${bookingEndDate(b)} الساعة 8:00 صباحًا مع سماح حتى الساعة 10:00 صباحًا.`
     :'الدخول الساعة 3:30 عصرًا، والخروج الساعة 3:00 فجرًا.';
   const notes=escapeHtml(b.notes||'لا توجد ملاحظات');
   const common=`
@@ -962,7 +1014,7 @@ function bookingDocumentHTML(b,type){
       <div>هذه الفاتورة صادرة آليًا من نظام إدارة الحجوزات.</div>
     </div>`;
 
-  return `<!doctype html><html lang="ar"><head><meta charset="utf-8"><title>v8.1 — معرض صور الحجوزات</title>${documentStyle()}</head>
+  return `<!doctype html><html lang="ar"><head><meta charset="utf-8"><title>v8.2 — معرض صور الحجوزات</title>${documentStyle()}</head>
   <body><div class="actions"><button onclick="window.print()">طباعة / حفظ PDF</button></div>
   <div class="page">${common}${type==='invoice'?invoice:contract}<div class="footer">تم إنشاء هذا المستند إلكترونيًا بواسطة نظام إدارة منتجع أضواء الشرق، ولا يحتاج إلى توقيع أو ختم يدوي من الإدارة.</div></div>
 <div id="photoLightbox" class="photo-lightbox" onclick="closePhotoLightbox()">
@@ -1147,11 +1199,11 @@ function saveBooking(e){
   let id=bId.value;
   const oldBooking=id?db.bookings.find(x=>x.id===id):null;
   const previousStatus=oldBooking?.status||'';
-  let obj={...(oldBooking||{}),id:id||crypto.randomUUID(),code:bCode.value,name:bName.value.trim(),phone:bPhone.value.trim(),date:bDate.value,type:bType.value,paid:Number(bPaid.value||0),total:Number(bTotal.value||0),status:bStatus.value,notes:bNotes.value.trim(),photos:editingBookingPhotos,updatedAt:new Date().toISOString()};
-  let conflict=db.bookings.find(x=>x.id!==obj.id&&x.date===obj.date&&x.status!=='ملغي');
+  let obj={...(oldBooking||{}),id:id||crypto.randomUUID(),code:bCode.value,name:bName.value.trim(),phone:bPhone.value.trim(),date:bDate.value,type:bType.value,stayDays:bType.value==='مبيت'?Math.max(1,Number(bStayDays.value||1)):1,paid:Number(bPaid.value||0),total:Number(bTotal.value||0),status:bStatus.value,notes:bNotes.value.trim(),photos:editingBookingPhotos,updatedAt:new Date().toISOString()};
+  let conflict=findBookingConflict(obj,obj.id);
   if(conflict){
     const alt=nextAvailableDate(obj.date);
-    alert(`هذا التاريخ محجوز باسم ${conflict.name}. لا يمكن تسجيل حجزين في اليوم نفسه.${alt?`\nأقرب تاريخ متاح: ${alt}`:''}`);
+    alert(`يوجد تعارض مع حجز ${conflict.name} خلال فترة الحجز المطلوبة. غيّر تاريخ الدخول أو عدد أيام المبيت.${alt?`\nأقرب تاريخ متاح مبدئيًا: ${alt}`:''}`);
     return;
   }
   if(id){let i=db.bookings.findIndex(x=>x.id===id);db.bookings[i]=obj}else{db.bookings.push(obj);db.seq++}
@@ -1569,7 +1621,7 @@ function renderCalendar(){
 function changeMonth(n){calDate.setMonth(calDate.getMonth()+n);renderCalendar()}
 function saveSetting(){db.settings.waNumber=waNumber.value.trim();db.settings.welcomeMsg=welcomeMsg.value;persist()}
 function waLink(phone,msg){let p=(phone||'').replace(/\D/g,'');if(p.startsWith('05'))p='966'+p.slice(1);return `https://wa.me/${p}?text=${encodeURIComponent(msg)}`}
-function sendWhatsAppFromForm(){let msg=`مرحبًا ${bName.value||''}\nتم تسجيل حجزكم في منتجع أضواء الشرق\nالتاريخ: ${bDate.value}\nنوع الحجز: ${bType.value}\nالمدفوع: ${money(bPaid.value)}\nالمتبقي: ${money(Number(bTotal.value)-Number(bPaid.value))}`;window.open(waLink(bPhone.value,msg),'_blank')}
+function sendWhatsAppFromForm(){let msg=`مرحبًا ${bName.value||''}\nتم تسجيل حجزكم في منتجع أضواء الشرق\nالتاريخ: ${bDate.value}\nنوع الحجز: ${bType.value}${bType.value==='مبيت'?`\nعدد أيام المبيت: ${Math.max(1,Number(bStayDays.value||1))}\nتاريخ الخروج: ${addDaysISO(bDate.value,Math.max(1,Number(bStayDays.value||1)))}`:''}\nالمدفوع: ${money(bPaid.value)}\nالمتبقي: ${money(Number(bTotal.value)-Number(bPaid.value))}`;window.open(waLink(bPhone.value,msg),'_blank')}
 function exportData(){download(`adwaa-backup-${isoToday()}.json`,JSON.stringify(db,null,2),'application/json')}
 function importData(ev){let f=ev.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);persist();alert('تم استيراد النسخة بنجاح')}catch(e){alert('الملف غير صالح')}};r.readAsText(f)}
 function exportCSV(){let rows=[['رقم الحجز','العميل','الجوال','التاريخ','النوع','المدفوع','الإجمالي','المتبقي','الحالة','ملاحظات'],...db.bookings.map(b=>[b.code,b.name,b.phone,b.date,b.type,b.paid,b.total,b.total-b.paid,b.status,b.notes])];let csv='\ufeff'+rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n');download(`bookings-${isoToday()}.csv`,csv,'text/csv;charset=utf-8')}
@@ -1577,7 +1629,7 @@ function download(name,content,type){let a=document.createElement('a');a.href=UR
 async function resetAll(){if(confirm('سيتم مسح كل الحجوزات والمصروفات من جميع الأجهزة. هل أنت متأكد؟')){db={bookings:[],expenses:[],cleaningTasks:[],customerNotes:{},settings:{waNumber:'',welcomeMsg:DEFAULT_MSG,resortStatus:'ready',resortStatusUpdated:''},seq:1};await persist();alert('تم مسح البيانات من جميع الأجهزة')}}
 function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function startVoice(){let SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert('الإدخال الصوتي غير مدعوم في هذا المتصفح. استخدم Chrome أو Safari الحديث.');return}let r=new SR();r.lang='ar-SA';r.interimResults=false;r.onresult=e=>parseVoice(e.results[0][0].transcript);r.onerror=()=>alert('تعذر التقاط الصوت');r.start();voiceHint.textContent='جاري الاستماع...'}
-function parseVoice(t){voiceHint.textContent='تم سماع: '+t;let paid=t.match(/(?:عربون|دفع|مدفوع)\s*(\d+)/),total=t.match(/(?:الإجمالي|اجمالي|المبلغ)\s*(\d+)/),phone=t.match(/05\d{8}/),day=t.match(/(?:يوم|بتاريخ)\s*(\d{1,2})\s*(?:\/|-|\s)\s*(\d{1,2})?/);let name=t.split(/يوم|بتاريخ|عربون|دفع|مدفوع|الإجمالي|اجمالي|المبلغ/)[0].replace(/سجل|حجز|جديد|للعميل/g,'').trim();if(name)bName.value=name;if(paid)bPaid.value=paid[1];if(total)bTotal.value=total[1];if(phone)bPhone.value=phone[0];if(/مبيت/.test(t))bType.value='مبيت';if(day){let y=new Date().getFullYear(),m=day[2]?Number(day[2]):new Date().getMonth()+1,d=Number(day[1]);bDate.value=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`}}
+function parseVoice(t){voiceHint.textContent='تم سماع: '+t;let paid=t.match(/(?:عربون|دفع|مدفوع)\s*(\d+)/),total=t.match(/(?:الإجمالي|اجمالي|المبلغ)\s*(\d+)/),phone=t.match(/05\d{8}/),day=t.match(/(?:يوم|بتاريخ)\s*(\d{1,2})\s*(?:\/|-|\s)\s*(\d{1,2})?/);let name=t.split(/يوم|بتاريخ|عربون|دفع|مدفوع|الإجمالي|اجمالي|المبلغ/)[0].replace(/سجل|حجز|جديد|للعميل/g,'').trim();if(name)bName.value=name;if(paid)bPaid.value=paid[1];if(total)bTotal.value=total[1];if(phone)bPhone.value=phone[0];if(/مبيت/.test(t)){bType.value='مبيت';const dm=t.match(/(\d+)\s*(?:يوم|أيام)/);if(dm)bStayDays.value=dm[1];updateStayFields();}if(day){let y=new Date().getFullYear(),m=day[2]?Number(day[2]):new Date().getMonth()+1,d=Number(day[1]);bDate.value=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`}}
 window.addEventListener('load',async()=>{if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});renderAll();await loadRemoteData();subscribeRealtime()});
 </script>
 
