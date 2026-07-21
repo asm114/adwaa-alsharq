@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0d4c3f">
-<title>v8.5 — معرض صور الحجوزات</title>
+<title>v8.6 — معرض صور الحجوزات</title>
 <link rel="manifest" href="manifest.json">
 <style>
 :root{--green:#0d4c3f;--green2:#155f50;--gold:#d8a33e;--bg:#f7f5ef;--card:#fff;--text:#10251f;--muted:#7d8a85;--danger:#b54545;--line:#e7e5df}
@@ -313,7 +313,7 @@ button{position:relative;z-index:1}
   </div>
 
   <div class="section">
-    <div class="section-head"><div><h3>تقرير عمولة المدير</h3><div class="meta" style="margin:6px 0 12px">عمولة المدير: 100 ريال عن كل يوم حجز، سواء كان يوميًا أو مبيتًا.</div><div class="meta">100 ريال لكل حجز مكتمل السداد</div></div></div>
+    <div class="section-head"><div><h3>تقرير عمولة المدير</h3><div class="meta" style="margin:6px 0 12px">عمولة المدير: 100 ريال عن كل يوم حجز، سواء كان يوميًا أو مبيتًا.</div><div class="meta">تُخصم تلقائيًا من صافي الربح بعد اكتمال السداد: 100 ريال عن كل يوم حجز</div></div></div>
     <div id="commissionList" class="list"></div>
   </div>
 </section>
@@ -778,7 +778,7 @@ function renderDashboard(){
   const revenueMonth=monthBookings.reduce((s,b)=>s+Number(b.paid||0),0);
   const pending=active.reduce((s,b)=>s+Math.max(0,Number(b.total||0)-Number(b.paid||0)),0);
   const fullyPaid=active.filter(b=>Number(b.total||0)>0&&Number(b.paid||0)>=Number(b.total||0));
-  const commission=fullyPaid.length*100;
+  const commission=fullyPaid.reduce((sum,b)=>sum+managerCommissionAmount(b),0);
 
   sTotal.textContent=active.length;
   sToday.textContent=todayBookings.length;
@@ -839,7 +839,7 @@ function bookingChargeableDays(booking){
     : 1;
 }
 function managerCommissionAmount(booking){
-  return bookingChargeableDays(booking)*managerCommissionAmount(booking);
+  return bookingChargeableDays(booking)*100;
 }
 
 function bookingEndDate(booking){
@@ -1031,7 +1031,7 @@ function bookingDocumentHTML(b,type){
       <div>هذه الفاتورة صادرة آليًا من نظام إدارة الحجوزات.</div>
     </div>`;
 
-  return `<!doctype html><html lang="ar"><head><meta charset="utf-8"><title>v8.5 — معرض صور الحجوزات</title>${documentStyle()}</head>
+  return `<!doctype html><html lang="ar"><head><meta charset="utf-8"><title>v8.6 — معرض صور الحجوزات</title>${documentStyle()}</head>
   <body><div class="actions"><button onclick="window.print()">طباعة / حفظ PDF</button></div>
   <div class="page">${common}${type==='invoice'?invoice:contract}<div class="footer">تم إنشاء هذا المستند إلكترونيًا بواسطة نظام إدارة منتجع أضواء الشرق، ولا يحتاج إلى توقيع أو ختم يدوي من الإدارة.</div></div>
 <div id="photoLightbox" class="photo-lightbox" onclick="closePhotoLightbox()">
@@ -1467,7 +1467,7 @@ function renderExpenses(){
   const due=activeBookings.reduce((s,b)=>s+Math.max(0,Number(b.total||0)-Number(b.paid||0)),0);
   const expensesSum=allPeriodExpenses.reduce((s,e)=>s+Number(e.amount||0),0);
   const fullyPaidBookings=activeBookings.filter(b=>Number(b.total||0)>0&&Number(b.paid||0)>=Number(b.total||0));
-  const commission=fullyPaidBookings.length*100;
+  const commission=fullyPaidBookings.reduce((sum,b)=>sum+managerCommissionAmount(b),0);
   const profit=revenue-expensesSum-commission;
 
   finRevenue.textContent=money(revenue);finExpenses.textContent=money(expensesSum);finProfit.textContent=money(profit);finProfit.className='amount '+(profit>=0?'finance-positive':'finance-negative');finDue.textContent=money(due);
@@ -1475,7 +1475,7 @@ function renderExpenses(){
 
   expenseTableBody.innerHTML=[...filteredExpenses].sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(e=>`<tr><td>${escapeHtml(e.ref||'-')}</td><td>${escapeHtml(e.date||'-')}</td><td><b>${escapeHtml(e.title||'')}</b>${e.notes?`<div class="meta">${escapeHtml(e.notes)}</div>`:''}</td><td>${escapeHtml(e.cat||'-')}</td><td>${escapeHtml(e.paymentMethod||'غير محدد')}${e.externalRef?`<div class="meta">${escapeHtml(e.externalRef)}</div>`:''}</td><td><b>${money(e.amount)}</b></td><td><button class="secondary small" onclick="openExpense('${e.id}')">تعديل</button></td></tr>`).join('')||'<tr><td colspan="7" class="empty">لا توجد مصروفات مطابقة</td></tr>';
 
-  commissionList.innerHTML=[...fullyPaidBookings].sort((a,b)=>b.date.localeCompare(a.date)).map(b=>`<div class="item"><div><h4>${escapeHtml(b.name)} <span class="small">#${b.code}</span></h4><div class="meta">${b.date} • إجمالي الحجز ${money(b.total)} • مكتمل السداد</div></div><b>${money(100)}</b></div>`).join('')||'<div class="empty">لا توجد عمولات مستحقة في الفترة المختارة</div>';
+  commissionList.innerHTML=[...fullyPaidBookings].sort((a,b)=>b.date.localeCompare(a.date)).map(b=>`<div class="item"><div><h4>${escapeHtml(b.name)} <span class="small">#${b.code}</span></h4><div class="meta">${b.date} • ${bookingChargeableDays(b)} ${bookingChargeableDays(b)===1?'يوم':'أيام'} • إجمالي الحجز ${money(b.total)} • مكتمل السداد</div></div><b>${money(managerCommissionAmount(b))}</b></div>`).join('')||'<div class="empty">لا توجد عمولات مستحقة في الفترة المختارة</div>';
   renderFinanceChart();
 }
 async function deleteCurrentExpense(){
