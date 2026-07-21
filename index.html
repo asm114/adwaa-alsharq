@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0d4c3f">
-<title>v9.1 RC1 — النسخة الاحترافية المحمية</title>
+<title>v9.1.1 RC1 — النسخة الاحترافية المحمية</title>
 <link rel="manifest" href="manifest.json">
 <style>
 :root{--green:#0d4c3f;--green2:#155f50;--gold:#d8a33e;--bg:#f7f5ef;--card:#fff;--text:#10251f;--muted:#7d8a85;--danger:#b54545;--line:#e7e5df}
@@ -217,6 +217,10 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
     <div class="auth-fields">
       <div><label class="label" for="loginEmail">البريد الإلكتروني</label><input id="loginEmail" type="email" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" required placeholder="بريد المدير"></div>
       <div><label class="label" for="loginPassword">كلمة المرور</label><div class="password-wrap"><input id="loginPassword" type="password" autocomplete="current-password" required placeholder="كلمة المرور"><button class="password-toggle" type="button" onclick="toggleLoginPassword()" aria-label="إظهار أو إخفاء كلمة المرور">◉</button></div></div>
+      <label id="rememberLoginOption" class="remember-login-option" for="rememberLogin">
+        <input id="rememberLogin" type="checkbox" onchange="updateRememberLoginPreference()">
+        <span><b>حفظ كلمة المرور على هذا الجهاز</b><small>يتم الحفظ بواسطة مدير كلمات المرور في Chrome أو Edge، ولا تُحفظ كلمة المرور داخل بيانات النظام.</small></span>
+      </label>
       <button id="loginButton" class="primary auth-submit" type="submit">دخول آمن</button>
     </div>
     <div id="authStatus" class="auth-status" role="status"></div>
@@ -576,7 +580,7 @@ const SUPABASE_URL='https://pgdvlklpyrvmwzitsmbw.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_BFTIR_8VK2qQuKnl2c-jDA_cMnWz0E-';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const STATE_ROW_ID='main';
-const APP_VERSION='9.1-RC1';
+const APP_VERSION='9.1.1-RC1';
 const BACKUP_DB_NAME='adwaa-backup-vault';
 const BACKUP_STORE_NAME='backups';
 let remoteReady=false;
@@ -648,11 +652,55 @@ function toggleLoginPassword(){
   const el=document.getElementById('loginPassword');
   if(el)el.type=el.type==='password'?'text':'password';
 }
+const REMEMBER_LOGIN_KEY='adwaaRememberLogin';
+const REMEMBER_EMAIL_KEY='adwaaRememberEmail';
+function updateRememberLoginStyle(){
+  const checkbox=document.getElementById('rememberLogin');
+  const option=document.getElementById('rememberLoginOption');
+  if(option)option.classList.toggle('active',!!checkbox?.checked);
+}
+function updateRememberLoginPreference(){
+  const checkbox=document.getElementById('rememberLogin');
+  const email=String(document.getElementById('loginEmail')?.value||'').trim().toLowerCase();
+  if(checkbox?.checked){
+    localStorage.setItem(REMEMBER_LOGIN_KEY,'1');
+    if(email)localStorage.setItem(REMEMBER_EMAIL_KEY,email);
+  }else{
+    localStorage.removeItem(REMEMBER_LOGIN_KEY);
+    localStorage.removeItem(REMEMBER_EMAIL_KEY);
+  }
+  updateRememberLoginStyle();
+}
+function initializeRememberLogin(){
+  const checkbox=document.getElementById('rememberLogin');
+  const emailInput=document.getElementById('loginEmail');
+  const enabled=localStorage.getItem(REMEMBER_LOGIN_KEY)==='1';
+  if(checkbox)checkbox.checked=enabled;
+  if(enabled&&emailInput&&!emailInput.value)emailInput.value=localStorage.getItem(REMEMBER_EMAIL_KEY)||'';
+  updateRememberLoginStyle();
+}
+async function saveManagerCredentialPreference(email,password){
+  const remember=!!document.getElementById('rememberLogin')?.checked;
+  if(!remember){
+    localStorage.removeItem(REMEMBER_LOGIN_KEY);
+    localStorage.removeItem(REMEMBER_EMAIL_KEY);
+    return;
+  }
+  localStorage.setItem(REMEMBER_LOGIN_KEY,'1');
+  localStorage.setItem(REMEMBER_EMAIL_KEY,email);
+  if(window.PasswordCredential&&navigator.credentials?.store&&window.isSecureContext){
+    try{
+      const credential=new PasswordCredential({id:email,password,name:'مدير منتجع أضواء الشرق'});
+      await navigator.credentials.store(credential);
+    }catch(err){console.warn('تعذر استدعاء مدير كلمات المرور؛ يمكن للمتصفح عرض نافذة الحفظ تلقائيًا.',err)}
+  }
+}
 function showLogin(){
   currentUser=null;
   document.getElementById('authGate')?.removeAttribute('hidden');
   document.getElementById('appRoot')?.classList.add('auth-locked');
   document.getElementById('signedInEmail')&&(document.getElementById('signedInEmail').textContent='—');
+  setTimeout(initializeRememberLogin,0);
 }
 async function showApplication(user){
   currentUser=user||null;
@@ -678,6 +726,7 @@ async function loginManager(event){
     const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
     if(error)throw error;
     setAuthStatus('تم الدخول بنجاح.','ok');
+    await saveManagerCredentialPreference(email,password);
     await showApplication(data.user);
     document.getElementById('loginPassword').value='';
   }catch(err){
@@ -695,6 +744,7 @@ async function logoutManager(){
   showLogin();
 }
 async function initializeSecureApp(){
+  initializeRememberLogin();
   if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
   try{
     const {data,error}=await supabaseClient.auth.getSession();
@@ -1241,6 +1291,14 @@ function documentStyle(){
 .photo-review-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:10px;margin-top:10px}
 .photo-review-grid img{width:100%;height:130px;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
 .review-box{background:#f7faf8;border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:10px}
+
+
+/* v9.1.1 RC1 — حفظ كلمة المرور عبر مدير كلمات المرور في المتصفح */
+.remember-login-option{display:flex;align-items:flex-start;gap:10px;border:1px solid #d9e2de;background:#f8faf9;border-radius:14px;padding:11px 12px;cursor:pointer;user-select:none}
+.remember-login-option input[type="checkbox"]{width:20px!important;height:20px!important;min-height:20px!important;flex:0 0 20px;margin:2px 0 0;accent-color:var(--green)}
+.remember-login-option span{display:block;line-height:1.55}.remember-login-option b{display:block;font-size:14px}.remember-login-option small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.remember-login-option.active{background:#eef8f4;border-color:#92c5b4}
+
 </style>`;
 }
 
