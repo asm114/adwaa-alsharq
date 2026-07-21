@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0d4c3f">
-<title>v8.6 — معرض صور الحجوزات</title>
+<title>v8.7 — رسائل وتوقيع احترافي</title>
 <link rel="manifest" href="manifest.json">
 <style>
 :root{--green:#0d4c3f;--green2:#155f50;--gold:#d8a33e;--bg:#f7f5ef;--card:#fff;--text:#10251f;--muted:#7d8a85;--danger:#b54545;--line:#e7e5df}
@@ -329,7 +329,9 @@ button{position:relative;z-index:1}
     </div>
     <hr style="border:0;border-top:1px solid var(--line);margin:20px 0">
     <label class="label">رقم واتساب المنتجع</label><input id="waNumber" placeholder="9665xxxxxxxx" onchange="saveSetting()">
-    <label class="label" style="margin-top:12px">رسالة الترحيب عند الدخول</label><textarea id="welcomeMsg" onchange="saveSetting()"></textarea>
+    <label class="label" style="margin-top:12px">رسالة الترحيب — الحجز اليومي</label><textarea id="welcomeMsgDaily" onchange="saveSetting()"></textarea>
+    <label class="label" style="margin-top:12px">رسالة الترحيب — المبيت</label><textarea id="welcomeMsgStay" onchange="saveSetting()"></textarea>
+    <div class="meta" style="margin-top:8px;line-height:1.8">يضيف النظام تلقائيًا اسم العميل ورقم الحجز والتاريخ ونوع الحجز، ثم يختار الرسالة المناسبة حسب نوع الحجز.</div>
   </div></div>
 </section>
 </main>
@@ -472,11 +474,22 @@ const SUPABASE_PUBLISHABLE_KEY='sb_publishable_BFTIR_8VK2qQuKnl2c-jDA_cMnWz0E-';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const STATE_ROW_ID='main';
 let remoteReady=false;
-const DEFAULT_MSG=`حياكم الله في منتجع أضواء الشرق 🌿
-نأمل المحافظة على نظافة المكان ومحتوياته، وعدم العبث بالأجهزة أو نقل الأثاث.
-يرجى التأكد من إغلاق المياه والأنوار عند المغادرة.
-نذكركم بأن انتهاء الحجز الساعة 3:00 صباحًا.`;
-let db=JSON.parse(localStorage.getItem('adwaaDB')||'null')||{bookings:[],expenses:[],cleaningTasks:[],notifications:[],customerNotes:{},settings:{waNumber:'',welcomeMsg:DEFAULT_MSG,resortStatus:'ready',resortStatusUpdated:''},seq:1};
+const DEFAULT_WELCOME_DAILY=`سعدنا باختياركم لنا، ونسأل الله لكم وقتًا ممتعًا وسعيدًا.
+
+نأمل منكم التكرم بالمحافظة على نظافة المنتجع ومحتوياته، وعدم العبث بالأجهزة أو نقل الأثاث، والتأكد من إغلاق المياه والأنوار عند المغادرة.
+
+⏰ موعد انتهاء الحجز الساعة 3:00 صباحًا.
+
+لأي استفسار أو خدمة نحن في خدمتكم بكل سرور.`;
+const DEFAULT_WELCOME_STAY=`سعدنا باختياركم لنا، ونسأل الله لكم إقامة مريحة وممتعة.
+
+نأمل منكم التكرم بالمحافظة على نظافة المنتجع ومحتوياته، وعدم العبث بالأجهزة أو نقل الأثاث، والتأكد من إغلاق المياه والأنوار عند المغادرة.
+
+🔔 تنبيه: قد يدخل العامل صباحًا لأعمال التشغيل والترتيب وفق تنظيم المنتجع.
+⏰ موعد الخروج الساعة 8:00 صباحًا، مع سماح حتى الساعة 10:00 صباحًا.
+
+لأي استفسار أو خدمة نحن في خدمتكم بكل سرور.`;
+let db=JSON.parse(localStorage.getItem('adwaaDB')||'null')||{bookings:[],expenses:[],cleaningTasks:[],notifications:[],customerNotes:{},settings:{waNumber:'',welcomeMsgDaily:DEFAULT_WELCOME_DAILY,welcomeMsgStay:DEFAULT_WELCOME_STAY,resortStatus:'ready',resortStatusUpdated:''},seq:1};
 let calDate=new Date();
 let editingBookingPhotos=[];
 
@@ -490,7 +503,8 @@ function normalizeDB(value){
     customerNotes:x.customerNotes&&typeof x.customerNotes==='object'?x.customerNotes:{},
     settings:{
       waNumber:x.settings?.waNumber||'',
-      welcomeMsg:x.settings?.welcomeMsg||DEFAULT_MSG,
+      welcomeMsgDaily:x.settings?.welcomeMsgDaily||DEFAULT_WELCOME_DAILY,
+      welcomeMsgStay:x.settings?.welcomeMsgStay||DEFAULT_WELCOME_STAY,
       resortStatus:x.settings?.resortStatus||'ready',
       resortStatusUpdated:x.settings?.resortStatusUpdated||''
     },
@@ -587,7 +601,7 @@ function renderResortStatus(){const key=db.settings?.resortStatus||'ready',st=RE
 function openResortStatus(){const current=db.settings?.resortStatus||'ready';document.getElementById('resortStatusOptions').innerHTML=Object.entries(RESORT_STATUSES).map(([key,st])=>`<button class="status-option ${key===current?'active':''}" onclick="setResortStatus('${key}')"><span style="font-size:24px">${st.icon}</span><br>${st.label}</button>`).join('');document.getElementById('resortStatusModal').classList.add('open');}
 async function setResortStatus(key){if(!RESORT_STATUSES[key])return;db.settings.resortStatus=key;db.settings.resortStatusUpdated=new Date().toISOString();closeModal('resortStatusModal');await persist();}
 function switchView(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));(btn||document.querySelector(`nav button[data-view="${id}"]`))?.classList.add('active');const t={dashboard:['لوحة إدارة المنتجع','متابعة الحجوزات والمبالغ من مكان واحد'],bookings:['إدارة الحجوزات','إضافة وتعديل ومتابعة جميع الحجوزات'],customers:['سجل العملاء','عدد الزيارات والمدفوعات وآخر حجز'],calendarView:['تقويم الحجوزات','عرض الأيام المحجوزة ومنع التداخل'],cleaning:['مركز التنظيف','متابعة مهام التنظيف بعد مغادرة العملاء'],expenses:['المصاريف والدخل','متابعة المصروفات وصافي الدخل'],settings:['الإعدادات','النسخ الاحتياطي وبيانات واتساب']}[id];pageTitle.textContent=t[0];pageSub.textContent=t[1];window.scrollTo(0,0);renderAll()}
-function renderAll(){renderDashboard();renderBookings();renderCustomers();renderCleaning();renderExpenses();renderCalendar();renderResortStatus();waNumber.value=db.settings.waNumber||'';welcomeMsg.value=db.settings.welcomeMsg||DEFAULT_MSG;renderSendStatus()}
+function renderAll(){renderDashboard();renderBookings();renderCustomers();renderCleaning();renderExpenses();renderCalendar();renderResortStatus();const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay');if(waEl)waEl.value=db.settings.waNumber||'';if(dailyEl)dailyEl.value=db.settings.welcomeMsgDaily||DEFAULT_WELCOME_DAILY;if(stayEl)stayEl.value=db.settings.welcomeMsgStay||DEFAULT_WELCOME_STAY;renderSendStatus()}
 function renderTopCustomers(){
   if(typeof topCustomersList==='undefined')return;
   const ranked=getCustomers()
@@ -966,7 +980,12 @@ function documentStyle(){
       .terms{margin-top:22px;line-height:1.9}
       .terms h3{margin-bottom:8px}
       .signatures{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:60px}
-      .sig{border-top:1px solid #7d8a85;padding-top:9px;text-align:center}.signature-name{font-family:"Segoe Script","Brush Script MT",cursive;font-size:30px;color:#153d73;font-weight:700;margin:8px 0 3px}.signed-note{font-size:12px;color:#66736e}.customer-approval{font-size:12px;line-height:1.8;color:#40534c;margin-top:7px}
+      .sig{border-top:1px solid #7d8a85;padding-top:9px;text-align:center}
+      .ink-signature{position:relative;width:235px;height:92px;margin:5px auto 0;display:flex;align-items:center;justify-content:center;transform:rotate(-2deg)}
+      .signature-strokes{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+      .signature-strokes path{fill:none;stroke:#153d73;stroke-width:3.1;stroke-linecap:round;stroke-linejoin:round}
+      .signature-name{position:relative;z-index:2;font-family:"Aldhabi","Arabic Typesetting","Traditional Arabic",serif;font-size:48px;line-height:1;color:#153d73;font-weight:700;letter-spacing:1px;transform:skewX(-8deg) rotate(-3deg);text-shadow:.25px .25px #153d73;margin-top:-3px}
+      .signed-note{font-size:12px;color:#66736e;margin-top:-4px}.customer-approval{font-size:12px;line-height:1.8;color:#40534c;margin-top:7px}
       .footer{margin-top:30px;text-align:center;color:#66736e;font-size:12px}
       .actions{position:fixed;left:20px;top:20px}
       .actions button{padding:10px 16px;border:0;border-radius:8px;background:#0f6b59;color:#fff;cursor:pointer}
@@ -1020,7 +1039,18 @@ function bookingDocumentHTML(b,type){
     </div>
     <div class="signatures">
       <div class="sig"><b>توقيع العميل</b><div class="customer-approval">باستكمال إجراءات الحجز أو سداد العربون أو تأكيد الحجز إلكترونيًا، يقر العميل بأنه اطلع على جميع شروط العقد ووافق عليها، ويُعد هذا العقد موقعًا إلكترونيًا من قبله.</div></div>
-      <div class="sig"><b>إدارة منتجع أضواء الشرق</b><div class="signature-name">الفوزان</div><div class="signed-note">تم التوقيع والختم إلكترونيًا</div></div>
+      <div class="sig"><b>إدارة منتجع أضواء الشرق</b>
+        <div class="ink-signature" aria-label="توقيع الفوزان">
+          <svg class="signature-strokes" viewBox="0 0 235 92" aria-hidden="true">
+            <path d="M12 67 C37 79 64 80 91 70 C116 60 137 61 157 69 C181 79 207 72 224 55"/>
+            <path d="M29 56 C47 15 65 17 62 49 C59 75 82 75 94 43 C106 13 124 20 120 53 C117 75 139 72 151 43 C162 18 176 24 177 51 C178 67 198 58 213 33"/>
+            <path d="M24 75 C74 61 145 58 222 71"/>
+            <path d="M176 27 C190 17 207 19 218 29"/>
+          </svg>
+          <div class="signature-name">الفوزان</div>
+        </div>
+        <div class="signed-note">تم التوقيع — الإدارة</div>
+      </div>
     </div>`;
 
   const invoice=`
@@ -1031,7 +1061,7 @@ function bookingDocumentHTML(b,type){
       <div>هذه الفاتورة صادرة آليًا من نظام إدارة الحجوزات.</div>
     </div>`;
 
-  return `<!doctype html><html lang="ar"><head><meta charset="utf-8"><title>v8.6 — معرض صور الحجوزات</title>${documentStyle()}</head>
+  return `<!doctype html><html lang="ar"><head><meta charset="utf-8"><title>v8.7 — رسائل وتوقيع احترافي</title>${documentStyle()}</head>
   <body><div class="actions"><button onclick="window.print()">طباعة / حفظ PDF</button></div>
   <div class="page">${common}${type==='invoice'?invoice:contract}<div class="footer">تم إنشاء هذا المستند إلكترونيًا بواسطة نظام إدارة منتجع أضواء الشرق، ولا يحتاج إلى توقيع أو ختم يدوي من الإدارة.</div></div>
 <div id="photoLightbox" class="photo-lightbox" onclick="closePhotoLightbox()">
@@ -1077,13 +1107,24 @@ function renderSendStatus(){
   el.innerHTML=keys.map(k=>`<span class="send-chip ${log[k]?'sent':''}">${log[k]?'✓ تم إرسال ':'○ لم يُرسل '}${messageStatusLabel(k)}</span>`).join('');
 }
 
+function welcomeMessageText(b){
+  const isStay=b.type==='مبيت';
+  const body=isStay
+    ?(db.settings.welcomeMsgStay||DEFAULT_WELCOME_STAY)
+    :(db.settings.welcomeMsgDaily||DEFAULT_WELCOME_DAILY);
+  const stayInfo=isStay
+    ?`\n• مدة المبيت: ${Math.max(1,Number(b.stayDays||1))} ${Math.max(1,Number(b.stayDays||1))===1?'يوم':'أيام'}\n• تاريخ الخروج: ${bookingEndDate(b)}`
+    :'';
+  return `السلام عليكم ورحمة الله وبركاته\n\nحياكم الله يا ${b.name||'ضيفنا الكريم'} في *منتجع أضواء الشرق* 🌿\n\n📌 *بيانات الحجز*\n• رقم الحجز: ${b.code||'-'}\n• تاريخ الحجز: ${b.date||'-'}\n• نوع الحجز: ${b.type||'-'}${stayInfo}\n• وقت الدخول: 3:30 عصرًا\n\n${body}\n\nمع خالص الترحيب،\n*إدارة منتجع أضواء الشرق*`;
+}
+
 function manualMessageText(type,b){
   const due=Math.max(0,Number(b.total||0)-Number(b.paid||0));
   const base=`رقم الحجز: ${b.code||'-'}\nتاريخ الحجز: ${b.date||'-'}\nنوع الحجز: ${b.type||'-'}`;
   const messages={
     contract:`مرحبًا ${b.name}\nمرفق لكم عقد حجز منتجع أضواء الشرق.\n${base}\nنأمل الاطلاع على العقد، ويُعد استكمال الحجز أو سداد العربون موافقة على شروطه.`,
     invoice:`مرحبًا ${b.name}\nمرفق لكم فاتورة حجز منتجع أضواء الشرق.\n${base}\nالإجمالي: ${money(b.total)}\nالمدفوع: ${money(b.paid)}\nالمتبقي: ${money(due)}`,
-    welcome:`مرحبًا ${b.name} 🌿\n${db.settings.welcomeMsg||DEFAULT_MSG}\n${base}`,
+    welcome:welcomeMessageText(b),
     reminder:`مرحبًا ${b.name}\nنذكركم بموعد حجزكم في منتجع أضواء الشرق.\n${base}\nوقت الدخول الساعة 3:30 عصرًا. نتشرف بخدمتكم.`,
     due:`مرحبًا ${b.name}\nنود تذكيركم بأن المبلغ المتبقي على الحجز هو ${money(due)}.\n${base}\nشاكرين تعاونكم.`,
     thanks:`شكرًا لاختياركم منتجع أضواء الشرق يا ${b.name} 🌿\nسعدنا باستضافتكم، ونتطلع لخدمتكم مرة أخرى.\nرقم الحجز: ${b.code||'-'}`
@@ -1736,14 +1777,14 @@ function renderCalendar(){
   calendar.innerHTML=html;
 }
 function changeMonth(n){calDate.setMonth(calDate.getMonth()+n);renderCalendar()}
-function saveSetting(){db.settings.waNumber=waNumber.value.trim();db.settings.welcomeMsg=welcomeMsg.value;persist()}
+function saveSetting(){const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay');db.settings.waNumber=waEl?.value.trim()||'';db.settings.welcomeMsgDaily=dailyEl?.value||DEFAULT_WELCOME_DAILY;db.settings.welcomeMsgStay=stayEl?.value||DEFAULT_WELCOME_STAY;persist()}
 function waLink(phone,msg){let p=(phone||'').replace(/\D/g,'');if(p.startsWith('05'))p='966'+p.slice(1);return `https://wa.me/${p}?text=${encodeURIComponent(msg)}`}
 function sendWhatsAppFromForm(){let msg=`مرحبًا ${bName.value||''}\nتم تسجيل حجزكم في منتجع أضواء الشرق\nالتاريخ: ${bDate.value}\nنوع الحجز: ${bType.value}${bType.value==='مبيت'?`\nعدد أيام المبيت: ${Math.max(1,Number(bStayDays.value||1))}\nتاريخ الخروج: ${addDaysISO(bDate.value,Math.max(1,Number(bStayDays.value||1)))}`:''}\nالمدفوع: ${money(bPaid.value)}\nالمتبقي: ${money(Number(bTotal.value)-Number(bPaid.value))}`;window.open(waLink(bPhone.value,msg),'_blank')}
 function exportData(){download(`adwaa-backup-${isoToday()}.json`,JSON.stringify(db,null,2),'application/json')}
 function importData(ev){let f=ev.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);persist();alert('تم استيراد النسخة بنجاح')}catch(e){alert('الملف غير صالح')}};r.readAsText(f)}
 function exportCSV(){let rows=[['رقم الحجز','العميل','الجوال','التاريخ','النوع','المدفوع','الإجمالي','المتبقي','الحالة','ملاحظات'],...db.bookings.map(b=>[b.code,b.name,b.phone,b.date,b.type,b.paid,b.total,b.total-b.paid,b.status,b.notes])];let csv='\ufeff'+rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n');download(`bookings-${isoToday()}.csv`,csv,'text/csv;charset=utf-8')}
 function download(name,content,type){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
-async function resetAll(){if(confirm('سيتم مسح كل الحجوزات والمصروفات من جميع الأجهزة. هل أنت متأكد؟')){db={bookings:[],expenses:[],cleaningTasks:[],customerNotes:{},settings:{waNumber:'',welcomeMsg:DEFAULT_MSG,resortStatus:'ready',resortStatusUpdated:''},seq:1};await persist();alert('تم مسح البيانات من جميع الأجهزة')}}
+async function resetAll(){if(confirm('سيتم مسح كل الحجوزات والمصروفات من جميع الأجهزة. هل أنت متأكد؟')){db={bookings:[],expenses:[],cleaningTasks:[],notifications:[],customerNotes:{},settings:{waNumber:'',welcomeMsgDaily:DEFAULT_WELCOME_DAILY,welcomeMsgStay:DEFAULT_WELCOME_STAY,resortStatus:'ready',resortStatusUpdated:''},seq:1};await persist();alert('تم مسح البيانات من جميع الأجهزة')}}
 function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function startVoice(){let SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert('الإدخال الصوتي غير مدعوم في هذا المتصفح. استخدم Chrome أو Safari الحديث.');return}let r=new SR();r.lang='ar-SA';r.interimResults=false;r.onresult=e=>parseVoice(e.results[0][0].transcript);r.onerror=()=>alert('تعذر التقاط الصوت');r.start();voiceHint.textContent='جاري الاستماع...'}
 function parseVoice(t){voiceHint.textContent='تم سماع: '+t;let paid=t.match(/(?:عربون|دفع|مدفوع)\s*(\d+)/),total=t.match(/(?:الإجمالي|اجمالي|المبلغ)\s*(\d+)/),phone=t.match(/05\d{8}/),day=t.match(/(?:يوم|بتاريخ)\s*(\d{1,2})\s*(?:\/|-|\s)\s*(\d{1,2})?/);let name=t.split(/يوم|بتاريخ|عربون|دفع|مدفوع|الإجمالي|اجمالي|المبلغ/)[0].replace(/سجل|حجز|جديد|للعميل/g,'').trim();if(name)bName.value=name;if(paid)bPaid.value=paid[1];if(total)bTotal.value=total[1];if(phone)bPhone.value=phone[0];if(/مبيت/.test(t)){bType.value='مبيت';const dm=t.match(/(\d+)\s*(?:يوم|أيام)/);if(dm)bStayDays.value=dm[1];updateStayFields();}if(day){let y=new Date().getFullYear(),m=day[2]?Number(day[2]):new Date().getMonth()+1,d=Number(day[1]);bDate.value=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`}}
