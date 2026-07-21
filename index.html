@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0d4c3f">
-<title>v8.4 — معرض صور الحجوزات</title>
+<title>v8.5 — معرض صور الحجوزات</title>
 <link rel="manifest" href="manifest.json">
 <style>
 :root{--green:#0d4c3f;--green2:#155f50;--gold:#d8a33e;--bg:#f7f5ef;--card:#fff;--text:#10251f;--muted:#7d8a85;--danger:#b54545;--line:#e7e5df}
@@ -313,7 +313,7 @@ button{position:relative;z-index:1}
   </div>
 
   <div class="section">
-    <div class="section-head"><div><h3>تقرير عمولة المدير</h3><div class="meta">100 ريال لكل حجز مكتمل السداد</div></div></div>
+    <div class="section-head"><div><h3>تقرير عمولة المدير</h3><div class="meta" style="margin:6px 0 12px">عمولة المدير: 100 ريال عن كل يوم حجز، سواء كان يوميًا أو مبيتًا.</div><div class="meta">100 ريال لكل حجز مكتمل السداد</div></div></div>
     <div id="commissionList" class="list"></div>
   </div>
 </section>
@@ -831,6 +831,17 @@ function addDaysISO(dateStr,days){
   d.setDate(d.getDate()+Number(days||0));
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
+
+function bookingChargeableDays(booking){
+  if(!booking)return 1;
+  return booking.type==='مبيت'
+    ? Math.max(1,Number(booking.stayDays||1))
+    : 1;
+}
+function managerCommissionAmount(booking){
+  return bookingChargeableDays(booking)*managerCommissionAmount(booking);
+}
+
 function bookingEndDate(booking){
   if(!booking?.date)return '';
   return booking.type==='مبيت'
@@ -1020,7 +1031,7 @@ function bookingDocumentHTML(b,type){
       <div>هذه الفاتورة صادرة آليًا من نظام إدارة الحجوزات.</div>
     </div>`;
 
-  return `<!doctype html><html lang="ar"><head><meta charset="utf-8"><title>v8.4 — معرض صور الحجوزات</title>${documentStyle()}</head>
+  return `<!doctype html><html lang="ar"><head><meta charset="utf-8"><title>v8.5 — معرض صور الحجوزات</title>${documentStyle()}</head>
   <body><div class="actions"><button onclick="window.print()">طباعة / حفظ PDF</button></div>
   <div class="page">${common}${type==='invoice'?invoice:contract}<div class="footer">تم إنشاء هذا المستند إلكترونيًا بواسطة نظام إدارة منتجع أضواء الشرق، ولا يحتاج إلى توقيع أو ختم يدوي من الإدارة.</div></div>
 <div id="photoLightbox" class="photo-lightbox" onclick="closePhotoLightbox()">
