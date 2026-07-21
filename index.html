@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0d4c3f">
-<title>v9.1.1 RC1 — النسخة الاحترافية المحمية</title>
+<title>v9.2 RC1 — PDF والرسائل الاحترافية</title>
 <link rel="manifest" href="manifest.json">
 <style>
 :root{--green:#0d4c3f;--green2:#155f50;--gold:#d8a33e;--bg:#f7f5ef;--card:#fff;--text:#10251f;--muted:#7d8a85;--danger:#b54545;--line:#e7e5df}
@@ -198,6 +198,22 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
 }
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
 
+
+
+/* v9.2 RC1 — مركز الإرسال وسجل النشاط وحفظ الدخول */
+.auth-save-button{width:100%;border:1px solid #cfd7d3;background:#f8faf9;color:var(--green);padding:12px 14px;border-radius:14px;font-weight:900;text-align:right;display:flex;align-items:center;gap:9px;justify-content:flex-start}
+.auth-save-button.active{background:#eef8f4;border-color:#84baa8;color:#0b6d55}.auth-save-note{font-size:11px;color:var(--muted);line-height:1.65;margin-top:-4px}
+.v92-booking-head{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%}.v92-booking-tools{display:flex;gap:7px;flex-wrap:wrap}.v92-booking-tools button{padding:9px 11px;border-radius:12px;font-size:12px}
+.v92-send-center{padding:16px;background:linear-gradient(180deg,#fff,#fbfcfb)}.v92-send-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.v92-send-head h3{font-size:20px}.v92-send-toolbar{display:flex;gap:7px;flex-wrap:wrap}.v92-send-toolbar button{font-size:12px;padding:9px 11px}
+.v92-requirement{margin:12px 0;padding:11px 12px;border-radius:13px;font-size:13px;font-weight:800}.v92-requirement.ok{background:#eef8f4;color:#14785f;border:1px solid #b8ddcf}.v92-requirement.warn{background:#fff7e4;color:#8b6500;border:1px solid #e8cd86}.v92-requirement.bad{background:#fff0f0;color:#a63c3c;border:1px solid #edc1c1}
+.v92-doc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.v92-operation-card{border:1px solid var(--line);border-radius:17px;padding:14px;background:#fff}.v92-operation-card h4{margin:0;font-size:18px}.v92-card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:11px}.v92-card-icon{font-size:25px}.v92-action-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.v92-action-row button{width:100%;min-height:46px}.v92-status-list{display:grid;gap:7px;margin-top:11px}.v92-status-line{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:9px 10px;border-radius:12px;background:#f8faf9;font-size:12px}.v92-status-line b{white-space:nowrap}
+.v92-status{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:6px 9px;font-size:11px;font-weight:900;line-height:1.35;text-align:right}.v92-status.done{background:#e4f4ee;color:#14785f}.v92-status.wait{background:#fff3d9;color:#996a00}.v92-status.none{background:#fde5e5;color:#a63c3c}.v92-time{display:block;font-size:10px;font-weight:600;margin-top:3px;opacity:.82}
+.v92-messages{margin-top:13px;border:1px solid var(--line);border-radius:17px;padding:14px;background:#fff}.v92-messages h4{margin:0 0 11px;font-size:18px}.v92-message-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.v92-message-item{border:1px solid #e5e9e6;border-radius:14px;padding:11px;background:#fbfcfb;display:grid;gap:8px}.v92-message-item button{width:100%}
+.v92-activity{margin-top:13px;border:1px solid var(--line);border-radius:17px;padding:14px;background:#fff}.v92-activity-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.v92-activity-head h4{margin:0;font-size:18px}.v92-activity-list{display:grid;gap:8px;margin-top:11px;max-height:310px;overflow:auto}.v92-activity-item{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;padding:10px;border-radius:13px;background:#f7faf8;border:1px solid #e4eae7}.v92-activity-dot{width:11px;height:11px;border-radius:50%;background:#238b57;margin-top:5px}.v92-activity-item b{display:block;font-size:13px}.v92-activity-item small{display:block;color:var(--muted);font-size:11px;margin-top:3px}.v92-empty{padding:18px;text-align:center;color:var(--muted);font-size:13px}
+.v92-wa-sheet{max-width:620px;margin:auto}.v92-wa-message{min-height:160px;direction:rtl}.v92-wa-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}.v92-wa-actions button{width:100%}.v92-copy-status{min-height:22px;font-size:12px;color:#14785f;margin-top:8px}
+.v92-operation-card button:disabled,.v92-message-item button:disabled{opacity:.48;cursor:not-allowed;transform:none!important}.v92-version-tag{display:inline-flex;padding:5px 8px;border-radius:999px;background:var(--gold-soft);color:#76520b;font-size:11px;font-weight:900}
+@media(max-width:720px){.v92-doc-grid{grid-template-columns:1fr}.v92-message-grid{grid-template-columns:1fr}.v92-action-row{grid-template-columns:1fr 1fr}.v92-booking-head{align-items:flex-start}.v92-booking-tools{justify-content:flex-end}.v92-wa-actions{grid-template-columns:1fr}}
+@media(max-width:430px){.v92-action-row{grid-template-columns:1fr}.v92-booking-tools button{font-size:11px;padding:8px}.v92-send-toolbar{display:grid;grid-template-columns:1fr 1fr;width:100%}.v92-send-toolbar button{width:100%}}
 </style>
 </head>
 <body>
@@ -455,7 +471,17 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
 </div>
 
 <div class="modal" id="bookingModal"><div class="sheet">
-<div class="sheet-head"><h2 id="bookingModalTitle">إضافة حجز</h2><button class="close" onclick="closeModal('bookingModal')">×</button></div>
+<div class="sheet-head">
+  <div class="v92-booking-head">
+    <h2 id="bookingModalTitle">إضافة حجز</h2>
+    <div class="v92-booking-tools">
+      <button class="secondary" type="button" onclick="backToBookingDetails()">↩ رجوع للحجز</button>
+      <button class="secondary" type="button" onclick="refreshBookingData()">⟳ تحديث البيانات</button>
+      <button class="close" type="button" onclick="closeBookingAndReturn()" aria-label="إغلاق والعودة للنظام">×</button>
+    </div>
+  </div>
+</div>
+
 <button class="voice" onclick="startVoice()">🎙️ إدخال صوتي</button>
 <div id="voiceHint" class="meta" style="margin:8px 0 12px">مثال: محمد العتيبي يوم 25 يوليو عربون 200 الإجمالي 700 مبيت</div>
 <form id="bookingForm" class="form-grid" onsubmit="saveBooking(event)">
@@ -494,21 +520,54 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
 <button class="primary" type="submit">حفظ الحجز</button>
 <button class="danger" id="deleteBookingBtn" type="button" onclick="deleteBooking()" style="display:none">حذف</button>
 </div>
-<div class="send-center">
-  <h3>📲 مركز الإرسال اليدوي</h3>
-  <div class="meta">أنشئ العقد أو الفاتورة واحفظه PDF، ثم افتح واتساب وأرفق الملف يدويًا.</div>
-  <div class="send-grid">
-    <button class="secondary" type="button" onclick="printBookingDocument('contract')">📄 إنشاء العقد / PDF</button>
-    <button class="secondary" type="button" onclick="sendManualWhatsApp('contract')">📲 رسالة إرسال العقد</button>
-    <button class="secondary" type="button" onclick="printBookingDocument('invoice')">🧾 إنشاء الفاتورة / PDF</button>
-    <button class="secondary" type="button" onclick="sendManualWhatsApp('invoice')">📲 رسالة إرسال الفاتورة</button>
-    <button class="secondary" type="button" onclick="sendManualWhatsApp('welcome')">🌹 رسالة الترحيب</button>
-    <button class="secondary" type="button" onclick="sendManualWhatsApp('reminder')">⏰ تذكير بموعد الحجز</button>
-    <button class="secondary" type="button" onclick="sendManualWhatsApp('due')">💰 تذكير بالمبلغ المتبقي</button>
-    <button class="secondary" type="button" onclick="sendManualWhatsApp('thanks')">🙏 رسالة شكر بعد المغادرة</button>
-    <button class="primary" type="button" onclick="createCleaningLinkFromModal()">🧹 إنشاء رابط مهمة جميل</button>
+<div class="send-center v92-send-center" id="v92SendCenter">
+  <div class="v92-send-head">
+    <div><h3>📲 مركز الإرسال اليدوي</h3><div class="meta">إنشاء المستندات وإرسال الرسائل مع حفظ تاريخ ووقت كل عملية.</div></div>
+    <div class="v92-send-toolbar">
+      <button class="secondary" type="button" onclick="backToBookingDetails()">↩ رجوع للحجز</button>
+      <button class="secondary" type="button" onclick="refreshBookingData()">⟳ تحديث البيانات</button>
+      <button class="danger" type="button" onclick="closeBookingAndReturn()">إغلاق والعودة للنظام</button>
+    </div>
   </div>
-  <div id="sendStatus" class="send-status"></div>
+  <div id="v92BookingRequirement" class="v92-requirement bad">🔴 احفظ الحجز أولًا لتفعيل مركز الإرسال.</div>
+  <div class="v92-doc-grid">
+    <section class="v92-operation-card">
+      <div class="v92-card-head"><h4>العقد</h4><span class="v92-card-icon">📄</span></div>
+      <div class="v92-action-row">
+        <button class="secondary" type="button" data-v92-action="contract-create" onclick="printBookingDocument('contract')">إنشاء PDF</button>
+        <button class="primary" type="button" data-v92-action="contract-send" onclick="sendManualWhatsApp('contract')">إرسال واتساب</button>
+      </div>
+      <div class="v92-status-list">
+        <div class="v92-status-line"><b>حالة الإنشاء</b><span id="v92ContractCreated" class="v92-status none">🔴 لم يتم</span></div>
+        <div class="v92-status-line"><b>حالة الإرسال</b><span id="v92ContractSent" class="v92-status none">🔴 لم يتم</span></div>
+      </div>
+    </section>
+    <section class="v92-operation-card">
+      <div class="v92-card-head"><h4>الفاتورة</h4><span class="v92-card-icon">🧾</span></div>
+      <div class="v92-action-row">
+        <button class="secondary" type="button" data-v92-action="invoice-create" onclick="printBookingDocument('invoice')">إنشاء PDF</button>
+        <button class="primary" type="button" data-v92-action="invoice-send" onclick="sendManualWhatsApp('invoice')">إرسال واتساب</button>
+      </div>
+      <div class="v92-status-list">
+        <div class="v92-status-line"><b>حالة الإنشاء</b><span id="v92InvoiceCreated" class="v92-status none">🔴 لم يتم</span></div>
+        <div class="v92-status-line"><b>حالة الإرسال</b><span id="v92InvoiceSent" class="v92-status none">🔴 لم يتم</span></div>
+      </div>
+    </section>
+  </div>
+  <section class="v92-messages">
+    <h4>الرسائل</h4>
+    <div class="v92-message-grid">
+      <div class="v92-message-item"><button class="secondary" type="button" data-v92-action="welcome-send" onclick="sendManualWhatsApp('welcome')">🌹 رسالة الترحيب</button><span id="v92WelcomeSent" class="v92-status none">🔴 لم يتم</span></div>
+      <div class="v92-message-item"><button class="secondary" type="button" data-v92-action="reminder-send" onclick="sendManualWhatsApp('reminder')">⏰ تذكير موعد الحجز</button><span id="v92ReminderSent" class="v92-status none">🔴 لم يتم</span></div>
+      <div class="v92-message-item"><button class="secondary" type="button" data-v92-action="due-send" onclick="sendManualWhatsApp('due')">💰 تذكير بالمبلغ المتبقي</button><span id="v92DueSent" class="v92-status none">🔴 لم يتم</span></div>
+      <div class="v92-message-item"><button class="secondary" type="button" data-v92-action="thanks-send" onclick="sendManualWhatsApp('thanks')">🙏 رسالة الشكر</button><span id="v92ThanksSent" class="v92-status none">🔴 لم يتم</span></div>
+    </div>
+  </section>
+  <div id="sendStatus" class="send-status" aria-live="polite"></div>
+  <section class="v92-activity">
+    <div class="v92-activity-head"><h4>سجل نشاط الحجز</h4><span class="v92-version-tag">v9.2 RC1</span></div>
+    <div id="v92ActivityList" class="v92-activity-list"><div class="v92-empty">لا توجد عمليات مسجلة بعد.</div></div>
+  </section>
 </div>
 </form></div></div>
 
@@ -580,7 +639,7 @@ const SUPABASE_URL='https://pgdvlklpyrvmwzitsmbw.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_BFTIR_8VK2qQuKnl2c-jDA_cMnWz0E-';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const STATE_ROW_ID='main';
-const APP_VERSION='9.1.1-RC1';
+const APP_VERSION='9.2-RC1';
 const BACKUP_DB_NAME='adwaa-backup-vault';
 const BACKUP_STORE_NAME='backups';
 let remoteReady=false;
@@ -858,24 +917,26 @@ function setSyncStatus(text,type){
 }
 
 function subscribeRealtime(){
-  if(!currentUser)return;
-  if(realtimeChannel){supabaseClient.removeChannel(realtimeChannel).catch(()=>{});realtimeChannel=null}
+  try{if(realtimeChannel)supabaseClient.removeChannel(realtimeChannel);}catch(_){ }
   realtimeChannel=supabaseClient
-    .channel('adwaa-app-state-'+currentUser.id)
-    .on('postgres_changes',{
-      event:'*',
-      schema:'public',
-      table:'app_state',
-      filter:`id=eq.${STATE_ROW_ID}`
-    },payload=>{
-      const next=payload.new?.data;
-      if(next){
-        db=normalizeDB(next);
-        invalidateCaches();
-        try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(_){}
-        scheduleRenderAll();
-        setSyncStatus('تم تحديث البيانات من جهاز آخر','ok');
+    .channel('adwaa-app-state-v92')
+    .on('postgres_changes',{event:'*',schema:'public',table:'app_state',filter:`id=eq.${STATE_ROW_ID}`},payload=>{
+      const next=payload.new?.data;if(!next)return;
+      const modalOpen=document.getElementById('bookingModal')?.classList.contains('open');
+      const currentId=document.getElementById('bId')?.value||'';
+      if(modalOpen&&v92BookingDirty){
+        v92PendingRemoteData=next;
+        const requirement=document.getElementById('v92BookingRequirement');
+        if(requirement){requirement.className='v92-requirement warn';requirement.textContent='🟠 وصل تحديث من جهاز آخر. لم يُطبّق على الحجز المفتوح حتى لا تضيع تعديلاتك؛ استخدم زر تحديث البيانات عند الاستعداد.';}
+        if(typeof setSyncStatus==='function')setSyncStatus('وصل تحديث من جهاز آخر، وتم تأجيله لحماية التعديلات غير المحفوظة.','warning');
+        return;
       }
+      db=normalizeDB(next);localStorage.setItem('adwaaDB',JSON.stringify(db));
+      if(typeof renderAll==='function')renderAll();
+      if(modalOpen&&currentId&&(db.bookings||[]).some(x=>x.id===currentId)&&typeof v92OriginalOpenBooking==='function'){
+        v92OriginalOpenBooking(currentId);v92BookingDirty=false;
+      }
+      if(typeof setSyncStatus==='function')setSyncStatus('تم تحديث البيانات من جهاز آخر','ok');
     })
     .subscribe();
 }
@@ -1270,7 +1331,7 @@ function documentStyle(){
       .totals{margin-top:18px;border:1px solid #dfe8e4;border-radius:12px;overflow:hidden}
       .row{display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid #edf2f0}
       .row:last-child{border-bottom:0}
-      .row.total{font-size:18px;font-weight:800;background:#eef7f3}
+      .row.total{font-size:18px;font-weight:800;background:#eef7f3}.payment-paid{color:#14785f}.payment-due{color:#a46f00}.document-alert{margin-top:12px;padding:10px 12px;border-radius:10px;background:#fff8e7;border:1px solid #efd28e;font-size:12px;line-height:1.7}
       .terms{margin-top:22px;line-height:1.9}
       .terms h3{margin-bottom:8px}
       .signatures{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:60px}
@@ -1327,6 +1388,7 @@ function bookingDocumentHTML(b,type){
       <div class="row"><span>المبلغ الإجمالي</span><b>${money(b.total)}</b></div>
       <div class="row"><span>المدفوع</span><b>${money(b.paid)}</b></div>
       <div class="row total"><span>المتبقي</span><b>${money(due)}</b></div>
+      <div class="row"><span>حالة السداد</span><b class="${due<=0?'payment-paid':'payment-due'}">${due<=0?'مكتمل السداد':'يوجد مبلغ متبقٍ'}</b></div>
     </div>`;
 
   const contract=`
@@ -1418,8 +1480,8 @@ function manualMessageText(type,b){
   const due=Math.max(0,Number(b.total||0)-Number(b.paid||0));
   const base=`رقم الحجز: ${b.code||'-'}\nتاريخ الحجز: ${b.date||'-'}\nنوع الحجز: ${b.type||'-'}`;
   const messages={
-    contract:`مرحبًا ${b.name}\nمرفق لكم عقد حجز منتجع أضواء الشرق.\n${base}\nنأمل الاطلاع على العقد، ويُعد استكمال الحجز أو سداد العربون موافقة على شروطه.`,
-    invoice:`مرحبًا ${b.name}\nمرفق لكم فاتورة حجز منتجع أضواء الشرق.\n${base}\nالإجمالي: ${money(b.total)}\nالمدفوع: ${money(b.paid)}\nالمتبقي: ${money(due)}`,
+    contract:`مرحبًا ${b.name}\nمرفق لكم عقد حجز منتجع أضواء الشرق بصيغة PDF.\n${base}\nنأمل الاطلاع عليه والاحتفاظ بنسخة منه. ويُعد تأكيد الحجز أو سداد العربون موافقة على الشروط الواردة فيه.`,
+    invoice:`مرحبًا ${b.name}\nمرفق لكم فاتورة حجز منتجع أضواء الشرق بصيغة PDF.\n${base}\nالإجمالي: ${money(b.total)}\nالمدفوع: ${money(b.paid)}\nالمتبقي: ${money(due)}\nحالة السداد: ${due<=0?'مكتمل السداد':'يوجد مبلغ متبقٍ'}`,
     welcome:welcomeMessageText(b),
     reminder:`مرحبًا ${b.name}\nنذكركم بموعد حجزكم في منتجع أضواء الشرق.\n${base}\nوقت الدخول الساعة 3:30 عصرًا. نتشرف بخدمتكم.`,
     due:`مرحبًا ${b.name}\nنود تذكيركم بأن المبلغ المتبقي على الحجز هو ${money(due)}.\n${base}\nشاكرين تعاونكم.`,
@@ -2217,6 +2279,173 @@ function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;',
 function startVoice(){let SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert('الإدخال الصوتي غير مدعوم في هذا المتصفح. استخدم Chrome أو Safari الحديث.');return}let r=new SR();r.lang='ar-SA';r.interimResults=false;r.onresult=e=>parseVoice(e.results[0][0].transcript);r.onerror=()=>alert('تعذر التقاط الصوت');r.start();voiceHint.textContent='جاري الاستماع...'}
 function parseVoice(t){voiceHint.textContent='تم سماع: '+t;let paid=t.match(/(?:عربون|دفع|مدفوع)\s*(\d+)/),total=t.match(/(?:الإجمالي|اجمالي|المبلغ)\s*(\d+)/),phone=t.match(/05\d{8}/),day=t.match(/(?:يوم|بتاريخ)\s*(\d{1,2})\s*(?:\/|-|\s)\s*(\d{1,2})?/);let name=t.split(/يوم|بتاريخ|عربون|دفع|مدفوع|الإجمالي|اجمالي|المبلغ/)[0].replace(/سجل|حجز|جديد|للعميل/g,'').trim();if(name)bName.value=name;if(paid)bPaid.value=paid[1];if(total)bTotal.value=total[1];if(phone)bPhone.value=phone[0];if(/مبيت/.test(t)){bType.value='مبيت';const dm=t.match(/(\d+)\s*(?:يوم|أيام)/);if(dm)bStayDays.value=dm[1];updateStayFields();}if(day){let y=new Date().getFullYear(),m=day[2]?Number(day[2]):new Date().getMonth()+1,d=Number(day[1]);bDate.value=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`}}
 window.addEventListener('load',initializeSecureApp);
+
+/* ===== v9.2 RC1 patch start ===== */
+let v92BookingDirty=false;
+let v92PendingWhatsApp=null;
+let v92PendingRemoteData=null;
+const V92_ACTIVITY_LABELS={
+  'contract-created':'تم إنشاء العقد','contract-sent':'تم إرسال العقد',
+  'invoice-created':'تم إنشاء الفاتورة','invoice-sent':'تم إرسال الفاتورة',
+  'welcome-sent':'تم إرسال الترحيب','reminder-sent':'تم إرسال التذكير',
+  'due-sent':'تم إرسال تذكير المبلغ المتبقي','thanks-sent':'تم إرسال رسالة الشكر'
+};
+
+function v92FormatDateTime(value){
+  if(!value)return '';
+  const d=new Date(value);if(Number.isNaN(d.getTime()))return '';
+  return d.toLocaleString('ar-SA',{timeZone:'Asia/Riyadh',year:'numeric',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+}
+function v92Escape(value){return typeof escapeHtml==='function'?escapeHtml(value):String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
+function v92Booking(){const id=document.getElementById('bId')?.value||'';return id?(db.bookings||[]).find(x=>x.id===id):null;}
+function v92EnsureState(booking){
+  if(!booking)return null;
+  booking.manualOperations=booking.manualOperations&&typeof booking.manualOperations==='object'?booking.manualOperations:{};
+  ['contract','invoice','welcome','reminder','due','thanks'].forEach(key=>{
+    booking.manualOperations[key]=booking.manualOperations[key]&&typeof booking.manualOperations[key]==='object'?booking.manualOperations[key]:{};
+    const old=booking.manualMessages?.[key];
+    if(old&&!booking.manualOperations[key].sentAt)booking.manualOperations[key].sentAt=old;
+  });
+  booking.communicationActivity=Array.isArray(booking.communicationActivity)?booking.communicationActivity:[];
+  return booking;
+}
+function v92DerivedActivity(booking){
+  if(!booking)return [];
+  const items=[...(booking.communicationActivity||[])];
+  const existing=new Set(items.map(x=>x.event+'|'+x.at));
+  const old=booking.manualMessages||{};
+  Object.entries(old).forEach(([key,at])=>{
+    const event=key+'-sent';const sig=event+'|'+at;
+    if(at&&!existing.has(sig))items.push({id:'legacy-'+key+'-'+at,event,at,user:'سجل سابق'});
+  });
+  return items.sort((a,b)=>String(b.at||'').localeCompare(String(a.at||''))).slice(0,100);
+}
+function v92StatusHTML(state,text,time=''){
+  const icon=state==='done'?'🟢':state==='wait'?'🟠':'🔴';
+  return `${icon} ${text}${time?`<span class="v92-time">${v92Escape(v92FormatDateTime(time))}</span>`:''}`;
+}
+function v92SetStatus(id,state,text,time=''){
+  const el=document.getElementById(id);if(!el)return;
+  el.className='v92-status '+state;el.innerHTML=v92StatusHTML(state,text,time);
+}
+function v92SetDisabled(selector,disabled){document.querySelectorAll(selector).forEach(btn=>btn.disabled=!!disabled);}
+function renderV92Activity(booking){
+  const el=document.getElementById('v92ActivityList');if(!el)return;
+  const items=v92DerivedActivity(booking);
+  el.innerHTML=items.length?items.map(item=>`<div class="v92-activity-item"><span class="v92-activity-dot"></span><div><b>${v92Escape(V92_ACTIVITY_LABELS[item.event]||item.label||item.event||'عملية')}</b><small>${v92Escape(v92FormatDateTime(item.at))}${item.user?' — '+v92Escape(item.user):''}</small></div></div>`).join(''):'<div class="v92-empty">لا توجد عمليات مسجلة بعد.</div>';
+}
+function renderSendStatus(){
+  const requirement=document.getElementById('v92BookingRequirement');
+  const booking=v92EnsureState(v92Booking());
+  const phone=booking&&typeof normalizePhone==='function'?normalizePhone(booking.phone):String(booking?.phone||'').replace(/\D/g,'');
+  const saved=!!booking,hasPhone=!!phone;
+  if(requirement){
+    requirement.className='v92-requirement '+(saved?'ok':'bad');
+    requirement.textContent=saved?(hasPhone?'🟢 الحجز محفوظ ومركز الإرسال جاهز.':'🟠 الحجز محفوظ، لكن يجب إضافة رقم جوال لتفعيل الإرسال.'):'🔴 احفظ الحجز أولًا لتفعيل مركز الإرسال.';
+  }
+  const ops=booking?.manualOperations||{};
+  const cCreated=ops.contract?.createdAt,cSent=ops.contract?.sentAt;
+  const iCreated=ops.invoice?.createdAt,iSent=ops.invoice?.sentAt;
+  v92SetStatus('v92ContractCreated',cCreated?'done':saved?'wait':'none',cCreated?'تم الإنشاء':saved?'بانتظار الإنشاء':'لم يتم',cCreated);
+  v92SetStatus('v92ContractSent',cSent?'done':!saved||!hasPhone||!cCreated?'none':'wait',cSent?'تم الإرسال':!saved||!hasPhone?'لم يتم':!cCreated?'أنشئ PDF أولًا':'بانتظار الإرسال',cSent);
+  v92SetStatus('v92InvoiceCreated',iCreated?'done':saved?'wait':'none',iCreated?'تم الإنشاء':saved?'بانتظار الإنشاء':'لم يتم',iCreated);
+  v92SetStatus('v92InvoiceSent',iSent?'done':!saved||!hasPhone||!iCreated?'none':'wait',iSent?'تم الإرسال':!saved||!hasPhone?'لم يتم':!iCreated?'أنشئ PDF أولًا':'بانتظار الإرسال',iSent);
+  [['welcome','v92WelcomeSent'],['reminder','v92ReminderSent'],['due','v92DueSent'],['thanks','v92ThanksSent']].forEach(([key,id])=>{
+    const at=ops[key]?.sentAt;v92SetStatus(id,at?'done':saved&&hasPhone?'wait':'none',at?'تم التنفيذ':saved&&hasPhone?'بانتظار':'لم يتم',at);
+  });
+  v92SetDisabled('[data-v92-action$="-create"]',!saved);
+  v92SetDisabled('[data-v92-action="contract-send"]',!saved||!hasPhone||!cCreated);
+  v92SetDisabled('[data-v92-action="invoice-send"]',!saved||!hasPhone||!iCreated);
+  v92SetDisabled('[data-v92-action="welcome-send"],[data-v92-action="reminder-send"],[data-v92-action="due-send"],[data-v92-action="thanks-send"]',!saved||!hasPhone);
+  const summary=document.getElementById('sendStatus');if(summary)summary.innerHTML=saved?'':'<span class="send-chip">احفظ الحجز أولًا</span>';
+  renderV92Activity(booking);
+}
+async function v92RecordOperation(type,action){
+  const booking=v92EnsureState(v92Booking());
+  if(!booking){alert('احفظ الحجز أولًا قبل تسجيل العملية.');return false;}
+  const now=new Date().toISOString();
+  if(action==='created')booking.manualOperations[type].createdAt=now;
+  else{booking.manualOperations[type].sentAt=now;booking.manualMessages={...(booking.manualMessages||{}),[type]:now};}
+  const event=`${type}-${action}`;
+  booking.communicationActivity.unshift({id:crypto.randomUUID(),event,label:V92_ACTIVITY_LABELS[event]||event,at:now,user:typeof currentUserLabel==='function'?currentUserLabel():(currentUser?.email||'المدير')});
+  booking.communicationActivity=booking.communicationActivity.slice(0,100);booking.updatedAt=now;
+  if(typeof addAudit==='function')try{addAudit('تنفيذ','مركز الإرسال',V92_ACTIVITY_LABELS[event]||event,null,{bookingId:booking.id,event,at:now});}catch(_){ }
+  await persist();renderSendStatus();return true;
+}
+async function printBookingDocument(type){
+  const booking=v92Booking();const form=typeof getBookingFromForm==='function'?getBookingFromForm():null;
+  if(!booking){alert('احفظ الحجز أولًا حتى يُسجل إنشاء المستند في سجل النشاط.');return;}
+  if(!form?.name||!form?.date){alert('أدخل اسم العميل وتاريخ الحجز أولًا.');return;}
+  if(!['contract','invoice'].includes(type))return;
+  const w=window.open('','_blank');
+  if(!w){alert('المتصفح منع نافذة إنشاء PDF. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.');return;}
+  try{w.document.open();w.document.write(bookingDocumentHTML(form,type));w.document.close();await v92RecordOperation(type,'created');}
+  catch(err){console.error(err);try{w.close();}catch(_){ }alert('تعذر إنشاء المستند. لم تُسجل العملية.');}
+}
+async function markManualMessageSent(type){return v92RecordOperation(type,'sent');}
+function v92ConfirmSent(type){setTimeout(async()=>{if(confirm(`هل أرسلت ${messageStatusLabel(type)} للعميل بالفعل؟`))await markManualMessageSent(type);},650);}
+function openV92WhatsAppFallback(type,message,url){
+  v92PendingWhatsApp={type,message,url};
+  const modal=document.getElementById('v92WhatsAppFallbackModal');const box=document.getElementById('v92WhatsAppMessage');const status=document.getElementById('v92CopyStatus');
+  if(box)box.value=message;if(status)status.textContent='';
+  if(modal){modal.classList.add('open');document.body.classList.add('modal-open');}else{prompt('انسخ الرسالة ثم افتح واتساب:',message);}
+}
+function closeV92WhatsAppFallback(){const modal=document.getElementById('v92WhatsAppFallbackModal');if(modal)modal.classList.remove('open');if(!document.querySelector('.modal.open'))document.body.classList.remove('modal-open');}
+async function copyV92WhatsAppMessage(){
+  const text=document.getElementById('v92WhatsAppMessage')?.value||v92PendingWhatsApp?.message||'';const status=document.getElementById('v92CopyStatus');
+  try{if(navigator.clipboard&&window.isSecureContext)await navigator.clipboard.writeText(text);else{const box=document.getElementById('v92WhatsAppMessage');box.focus();box.select();document.execCommand('copy');}if(status)status.textContent='تم نسخ الرسالة بنجاح.';}
+  catch(err){console.error(err);if(status)status.textContent='تعذر النسخ التلقائي؛ حدّد النص وانسخه يدويًا.';}
+}
+function openV92WhatsAppFromFallback(){
+  if(!v92PendingWhatsApp)return;const pending=v92PendingWhatsApp;
+  const opened=window.open(pending.url,'_blank');
+  if(opened)try{opened.opener=null;}catch(_){ }
+  if(!opened){alert('ما زال المتصفح يمنع فتح واتساب. افتحه يدويًا ثم الصق الرسالة المنسوخة.');return;}
+  closeV92WhatsAppFallback();v92PendingWhatsApp=null;v92ConfirmSent(pending.type);
+}
+function sendManualWhatsApp(type){
+  const booking=v92EnsureState(v92Booking());
+  if(!booking){alert('احفظ الحجز أولًا.');return;}
+  const b=typeof getBookingFromForm==='function'?getBookingFromForm():booking;
+  if(!b.name||!b.date){alert('أدخل اسم العميل وتاريخ الحجز أولًا.');return;}
+  const phone=typeof normalizePhone==='function'?normalizePhone(b.phone):String(b.phone||'').replace(/\D/g,'');
+  if(!phone){alert('أدخل رقم جوال العميل أولًا.');return;}
+  if((type==='contract'||type==='invoice')&&!booking.manualOperations?.[type]?.createdAt){alert(`أنشئ ${type==='contract'?'العقد':'الفاتورة'} بصيغة PDF أولًا.`);return;}
+  const message=manualMessageText(type,b);const url=`https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  const opened=window.open(url,'_blank');
+  if(opened)try{opened.opener=null;}catch(_){ }
+  if(!opened){openV92WhatsAppFallback(type,message,url);return;}
+  v92ConfirmSent(type);
+}
+function backToBookingDetails(){const sheet=document.querySelector('#bookingModal .sheet');if(sheet){sheet.scrollTo({top:0,behavior:'smooth'});setTimeout(()=>document.getElementById('bName')?.focus({preventScroll:true}),350);}}
+async function refreshBookingData(){
+  const id=document.getElementById('bId')?.value||'';if(!id){alert('احفظ الحجز أولًا ثم استخدم تحديث البيانات.');return;}
+  if(v92BookingDirty&&!confirm('توجد تعديلات غير محفوظة. هل تريد تجاهلها وتحديث البيانات؟'))return;
+  const button=document.activeElement?.tagName==='BUTTON'?document.activeElement:null;if(button)button.disabled=true;
+  try{if(v92PendingRemoteData){db=normalizeDB(v92PendingRemoteData);v92PendingRemoteData=null;localStorage.setItem('adwaaDB',JSON.stringify(db));if(typeof renderAll==='function')renderAll();}else if(typeof loadRemoteData==='function')await loadRemoteData();else if(typeof renderAll==='function')renderAll();const found=(db.bookings||[]).find(x=>x.id===id);if(!found){alert('لم يعد الحجز موجودًا في قاعدة البيانات.');return;}v92OriginalOpenBooking(id);v92BookingDirty=false;alert('تم تحديث بيانات الحجز بنجاح.');}
+  catch(err){console.error(err);alert('تعذر تحديث البيانات. تحقق من الاتصال ثم حاول مرة أخرى.');}
+  finally{if(button)button.disabled=false;}
+}
+function closeBookingAndReturn(){
+  if(v92BookingDirty&&!confirm('توجد تعديلات غير محفوظة. هل تريد الإغلاق دون حفظ؟'))return;
+  v92BookingDirty=false;closeModal('bookingModal');const btn=document.querySelector('nav button[data-view="bookings"]');if(typeof switchView==='function')switchView('bookings',btn);
+}
+
+const v92OriginalOpenBooking=openBooking;
+openBooking=function(...args){const result=v92OriginalOpenBooking(...args);v92BookingDirty=false;setTimeout(()=>{renderSendStatus();document.querySelector('#bookingModal .sheet')?.scrollTo(0,0);},0);return result;};
+const v92OriginalSaveBooking=saveBooking;
+saveBooking=async function(event){
+  const paid=Number(document.getElementById('bPaid')?.value||0),total=Number(document.getElementById('bTotal')?.value||0);
+  if(paid<0||total<0){alert('المبالغ لا يمكن أن تكون سالبة.');return;}
+  if(total>0&&paid>total&&!confirm('المبلغ المدفوع أكبر من إجمالي الحجز. هل تريد المتابعة؟'))return;
+  const result=await v92OriginalSaveBooking(event);if(!document.getElementById('bookingModal')?.classList.contains('open'))v92BookingDirty=false;return result;
+};
+
+document.getElementById('bookingForm')?.addEventListener('input',()=>{v92BookingDirty=true;});
+document.getElementById('bookingForm')?.addEventListener('change',()=>{v92BookingDirty=true;});
+window.addEventListener('beforeunload',event=>{if(v92BookingDirty){event.preventDefault();event.returnValue='';}});
+renderSendStatus();
+/* ===== v9.2 RC1 patch end ===== */
 </script>
 
 <div id="photoLightbox" class="photo-lightbox" onclick="closePhotoLightbox()">
@@ -2224,5 +2453,18 @@ window.addEventListener('load',initializeSecureApp);
   <img id="photoLightboxImage" alt="صورة الحجز">
 </div>
 
+
+<div class="modal" id="v92WhatsAppFallbackModal" aria-label="تعذر فتح واتساب">
+  <div class="sheet v92-wa-sheet">
+    <div class="sheet-head"><h2>تعذر فتح واتساب تلقائيًا</h2><button class="close" type="button" onclick="closeV92WhatsAppFallback()">×</button></div>
+    <div class="notice">انسخ الرسالة، ثم افتح واتساب من الزر التالي. بعد الإرسال سيطلب النظام تأكيد العملية.</div>
+    <textarea id="v92WhatsAppMessage" class="v92-wa-message" readonly></textarea>
+    <div class="v92-wa-actions">
+      <button class="secondary" type="button" onclick="copyV92WhatsAppMessage()">نسخ الرسالة</button>
+      <button class="primary" type="button" onclick="openV92WhatsAppFromFallback()">فتح واتساب</button>
+    </div>
+    <div id="v92CopyStatus" class="v92-copy-status" role="status"></div>
+  </div>
+</div>
 </body>
 </html>
