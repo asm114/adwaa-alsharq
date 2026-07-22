@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0d4c3f">
-<title>v9.5 RC1 — لوحة اليوم وتطوير التقويم</title>
+<title>v9.6 RC1 — مركز معلومات الإصدار</title>
 <link rel="manifest" href="manifest.json">
 <style>
 :root{--green:#0d4c3f;--green2:#155f50;--gold:#d8a33e;--bg:#f7f5ef;--card:#fff;--text:#10251f;--muted:#7d8a85;--danger:#b54545;--line:#e7e5df}
@@ -38,10 +38,11 @@ input,select,textarea{width:100%;border:1px solid #d9ddd9;border-radius:14px;pad
 .day.family{background:#eee7ff!important;border-color:#9a7bd3!important}.day.family .dot{color:#6545a1}.sw-family{background:#eee7ff;border-color:#9a7bd3}.family-badge{background:#eee7ff;color:#6545a1}
 .about-hero{background:linear-gradient(135deg,#0f6b59,#174d43);color:#fff;border-radius:24px;padding:24px;display:flex;justify-content:space-between;align-items:center;gap:18px;box-shadow:0 16px 38px rgba(15,107,89,.18)}
 .about-hero h2{margin:0 0 6px;font-size:27px}.about-hero p{margin:0;opacity:.88;line-height:1.8}.about-version{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);border-radius:18px;padding:14px 18px;text-align:center;white-space:nowrap}.about-version b{display:block;font-size:20px}.about-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}.about-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px}.about-card h3{margin:0 0 12px}.about-list{display:grid;gap:10px}.about-row{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding-bottom:9px;border-bottom:1px solid #edf2f0}.about-row:last-child{border-bottom:0;padding-bottom:0}.about-row span{color:var(--muted)}.about-status{display:inline-flex;align-items:center;gap:7px;border-radius:999px;padding:7px 10px;font-size:12px;font-weight:800}.about-status.ok{background:#e4f4ee;color:#14785f}.about-status.warn{background:#fff3d9;color:#996a00}.about-features{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.about-feature{background:#f7faf8;border:1px solid var(--line);border-radius:14px;padding:13px;line-height:1.7}.about-feature b{display:block;margin-bottom:3px}.about-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}
+.release-info-card{margin-top:14px}.release-info-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.release-info-status{display:inline-flex;align-items:center;gap:7px;border-radius:999px;padding:8px 12px;font-size:13px;font-weight:900;background:#e4f4ee;color:#14785f}.release-info-status.update{background:#fff3d9;color:#8a6100}.release-info-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 22px;margin-top:14px}.release-info-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}.release-check-message{min-height:24px;margin-top:10px;color:var(--muted);font-size:13px;font-weight:700}.release-check-message.ok{color:#14785f}.release-check-message.update{color:#8a6100}.release-check-message.error{color:#a63c3c}
 .cal-legend{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}.cal-key{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}.cal-swatch{width:13px;height:13px;border-radius:4px;border:1px solid var(--line)}.sw-free{background:#fff}.sw-paid{background:#e7f5ef;border-color:#7ebda9}.sw-partial{background:#fff4d6;border-color:#e7bf61}.sw-today{background:#fff;border:3px solid #d9534f}.customer-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;display:grid;gap:8px}.customer-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.customer-stat{background:#f8faf9;border-radius:12px;padding:10px;text-align:center}.customer-stat b{display:block;font-size:18px}.suggestions{position:absolute;z-index:20;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.12);width:100%;max-height:220px;overflow:auto}.suggestion{padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--line)}.suggestion:hover{background:#f4f8f6}.field-wrap{position:relative}
 .health-card{margin-top:14px;border:2px solid var(--line);border-radius:22px;background:#fff;padding:18px;transition:.2s}.health-card.ok{border-color:#6fbd94;background:#f2fbf6}.health-card.warn{border-color:#e0b84f;background:#fffaf0}.health-card.error{border-color:#d98686;background:#fff5f5}.health-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}.health-indicator{display:flex;align-items:center;gap:10px;font-size:21px;font-weight:900}.health-indicator .light{width:19px;height:19px;border-radius:50%;box-shadow:0 0 0 5px #fff8}.health-card.ok .light{background:#23935b}.health-card.warn .light{background:#e0a900}.health-card.error .light{background:#c84343}.health-summary{display:grid;gap:7px;margin-top:14px}.health-summary-item{display:flex;align-items:flex-start;gap:8px;line-height:1.6}.health-detail-group{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}.health-detail-group h3{margin:0 0 10px}.health-detail-item{display:grid;grid-template-columns:auto 1fr;gap:9px;padding:9px 0;border-bottom:1px solid #edf2f0}.health-detail-item:last-child{border-bottom:0}.health-detail-item small{display:block;color:var(--muted);margin-top:2px;line-height:1.6}
 @media(max-width:620px){
-.about-hero{align-items:flex-start;flex-direction:column}.about-grid,.about-features{grid-template-columns:1fr}.about-version{width:100%}
+  .about-hero{align-items:flex-start;flex-direction:column}.about-grid,.about-features,.release-info-grid{grid-template-columns:1fr}.about-version{width:100%}.release-info-head{flex-direction:column}.release-info-status{align-self:flex-start}.release-info-actions button{width:100%}
 .grid{grid-template-columns:1fr 1fr}
 .title{font-size:27px}
 .form-grid{grid-template-columns:1fr}
@@ -457,6 +458,28 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
     <div id="systemHealthSummary" class="health-summary"><div class="health-summary-item">⏳ يتم فحص سلامة النظام دون تعديل البيانات.</div></div>
   </div>
 
+  <div class="about-card release-info-card" aria-labelledby="releaseInfoTitle">
+    <div class="release-info-head">
+      <div><h3 id="releaseInfoTitle">ℹ️ معلومات الإصدار</h3><div class="meta">بيانات النسخة الحالية وحالة الاتصال والمزامنة.</div></div>
+      <div id="releaseInfoStatus" class="release-info-status">🟢 أحدث إصدار</div>
+    </div>
+    <div class="release-info-grid about-list">
+      <div class="about-row"><span>الإصدار الحالي</span><b id="releaseCurrentVersion">—</b></div>
+      <div class="about-row"><span>رقم Build</span><b id="releaseBuild">—</b></div>
+      <div class="about-row"><span>تاريخ الإصدار</span><b id="releaseDate">—</b></div>
+      <div class="about-row"><span>حالة النظام</span><b id="releaseSystemStatus">—</b></div>
+      <div class="about-row"><span>حالة Supabase</span><b id="releaseSupabaseStatus">—</b></div>
+      <div class="about-row"><span>آخر نسخة احتياطية</span><b id="releaseLastBackup">—</b></div>
+      <div class="about-row"><span>عدد الحجوزات</span><b id="releaseBookingsCount">0</b></div>
+      <div class="about-row"><span>آخر مزامنة ناجحة</span><b id="releaseLastSync">—</b></div>
+    </div>
+    <div class="release-info-actions">
+      <button id="releaseCheckButton" class="primary" type="button" onclick="checkForSystemUpdate()">🔄 التحقق من وجود تحديث</button>
+      <button class="secondary" type="button" onclick="copySystemInformation()">📋 نسخ معلومات النظام</button>
+    </div>
+    <div id="releaseCheckMessage" class="release-check-message" role="status" aria-live="polite"></div>
+  </div>
+
   <div class="about-grid">
     <div class="about-card"><h3>📋 معلومات النظام</h3><div class="about-list">
       <div class="about-row"><span>اسم المنشأة</span><b>منتجع أضواء الشرق – القاع البارد</b></div>
@@ -653,7 +676,7 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
   </section>
   <div id="sendStatus" class="send-status" aria-live="polite"></div>
   <section class="v92-activity">
-    <div class="v92-activity-head"><h4>سجل نشاط الحجز</h4><span class="v92-version-tag">v9.5 RC1</span></div>
+    <div class="v92-activity-head"><h4>سجل نشاط الحجز</h4><span class="v92-version-tag">v9.6 RC1</span></div>
     <div id="v92ActivityList" class="v92-activity-list"><div class="v92-empty">لا توجد عمليات مسجلة بعد.</div></div>
   </section>
 </div>
@@ -727,8 +750,10 @@ const SUPABASE_URL='https://pgdvlklpyrvmwzitsmbw.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_BFTIR_8VK2qQuKnl2c-jDA_cMnWz0E-';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const STATE_ROW_ID='main';
-// v9.5 RC1 — today board and professional calendar, preserving v9.4 data compatibility.
-const APP_VERSION='9.5-RC1';
+// v9.6 RC1 — release information center, preserving v9.5 data compatibility.
+const APP_VERSION='9.6-RC1';
+const APP_BUILD='20260722.1';
+const APP_RELEASE_DATE='2026-07-22';
 const BACKUP_DB_NAME='adwaa-backup-vault';
 const BACKUP_STORE_NAME='backups';
 let remoteReady=false;
@@ -1056,16 +1081,42 @@ function renderCurrentView(id){if(id==='dashboard')renderDashboard();else if(id=
 function renderAll(){renderDashboard();renderBookings();renderCustomers();renderCleaning();renderExpenses();renderCalendar();renderResortStatus();renderAbout();const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay'),calMode=document.getElementById('calendarMode');if(waEl)waEl.value=db.settings.waNumber||'';if(dailyEl)dailyEl.value=db.settings.welcomeMsgDaily||DEFAULT_WELCOME_DAILY;if(stayEl)stayEl.value=db.settings.welcomeMsgStay||DEFAULT_WELCOME_STAY;if(calMode)calMode.value=db.settings.calendarMode||'both';renderSendStatus()}
 
 function setAboutText(id,value){const el=document.getElementById(id);if(el)el.textContent=String(value??'—')}
+function formatReleaseVersion(value=APP_VERSION){const match=String(value||'').match(/(\d+)\.(\d+)[-\s]*RC(\d+)/i);return match?`v${match[1]}.${match[2]} RC${match[3]}`:String(value||'—')}
+function releaseVersionParts(value){const match=String(value||'').match(/(\d+)\.(\d+)[-\s]*RC(\d+)/i);return match?[Number(match[1]),Number(match[2]),Number(match[3])]:[0,0,0]}
+function compareReleaseVersions(left,right){const a=releaseVersionParts(left),b=releaseVersionParts(right);for(let i=0;i<a.length;i++){if(a[i]!==b[i])return a[i]>b[i]?1:-1}return 0}
+function latestSuccessfulSync(){return [lastSuccessfulReadAt,lastSuccessfulWriteAt].filter(Boolean).sort().pop()||''}
+function latestBackupRecord(){return [...(db.backupHistory||[])].filter(x=>x?.createdAt).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)))[0]||null}
+function currentSystemStatus(){const report=typeof runSystemHealthChecks==='function'?runSystemHealthChecks():null,severity=report?.severity||'warn';return severity==='error'?'🔴 توجد أخطاء':severity==='warn'?'🟡 يحتاج مراجعة':'🟢 يعمل بشكل طبيعي'}
+function currentSupabaseStatus(){return remoteReady&&lastSuccessfulReadAt?'🟢 متصل':remoteReady?'🟡 الاتصال جاهز':'🔴 غير متصل'}
+function renderReleaseInformation(){
+  if(!document.getElementById('releaseInfoTitle'))return;
+  const backup=latestBackupRecord(),sync=latestSuccessfulSync();
+  setAboutText('releaseCurrentVersion',formatReleaseVersion());setAboutText('releaseBuild',APP_BUILD);setAboutText('releaseDate',new Date(APP_RELEASE_DATE+'T12:00:00').toLocaleDateString('ar-SA',{calendar:'gregory',year:'numeric',month:'long',day:'numeric'}));setAboutText('releaseSystemStatus',currentSystemStatus());setAboutText('releaseSupabaseStatus',currentSupabaseStatus());setAboutText('releaseLastBackup',backup?formatDateTime(backup.createdAt):'لا توجد نسخة مسجلة');setAboutText('releaseBookingsCount',(db.bookings||[]).length);setAboutText('releaseLastSync',sync?formatDateTime(sync):'لا توجد مزامنة مسجلة');
+}
+function setReleaseUpdateStatus(hasUpdate,version=''){
+  const status=document.getElementById('releaseInfoStatus');if(!status)return;status.classList.toggle('update',!!hasUpdate);status.textContent=hasUpdate?'⬆️ يوجد إصدار أحدث':'🟢 أحدث إصدار';if(version)status.dataset.availableVersion=version;else delete status.dataset.availableVersion;
+}
+async function checkForSystemUpdate(){
+  const button=document.getElementById('releaseCheckButton'),message=document.getElementById('releaseCheckMessage');if(button)button.disabled=true;if(message){message.className='release-check-message';message.textContent='جارٍ التحقق من النسخة المنشورة…'}
+  try{const url=new URL('index.html',location.href);url.searchParams.set('updateCheck',Date.now());const response=await fetch(url,{cache:'no-store'});if(!response.ok)throw new Error('تعذر قراءة معلومات النسخة المنشورة');const source=await response.text(),match=source.match(/const APP_VERSION=['\"]([^'\"]+)['\"]/);if(!match)throw new Error('لم يتم العثور على رقم الإصدار');const available=match[1],hasUpdate=compareReleaseVersions(available,APP_VERSION)>0;setReleaseUpdateStatus(hasUpdate,available);if(message){message.className='release-check-message '+(hasUpdate?'update':'ok');message.textContent=hasUpdate?`يتوفر إصدار جديد: ${formatReleaseVersion(available)}`:'أنت تستخدم أحدث إصدار.'}}
+  catch(err){if(message){message.className='release-check-message error';message.textContent='تعذر التحقق من التحديث حاليًا. تحقق من الاتصال وحاول مرة أخرى.'}}
+  finally{if(button)button.disabled=false}
+}
+async function copySystemInformation(){
+  renderReleaseInformation();const status=document.getElementById('releaseInfoStatus'),report=[`الإصدار: ${document.getElementById('releaseCurrentVersion')?.textContent||'—'}`,`Build: ${APP_BUILD}`,`تاريخ الإصدار: ${document.getElementById('releaseDate')?.textContent||'—'}`,`حالة النظام: ${document.getElementById('releaseSystemStatus')?.textContent||'—'} — ${status?.textContent||'—'}`,`حالة Supabase: ${document.getElementById('releaseSupabaseStatus')?.textContent||'—'}`,`آخر نسخة احتياطية: ${document.getElementById('releaseLastBackup')?.textContent||'—'}`,`عدد الحجوزات: ${document.getElementById('releaseBookingsCount')?.textContent||'0'}`,`آخر مزامنة: ${document.getElementById('releaseLastSync')?.textContent||'—'}`].join('\n'),message=document.getElementById('releaseCheckMessage');
+  try{if(navigator.clipboard&&window.isSecureContext)await navigator.clipboard.writeText(report);else{const area=document.createElement('textarea');area.value=report;area.style.position='fixed';area.style.opacity='0';document.body.appendChild(area);area.select();document.execCommand('copy');area.remove()}if(message){message.className='release-check-message ok';message.textContent='تم نسخ معلومات النظام.'}}
+  catch(err){if(message){message.className='release-check-message error';message.textContent='تعذر النسخ التلقائي؛ حاول مرة أخرى.'}}
+}
 function renderAbout(){
   if(!document.getElementById('about'))return;
   const customerBookings=(db.bookings||[]).filter(b=>b.recordType!=='family');
   const familyDays=new Set((db.bookings||[]).filter(b=>b.recordType==='family'&&b.status!=='ملغي').flatMap(bookingOccupiedDates));
   const resortKey=db.settings?.resortStatus||'ready',resort=RESORT_STATUSES[resortKey]||RESORT_STATUSES.ready;
   const candidates=[db.settings?.resortStatusUpdated,...(db.bookings||[]).map(x=>x.updatedAt||x.createdAt),...(db.expenses||[]).map(x=>x.updatedAt||x.createdAt),...(db.auditLog||[]).map(x=>x.at)].filter(Boolean).sort();
-  setAboutText('aboutVersion',APP_VERSION);setAboutText('aboutBookings',customerBookings.length);setAboutText('aboutFamilyDays',familyDays.size);setAboutText('aboutCustomers',getCustomers().length);setAboutText('aboutExpenses',(db.expenses||[]).length);setAboutText('aboutCleaning',(db.cleaningTasks||[]).length);setAboutText('aboutBackups',(db.backupHistory||[]).length);
+  setAboutText('aboutVersion',formatReleaseVersion());setAboutText('aboutBookings',customerBookings.length);setAboutText('aboutFamilyDays',familyDays.size);setAboutText('aboutCustomers',getCustomers().length);setAboutText('aboutExpenses',(db.expenses||[]).length);setAboutText('aboutCleaning',(db.cleaningTasks||[]).length);setAboutText('aboutBackups',(db.backupHistory||[]).length);
   setAboutText('aboutAuthStatus',currentUser?'مسجل وآمن':'غير مسجل');setAboutText('aboutSyncStatus',remoteReady?'متصل ومتزامن':'محلي مؤقتًا');setAboutText('aboutResortStatus',`${resort.icon} ${resort.label}`);setAboutText('aboutLastUpdate',candidates.length?formatDateTime(candidates[candidates.length-1]):'لا يوجد تحديث مسجل');
   const auth=document.getElementById('aboutAuthStatus'),sync=document.getElementById('aboutSyncStatus');if(auth)auth.className='about-status '+(currentUser?'ok':'warn');if(sync)sync.className='about-status '+(remoteReady?'ok':'warn');
-  renderSystemHealth();
+  renderSystemHealth();renderReleaseInformation();
 }
 function refreshAboutData(){renderAbout();if(typeof loadRemoteData==='function'&&currentUser)loadRemoteData()}
 
