@@ -1020,7 +1020,9 @@ async function loadRemoteData(){
     if(error) throw error;
 
     if(data?.data){
+      const migrationBackup=await createPreMigrationBackupFromData(data.data,'commission-states-v1','نسخة تلقائية قبل توحيد حالات العمولة وأنواع السجلات');
       db=normalizeDB(data.data);
+      if(migrationBackup){db.backupHistory=Array.isArray(db.backupHistory)?db.backupHistory:[];db.backupHistory.unshift(migrationBackup);db.backupHistory=db.backupHistory.slice(0,50)}
     }else{
       db=normalizeDB(db);
       const {error:insertError}=await supabaseClient
@@ -1171,16 +1173,16 @@ function runSystemHealthChecks(){
   add('سلامة البيانات',amountErrors.length?'error':confirmationErrors.length?'warn':'ok',amountErrors.length?'أخطاء في المبالغ':confirmationErrors.length?'حجوزات مؤكدة دون عربون':'المبالغ سليمة',amountErrors.length?`${amountErrors.length} سجل يحتوي مبلغًا غير صالح.`:confirmationErrors.length?`${confirmationErrors.length} حجز مؤكد يحتاج مراجعة السداد.`:'لا توجد مبالغ سالبة أو مدفوعات تتجاوز الإجمالي.');
 
   let commissionErrors=0,commissionWarnings=0;
-  bookings.forEach(b=>{const s=b.commissionSnapshot;if(b.recordType==='family'&&s)commissionErrors++;if(!s)return;const expected=calculateCommissionAmount(s.method,Number(s.rate||0),Number(s.days||1),Number(s.bookingTotal||0));if(!Number.isFinite(Number(s.amount))||Math.abs(Number(s.amount)-expected)>.01)commissionErrors++;if(s.status==='received'&&(!s.received||!s.receivedAt))commissionErrors++;if(s.status==='earned'&&b.status==='ملغي')commissionErrors++;if(s.status==='received'&&b.status==='ملغي')commissionWarnings++;});
+  bookings.forEach(b=>{const s=b.commissionSnapshot,type=normalizeRecordType(b.recordType);if(!s){if(type==='family')commissionErrors++;return}const allowed=['earned','received','received_before_system','no_commission'];if(!allowed.includes(commissionStatus(b)))commissionErrors++;if(type==='family'&&(commissionStatus(b)!=='no_commission'||Number(s.amount||0)!==0))commissionErrors++;if(commissionStatus(b)==='no_commission'&&Number(s.amount||0)!==0)commissionErrors++;if(['earned','received','received_before_system'].includes(commissionStatus(b))){const expected=calculateCommissionAmount(s.method,Number(s.rate||0),Number(s.days||1),Number(s.bookingTotal||0));if(!Number.isFinite(Number(s.amount))||Math.abs(Number(s.amount)-expected)>.01)commissionErrors++}if(s.status==='received'&&(!s.received||!s.receivedAt))commissionErrors++;if(s.status==='received_before_system'&&(s.received||s.receivedAt))commissionWarnings++;if(s.status==='earned'&&b.status==='ملغي')commissionErrors++;if(s.status==='received'&&b.status==='ملغي')commissionWarnings++;});
   add('سلامة البيانات',commissionErrors?'error':commissionWarnings?'warn':'ok',commissionErrors?'أخطاء في العمولات':commissionWarnings?'عمولات مستلمة لحجوزات ملغاة':'العمولات سليمة',commissionErrors?`${commissionErrors} خطأ في لقطة أو حالة العمولة.`:commissionWarnings?`${commissionWarnings} سجل يحتاج مراجعة يدوية.`:'الحسابات والحالات واللقطات الثابتة متوافقة.');
 
   const active=bookings.filter(b=>b.status!=='ملغي'),conflicts=[];
   for(let i=0;i<active.length;i++)for(let j=i+1;j<active.length;j++){const a=active[i],b=active[j];if(bookingOccupiedDates(a).some(d=>bookingOccupiedDates(b).includes(d)))conflicts.push(`${a.code||a.id||i} × ${b.code||b.id||j}`)}
   add('سلامة البيانات',conflicts.length?'error':'ok',conflicts.length?'توجد حجوزات متعارضة':'لا يوجد تعارض حجوزات',conflicts.length?`${conflicts.length} تعارض: ${conflicts.slice(0,3).join('، ')}${conflicts.length>3?'…':''}`:'جميع فترات الإشغال منفصلة.');
 
-  const familyErrors=bookings.filter(b=>b.recordType==='family'&&(Number(b.total||0)!==0||Number(b.paid||0)!==0||!!String(b.phone||'').trim()||b.commissionSnapshot));
-  const invalidTypes=bookings.filter(b=>!['customer','family'].includes(b.recordType||'customer'));
-  add('سلامة البيانات',familyErrors.length||invalidTypes.length?'error':'ok',familyErrors.length||invalidTypes.length?'أخطاء في تواجد العائلة':'تواجد العائلة سليم',`${familyErrors.length} سجل عائلة مالي/عمولة غير صالح، ${invalidTypes.length} نوع سجل غير معروف.`);
+  const familyErrors=bookings.filter(b=>normalizeRecordType(b.recordType)==='family'&&(Number(b.total||0)!==0||Number(b.paid||0)!==0||!!String(b.phone||'').trim()||commissionStatus(b)!=='no_commission'||managerCommissionAmount(b)!==0));
+  const invalidTypes=bookings.filter(b=>!['customer','family'].includes(normalizeRecordType(b.recordType))),unknownTypeValues=[...new Set(invalidTypes.map(b=>String(b.recordType||'فارغ')))];
+  add('سلامة البيانات',familyErrors.length||invalidTypes.length?'error':'ok',familyErrors.length||invalidTypes.length?'أخطاء في يوم الأهل':'يوم الأهل سليم',`${familyErrors.length} سجل يوم أهل مالي/عمولة غير صالح، ${invalidTypes.length} نوع سجل غير معروف${unknownTypeValues.length?`: ${unknownTypeValues.slice(0,5).join('، ')}`:''}.`);
 
   add('قاعدة البيانات',remoteReady?'ok':'error',remoteReady?'الاتصال بقاعدة البيانات ناجح':'فشل الاتصال بقاعدة البيانات',remoteReady?'Supabase متصل.':lastSyncError||'النظام يعمل من النسخة المحلية فقط.');
   add('قاعدة البيانات',lastSuccessfulReadAt?'ok':remoteReady?'warn':'error',lastSuccessfulReadAt?'القراءة ناجحة':'لم تُثبت القراءة بعد',lastSuccessfulReadAt?`آخر قراءة ناجحة: ${formatDateTime(lastSuccessfulReadAt)}`:'لا توجد عملية قراءة ناجحة مسجلة في هذه الجلسة.');
@@ -1460,15 +1462,21 @@ function bookingChargeableDays(booking){
     ? Math.max(1,Number(booking.stayDays||1))
     : 1;
 }
+function normalizeRecordType(value){
+  const raw=String(value??'').trim(),key=raw.toLowerCase().replace(/[\s_-]+/g,'');
+  if(!raw||['customer','client','booking','حجزعميل','عميل'].includes(key))return 'customer';
+  if(['family','familyday','familypresence','relatives','تواجدالعائلة','يومالأهل','يومالاهل','العائلة','الاهل','الأهل'].includes(key))return 'family';
+  return raw;
+}
 function getRemainingAmount(booking){return Math.max(0,Number(booking?.total||0)-Number(booking?.paid||0))}
-function isFullyPaid(booking){return booking?.recordType!=='family'&&booking?.status!=='ملغي'&&Number(booking?.total||0)>0&&Number(booking?.paid||0)>=Number(booking?.total||0)}
+function isFullyPaid(booking){return normalizeRecordType(booking?.recordType)!=='family'&&booking?.status!=='ملغي'&&Number(booking?.total||0)>0&&Number(booking?.paid||0)>=Number(booking?.total||0)}
 function getPaymentStatus(booking){
-  if(booking?.recordType==='family')return {code:'not_applicable',label:'لا ينطبق',remaining:0};
+  if(normalizeRecordType(booking?.recordType)==='family')return {code:'not_applicable',label:'لا ينطبق',remaining:0};
   if(!(Number(booking?.total||0)>0))return {code:'unset',label:'لم يُحدد المبلغ',remaining:0};
   if(isFullyPaid(booking))return {code:'paid',label:'مكتمل السداد',remaining:0};
   const remaining=getRemainingAmount(booking);return {code:'due',label:`متبقي مبلغ: ${money(remaining)}`,remaining};
 }
-function commissionEligibility(booking){return !!booking&&booking.recordType!=='family'&&booking.status!=='ملغي'&&Number(booking.total||0)>0&&Number(booking.paid||0)>=Number(booking.total||0)}
+function commissionEligibility(booking){return !!booking&&normalizeRecordType(booking.recordType)!=='family'&&booking.status!=='ملغي'&&Number(booking.total||0)>0&&Number(booking.paid||0)>=Number(booking.total||0)}
 function calculateCommissionAmount(method,rate,days,total){
   const safeRate=Math.max(0,Number(rate||0));
   if(method==='percentage')return Math.round(Math.max(0,Number(total||0))*safeRate)/100;
@@ -1483,22 +1491,28 @@ function buildCommissionSnapshot(booking,settings=db?.settings||{}){
   return {method,rate,days,bookingTotal,amount:calculateCommissionAmount(method,rate,days,bookingTotal),earnedAt:new Date().toISOString(),received:false,receivedAt:null,status:'earned',cancelledAt:null,cancelledReason:''};
 }
 function normalizeBookingCommission(raw,settings={commissionEnabled:true,commissionMethod:'per_day',commissionRate:100}){
-  const booking={...(raw||{}),recordType:raw?.recordType||'customer'};
+  const booking={...(raw||{}),recordType:normalizeRecordType(raw?.recordType)};
   let snapshot=booking.commissionSnapshot&&typeof booking.commissionSnapshot==='object'?{...booking.commissionSnapshot}:null;
+  if(booking.recordType==='family'){
+    booking.commissionSnapshot={...(snapshot||{}),method:snapshot?.method||'per_day',rate:0,days:bookingChargeableDays(booking),bookingTotal:0,amount:0,earnedAt:snapshot?.earnedAt||booking.createdAt||new Date().toISOString(),received:false,receivedAt:null,status:'no_commission',reason:'يوم الأهل - بدون عمولة'};
+    booking.commissionReceivedAt='';booking.commissionReceivedBy='';return booking;
+  }
   if(!snapshot&&commissionEligibility(booking))snapshot=buildCommissionSnapshot(booking,settings);
   if(snapshot){
     snapshot.method=['per_booking','per_day','percentage'].includes(snapshot.method)?snapshot.method:'per_day';
     snapshot.rate=Math.max(0,Number(snapshot.rate??100));snapshot.days=Math.max(1,Number(snapshot.days||bookingChargeableDays(booking)));
     snapshot.bookingTotal=Math.max(0,Number(snapshot.bookingTotal??booking.total??0));snapshot.amount=Math.max(0,Number(snapshot.amount??calculateCommissionAmount(snapshot.method,snapshot.rate,snapshot.days,snapshot.bookingTotal)));
-    if(booking.commissionReceivedAt&&!snapshot.receivedAt)snapshot.receivedAt=booking.commissionReceivedAt;
-    snapshot.received=!!(snapshot.received||snapshot.receivedAt);snapshot.status=snapshot.received?'received':(snapshot.status==='cancelled'?'cancelled':'earned');
-    if(booking.status==='ملغي'&&!snapshot.received){snapshot.status='cancelled';snapshot.cancelledAt=snapshot.cancelledAt||new Date().toISOString();snapshot.cancelledReason=snapshot.cancelledReason||'إلغاء الحجز قبل استلام العمولة';}
+    const rawStatus=String(snapshot.status||'');
+    if(['received_before_system','legacy_received','received_pre_system'].includes(rawStatus)||booking.commissionReceivedBeforeSystem){snapshot.status='received_before_system';snapshot.received=false;snapshot.receivedAt=null;snapshot.receivedBeforeSystem=true}
+    else{if(booking.commissionReceivedAt&&!snapshot.receivedAt)snapshot.receivedAt=booking.commissionReceivedAt;snapshot.received=!!(snapshot.received||snapshot.receivedAt);snapshot.status=snapshot.received?'received':(['no_commission','cancelled'].includes(rawStatus)?'no_commission':'earned')}
+    if(booking.status==='ملغي'&&snapshot.status==='earned'){snapshot.status='no_commission';snapshot.amount=0;snapshot.rate=0;snapshot.received=false;snapshot.receivedAt=null;snapshot.reason=snapshot.reason||'الحجز ملغي - بدون عمولة';}
+    if(snapshot.status==='no_commission'){snapshot.amount=0;snapshot.rate=0;snapshot.received=false;snapshot.receivedAt=null}
   }
   booking.commissionSnapshot=snapshot;
   return booking;
 }
-function managerCommissionAmount(booking){return Math.max(0,Number(booking?.commissionSnapshot?.amount||0))}
-function commissionStatus(booking){return booking?.commissionSnapshot?.status||'not_earned'}
+function commissionStatus(booking){if(normalizeRecordType(booking?.recordType)==='family')return 'no_commission';return booking?.commissionSnapshot?.status||'not_earned'}
+function managerCommissionAmount(booking){return commissionStatus(booking)==='no_commission'?0:Math.max(0,Number(booking?.commissionSnapshot?.amount||0))}
 function isCommissionEligible(booking){return ['earned','received'].includes(commissionStatus(booking))}
 function isCommissionReceived(booking){return commissionStatus(booking)==='received'}
 function outstandingCommissionTotal(bookings){return (bookings||[]).filter(b=>commissionStatus(b)==='earned').reduce((sum,b)=>sum+managerCommissionAmount(b),0)}
@@ -2195,18 +2209,25 @@ function renderExpenses(){
   commissionList.innerHTML=[...commissionBookings].sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(b=>{
     const received=isCommissionReceived(b);
     const s=b.commissionSnapshot,status=s.status,methodLabel={per_booking:'لكل حجز',per_day:'لكل يوم',percentage:'نسبة مئوية'}[s.method]||s.method;
-    const statusLabel={earned:'مستحقة ولم تُستلم',received:'تم الاستلام',cancelled:'ملغاة'}[status]||'غير مستحقة';
-    return `<div class="item ${received?'commission-received':'commission-pending'}"><div><h4>${escapeHtml(b.name)} <span class="small">#${escapeHtml(b.code)}</span></h4><div class="meta">${escapeHtml(b.date)} • ${escapeHtml(b.type||'يومي')} • ${s.days} ${s.days===1?'يوم':'أيام'}<br>${methodLabel} — القيمة ${s.method==='percentage'?s.rate+'٪':money(s.rate)} • إجمالي الحجز ${money(s.bookingTotal)}<br>استحقت: ${formatDateTime(s.earnedAt)}${s.receivedAt?` • استلمت: ${formatDateTime(s.receivedAt)}`:''}</div><div class="commission-status ${received?'status-success':'status-warning'}">${statusLabel}</div></div><div style="text-align:left"><b>${money(s.amount)}</b><div class="table-actions" style="margin-top:8px">${status==='received'?`<button class="secondary small" onclick="undoCommissionReceived('${b.id}')">تراجع عن الاستلام</button>`:status==='earned'?`<button class="primary small" onclick="confirmCommissionReceived('${b.id}')">تأكيد استلام العمولة</button>`:''}</div></div></div>`;
+    const statusLabel={earned:'مستحقة',received:'مستلمة',received_before_system:'مستلمة سابقًا قبل النظام',no_commission:'بدون عمولة'}[status]||'بدون عمولة',statusClassName=status==='received'?'status-success':status==='earned'?'status-warning':'';
+    const details=status==='no_commission'?(s.reason||'يوم الأهل - بدون عمولة'):status==='received_before_system'?'مرجع تاريخي فقط — لا تدخل ضمن المستحقات أو صافي الربح':`${methodLabel} — القيمة ${s.method==='percentage'?s.rate+'٪':money(s.rate)} • إجمالي الحجز ${money(s.bookingTotal)}`;
+    return `<div class="item ${received?'commission-received':'commission-pending'}"><div><h4>${escapeHtml(b.name)} <span class="small">#${escapeHtml(b.code)}</span></h4><div class="meta">${escapeHtml(b.date)} • ${escapeHtml(b.type||'يومي')} • ${s.days} ${s.days===1?'يوم':'أيام'}<br>${escapeHtml(details)}${status==='earned'||status==='received'?`<br>استحقت: ${formatDateTime(s.earnedAt)}${s.receivedAt?` • استلمت: ${formatDateTime(s.receivedAt)}`:''}`:''}</div><div class="commission-status ${statusClassName}">${statusLabel}</div></div><div style="text-align:left"><b>${money(managerCommissionAmount(b))}</b><div class="table-actions" style="margin-top:8px">${status==='received'?`<button class="secondary small" onclick="undoCommissionReceived('${b.id}')">تراجع عن الاستلام</button>`:status==='earned'?`<button class="primary small" onclick="confirmCommissionReceived('${b.id}')">تأكيد استلام العمولة</button><button class="secondary small" onclick="markCommissionReceivedBeforeSystem('${b.id}')">مستلمة سابقًا</button>`:''}</div></div></div>`;
   }).join('')||'<div class="empty">لا توجد عمولات في الفترة المختارة</div>';
   renderFinanceChart();
 }
 async function confirmCommissionReceived(bookingId){
-  const b=db.bookings.find(x=>x.id===bookingId);if(!b||!isCommissionEligible(b))return;
+  const b=db.bookings.find(x=>x.id===bookingId);if(!b||commissionStatus(b)!=='earned')return;
   if(!confirm(`تأكيد استلام عمولة ${money(managerCommissionAmount(b))} للحجز #${b.code}؟`))return;
   const before={commissionReceivedAt:b.commissionReceivedAt||'',commissionReceivedBy:b.commissionReceivedBy||''};
   const receivedAt=new Date().toISOString();b.commissionReceivedAt=receivedAt;b.commissionReceivedBy=currentUserLabel();b.commissionSnapshot={...b.commissionSnapshot,received:true,receivedAt,status:'received'};
   addAudit('تأكيد استلام','عمولة المدير',`${b.name} — #${b.code} — ${money(managerCommissionAmount(b))}`,before,{commissionReceivedAt:b.commissionReceivedAt,commissionReceivedBy:b.commissionReceivedBy});
   await persist();
+}
+async function markCommissionReceivedBeforeSystem(bookingId){
+  const b=db.bookings.find(x=>x.id===bookingId);if(!b||commissionStatus(b)!=='earned')return;
+  if(!confirm(`تأكيد أن عمولة الحجز #${b.code} مستلمة سابقًا قبل استخدام النظام؟\n\nستبقى ظاهرة كمرجع فقط، ولن تُحسب ضمن المستحقات أو صافي الربح.`))return;
+  const before=safeClone(b.commissionSnapshot);b.commissionReceivedAt='';b.commissionReceivedBy='';b.commissionReceivedBeforeSystem=true;b.commissionSnapshot={...b.commissionSnapshot,received:false,receivedAt:null,receivedBeforeSystem:true,status:'received_before_system'};
+  addAudit('تعديل حالة','عمولة المدير',`${b.name} — #${b.code} — مستلمة سابقًا قبل النظام`,before,b.commissionSnapshot);await persist();
 }
 async function undoCommissionReceived(bookingId){
   const b=db.bookings.find(x=>x.id===bookingId);if(!b||!isCommissionReceived(b)||!confirm('إلغاء تأكيد استلام هذه العمولة؟'))return;
@@ -2536,6 +2557,11 @@ function validateBackupPayload(raw){
   return {envelope,data,summary:{bookings:data.bookings.length,expenses:data.expenses.length,customers:Object.keys(data.customerNotes||{}).length,cleaning:Array.isArray(data.cleaningTasks)?data.cleaningTasks.length:0}};
 }
 async function verifyBackupPayload(raw){const checked=validateBackupPayload(raw),expected=checked.envelope?.integrity?.dataHash;if(expected){const actual=await sha256Text(JSON.stringify(checked.data));if(!actual||actual!==expected)throw new Error('فشل فحص سلامة النسخة: بصمة البيانات غير متطابقة')}return checked}
+async function createPreMigrationBackupFromData(rawData,migrationKey,note){
+  const marker=`adwaaMigrationBackup-${migrationKey}`;if(localStorage.getItem(marker))return null;
+  try{const data=sanitizeBackupValue(safeClone(rawData)||{}),dataHash=await sha256Text(JSON.stringify(data)),createdAt=new Date().toISOString(),envelope={schema:'adwaa-alsharq-backup',version:APP_VERSION,createdAt,createdBy:currentUserLabel(),type:'قبل التغيير',note,integrity:{algorithm:dataHash?'SHA-256':'structural',dataHash},data},json=JSON.stringify(envelope,null,2);await verifyBackupPayload(JSON.parse(json));const id=crypto.randomUUID(),size=new Blob([json]).size,fileName=backupFileName('قبل التغيير',new Date(createdAt));await backupVaultPut({id,envelope,json,size});localStorage.setItem(marker,createdAt);return {id,createdAt,size,user:envelope.createdBy,type:'قبل التغيير',version:APP_VERSION,stored:true,fileName,location:'مخزن المتصفح الآمن',verified:true}}
+  catch(err){console.error('تعذر إنشاء نسخة ما قبل التغيير',err);return null}
+}
 function backupFileName(type,at=new Date()){const stamp=at.toISOString().replace(/[:.]/g,'-');const kind=type==='نقطة استعادة'?'restore-point':type==='قبل الاستعادة'?'before-restore':'backup';return `Adwaa-${kind}-${APP_VERSION}-${stamp}.json`}
 async function writableBackupDirectory(){const record=await getBackupDirectoryRecord();if(!record?.handle)return null;const permission=await getDirectoryPermission(record.handle,true);if(permission!=='granted')throw new Error('المجلد المحدد غير قابل للكتابة. اختر موقعًا جديدًا.');return record}
 async function writeVerifiedBackupFile(record,fileName,json){
