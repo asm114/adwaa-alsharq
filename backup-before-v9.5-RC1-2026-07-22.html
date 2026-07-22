@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0d4c3f">
-<title>v9.5 RC1 — لوحة اليوم وتطوير التقويم</title>
+<title>v9.4 RC1 — النسخة المرشحة للمراجعة</title>
 <link rel="manifest" href="manifest.json">
 <style>
 :root{--green:#0d4c3f;--green2:#155f50;--gold:#d8a33e;--bg:#f7f5ef;--card:#fff;--text:#10251f;--muted:#7d8a85;--danger:#b54545;--line:#e7e5df}
@@ -283,12 +283,6 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
     <div class="stat"><div class="k">إجمالي المتبقي</div><div class="v money" id="sDue">0 ر.س</div></div>
     <div class="stat"><div class="k">حجوزات مكتملة السداد</div><div class="v" id="sFullyPaid">0</div></div>
   </div>
-  <div class="section today-board" id="todayBoard">
-    <div class="section-head"><div><h3>☀️ لوحة اليوم</h3><div class="meta" id="todayBoardDate">الدخول والخروج والمهام العاجلة</div></div><button class="secondary small" type="button" onclick="renderTodayBoard()">⟳ تحديث</button></div>
-    <div id="todayQuickStats" class="today-quick-stats"></div>
-    <div id="todayBoardContent" class="today-board-content"><div class="empty">جارٍ تحميل بيانات اليوم…</div></div>
-    <div id="todayNextBooking" class="today-next"></div>
-  </div>
   <div class="hero">
     <div><small>أقرب عميل</small><h2 id="nextBooking">لا يوجد حجز قادم</h2><div id="nextMeta"></div><button class="soft-btn" onclick="openBooking()">إضافة حجز</button></div>
     <div style="font-size:44px">◷</div>
@@ -355,24 +349,16 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
         <button class="secondary" onclick="goCalendarToday()">اليوم</button>
         <button class="secondary" onclick="changeMonth(1)">التالي</button>
         <select id="calendarMode" aria-label="نوع التقويم" onchange="changeCalendarMode()"><option value="both">هجري وميلادي</option><option value="gregorian">ميلادي</option><option value="hijri">هجري</option></select>
-        <select id="calendarViewMode" aria-label="طريقة عرض التقويم" onchange="changeCalendarViewMode()"><option value="month">عرض شهري</option><option value="week">عرض أسبوعي</option></select>
-        <select id="calendarMonthPicker" aria-label="اختيار الشهر" onchange="jumpCalendarDate()"></select>
-        <select id="calendarYearPicker" aria-label="اختيار السنة" onchange="jumpCalendarDate()"></select>
       </div>
     </div>
     <div style="padding:14px">
       <div id="calendarSummary" class="calendar-summary"></div>
-      <div class="cal-legend v95-legend">
+      <div class="cal-legend">
         <span class="cal-key"><span class="cal-swatch sw-free"></span>متاح</span>
         <span class="cal-key"><span class="cal-swatch sw-paid"></span>محجوز ومكتمل السداد</span>
         <span class="cal-key"><span class="cal-swatch sw-family"></span>تواجد العائلة</span>
         <span class="cal-key"><span class="cal-swatch sw-partial"></span>محجوز وباقي مبلغ</span>
         <span class="cal-key"><span class="cal-swatch sw-today"></span>اليوم</span>
-        <span class="cal-key"><span class="cal-swatch sw-confirmed"></span>مؤكد</span>
-        <span class="cal-key"><span class="cal-swatch sw-unconfirmed"></span>غير مؤكد</span>
-        <span class="cal-key"><span class="cal-swatch sw-entered"></span>تم الدخول</span>
-        <span class="cal-key"><span class="cal-swatch sw-exited"></span>تم الخروج</span>
-        <span class="cal-key"><span class="cal-swatch sw-cancelled"></span>ملغي</span>
       </div>
       <div class="notice">اضغط على يوم متاح لإضافة حجز مباشرة، أو على يوم محجوز لفتح الحجز.</div>
       <div class="calendar" id="calendar"></div>
@@ -653,7 +639,7 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
   </section>
   <div id="sendStatus" class="send-status" aria-live="polite"></div>
   <section class="v92-activity">
-    <div class="v92-activity-head"><h4>سجل نشاط الحجز</h4><span class="v92-version-tag">v9.5 RC1</span></div>
+    <div class="v92-activity-head"><h4>سجل نشاط الحجز</h4><span class="v92-version-tag">v9.4 RC1</span></div>
     <div id="v92ActivityList" class="v92-activity-list"><div class="v92-empty">لا توجد عمليات مسجلة بعد.</div></div>
   </section>
 </div>
@@ -727,8 +713,8 @@ const SUPABASE_URL='https://pgdvlklpyrvmwzitsmbw.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_BFTIR_8VK2qQuKnl2c-jDA_cMnWz0E-';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const STATE_ROW_ID='main';
-// v9.5 RC1 — today board and professional calendar, preserving v9.4 data compatibility.
-const APP_VERSION='9.5-RC1';
+// v9.4 RC1 candidate — unified payments, commission snapshots, family records and safe WhatsApp preview.
+const APP_VERSION='9.4-RC1';
 const BACKUP_DB_NAME='adwaa-backup-vault';
 const BACKUP_STORE_NAME='backups';
 let remoteReady=false;
@@ -2780,38 +2766,6 @@ updateRecordTypeUI();
 initRCCandidateUI();
 window.addEventListener('error',event=>{const message=String(event?.error?.message||event?.message||'').trim();if(message){knownRuntimeErrors.push({at:new Date().toISOString(),message});if(knownRuntimeErrors.length>50)knownRuntimeErrors.shift();renderSystemHealth();}});
 window.addEventListener('unhandledrejection',event=>{const message=String(event?.reason?.message||event?.reason||'Promise rejection').trim();knownRuntimeErrors.push({at:new Date().toISOString(),message});if(knownRuntimeErrors.length>50)knownRuntimeErrors.shift();renderSystemHealth();});
-</script>
-<style>
-/* v9.5 RC1 — لوحة اليوم والتقويم المتجاوب */
-.today-board{overflow:hidden}.today-quick-stats{display:grid;grid-template-columns:repeat(6,minmax(125px,1fr));gap:9px;padding:14px;background:#f7faf8;border-bottom:1px solid var(--line);overflow-x:auto}.today-stat{background:#fff;border:1px solid var(--line);border-radius:15px;padding:12px;min-width:125px}.today-stat span{display:block;color:var(--muted);font-size:11px}.today-stat b{display:block;font-size:19px;margin-top:5px}.today-board-content{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px}.today-column{border:1px solid var(--line);border-radius:17px;overflow:hidden}.today-column-title{padding:12px 14px;background:#f4f8f6;font-weight:900}.today-booking-card{padding:14px;border-top:1px solid var(--line)}.today-booking-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.today-booking-card h4{margin:0 0 4px}.today-finance{display:flex;gap:9px;flex-wrap:wrap;margin:9px 0;font-size:12px}.today-due{background:#fff2cf;color:#805800;border:1px solid #e4c26d;border-radius:12px;padding:8px 10px;font-weight:900}.today-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.today-actions button{padding:8px 10px;font-size:11px}.today-next{margin:0 14px 14px;padding:13px;border-radius:15px;background:linear-gradient(135deg,#073f35,#0f6655);color:#fff}.calendar.v95-week{grid-template-columns:repeat(7,minmax(150px,1fr));overflow-x:auto;padding-bottom:6px}.calendar.v95-week .day{min-height:190px}.calendar-event-chip{display:block;width:100%;border:0;text-align:right;margin-top:4px;padding:5px 6px;border-radius:8px;font-size:10px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cal-status-confirmed{background:#dff3eb;color:#126b55}.cal-status-unconfirmed{background:#fff0c9;color:#815900}.cal-status-entered{background:#dfeaff;color:#24569d}.cal-status-exited{background:#e9eceb;color:#58625e}.cal-status-cancelled{background:#f8dddd;color:#9f3434;text-decoration:line-through}.cal-status-paid{box-shadow:inset 0 -3px #238b57}.cal-status-due{box-shadow:inset 0 -3px #d59b00}.sw-confirmed{background:#dff3eb}.sw-unconfirmed{background:#fff0c9}.sw-entered{background:#dfeaff}.sw-exited{background:#e9eceb}.sw-cancelled{background:#f8dddd}.sync-banner{margin:12px 0;padding:12px;border-radius:14px;background:#fff3d9;color:#805800;border:1px solid #e1c271}.sync-banner.error{background:#fde5e5;color:#943b3b;border-color:#dfa6a6}
-@media(max-width:850px){.today-board-content{grid-template-columns:1fr}.calendar{grid-template-columns:repeat(7,minmax(92px,1fr));overflow-x:auto}.day{min-height:105px}.calendar-toolbar select,.calendar-toolbar button{flex:1;min-width:120px}}
-@media(max-width:620px){.today-quick-stats{grid-template-columns:repeat(6,135px)}.today-board-content{padding:10px}.today-actions button{flex:1;min-width:125px}.calendar{grid-template-columns:repeat(7,minmax(78px,1fr))}.calendar-weekday{font-size:10px}.day{padding:5px}.calendar-date-primary{font-size:12px}.calendar-event-chip{font-size:9px}.v95-legend{max-height:90px;overflow:auto}}
-</style>
-<script>
-/* v9.5 RC1 — إضافات متوافقة دون تغيير بنية قاعدة البيانات */
-const V95_ENTRY_TIME='3:30 م',V95_DAILY_EXIT='3:00 ص',V95_STAY_EXIT='8:00 ص';
-let calendarViewMode='month';
-function bookingExitDate(b){return b.type==='مبيت'?addDaysISO(b.date,Math.max(1,Number(b.stayDays||1))):b.date}
-function bookingTimes(b){return {entry:V95_ENTRY_TIME,exit:b.type==='مبيت'?V95_STAY_EXIT:V95_DAILY_EXIT}}
-function paymentStateLabel(b){const total=Number(b.total||0),paid=Number(b.paid||0);return paid<=0?'لم يدفع':paid>=total&&total>0?'مدفوع بالكامل':'مدفوع جزئيًا'}
-function todayCard(b,kind){const p=getPaymentStatus(b),t=bookingTimes(b),task=(db.cleaningTasks||[]).find(x=>x.bookingId===b.id&&x.status!=='ملغي');return `<article class="today-booking-card"><div class="today-booking-head"><div><h4>${escapeHtml(b.name||'بدون اسم')} <span class="meta">#${escapeHtml(b.code||'')}</span></h4><div class="meta">${escapeHtml(b.phone||'بدون جوال')} • ${escapeHtml(b.type||'يومي')} • دخول ${t.entry} • خروج ${t.exit}</div></div><span class="badge ${statusClass(b.status)}">${escapeHtml(b.status||'غير مؤكد')}</span></div><div class="today-finance"><span>الإجمالي: <b class="money">${money(b.total)}</b></span><span>المستلم: <b class="money">${money(b.paid)}</b></span><span>الحالة: <b>${paymentStateLabel(b)}</b></span></div>${p.remaining>0?`<div class="today-due">⚠️ متبقٍ على العميل ${money(p.remaining)}</div>`:''}${kind==='exit'?`<div class="meta" style="margin-top:8px">🧹 التنظيف: ${task?(task.status==='done'?'مكتمل':'مهمة مسجلة'):'يُنشأ بعد تأكيد الخروج'}</div>`:''}<div class="today-actions"><button class="secondary" onclick="v95BookingDetails('${b.id}')">التفاصيل</button><button class="secondary" onclick="openBooking('${b.id}')">تعديل</button>${b.status!=='تم الدخول'&&b.status!=='تم الخروج'&&b.status!=='ملغي'?`<button class="primary" onclick="v95SetBookingStatus('${b.id}','تم الدخول')">تم الدخول</button>`:''}${b.status!=='تم الخروج'&&b.status!=='ملغي'?`<button class="primary" onclick="v95SetBookingStatus('${b.id}','تم الخروج')">تم الخروج</button>`:''}<button class="secondary" onclick="v95CopyPhone('${b.id}')">نسخ الجوال</button><button class="secondary" onclick="v95OpenWhatsApp('${b.id}')">واتساب</button>${p.remaining>0?`<button class="secondary" onclick="v95RecordPayment('${b.id}')">تسجيل دفعة</button>`:''}</div></article>`}
-function monthMatch(value,now=new Date()){return String(value||'').slice(0,7)===`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`}
-function renderTodayBoard(){const root=document.getElementById('todayBoardContent');if(!root)return;try{const today=isoToday(),active=(db.bookings||[]).filter(b=>b.recordType!=='family'&&b.status!=='ملغي'),entries=active.filter(b=>b.date===today),exits=active.filter(b=>bookingExitDate(b)===today),month=active.filter(b=>monthMatch(b.date)),cashExpenses=(db.expenses||[]).filter(e=>monthMatch(e.date)).reduce((s,e)=>s+Number(e.amount||0),0),monthCommission=month.filter(isCommissionEligible).reduce((s,b)=>s+managerCommissionAmount(b),0),expenses=cashExpenses+monthCommission,revenue=month.reduce((s,b)=>s+Number(b.paid||0),0),due=active.reduce((s,b)=>s+getRemainingAmount(b),0);document.getElementById('todayBoardDate').textContent=new Date().toLocaleDateString('ar-SA',{weekday:'long',year:'numeric',month:'long',day:'numeric'});document.getElementById('todayQuickStats').innerHTML=[['حجوزات اليوم',new Set([...entries,...exits].map(x=>x.id)).size],['حجوزات الشهر',month.length],['المحصل هذا الشهر',money(revenue)],['المبالغ المتبقية',money(due)],['المصروفات والعمولة',money(expenses)],['صافي الربح',money(revenue-expenses)]].map(x=>`<div class="today-stat"><span>${x[0]}</span><b class="${String(x[1]).includes('ر.س')?'money':''}">${x[1]}</b></div>`).join('');root.innerHTML=entries.length||exits.length?`<div class="today-column"><div class="today-column-title">⬅️ دخول اليوم (${entries.length})</div>${entries.map(b=>todayCard(b,'entry')).join('')||'<div class="empty">لا يوجد دخول اليوم</div>'}</div><div class="today-column"><div class="today-column-title">➡️ خروج اليوم (${exits.length})</div>${exits.map(b=>todayCard(b,'exit')).join('')||'<div class="empty">لا يوجد خروج اليوم</div>'}</div>`:'<div class="empty" style="grid-column:1/-1">لا توجد حجوزات دخول أو خروج اليوم.</div>';const next=upcoming()[0],nextBox=document.getElementById('todayNextBooking');if(next){const start=new Date(next.date+'T15:30:00'),ms=Math.max(0,start-Date.now()),days=Math.floor(ms/86400000),hours=Math.floor(ms%86400000/3600000);nextBox.innerHTML=`<b>أقرب حجز قادم:</b> ${escapeHtml(next.name)} — بعد ${days} يوم و${hours} ساعة • ${escapeHtml(next.date)}`}else nextBox.textContent='لا يوجد حجز قادم.'}catch(err){root.innerHTML=`<div class="sync-banner error">تعذر عرض لوحة اليوم: ${escapeHtml(err.message||'خطأ غير معروف')}</div>`}}
-async function v95SetBookingStatus(id,status){const b=db.bookings.find(x=>x.id===id);if(!b)return;if(!confirm(`تأكيد تغيير حالة حجز ${b.name} إلى «${status}»؟`))return;const before=b.status;b.status=status;b.updatedAt=new Date().toISOString();ensureCleaningTaskForBooking(b,before);addAudit('تعديل','حالة حجز',`${b.name}: ${before} ← ${status}`,{status:before},{status});await persist();renderTodayBoard()}
-function v95CopyPhone(id){const b=db.bookings.find(x=>x.id===id);if(!b)return;const value=b.phone||'';navigator.clipboard?.writeText(value).then(()=>alert('تم نسخ رقم الجوال.')).catch(()=>prompt('انسخ رقم الجوال:',value))}
-function v95OpenWhatsApp(id){const b=db.bookings.find(x=>x.id===id);if(!b)return;const phone=normalizeSaudiPhone(b.phone);if(!phone){alert('رقم الجوال غير صالح لواتساب.');return}window.open(`https://wa.me/${phone}`,'_blank','noopener')}
-function v95RecordPayment(id){openBooking(id);setTimeout(()=>{bPaid?.focus();bPaid?.scrollIntoView({behavior:'smooth',block:'center'})},100)}
-function v95BookingDetails(id){const b=db.bookings.find(x=>x.id===id);if(!b)return;const p=getPaymentStatus(b),t=bookingTimes(b);if(!document.getElementById('v95DetailsModal')){const modal=document.createElement('div');modal.id='v95DetailsModal';modal.className='modal';modal.innerHTML='<div class="sheet" style="max-width:620px;margin:auto"><div class="sheet-head"><h2>تفاصيل الحجز</h2><button class="close" onclick="closeModal(\'v95DetailsModal\')">×</button></div><div id="v95DetailsBody"></div></div>';document.body.appendChild(modal)}document.getElementById('v95DetailsBody').innerHTML=`<h3>${escapeHtml(b.name)}</h3><div class="meta">#${escapeHtml(b.code||'')} • ${escapeHtml(b.phone||'')} • ${escapeHtml(b.type)}<br>الدخول: ${escapeHtml(b.date)} ${t.entry}<br>الخروج: ${escapeHtml(bookingExitDate(b))} ${t.exit}<br>الحالة: ${escapeHtml(b.status)} • السداد: ${paymentStateLabel(b)}<br>الإجمالي ${money(b.total)} • المستلم ${money(b.paid)} • المتبقي ${money(p.remaining)}</div><div class="actions"><button class="primary" onclick="closeModal('v95DetailsModal');openBooking('${b.id}')">فتح الحجز كاملًا</button></div>`;document.getElementById('v95DetailsModal').classList.add('open')}
-function calendarStatusClass(b){if(b.status==='غير مؤكد')return 'cal-status-unconfirmed';if(b.status==='تم الدخول')return 'cal-status-entered';if(b.status==='تم الخروج')return 'cal-status-exited';if(b.status==='ملغي')return 'cal-status-cancelled';return 'cal-status-confirmed'}
-function v95CalendarEvent(b){return `<button class="calendar-event-chip ${calendarStatusClass(b)} ${isFullyPaid(b)?'cal-status-paid':'cal-status-due'}" title="${escapeHtml(b.name)} — ${escapeHtml(b.status)} — ${paymentStateLabel(b)}" onclick="event.stopPropagation();v95BookingDetails('${b.id}')">${b.recordType==='family'?'👨‍👩‍👧‍👦 العائلة':escapeHtml((b.name||'حجز').slice(0,18))}</button>`}
-function fillCalendarPickers(){const mp=document.getElementById('calendarMonthPicker'),yp=document.getElementById('calendarYearPicker');if(!mp||!yp)return;mp.innerHTML=gregorianMonthsAr.map((x,i)=>`<option value="${i}" ${i===calDate.getMonth()?'selected':''}>${x}</option>`).join('');const y=calDate.getFullYear();yp.innerHTML=Array.from({length:11},(_,i)=>y-5+i).map(x=>`<option ${x===y?'selected':''}>${x}</option>`).join('')}
-function jumpCalendarDate(){const m=Number(document.getElementById('calendarMonthPicker').value),y=Number(document.getElementById('calendarYearPicker').value);calDate=new Date(y,m,1);renderCalendar()}
-function changeCalendarViewMode(){calendarViewMode=document.getElementById('calendarViewMode')?.value||'month';renderCalendar()}
-const v95OriginalRenderCalendar=renderCalendar;
-renderCalendar=function(){fillCalendarPickers();if(calendarViewMode==='month'){document.getElementById('calendar')?.classList.remove('v95-week');v95OriginalRenderCalendar();document.querySelectorAll('#calendar .day.selectable').forEach(day=>{const onclick=day.getAttribute('onclick')||'',id=onclick.match(/openBooking\('([^']+)'\)/)?.[1];if(!id)return;const iso=[...day.querySelectorAll('.calendar-date-primary')][0];const b=db.bookings.find(x=>x.id===id);if(b){day.querySelectorAll('.dot,.meta[style]').forEach(x=>x.remove());day.insertAdjacentHTML('beforeend',v95CalendarEvent(b))}});return}const cal=document.getElementById('calendar');cal.classList.add('v95-week');const start=new Date(calDate);start.setDate(start.getDate()-start.getDay());const names=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];let html=names.map(n=>`<div class="day calendar-weekday">${n}</div>`).join('');for(let i=0;i<7;i++){const d=new Date(start);d.setDate(start.getDate()+i);const iso=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,events=getSaudiCalendarEvents(d),bs=db.bookings.filter(b=>bookingOccupiedDates(b).includes(iso));html+=`<div class="day selectable ${iso===isoToday()?'today':''}" onclick="openBooking(null,'${iso}')">${formatCalendarDay(d,db.settings.calendarMode||'both')}${events.map(e=>`<span class="calendar-event">${escapeHtml(e)}</span>`).join('')}${bs.map(v95CalendarEvent).join('')}${bs.length?'':'<span class="dot" style="color:var(--muted)">متاح</span>'}</div>`}cal.innerHTML=html;calTitle.textContent=`الأسبوع من ${start.toLocaleDateString('ar-SA')} إلى ${new Date(start.getFullYear(),start.getMonth(),start.getDate()+6).toLocaleDateString('ar-SA')}`;renderCalendarSummary(calDate.getFullYear(),calDate.getMonth(),new Date(calDate.getFullYear(),calDate.getMonth()+1,0).getDate())};
-const v95RenderDashboardBase=renderDashboard;renderDashboard=function(){v95RenderDashboardBase();renderTodayBoard()};
-const v95RenderAllBase=renderAll;renderAll=function(){v95RenderAllBase();renderTodayBoard()};
-document.addEventListener('DOMContentLoaded',()=>{fillCalendarPickers();renderTodayBoard()});
 </script>
 </body>
 </html>
