@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0d4c3f">
-<title>v9.6 RC1 — مركز معلومات الإصدار</title>
+<title>v9.7 RC1 — النسخ الاحتياطي السحابي</title>
 <link rel="manifest" href="manifest.json">
 <style>
 :root{--green:#0d4c3f;--green2:#155f50;--gold:#d8a33e;--bg:#f7f5ef;--card:#fff;--text:#10251f;--muted:#7d8a85;--danger:#b54545;--line:#e7e5df}
@@ -40,10 +40,11 @@ input,select,textarea{width:100%;border:1px solid #d9ddd9;border-radius:14px;pad
 .about-hero h2{margin:0 0 6px;font-size:27px}.about-hero p{margin:0;opacity:.88;line-height:1.8}.about-version{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);border-radius:18px;padding:14px 18px;text-align:center;white-space:nowrap}.about-version b{display:block;font-size:20px}.about-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}.about-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px}.about-card h3{margin:0 0 12px}.about-list{display:grid;gap:10px}.about-row{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding-bottom:9px;border-bottom:1px solid #edf2f0}.about-row:last-child{border-bottom:0;padding-bottom:0}.about-row span{color:var(--muted)}.about-status{display:inline-flex;align-items:center;gap:7px;border-radius:999px;padding:7px 10px;font-size:12px;font-weight:800}.about-status.ok{background:#e4f4ee;color:#14785f}.about-status.warn{background:#fff3d9;color:#996a00}.about-features{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.about-feature{background:#f7faf8;border:1px solid var(--line);border-radius:14px;padding:13px;line-height:1.7}.about-feature b{display:block;margin-bottom:3px}.about-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}
 .release-info-card{margin-top:14px}.release-info-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.release-info-status{display:inline-flex;align-items:center;gap:7px;border-radius:999px;padding:8px 12px;font-size:13px;font-weight:900;background:#e4f4ee;color:#14785f}.release-info-status.update{background:#fff3d9;color:#8a6100}.release-info-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 22px;margin-top:14px}.release-info-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}.release-check-message{min-height:24px;margin-top:10px;color:var(--muted);font-size:13px;font-weight:700}.release-check-message.ok{color:#14785f}.release-check-message.update{color:#8a6100}.release-check-message.error{color:#a63c3c}
 .backup-management-card{margin-top:14px}.backup-location{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:15px;background:#f8faf9}.backup-location-path{display:block;margin-top:6px;direction:ltr;text-align:left;overflow-wrap:anywhere;color:var(--green);font-weight:900}.backup-location-status{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;font-weight:800}.backup-location-status.ok{color:#14785f}.backup-location-status.warn{color:#98611a}.backup-location-status.error{color:#a63c3c}.backup-management-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.backup-last-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}.backup-last-item{padding:12px;border:1px solid var(--line);border-radius:13px;background:#fff}.backup-last-item span{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}.backup-last-item b{display:block;overflow-wrap:anywhere}.backup-browser-note{margin-top:12px;line-height:1.8}.backup-operation-message{display:none;margin-top:12px}.backup-operation-message.show{display:block}.backup-operation-message.success{background:#eaf7f1;border-color:#a6d8c4}.backup-operation-message.error{background:#fff0f0;border-color:#e2aaaa}
+.protection-hero{background:linear-gradient(135deg,#0b493c,#176956);color:#fff;border-radius:24px;padding:22px;display:flex;justify-content:space-between;align-items:center;gap:18px;box-shadow:0 14px 34px #0d4c3f26}.protection-hero h2{margin:0 0 7px}.protection-hero p{margin:0;color:#d7e8e2;line-height:1.8}.protection-level{min-width:145px;text-align:center;padding:14px;border:1px solid #ffffff40;background:#ffffff12;border-radius:18px}.protection-level span{display:block;font-size:12px;color:#d7e8e2}.protection-level b{display:block;font-size:20px;margin-top:6px}.protection-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:11px;margin-top:14px}.protection-stat{background:#fff;border:1px solid var(--line);border-radius:17px;padding:15px;min-width:0}.protection-stat span{display:block;color:var(--muted);font-size:12px;margin-bottom:7px}.protection-stat b{display:block;overflow-wrap:anywhere}.protection-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(310px,.75fr);gap:14px;margin-top:14px}.protection-card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:18px}.protection-card h3{margin:0 0 5px}.protection-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.protection-actions button,.protection-actions label{display:inline-flex;align-items:center;justify-content:center}.recovery-report{display:none;margin-top:14px;line-height:1.8}.recovery-report.show{display:block}.recovery-report.ok{background:#eaf7f1;border-color:#a6d8c4;color:#17664f}.recovery-report.warn{background:#fff8e7;border-color:#f0d494;color:#76520b}.recovery-report.error{background:#fff0f0;border-color:#e2aaaa;color:#923c3c}.protection-table{overflow:auto;margin-top:12px}.protection-table table{width:100%;border-collapse:collapse;min-width:980px}.protection-table th,.protection-table td{padding:11px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top}.protection-table th{background:#f8faf9;color:var(--muted);font-size:12px}.recovery-id{direction:ltr;text-align:left;display:inline-block;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;color:var(--green);font-weight:900}.protection-status{display:inline-flex;padding:6px 9px;border-radius:999px;font-size:12px;font-weight:900}.protection-status.ok{background:#e4f4ee;color:#14785f}.protection-status.warn{background:#fff3d9;color:#8a6100}.protection-status.error{background:#fde5e5;color:#a63c3c}.drive-card{margin-top:14px}.drive-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:14px}.drive-status-item{background:#f8faf9;border:1px solid var(--line);border-radius:14px;padding:11px;min-width:0}.drive-status-item span{display:block;color:var(--muted);font-size:11px;margin-bottom:5px}.drive-status-item b{display:block;overflow-wrap:anywhere}.drive-message{display:none;margin-top:12px}.drive-message.show{display:block}.drive-cloud-table{overflow:auto;margin-top:13px}.drive-cloud-table table{width:100%;border-collapse:collapse;min-width:760px}.drive-cloud-table th,.drive-cloud-table td{padding:10px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top}.drive-cloud-table th{background:#f8faf9;color:var(--muted);font-size:12px}.drive-loading{opacity:.65;pointer-events:none}
 .cal-legend{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}.cal-key{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}.cal-swatch{width:13px;height:13px;border-radius:4px;border:1px solid var(--line)}.sw-free{background:#fff}.sw-paid{background:#e7f5ef;border-color:#7ebda9}.sw-partial{background:#fff4d6;border-color:#e7bf61}.sw-today{background:#fff;border:3px solid #d9534f}.customer-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;display:grid;gap:8px}.customer-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.customer-stat{background:#f8faf9;border-radius:12px;padding:10px;text-align:center}.customer-stat b{display:block;font-size:18px}.suggestions{position:absolute;z-index:20;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.12);width:100%;max-height:220px;overflow:auto}.suggestion{padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--line)}.suggestion:hover{background:#f4f8f6}.field-wrap{position:relative}
 .health-card{margin-top:14px;border:2px solid var(--line);border-radius:22px;background:#fff;padding:18px;transition:.2s}.health-card.ok{border-color:#6fbd94;background:#f2fbf6}.health-card.warn{border-color:#e0b84f;background:#fffaf0}.health-card.error{border-color:#d98686;background:#fff5f5}.health-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}.health-indicator{display:flex;align-items:center;gap:10px;font-size:21px;font-weight:900}.health-indicator .light{width:19px;height:19px;border-radius:50%;box-shadow:0 0 0 5px #fff8}.health-card.ok .light{background:#23935b}.health-card.warn .light{background:#e0a900}.health-card.error .light{background:#c84343}.health-summary{display:grid;gap:7px;margin-top:14px}.health-summary-item{display:flex;align-items:flex-start;gap:8px;line-height:1.6}.health-detail-group{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}.health-detail-group h3{margin:0 0 10px}.health-detail-item{display:grid;grid-template-columns:auto 1fr;gap:9px;padding:9px 0;border-bottom:1px solid #edf2f0}.health-detail-item:last-child{border-bottom:0}.health-detail-item small{display:block;color:var(--muted);margin-top:2px;line-height:1.6}
 @media(max-width:620px){
-  .about-hero{align-items:flex-start;flex-direction:column}.about-grid,.about-features,.release-info-grid,.backup-last-grid{grid-template-columns:1fr}.about-version{width:100%}.release-info-head{flex-direction:column}.release-info-status{align-self:flex-start}.release-info-actions button,.backup-management-actions button,.backup-management-actions label{width:100%;text-align:center;justify-content:center}
+  .about-hero,.protection-hero{align-items:flex-start;flex-direction:column}.about-grid,.about-features,.release-info-grid,.backup-last-grid,.protection-stats,.protection-layout,.drive-status-grid{grid-template-columns:1fr}.about-version,.protection-level{width:100%}.release-info-head{flex-direction:column}.release-info-status{align-self:flex-start}.release-info-actions button,.backup-management-actions button,.backup-management-actions label,.protection-actions button,.protection-actions label{width:100%;text-align:center;justify-content:center}
 .grid{grid-template-columns:1fr 1fr}
 .title{font-size:27px}
 .form-grid{grid-template-columns:1fr}
@@ -226,6 +227,7 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
 .help-inline{display:inline-flex;align-items:center;gap:5px;vertical-align:middle}.help-icon{position:relative;overflow:visible;display:inline-flex!important;align-items:center;justify-content:center;flex:0 0 22px!important;width:22px!important;height:22px!important;min-width:22px!important;min-height:22px!important;padding:0!important;border:1px solid #b8cec6!important;border-radius:50%!important;background:#eef6f3!important;color:#0d6655!important;font-size:13px!important;font-weight:900!important;line-height:1!important;box-shadow:none!important}.help-icon.unread:after{content:'';position:absolute;top:-3px;left:-3px;width:7px;height:7px;border-radius:50%;background:#2487e8;border:2px solid #fff;box-shadow:0 0 0 1px rgba(36,135,232,.22)}.help-icon:hover,.help-icon:focus{background:#dceee8!important;outline:2px solid rgba(13,102,85,.18);outline-offset:1px}.help-action{display:inline-flex;align-items:center;gap:4px}.backup-management-actions .help-action,.backup-tools .help-action{align-items:stretch}.help-popover{position:fixed;inset:0;z-index:5000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(8,31,25,.35)}.help-popover.open{display:flex}.help-popover-card{width:min(430px,100%);background:#fff;border:1px solid #d9e6e1;border-radius:18px;padding:18px;box-shadow:0 18px 55px rgba(7,44,35,.24);text-align:right}.help-popover-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.help-popover-head h3{margin:0;font-size:17px;color:#0d4c3f}.help-popover-close{width:32px!important;height:32px!important;min-width:32px!important;padding:0!important;border:0!important;border-radius:50%!important;background:#edf3f1!important;color:#29463e!important;font-size:20px!important}.help-popover-text{margin:0;line-height:1.9;color:#29463e;font-size:14px}.payment-help{display:inline-flex;align-items:center;gap:4px}.help-disabled .help-icon{display:none!important}
 @media(max-width:620px){.help-popover{align-items:flex-end;padding:10px}.help-popover-card{border-radius:18px 18px 12px 12px;padding:16px}.help-icon{flex-basis:24px!important;width:24px!important;height:24px!important;min-width:24px!important}.backup-management-actions .help-action{width:100%}.backup-management-actions .help-action>button,.backup-management-actions .help-action>label{flex:1;text-align:center;justify-content:center}}
 @media print{.help-icon,.help-popover,.help-inline,.help-action>.help-icon{display:none!important}}
+@media(min-width:621px){.protection-stats{grid-template-columns:repeat(6,minmax(0,1fr))}}
 </style>
 </head>
 <body>
@@ -557,6 +559,76 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
   </div><div class="about-actions"><button class="primary" type="button" onclick="createRestorePoint()">🔒 إنشاء نقطة استعادة</button><button class="secondary" type="button" onclick="refreshAboutData()">⟳ تحديث المعلومات</button><button class="secondary" type="button" onclick="switchView('settings',document.querySelector('nav button[data-view=&quot;settings&quot;]'))">فتح الإعدادات</button></div></div>
 </section>
 
+<section id="dataProtection" class="view" aria-labelledby="dataProtectionTitle">
+  <div class="protection-hero">
+    <div><h2 id="dataProtectionTitle">🛡️ مركز حماية البيانات</h2><p>إدارة النسخ المحلية، التحقق من سلامتها، واختبار خطة التعافي دون تعديل البيانات.</p></div>
+    <div class="protection-level"><span>مستوى الحماية</span><b id="protectionLevel">جاري التقييم</b></div>
+  </div>
+
+  <div class="protection-stats">
+    <div class="protection-stat"><span>آخر نسخة احتياطية</span><b id="protectionLatestBackup">لا توجد نسخة</b></div>
+    <div class="protection-stat"><span>عدد النسخ المسجلة</span><b id="protectionBackupCount">0</b></div>
+    <div class="protection-stat"><span>حالة النظام</span><b id="protectionSystemStatus">—</b></div>
+    <div class="protection-stat"><span>حالة المزامنة</span><b id="protectionSyncStatus">⏳ جاري التحقق</b></div>
+    <div class="protection-stat"><span>آخر عملية نسخ</span><b id="protectionLastOperation">—</b></div>
+    <div class="protection-stat"><span>مزوّد الحفظ</span><b id="protectionProvider">محلي</b></div>
+  </div>
+
+  <div class="protection-layout">
+    <div class="protection-card">
+      <h3>إنشاء واستعادة النسخ</h3>
+      <div class="meta">تُحفظ كل نسخة بمعرّف استعادة مستقل ولا يُكتب فوق أي نسخة سابقة.</div>
+      <div class="protection-actions">
+        <button class="primary" type="button" onclick="createManualBackup()">💾 إنشاء نسخة كاملة الآن</button>
+        <button class="secondary" type="button" onclick="createRestorePoint()">🔒 إنشاء نقطة استعادة</button>
+        <label class="secondary">♻️ استعادة من ملف<input type="file" accept=".json,application/json" onchange="importData(event)" hidden></label>
+        <label class="secondary">🧪 فحص ملف نسخة<input type="file" accept=".json,application/json" onchange="inspectProtectionBackupFile(event)" hidden></label>
+      </div>
+      <div class="notice backup-browser-note"><b>الحفظ المحلي هو الأساس:</b> يستخدم النظام مخزن المتصفح الآمن، ويحفظ في المجلد الذي تختاره عند دعم المتصفح. وإلا ينزّل ملفًا مستقلًا إلى جهازك. لا تُرفع نسخة خارج الجهاز إلا بعد ربط Google Drive وموافقة المدير.</div>
+    </div>
+    <div class="protection-card">
+      <h3>اختبار خطة التعافي</h3>
+      <div class="meta">فحص جاف لأحدث نسخة: البصمة، البنية، العلاقات، وإمكانية تجهيز البيانات للاستعادة. لا يكتب الاختبار في Supabase ولا يستبدل البيانات.</div>
+      <div class="protection-actions"><button id="recoveryDrillButton" class="primary" type="button" onclick="runRecoveryDrill()">🧪 اختبار خطة التعافي</button></div>
+      <div id="recoveryDrillReport" class="notice recovery-report" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <div class="protection-card drive-card" id="googleDriveCard">
+    <div class="release-info-head">
+      <div><h3>☁️ النسخ السحابية على Google Drive</h3><div class="meta">طبقة إضافية اختيارية؛ تبقى النسخة المحلية هي الأساس حتى عند تعذر الرفع السحابي.</div></div>
+      <div class="protection-actions" style="margin-top:0">
+        <button id="googleDriveConnectButton" class="primary" type="button" onclick="connectGoogleDrive()">ربط Google Drive</button>
+        <button id="googleDriveRefreshButton" class="secondary" type="button" onclick="refreshGoogleDriveBackups()" disabled>⟳ تحديث النسخ</button>
+      </div>
+    </div>
+    <div class="drive-status-grid">
+      <div class="drive-status-item"><span>حالة Google Drive</span><b id="googleDriveConnectionStatus">غير متصل</b></div>
+      <div class="drive-status-item"><span>الحساب</span><b id="googleDriveAccount">—</b></div>
+      <div class="drive-status-item"><span>المجلد</span><b id="googleDriveFolder">Adwaa Al Sharq Backups</b></div>
+      <div class="drive-status-item"><span>آخر رفع</span><b id="googleDriveLastUpload">لا توجد عملية</b></div>
+      <div class="drive-status-item"><span>عدد النسخ السحابية</span><b id="googleDriveBackupCount">—</b></div>
+      <div class="drive-status-item"><span>حالة آخر رفع</span><b id="googleDriveLastUploadStatus">لم يبدأ</b></div>
+    </div>
+    <div id="googleDriveMessage" class="notice drive-message" role="status" aria-live="polite"></div>
+    <div class="drive-cloud-table"><table>
+      <thead><tr><th>Recovery ID</th><th>التاريخ</th><th>الحجم</th><th>حالة الملف</th><th>الإجراء</th></tr></thead>
+      <tbody id="googleDriveBackupBody"><tr><td colspan="5" class="empty">اربط Google Drive لعرض النسخ السحابية.</td></tr></tbody>
+    </table></div>
+  </div>
+
+  <div class="protection-card" style="margin-top:14px">
+    <div class="release-info-head">
+      <div><h3>سجل النسخ الاحتياطية</h3><div class="meta">لا يحذف النظام النسخ أو يسقطها من السجل تلقائيًا.</div></div>
+      <button class="secondary" type="button" onclick="renderDataProtectionCenter()">⟳ تحديث السجل</button>
+    </div>
+    <div class="protection-table"><table>
+      <thead><tr><th>Recovery ID</th><th>التاريخ</th><th>الوقت</th><th>الحجم</th><th>الحالة</th><th>مكان الحفظ</th><th>النوع</th><th>الإجراءات</th></tr></thead>
+      <tbody id="protectionBackupHistoryBody"></tbody>
+    </table></div>
+  </div>
+</section>
+
 <section id="settings" class="view">
   <div class="section">
     <div class="section-head"><div><h3>الحماية والنسخ الاحتياطي</h3><div class="meta">نسخة يدوية، نقطة استعادة، وفحص الملف قبل الاسترجاع</div></div></div>
@@ -610,6 +682,7 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
 <button data-view="cleaning" onclick="switchView('cleaning',this)"><b>🧹</b>التنظيف</button>
 <button data-view="expenses" onclick="switchView('expenses',this)"><b>◫</b>المصاريف</button>
 <button data-view="cleaning" onclick="switchView('cleaning',this)" title="إدارة مهام جميل"><b>👷</b>بوابة جميل</button>
+<button data-view="dataProtection" onclick="switchView('dataProtection',this)"><b>🛡️</b>حماية البيانات</button>
 <button data-view="about" onclick="switchView('about',this)"><b>ⓘ</b>حول النظام</button>
 <button data-view="settings" onclick="switchView('settings',this)"><b>⚙</b>الإعدادات</button>
 </nav>
@@ -711,7 +784,7 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
   </section>
   <div id="sendStatus" class="send-status" aria-live="polite"></div>
   <section class="v92-activity">
-    <div class="v92-activity-head"><h4>سجل نشاط الحجز</h4><span class="v92-version-tag">v9.6 RC1</span></div>
+    <div class="v92-activity-head"><h4>سجل نشاط الحجز</h4><span class="v92-version-tag">v9.7 RC1</span></div>
     <div id="v92ActivityList" class="v92-activity-list"><div class="v92-empty">لا توجد عمليات مسجلة بعد.</div></div>
   </section>
 </div>
@@ -786,24 +859,40 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
 <div id="resortStatusOptions" class="status-options"></div>
 </div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 const SUPABASE_URL='https://pgdvlklpyrvmwzitsmbw.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_BFTIR_8VK2qQuKnl2c-jDA_cMnWz0E-';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const STATE_ROW_ID='main';
-// v9.6 RC1 — release information center, preserving v9.5 data compatibility.
-const APP_VERSION='9.6-RC1';
-const APP_BUILD='20260722.1';
-const APP_RELEASE_DATE='2026-07-22';
+// v9.7 RC1 — optional Google Drive cloud backup layer over the stable local provider.
+const APP_VERSION='9.7-RC1';
+const APP_BUILD='20260723.1';
+const APP_RELEASE_DATE='2026-07-23';
 const BACKUP_DB_NAME='adwaa-backup-vault';
 const BACKUP_STORE_NAME='backups';
 const BACKUP_DIRECTORY_RECORD_ID='__backup_directory__';
 const BACKUP_DIRECTORY_LABEL_KEY='adwaaBackupDirectoryLabel';
+const BACKUP_SCHEMA_VERSION=2;
+const DATA_PROTECTION_PROVIDER_ID='local';
 const DEFAULT_BACKUP_PATH='Documents\\Adwaa AlSharq\\Backups';
+const GOOGLE_DRIVE_CLIENT_ID='788356174203-htuqsul3e43qul0g42ja60abb428m7oa.apps.googleusercontent.com';
+const GOOGLE_DRIVE_SCOPE='https://www.googleapis.com/auth/drive.file';
+const GOOGLE_DRIVE_FOLDER_NAME='Adwaa Al Sharq Backups';
+const GOOGLE_DRIVE_STATE_KEY='adwaaGoogleDriveState';
+const GOOGLE_DRIVE_RESUMABLE_THRESHOLD=5*1024*1024;
+const GOOGLE_DRIVE_CHUNK_SIZE=5*1024*1024;
 let remoteReady=false;
 let lastSuccessfulReadAt='';
 let lastSuccessfulWriteAt='';
 let lastSyncError='';
+let lastConfirmedRemoteHash='';
+let protectionSyncCheckSequence=0;
+let googleDriveAccessToken='';
+let googleDriveTokenExpiresAt=0;
+let googleDriveTokenClient=null;
+let googleDriveUploadInProgress=false;
+let googleDriveUploadPromise=null;
 const knownRuntimeErrors=[];
 let currentUser=null;
 let realtimeChannel=null;
@@ -885,7 +974,6 @@ function auditSnapshot(value){
 function addAudit(action,entity,details='',before=null,after=null){
   db.auditLog=Array.isArray(db.auditLog)?db.auditLog:[];
   db.auditLog.unshift({id:crypto.randomUUID(),at:new Date().toISOString(),user:currentUserLabel(),action,entity,details:String(details||''),before:auditSnapshot(before),after:auditSnapshot(after)});
-  db.auditLog=db.auditLog.slice(0,500);
 }
 function formatDateTime(value){if(!value)return '—';const d=new Date(value);return Number.isNaN(d.getTime())?'—':d.toLocaleString('ar-SA',{dateStyle:'medium',timeStyle:'short'})}
 function formatBytes(bytes){const n=Number(bytes||0);if(n<1024)return n+' بايت';if(n<1024*1024)return (n/1024).toFixed(1)+' KB';return (n/1024/1024).toFixed(2)+' MB'}
@@ -1039,11 +1127,24 @@ function normalizeDB(value){
     cleaningTasks:Array.isArray(x.cleaningTasks)?x.cleaningTasks:[],
     notifications:Array.isArray(x.notifications)?x.notifications:[],
     customerNotes:x.customerNotes&&typeof x.customerNotes==='object'?x.customerNotes:{},
-    backupHistory:Array.isArray(x.backupHistory)?x.backupHistory.slice(0,50):[],
-    auditLog:Array.isArray(x.auditLog)?x.auditLog.slice(0,500):[],
+    backupHistory:Array.isArray(x.backupHistory)?x.backupHistory:[],
+    auditLog:Array.isArray(x.auditLog)?x.auditLog:[],
     settings:normalizedSettings,
     seq:Number(x.seq||1)
   };
+}
+
+async function dataStateHash(value){return sha256Text(JSON.stringify(normalizeDB(value)))}
+async function markRemoteStateConfirmed(value){
+  lastConfirmedRemoteHash=await dataStateHash(value);
+  void renderDataProtectionSyncStatus();
+}
+async function renderDataProtectionSyncStatus(){
+  const el=document.getElementById('protectionSyncStatus');if(!el)return;
+  const sequence=++protectionSyncCheckSequence,localHash=await dataStateHash(db);if(sequence!==protectionSyncCheckSequence)return;
+  const synced=!!remoteReady&&!!lastConfirmedRemoteHash&&localHash===lastConfirmedRemoteHash;
+  el.textContent=synced?'🟢 متزامن مع Supabase':'🔴 يوجد اختلاف أو تعذر تأكيد التطابق';
+  el.title=synced?'آخر بيانات محلية تطابق آخر حالة مؤكدة مع Supabase.':lastSyncError||'البيانات المحلية لا تطابق آخر حالة مؤكدة مع Supabase.';
 }
 
 async function loadRemoteData(){
@@ -1060,7 +1161,7 @@ async function loadRemoteData(){
     if(data?.data){
       const migrationBackup=await createPreMigrationBackupFromData(data.data,'commission-states-v1','نسخة تلقائية قبل توحيد حالات العمولة وأنواع السجلات');
       db=normalizeDB(data.data);
-      if(migrationBackup){db.backupHistory=Array.isArray(db.backupHistory)?db.backupHistory:[];db.backupHistory.unshift(migrationBackup);db.backupHistory=db.backupHistory.slice(0,50)}
+      if(migrationBackup){db.backupHistory=Array.isArray(db.backupHistory)?db.backupHistory:[];db.backupHistory.unshift(migrationBackup)}
     }else{
       db=normalizeDB(db);
       const {error:insertError}=await supabaseClient
@@ -1072,6 +1173,7 @@ async function loadRemoteData(){
     invalidateCaches();
     remoteReady=true;
     lastSuccessfulReadAt=new Date().toISOString();lastSyncError='';
+    await markRemoteStateConfirmed(data?.data?normalizeDB(data.data):db);
     try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(storageErr){console.warn('تعذر حفظ النسخة المحلية',storageErr)}
     scheduleRenderAll();
     setSyncStatus('متصل ومتزامن بحساب المدير','ok');
@@ -1079,6 +1181,7 @@ async function loadRemoteData(){
     console.error(err);
     remoteReady=false;
     lastSyncError=String(err?.message||err||'تعذر الاتصال بقاعدة البيانات');
+    void renderDataProtectionSyncStatus();
     scheduleRenderAll();
     const denied=String(err?.message||'').toLowerCase().includes('policy')||String(err?.code||'')==='42501';
     setSyncStatus(denied?'تم رفض الوصول: فعّل سياسة حماية حساب المدير في Supabase.':'تعذر الاتصال بالسحابة؛ يعمل مؤقتًا من هذا الجهاز','error');
@@ -1099,11 +1202,13 @@ async function persist(){
     if(error) throw error;
     remoteReady=true;
     lastSuccessfulWriteAt=new Date().toISOString();lastSyncError='';
+    await markRemoteStateConfirmed(db);
     setSyncStatus('تم الحفظ والمزامنة','ok');
   }catch(err){
     console.error(err);
     remoteReady=false;
     lastSyncError=String(err?.message||err||'تعذر حفظ البيانات في قاعدة البيانات');
+    void renderDataProtectionSyncStatus();
     setSyncStatus('تعذر رفع آخر تعديل؛ محفوظ مؤقتًا على هذا الجهاز','error');
     alert('تعذر مزامنة آخر تعديل. تحقق من الاتصال وصلاحيات حساب المدير.');
   }
@@ -1121,18 +1226,20 @@ function subscribeRealtime(){
   try{if(realtimeChannel)supabaseClient.removeChannel(realtimeChannel);}catch(_){ }
   realtimeChannel=supabaseClient
     .channel('adwaa-app-state-v92')
-    .on('postgres_changes',{event:'*',schema:'public',table:'app_state',filter:`id=eq.${STATE_ROW_ID}`},payload=>{
+    .on('postgres_changes',{event:'*',schema:'public',table:'app_state',filter:`id=eq.${STATE_ROW_ID}`},async payload=>{
       const next=payload.new?.data;if(!next)return;
       const modalOpen=document.getElementById('bookingModal')?.classList.contains('open');
       const currentId=document.getElementById('bId')?.value||'';
       if(modalOpen&&v92BookingDirty){
         v92PendingRemoteData=next;
+        remoteReady=true;lastConfirmedRemoteHash=await dataStateHash(next);lastSyncError='وصل تحديث من Supabase ولم يُطبّق محليًا لحماية تعديلات الحجز المفتوح.';void renderDataProtectionSyncStatus();
         const requirement=document.getElementById('v92BookingRequirement');
         if(requirement){requirement.className='v92-requirement warn';requirement.textContent='🟠 وصل تحديث من جهاز آخر. لم يُطبّق على الحجز المفتوح حتى لا تضيع تعديلاتك؛ استخدم زر تحديث البيانات عند الاستعداد.';}
         if(typeof setSyncStatus==='function')setSyncStatus('وصل تحديث من جهاز آخر، وتم تأجيله لحماية التعديلات غير المحفوظة.','warning');
         return;
       }
       db=normalizeDB(next);localStorage.setItem('adwaaDB',JSON.stringify(db));
+      remoteReady=true;lastSuccessfulReadAt=new Date().toISOString();lastSyncError='';await markRemoteStateConfirmed(db);
       if(typeof renderAll==='function')renderAll();
       if(modalOpen&&currentId&&(db.bookings||[]).some(x=>x.id===currentId)&&typeof v92OriginalOpenBooking==='function'){
         v92OriginalOpenBooking(currentId);v92BookingDirty=false;
@@ -1166,8 +1273,8 @@ const RESORT_STATUSES={ready:{label:'جاهز للاستقبال',icon:'🟢',cl
 function renderResortStatus(){const key=db.settings?.resortStatus||'ready',st=RESORT_STATUSES[key]||RESORT_STATUSES.ready,card=document.getElementById('resortStatusCard');if(!card)return;card.className='resort-status-card '+st.className;document.getElementById('resortStatusIcon').textContent=st.icon;document.getElementById('resortStatusText').textContent=st.label;const u=db.settings?.resortStatusUpdated;document.getElementById('resortStatusUpdated').textContent=u?'آخر تحديث: '+new Date(u).toLocaleString('ar-SA'):'';}
 function openResortStatus(){const current=db.settings?.resortStatus||'ready';document.getElementById('resortStatusOptions').innerHTML=Object.entries(RESORT_STATUSES).map(([key,st])=>`<button class="status-option ${key===current?'active':''}" onclick="setResortStatus('${key}')"><span style="font-size:24px">${st.icon}</span><br>${st.label}</button>`).join('');document.getElementById('resortStatusModal').classList.add('open');}
 async function setResortStatus(key){if(!RESORT_STATUSES[key])return;const before=db.settings.resortStatus||'ready';db.settings.resortStatus=key;db.settings.resortStatusUpdated=new Date().toISOString();addAudit('تعديل','حالة المنتجع',`${RESORT_STATUSES[before]?.label||before} ← ${RESORT_STATUSES[key]?.label||key}`,{status:before},{status:key});closeModal('resortStatusModal');await persist();}
-function switchView(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));const target=document.getElementById(id);if(!target)return;target.classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));(btn||document.querySelector(`nav button[data-view="${id}"]`))?.classList.add('active');const t={dashboard:['لوحة إدارة المنتجع','متابعة الحجوزات والمبالغ من مكان واحد'],bookings:['إدارة الحجوزات','إضافة وتعديل ومتابعة جميع الحجوزات'],customers:['سجل العملاء','عدد الزيارات والمدفوعات وآخر حجز'],calendarView:['تقويم الحجوزات','عرض الأيام المحجوزة ومنع التداخل'],cleaning:['مركز التنظيف','متابعة مهام التنظيف بعد مغادرة العملاء'],expenses:['المصاريف والدخل','متابعة المصروفات وصافي الدخل'],about:['حول النظام','معلومات الإصدار والحماية وحالة البيانات'],settings:['الإعدادات','النسخ الاحتياطي وبيانات واتساب']}[id]||['نظام أضواء الشرق',''];pageTitle.textContent=t[0];pageSub.textContent=t[1];window.scrollTo(0,0);renderCurrentView(id)}
-function renderCurrentView(id){if(id==='dashboard')renderDashboard();else if(id==='bookings')renderBookings();else if(id==='customers')renderCustomers();else if(id==='calendarView')renderCalendar();else if(id==='cleaning')renderCleaning();else if(id==='expenses')renderExpenses();else if(id==='about')renderAbout();else if(id==='settings'){const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay'),enabledEl=document.getElementById('commissionEnabled'),methodEl=document.getElementById('commissionMethod'),rateEl=document.getElementById('commissionRate');if(waEl)waEl.value=db.settings.waNumber||'';if(dailyEl)dailyEl.value=db.settings.welcomeMsgDaily||DEFAULT_WELCOME_DAILY;if(stayEl)stayEl.value=db.settings.welcomeMsgStay||DEFAULT_WELCOME_STAY;if(enabledEl)enabledEl.checked=db.settings.commissionEnabled!==false;if(methodEl)methodEl.value=db.settings.commissionMethod||'per_day';if(rateEl)rateEl.value=Number(db.settings.commissionRate??100);renderBackupHistory();renderAuditLog()}}
+function switchView(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));const target=document.getElementById(id);if(!target)return;target.classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));(btn||document.querySelector(`nav button[data-view="${id}"]`))?.classList.add('active');const t={dashboard:['لوحة إدارة المنتجع','متابعة الحجوزات والمبالغ من مكان واحد'],bookings:['إدارة الحجوزات','إضافة وتعديل ومتابعة جميع الحجوزات'],customers:['سجل العملاء','عدد الزيارات والمدفوعات وآخر حجز'],calendarView:['تقويم الحجوزات','عرض الأيام المحجوزة ومنع التداخل'],cleaning:['مركز التنظيف','متابعة مهام التنظيف بعد مغادرة العملاء'],expenses:['المصاريف والدخل','متابعة المصروفات وصافي الدخل'],dataProtection:['مركز حماية البيانات','النسخ المحلية والسحابية وفحص السلامة وخطة التعافي'],about:['حول النظام','معلومات الإصدار والحماية وحالة البيانات'],settings:['الإعدادات','النسخ الاحتياطي وبيانات واتساب']}[id]||['نظام أضواء الشرق',''];pageTitle.textContent=t[0];pageSub.textContent=t[1];window.scrollTo(0,0);renderCurrentView(id)}
+function renderCurrentView(id){if(id==='dashboard')renderDashboard();else if(id==='bookings')renderBookings();else if(id==='customers')renderCustomers();else if(id==='calendarView')renderCalendar();else if(id==='cleaning')renderCleaning();else if(id==='expenses')renderExpenses();else if(id==='dataProtection')renderDataProtectionCenter();else if(id==='about')renderAbout();else if(id==='settings'){const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay'),enabledEl=document.getElementById('commissionEnabled'),methodEl=document.getElementById('commissionMethod'),rateEl=document.getElementById('commissionRate');if(waEl)waEl.value=db.settings.waNumber||'';if(dailyEl)dailyEl.value=db.settings.welcomeMsgDaily||DEFAULT_WELCOME_DAILY;if(stayEl)stayEl.value=db.settings.welcomeMsgStay||DEFAULT_WELCOME_STAY;if(enabledEl)enabledEl.checked=db.settings.commissionEnabled!==false;if(methodEl)methodEl.value=db.settings.commissionMethod||'per_day';if(rateEl)rateEl.value=Number(db.settings.commissionRate??100);renderBackupHistory();renderAuditLog()}}
 function renderAll(){renderDashboard();renderBookings();renderCustomers();renderCleaning();renderExpenses();renderCalendar();renderResortStatus();renderAbout();const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay'),calMode=document.getElementById('calendarMode');if(waEl)waEl.value=db.settings.waNumber||'';if(dailyEl)dailyEl.value=db.settings.welcomeMsgDaily||DEFAULT_WELCOME_DAILY;if(stayEl)stayEl.value=db.settings.welcomeMsgStay||DEFAULT_WELCOME_STAY;if(calMode)calMode.value=db.settings.calendarMode||'both';renderSendStatus()}
 
 function setAboutText(id,value){const el=document.getElementById(id);if(el)el.textContent=String(value??'—')}
@@ -2582,8 +2689,236 @@ function openBackupVault(){
   });
 }
 async function backupVaultPut(record){const idb=await openBackupVault();return new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readwrite');tx.objectStore(BACKUP_STORE_NAME).put(record);tx.oncomplete=()=>{idb.close();resolve(true)};tx.onerror=()=>{idb.close();reject(tx.error)}})}
+async function backupVaultAdd(record){const idb=await openBackupVault();return new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readwrite');tx.objectStore(BACKUP_STORE_NAME).add(record);tx.oncomplete=()=>{idb.close();resolve(true)};tx.onerror=()=>{const error=tx.error;idb.close();reject(error)}})}
 async function backupVaultGet(id){try{const idb=await openBackupVault();return await new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readonly'),req=tx.objectStore(BACKUP_STORE_NAME).get(id);req.onsuccess=()=>{idb.close();resolve(req.result||null)};req.onerror=()=>{idb.close();reject(req.error)}})}catch(_){return null}}
+async function backupVaultList(){try{const idb=await openBackupVault();return await new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readonly'),req=tx.objectStore(BACKUP_STORE_NAME).getAll();req.onsuccess=()=>{idb.close();resolve((req.result||[]).filter(x=>x?.kind!=='directory'))};req.onerror=()=>{idb.close();reject(req.error)}})}catch(_){return []}}
 async function backupVaultAvailability(ids){try{const idb=await openBackupVault();return await new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readonly'),store=tx.objectStore(BACKUP_STORE_NAME),result={};ids.forEach(id=>{const req=store.getKey(id);req.onsuccess=()=>{result[id]=req.result!==undefined}});tx.oncomplete=()=>{idb.close();resolve(result)};tx.onerror=()=>{idb.close();reject(tx.error)}})}catch(_){return {}}}
+const DATA_PROTECTION_PROVIDERS={
+  local:{
+    id:DATA_PROTECTION_PROVIDER_ID,
+    label:'الحفظ المحلي',
+    async save(record){return backupVaultAdd(record)},
+    async get(id){return backupVaultGet(id)},
+    async list(){return backupVaultList()}
+  },
+  googleDrive:{
+    id:'google-drive',
+    label:'Google Drive',
+    optional:true,
+    async save(record){return uploadBackupRecordToGoogleDrive(record)},
+    async get(id){return downloadGoogleDriveRecord(id)},
+    async list(){return listGoogleDriveBackups()}
+  }
+};
+function activeDataProtectionProvider(){return DATA_PROTECTION_PROVIDERS[DATA_PROTECTION_PROVIDER_ID]}
+let googleDriveFiles=[];
+function loadGoogleDriveState(){
+  const fallback={accountName:'',accountEmail:'',folderId:'',folderName:GOOGLE_DRIVE_FOLDER_NAME,lastUploadAt:'',lastUploadStatus:'لم يبدأ',lastUploadOk:null,backupCount:null,lastError:''};
+  try{return {...fallback,...JSON.parse(localStorage.getItem(GOOGLE_DRIVE_STATE_KEY)||'{}')}}catch(_){return fallback}
+}
+function saveGoogleDriveState(changes={}){
+  const current=loadGoogleDriveState(),next={...current,...changes};
+  const safe={accountName:String(next.accountName||''),accountEmail:String(next.accountEmail||''),folderId:String(next.folderId||''),folderName:String(next.folderName||GOOGLE_DRIVE_FOLDER_NAME),lastUploadAt:String(next.lastUploadAt||''),lastUploadStatus:String(next.lastUploadStatus||'لم يبدأ'),lastUploadOk:next.lastUploadOk===true?true:next.lastUploadOk===false?false:null,backupCount:Number.isFinite(Number(next.backupCount))?Number(next.backupCount):null,lastError:String(next.lastError||'')};
+  try{localStorage.setItem(GOOGLE_DRIVE_STATE_KEY,JSON.stringify(safe))}catch(err){console.warn('تعذر حفظ حالة Google Drive غير الحساسة محليًا',err)}return safe
+}
+function googleDriveSessionActive(){return !!googleDriveAccessToken&&Date.now()<googleDriveTokenExpiresAt-30000}
+function setGoogleDriveMessage(message,type=''){
+  const box=document.getElementById('googleDriveMessage');if(!box)return;box.className=`notice drive-message show ${type}`.trim();box.textContent=message
+}
+function setGoogleDriveBusy(busy){
+  const card=document.getElementById('googleDriveCard'),connect=document.getElementById('googleDriveConnectButton'),refresh=document.getElementById('googleDriveRefreshButton');
+  card?.classList.toggle('drive-loading',!!busy);if(connect)connect.disabled=!!busy;if(refresh)refresh.disabled=!!busy||!googleDriveSessionActive()
+}
+function renderGoogleDriveStatus(){
+  const state=loadGoogleDriveState(),connected=googleDriveSessionActive();
+  setAboutText('googleDriveConnectionStatus',connected?'🟢 متصل':'⚪ غير متصل');
+  setAboutText('googleDriveAccount',state.accountName?`${state.accountName}${state.accountEmail?` — ${state.accountEmail}`:''}`:state.accountEmail||'—');
+  setAboutText('googleDriveFolder',state.folderName||GOOGLE_DRIVE_FOLDER_NAME);
+  setAboutText('googleDriveLastUpload',state.lastUploadAt?formatDateTime(state.lastUploadAt):'لا توجد عملية');
+  setAboutText('googleDriveBackupCount',state.backupCount===null||state.backupCount===undefined?'—':state.backupCount);
+  setAboutText('googleDriveLastUploadStatus',`${state.lastUploadOk===true?'🟢':state.lastUploadOk===false?'🔴':'⚪'} ${state.lastUploadStatus||'لم يبدأ'}`);
+  const connect=document.getElementById('googleDriveConnectButton'),refresh=document.getElementById('googleDriveRefreshButton');
+  if(connect)connect.textContent=connected?'إعادة الاتصال':'ربط Google Drive';
+  if(refresh)refresh.disabled=!connected||googleDriveUploadInProgress;
+  if(!connected&&document.getElementById('googleDriveBackupBody'))document.getElementById('googleDriveBackupBody').innerHTML='<tr><td colspan="5" class="empty">اربط Google Drive لعرض النسخ السحابية.</td></tr>'
+}
+async function recordGoogleDriveAudit(action,details,after=null){
+  try{addAudit(action,'Google Drive',details,null,after);await persist()}catch(err){console.warn('تعذر حفظ سجل Google Drive في Supabase',err)}
+}
+function requestGoogleDriveAccessToken(){
+  return new Promise((resolve,reject)=>{
+    if(!window.google?.accounts?.oauth2){reject(new Error('مكتبة تسجيل الدخول من Google لم تكتمل. تحقق من الإنترنت ثم أعد المحاولة.'));return}
+    googleDriveTokenClient=google.accounts.oauth2.initTokenClient({
+      client_id:GOOGLE_DRIVE_CLIENT_ID,
+      scope:GOOGLE_DRIVE_SCOPE,
+      callback:response=>{
+        if(response?.error){reject(new Error(response.error_description||response.error));return}
+        if(!response?.access_token){reject(new Error('لم تُرجع Google رمز وصول صالحًا.'));return}
+        if(google.accounts.oauth2.hasGrantedAllScopes&&!google.accounts.oauth2.hasGrantedAllScopes(response,GOOGLE_DRIVE_SCOPE)){reject(new Error('لم تُمنح صلاحية drive.file المطلوبة. لم يتم ربط Google Drive.'));return}
+        googleDriveAccessToken=response.access_token;googleDriveTokenExpiresAt=Date.now()+Math.max(60,Number(response.expires_in||3600))*1000;resolve(response)
+      },
+      error_callback:error=>reject(new Error(error?.message||error?.type||'أُغلقت نافذة Google قبل اكتمال الربط.'))
+    });
+    googleDriveTokenClient.requestAccessToken({prompt:'consent'})
+  })
+}
+async function googleDriveFetch(url,options={}){
+  if(!googleDriveSessionActive())throw new Error('جلسة Google Drive غير متصلة أو انتهت. اضغط «ربط Google Drive» مرة أخرى.');
+  const headers=new Headers(options.headers||{});headers.set('Authorization',`Bearer ${googleDriveAccessToken}`);
+  const response=await fetch(url,{...options,headers});
+  if(response.status===401||response.status===403){
+    googleDriveAccessToken='';googleDriveTokenExpiresAt=0;renderGoogleDriveStatus()
+  }
+  if(!response.ok){
+    let reason='';try{const payload=await response.json();reason=payload?.error?.message||''}catch(_){reason=await response.text().catch(()=> '')}
+    throw new Error(reason||`فشل طلب Google Drive (${response.status})`)
+  }
+  return response
+}
+function googleDriveEscapedQuery(value){return String(value||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
+async function ensureGoogleDriveFolder(){
+  const state=loadGoogleDriveState(),fields='id,name,createdTime,appProperties';
+  if(state.folderId){
+    try{const response=await googleDriveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(state.folderId)}?fields=${encodeURIComponent(fields)}`),folder=await response.json();if(folder?.id)return folder}catch(_){}
+  }
+  const marker="mimeType='application/vnd.google-apps.folder' and trashed=false and appProperties has { key='adwaaBackupFolder' and value='true' }";
+  let response=await googleDriveFetch(`https://www.googleapis.com/drive/v3/files?spaces=drive&pageSize=10&fields=${encodeURIComponent(`files(${fields})`)}&q=${encodeURIComponent(marker)}`),payload=await response.json(),folder=payload.files?.[0];
+  if(!folder){
+    const byName=`name='${googleDriveEscapedQuery(GOOGLE_DRIVE_FOLDER_NAME)}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+    response=await googleDriveFetch(`https://www.googleapis.com/drive/v3/files?spaces=drive&pageSize=10&fields=${encodeURIComponent(`files(${fields})`)}&q=${encodeURIComponent(byName)}`);payload=await response.json();folder=payload.files?.[0]
+  }
+  if(!folder){
+    response=await googleDriveFetch(`https://www.googleapis.com/drive/v3/files?fields=${encodeURIComponent(fields)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:GOOGLE_DRIVE_FOLDER_NAME,mimeType:'application/vnd.google-apps.folder',appProperties:{adwaaBackupFolder:'true'}})});folder=await response.json()
+  }
+  saveGoogleDriveState({folderId:folder.id,folderName:folder.name||GOOGLE_DRIVE_FOLDER_NAME});return folder
+}
+async function googleDriveAccountInfo(){
+  try{const response=await googleDriveFetch('https://www.googleapis.com/drive/v3/about?fields=user(displayName,emailAddress)'),payload=await response.json();return payload.user||{}}catch(_){return {}}
+}
+async function connectGoogleDrive(){
+  setGoogleDriveBusy(true);setGoogleDriveMessage('جاري فتح نافذة Google الآمنة...','');
+  try{
+    await requestGoogleDriveAccessToken();const [folder,user]=await Promise.all([ensureGoogleDriveFolder(),googleDriveAccountInfo()]);
+    saveGoogleDriveState({accountName:user.displayName||'',accountEmail:user.emailAddress||'',folderId:folder.id,folderName:folder.name||GOOGLE_DRIVE_FOLDER_NAME,lastError:''});
+    await recordGoogleDriveAudit('ربط',`تم ربط الحساب ${user.emailAddress||user.displayName||'Google'} بالمجلد ${folder.name||GOOGLE_DRIVE_FOLDER_NAME}`,{folderId:folder.id,scope:GOOGLE_DRIVE_SCOPE});
+    setGoogleDriveMessage('تم ربط Google Drive وتجهيز مجلد النسخ الاحتياطية بنجاح.','success');await refreshGoogleDriveBackups(false)
+  }catch(err){
+    saveGoogleDriveState({lastError:err.message||String(err)});setGoogleDriveMessage(`تعذر ربط Google Drive: ${err.message||err}`,'error');await recordGoogleDriveAudit('فشل ربط',err.message||String(err))
+  }finally{setGoogleDriveBusy(false);renderGoogleDriveStatus()}
+}
+async function listGoogleDriveBackups(){
+  const folder=await ensureGoogleDriveFolder(),files=[];let pageToken='';
+  do{
+    const q=`'${googleDriveEscapedQuery(folder.id)}' in parents and trashed=false`;
+    const params=new URLSearchParams({spaces:'drive',pageSize:'100',orderBy:'createdTime desc',q,fields:'nextPageToken,files(id,name,size,createdTime,modifiedTime,mimeType,appProperties,md5Checksum)'});
+    if(pageToken)params.set('pageToken',pageToken);
+    const response=await googleDriveFetch(`https://www.googleapis.com/drive/v3/files?${params}`),payload=await response.json();files.push(...(payload.files||[]));pageToken=payload.nextPageToken||''
+  }while(pageToken);
+  return files.filter(file=>file.mimeType==='application/json'||String(file.name||'').toLowerCase().endsWith('.json'))
+}
+function renderGoogleDriveBackupList(files=googleDriveFiles){
+  const body=document.getElementById('googleDriveBackupBody');if(!body)return;
+  if(!files.length){body.innerHTML='<tr><td colspan="5" class="empty">لا توجد نسخ داخل مجلد Google Drive.</td></tr>';return}
+  body.innerHTML=files.map(file=>{const recoveryId=file.appProperties?.recoveryId||'غير متوفر',verified=file.appProperties?.verified==='true',encodedId=encodeURIComponent(file.id);return `<tr>
+    <td><span class="recovery-id">${escapeHtml(recoveryId)}</span></td>
+    <td>${formatDateTime(file.createdTime)}</td>
+    <td>${formatBytes(Number(file.size||0))}</td>
+    <td><span class="protection-status ${verified?'ok':'warn'}">${verified?'تم التحقق عند الرفع':'يُفحص عند التنزيل'}</span></td>
+    <td><button class="primary" type="button" onclick="downloadGoogleDriveBackup('${encodedId}')">تنزيل من Google Drive</button></td>
+  </tr>`}).join('')
+}
+async function refreshGoogleDriveBackups(showMessage=true){
+  if(!googleDriveSessionActive()){renderGoogleDriveStatus();if(showMessage)setGoogleDriveMessage('انتهت جلسة Google Drive. أعد الربط لقراءة النسخ.','error');return []}
+  setGoogleDriveBusy(true);
+  try{
+    googleDriveFiles=await DATA_PROTECTION_PROVIDERS.googleDrive.list();saveGoogleDriveState({backupCount:googleDriveFiles.length,lastError:''});renderGoogleDriveBackupList();
+    if(showMessage)setGoogleDriveMessage(`تم تحديث القائمة: ${googleDriveFiles.length} نسخة سحابية.`,'success');return googleDriveFiles
+  }catch(err){saveGoogleDriveState({lastError:err.message||String(err)});setGoogleDriveMessage(`تعذر قراءة النسخ السحابية: ${err.message||err}`,'error');await recordGoogleDriveAudit('فشل قراءة',err.message||String(err));return []}
+  finally{setGoogleDriveBusy(false);renderGoogleDriveStatus()}
+}
+function googleDriveFileMetadata(record,folderId){
+  return {name:record.fileName||backupFileName(record.envelope?.type,new Date(record.envelope?.createdAt||Date.now()),record.recoveryId),parents:[folderId],mimeType:'application/json',appProperties:{adwaaBackup:'true',recoveryId:String(record.recoveryId||record.id||''),schemaVersion:String(record.envelope?.schemaVersion||BACKUP_SCHEMA_VERSION),verified:'true'}}
+}
+async function findGoogleDriveBackupByRecoveryId(recoveryId,folderId){
+  const q=`'${googleDriveEscapedQuery(folderId)}' in parents and trashed=false and appProperties has { key='recoveryId' and value='${googleDriveEscapedQuery(recoveryId)}' }`;
+  const response=await googleDriveFetch(`https://www.googleapis.com/drive/v3/files?spaces=drive&pageSize=1&fields=${encodeURIComponent('files(id,name,size,createdTime,appProperties)')}&q=${encodeURIComponent(q)}`),payload=await response.json();return payload.files?.[0]||null
+}
+async function multipartGoogleDriveUpload(record,metadata){
+  const boundary=`adwaa_${crypto.randomUUID().replace(/-/g,'')}`,body=new Blob([
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`,
+    `--${boundary}\r\nContent-Type: application/json\r\n\r\n`,record.json,`\r\n--${boundary}--`
+  ],{type:`multipart/related; boundary=${boundary}`});
+  const response=await googleDriveFetch(`https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=${encodeURIComponent('id,name,size,createdTime,appProperties')}`,{method:'POST',headers:{'Content-Type':`multipart/related; boundary=${boundary}`},body});return response.json()
+}
+function uploadGoogleDriveChunk(sessionUrl,blob,start,total){
+  return new Promise((resolve,reject)=>{
+    const end=start+blob.size-1,xhr=new XMLHttpRequest();xhr.open('PUT',sessionUrl,true);xhr.setRequestHeader('Authorization',`Bearer ${googleDriveAccessToken}`);xhr.setRequestHeader('Content-Type','application/json');xhr.setRequestHeader('Content-Range',`bytes ${start}-${end}/${total}`);
+    xhr.onload=()=>{if(xhr.status===200||xhr.status===201||xhr.status===308)resolve({status:xhr.status,body:xhr.responseText,range:xhr.getResponseHeader('Range')});else reject(new Error(`فشل رفع الجزء السحابي (${xhr.status}): ${xhr.responseText||'استجابة غير معروفة'}`))};
+    xhr.onerror=()=>reject(new Error('انقطع الاتصال أثناء رفع النسخة الكبيرة إلى Google Drive.'));xhr.send(blob)
+  })
+}
+function trustedGoogleUploadUrl(value){
+  try{const url=new URL(value);return url.protocol==='https:'&&(url.hostname==='www.googleapis.com'||url.hostname.endsWith('.googleapis.com'))}catch(_){return false}
+}
+async function resumableGoogleDriveUpload(record,metadata){
+  const source=new Blob([record.json],{type:'application/json'}),response=await googleDriveFetch(`https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=${encodeURIComponent('id,name,size,createdTime,appProperties')}`,{method:'POST',headers:{'Content-Type':'application/json; charset=UTF-8','X-Upload-Content-Type':'application/json','X-Upload-Content-Length':String(source.size)},body:JSON.stringify(metadata)});
+  const sessionUrl=response.headers.get('Location');if(!sessionUrl)throw new Error('لم تُرجع Google عنوان جلسة الرفع القابل للاستكمال.');
+  if(!trustedGoogleUploadUrl(sessionUrl))throw new Error('رفض النظام عنوان جلسة رفع غير موثوق لا يتبع Google.');
+  let offset=0,result=null;
+  while(offset<source.size){
+    const chunk=source.slice(offset,Math.min(offset+GOOGLE_DRIVE_CHUNK_SIZE,source.size));let uploaded=null,lastError=null;
+    for(let attempt=1;attempt<=3&&!uploaded;attempt++)try{uploaded=await uploadGoogleDriveChunk(sessionUrl,chunk,offset,source.size)}catch(err){lastError=err;if(attempt<3)await new Promise(resolve=>setTimeout(resolve,attempt*500))}
+    if(!uploaded)throw lastError||new Error('تعذر استكمال رفع النسخة الكبيرة.');
+    if(uploaded.status===200||uploaded.status===201){result=JSON.parse(uploaded.body||'{}');offset=source.size}
+    else{const confirmed=String(uploaded.range||'').match(/bytes=0-(\d+)/),next=confirmed?Number(confirmed[1])+1:offset+chunk.size;if(!Number.isFinite(next)||next<=offset)throw new Error('لم يؤكد Google تقدم جلسة الرفع القابل للاستكمال.');offset=next}
+  }
+  if(!result?.id)throw new Error('اكتمل إرسال الأجزاء لكن لم يتم تأكيد إنشاء الملف في Google Drive.');return result
+}
+async function uploadBackupRecordToGoogleDrive(record){
+  if(!googleDriveSessionActive())throw new Error('Google Drive غير متصل. النسخة المحلية سليمة ولم تُرفع سحابيًا.');
+  const folder=await ensureGoogleDriveFolder(),recoveryId=String(record.recoveryId||record.id||''),existing=await findGoogleDriveBackupByRecoveryId(recoveryId,folder.id);
+  if(existing)return {...existing,alreadyExists:true};
+  const metadata=googleDriveFileMetadata(record,folder.id),size=new Blob([record.json]).size;
+  const uploaded=size>GOOGLE_DRIVE_RESUMABLE_THRESHOLD?await resumableGoogleDriveUpload(record,metadata):await multipartGoogleDriveUpload(record,metadata);
+  const verifyResponse=await googleDriveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(uploaded.id)}?fields=${encodeURIComponent('id,name,size,createdTime,appProperties')}`),verified=await verifyResponse.json();
+  if(Number(verified.size)!==size||verified.appProperties?.recoveryId!==recoveryId)throw new Error('تم الرفع لكن فشل التحقق من حجم الملف أو Recovery ID في Google Drive.');
+  return verified
+}
+async function syncBackupToGoogleDrive(record){
+  if(!googleDriveSessionActive()){
+    saveGoogleDriveState({lastUploadAt:new Date().toISOString(),lastUploadStatus:'النسخة محلية فقط — Google Drive غير متصل',lastUploadOk:false,lastError:'غير متصل'});renderGoogleDriveStatus();return {ok:false,skipped:true}
+  }
+  if(googleDriveUploadInProgress){
+    const message='توجد عملية رفع سحابية جارية؛ لم تبدأ عملية رفع ثانية.';saveGoogleDriveState({lastUploadAt:new Date().toISOString(),lastUploadStatus:message,lastUploadOk:false,lastError:message});setGoogleDriveMessage(message,'error');return {ok:false,busy:true}
+  }
+  googleDriveUploadInProgress=true;setGoogleDriveBusy(true);
+  googleDriveUploadPromise=(async()=>{
+    try{
+      const file=await DATA_PROTECTION_PROVIDERS.googleDrive.save(record),at=new Date().toISOString(),status=file.alreadyExists?'النسخة موجودة مسبقًا في Google Drive':'تم الرفع والتحقق بنجاح';
+      saveGoogleDriveState({lastUploadAt:at,lastUploadStatus:status,lastUploadOk:true,lastError:''});
+      await recordGoogleDriveAudit(file.alreadyExists?'تأكيد وجود':'رفع نسخة',`${record.recoveryId||record.id} — ${status}`,{fileId:file.id,recoveryId:record.recoveryId||record.id,size:record.size});
+      setGoogleDriveMessage(status,'success');await refreshGoogleDriveBackups(false);return {ok:true,file}
+    }catch(err){
+      const message=err.message||String(err);saveGoogleDriveState({lastUploadAt:new Date().toISOString(),lastUploadStatus:'فشل الرفع — النسخة المحلية سليمة',lastUploadOk:false,lastError:message});
+      setGoogleDriveMessage(`النسخة المحلية سليمة، لكن الرفع إلى Google Drive لم ينجح: ${message}`,'error');await recordGoogleDriveAudit('فشل رفع',`${record.recoveryId||record.id} — ${message}`);return {ok:false,error:message}
+    }finally{googleDriveUploadInProgress=false;googleDriveUploadPromise=null;setGoogleDriveBusy(false);renderGoogleDriveStatus()}
+  })();
+  return googleDriveUploadPromise
+}
+async function downloadGoogleDriveRecord(fileId){
+  const response=await googleDriveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`),text=await response.text(),envelope=JSON.parse(text),checked=await verifyBackupPayload(envelope);
+  return {id:fileId,recoveryId:checked.envelope.recoveryId,envelope:checked.envelope,json:text,size:new Blob([text]).size,fileName:googleDriveFiles.find(x=>x.id===fileId)?.name||backupFileName(checked.envelope.type,new Date(checked.envelope.createdAt),checked.envelope.recoveryId)}
+}
+async function downloadGoogleDriveBackup(encodedId){
+  if(!googleDriveSessionActive()){setGoogleDriveMessage('انتهت جلسة Google Drive. أعد الربط ثم حاول التنزيل.','error');return}
+  setGoogleDriveBusy(true);
+  try{
+    const fileId=decodeURIComponent(encodedId),record=await DATA_PROTECTION_PROVIDERS.googleDrive.get(fileId),file=new File([record.json],record.fileName,{type:'application/json'});
+    await recordGoogleDriveAudit('تنزيل نسخة',`${record.recoveryId} — تمرير إلى نظام الاستعادة الحالي`,{fileId,recoveryId:record.recoveryId});
+    setGoogleDriveMessage('تم تنزيل النسخة وفحصها. ستظهر الآن نافذة الاستعادة الحالية.','success');await importData({target:{files:[file],value:''}})
+  }catch(err){setGoogleDriveMessage(`تعذر تنزيل النسخة أو فحصها: ${err.message||err}`,'error');await recordGoogleDriveAudit('فشل تنزيل',err.message||String(err))}
+  finally{setGoogleDriveBusy(false);renderGoogleDriveStatus()}
+}
 function backupDirectorySupported(){return typeof window.showDirectoryPicker==='function'}
 function setBackupOperationMessage(message,type=''){const box=document.getElementById('backupOperationMessage');if(!box)return;box.className=`notice backup-operation-message show ${type}`.trim();box.textContent=message}
 async function getBackupDirectoryRecord(){return await backupVaultGet(BACKUP_DIRECTORY_RECORD_ID)}
@@ -2602,65 +2937,135 @@ async function renderBackupManagement(){
 function sanitizeBackupValue(value){if(Array.isArray(value))return value.map(sanitizeBackupValue);if(!value||typeof value!=='object')return value;const clean={};Object.entries(value).forEach(([key,item])=>{if(!/(?:password|passwd|secret|token|api[_-]?key|private[_-]?key)/i.test(key))clean[key]=sanitizeBackupValue(item)});return clean}
 function backupCoreData(){const copy=sanitizeBackupValue(safeClone(db)||{});copy.backupHistory=[];return copy}
 async function sha256Text(value){if(!crypto?.subtle)return '';const bytes=new TextEncoder().encode(value),hash=await crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('')}
-async function createBackupEnvelope(type='يدوي',note=''){const data=backupCoreData(),dataHash=await sha256Text(JSON.stringify(data));return {schema:'adwaa-alsharq-backup',version:APP_VERSION,createdAt:new Date().toISOString(),createdBy:currentUserLabel(),type,note,integrity:{algorithm:dataHash?'SHA-256':'structural',dataHash},contents:{bookings:data.bookings?.length||0,expenses:data.expenses?.length||0,cleaning:data.cleaningTasks?.length||0,notifications:data.notifications?.length||0},data}}
+function createRecoveryId(at=new Date()){const stamp=at.toISOString().slice(0,10).replaceAll('-',''),uuid=(crypto?.randomUUID?.()||`${Date.now()}-${Math.random()}`).replaceAll('-','').toUpperCase();return `ADW-${stamp}-${uuid}`}
+function backupManifest(data){
+  return {
+    bookings:data.bookings?.length||0,
+    customers:Object.keys(data.customerNotes||{}).length,
+    expenses:data.expenses?.length||0,
+    cleaningTasks:data.cleaningTasks?.length||0,
+    notifications:data.notifications?.length||0,
+    auditEntries:data.auditLog?.length||0,
+    photos:(data.bookings||[]).reduce((sum,b)=>sum+(Array.isArray(b.photos)?b.photos.length:0),0),
+    commissions:(data.bookings||[]).filter(b=>b.commissionSnapshot).length,
+    settings:data.settings&&typeof data.settings==='object'?1:0
+  };
+}
+function inspectBackupRelationships(data){
+  const errors=[],warnings=[],bookings=Array.isArray(data?.bookings)?data.bookings:[],bookingIds=new Set(),bookingCodes=new Set();
+  bookings.forEach((b,index)=>{
+    if(!b||typeof b!=='object'){errors.push(`الحجز رقم ${index+1} ليس سجلًا صالحًا`);return}
+    if(!b.id)warnings.push(`الحجز رقم ${index+1} بلا معرّف داخلي`);
+    else if(bookingIds.has(b.id))errors.push(`معرّف حجز مكرر: ${b.id}`);
+    else bookingIds.add(b.id);
+    if(b.code){if(bookingCodes.has(b.code))errors.push(`رقم حجز مكرر: ${b.code}`);else bookingCodes.add(b.code)}
+    if(!Array.isArray(b.photos||[]))errors.push(`صور الحجز ${b.code||b.id||index+1} غير صالحة`);
+    if(b.commissionSnapshot&&typeof b.commissionSnapshot!=='object')errors.push(`عمولة الحجز ${b.code||b.id||index+1} غير صالحة`);
+  });
+  (data.cleaningTasks||[]).forEach(task=>{if(task?.bookingId&&!bookingIds.has(task.bookingId))warnings.push(`مهمة تنظيف مرتبطة بحجز غير موجود: ${task.bookingId}`)});
+  (data.notifications||[]).forEach(item=>{if(item?.bookingId&&!bookingIds.has(item.bookingId))warnings.push(`تنبيه مرتبط بحجز غير موجود: ${item.bookingId}`)});
+  if(data.settings!==undefined&&(!data.settings||typeof data.settings!=='object'||Array.isArray(data.settings)))errors.push('إعدادات النظام غير صالحة');
+  else if(data.settings===undefined)warnings.push('نسخة قديمة بلا إعدادات؛ ستُستخدم الإعدادات الافتراضية');
+  if(data.customerNotes!==undefined&&(!data.customerNotes||typeof data.customerNotes!=='object'||Array.isArray(data.customerNotes)))errors.push('سجل ملاحظات العملاء غير صالح');
+  else if(data.customerNotes===undefined)warnings.push('نسخة قديمة بلا ملاحظات عملاء');
+  return {ok:errors.length===0,errors,warnings,checkedRelations:bookings.length+(data.cleaningTasks?.length||0)+(data.notifications?.length||0)};
+}
+async function createBackupEnvelope(type='يدوي',note=''){
+  const data=backupCoreData(),createdAt=new Date(),recoveryId=createRecoveryId(createdAt),dataHash=await sha256Text(JSON.stringify(data)),relationships=inspectBackupRelationships(data);
+  if(!relationships.ok)throw new Error(`تعذر إنشاء نسخة سليمة: ${relationships.errors[0]}`);
+  return {schema:'adwaa-alsharq-backup',schemaVersion:BACKUP_SCHEMA_VERSION,recoveryId,version:APP_VERSION,createdAt:createdAt.toISOString(),createdBy:currentUserLabel(),type,note,provider:{id:DATA_PROTECTION_PROVIDER_ID,label:'الحفظ المحلي'},security:{secretsExcluded:true,regeneratedOnRestore:['cleaningTasks.token']},integrity:{algorithm:dataHash?'SHA-256':'structural',dataHash},contents:backupManifest(data),relationships:{checked:true,warnings:relationships.warnings.length},data};
+}
 function validateBackupPayload(raw){
   const envelope=raw?.schema==='adwaa-alsharq-backup'?raw:{schema:'adwaa-alsharq-backup',version:'قديم',createdAt:new Date().toISOString(),createdBy:'ملف قديم',type:'مستورد',data:raw};
   const data=envelope?.data;
   if(!data||typeof data!=='object'||!Array.isArray(data.bookings)||!Array.isArray(data.expenses))throw new Error('الملف لا يحتوي بنية بيانات أضواء الشرق الصحيحة');
   for(const field of ['cleaningTasks','notifications','auditLog'])if(data[field]!==undefined&&!Array.isArray(data[field]))throw new Error(`قسم ${field} غير صالح داخل النسخة`);
-  return {envelope,data,summary:{bookings:data.bookings.length,expenses:data.expenses.length,customers:Object.keys(data.customerNotes||{}).length,cleaning:Array.isArray(data.cleaningTasks)?data.cleaningTasks.length:0}};
+  const relationships=inspectBackupRelationships(data);
+  if(!relationships.ok)throw new Error(`فشل فحص العلاقات: ${relationships.errors[0]}`);
+  return {envelope,data,relationships,summary:{...backupManifest(data),bookings:data.bookings.length,expenses:data.expenses.length,customers:Object.keys(data.customerNotes||{}).length,cleaning:Array.isArray(data.cleaningTasks)?data.cleaningTasks.length:0}};
 }
 async function verifyBackupPayload(raw){const checked=validateBackupPayload(raw),expected=checked.envelope?.integrity?.dataHash;if(expected){const actual=await sha256Text(JSON.stringify(checked.data));if(!actual||actual!==expected)throw new Error('فشل فحص سلامة النسخة: بصمة البيانات غير متطابقة')}return checked}
 async function createPreMigrationBackupFromData(rawData,migrationKey,note){
   const marker=`adwaaMigrationBackup-${migrationKey}`;if(localStorage.getItem(marker))return null;
-  try{const data=sanitizeBackupValue(safeClone(rawData)||{}),dataHash=await sha256Text(JSON.stringify(data)),createdAt=new Date().toISOString(),envelope={schema:'adwaa-alsharq-backup',version:APP_VERSION,createdAt,createdBy:currentUserLabel(),type:'قبل التغيير',note,integrity:{algorithm:dataHash?'SHA-256':'structural',dataHash},data},json=JSON.stringify(envelope,null,2);await verifyBackupPayload(JSON.parse(json));const id=crypto.randomUUID(),size=new Blob([json]).size,fileName=backupFileName('قبل التغيير',new Date(createdAt));await backupVaultPut({id,envelope,json,size});localStorage.setItem(marker,createdAt);return {id,createdAt,size,user:envelope.createdBy,type:'قبل التغيير',version:APP_VERSION,stored:true,fileName,location:'مخزن المتصفح الآمن',verified:true}}
+  try{const data=sanitizeBackupValue(safeClone(rawData)||{}),dataHash=await sha256Text(JSON.stringify(data)),createdAt=new Date().toISOString(),recoveryId=createRecoveryId(new Date(createdAt)),envelope={schema:'adwaa-alsharq-backup',schemaVersion:BACKUP_SCHEMA_VERSION,recoveryId,version:APP_VERSION,createdAt,createdBy:currentUserLabel(),type:'قبل التغيير',note,provider:{id:DATA_PROTECTION_PROVIDER_ID,label:'الحفظ المحلي'},security:{secretsExcluded:true,regeneratedOnRestore:['cleaningTasks.token']},integrity:{algorithm:dataHash?'SHA-256':'structural',dataHash},contents:backupManifest(data),data},json=JSON.stringify(envelope,null,2);await verifyBackupPayload(JSON.parse(json));const id=recoveryId,size=new Blob([json]).size,fileName=backupFileName('قبل التغيير',new Date(createdAt),recoveryId);await activeDataProtectionProvider().save({id,recoveryId,envelope,json,size,fileName});localStorage.setItem(marker,createdAt);return {id,recoveryId,createdAt,size,user:envelope.createdBy,type:'قبل التغيير',version:APP_VERSION,stored:true,fileName,location:'مخزن المتصفح الآمن',providerId:DATA_PROTECTION_PROVIDER_ID,verified:true,status:'سليمة'}}
   catch(err){console.error('تعذر إنشاء نسخة ما قبل التغيير',err);return null}
 }
-function backupFileName(type,at=new Date()){const stamp=at.toISOString().replace(/[:.]/g,'-');const kind=type==='نقطة استعادة'?'restore-point':type==='قبل الاستعادة'?'before-restore':'backup';return `Adwaa-${kind}-${APP_VERSION}-${stamp}.json`}
+function backupFileName(type,at=new Date(),recoveryId=''){const stamp=at.toISOString().replace(/[:.]/g,'-'),safeId=String(recoveryId||'').replace(/[^A-Z0-9-]/gi,'');const kind=type==='نقطة استعادة'?'restore-point':type==='قبل الاستعادة'?'before-restore':type==='قبل التغيير'?'before-change':'backup';return `Adwaa-${kind}-${APP_VERSION}-${stamp}${safeId?`-${safeId}`:''}.json`}
 async function writableBackupDirectory(){const record=await getBackupDirectoryRecord();if(!record?.handle)return null;const permission=await getDirectoryPermission(record.handle,true);if(permission!=='granted')throw new Error('المجلد المحدد غير قابل للكتابة. اختر موقعًا جديدًا.');return record}
 async function writeVerifiedBackupFile(record,fileName,json){
   const handle=await record.handle.getFileHandle(fileName,{create:true}),writer=await handle.createWritable();await writer.write(json);await writer.close();const saved=await (await handle.getFile()).text();if(saved!==json)throw new Error('فشل التحقق من الملف بعد حفظه داخل المجلد');await verifyBackupPayload(JSON.parse(saved));return true
 }
 async function createBackup(type='يدوي',options={}){
   const {downloadFile=true,silent=false,note='',preferDirectory=downloadFile}=options;let directoryRecord=null,directoryError='';if(preferDirectory)try{directoryRecord=await writableBackupDirectory()}catch(err){directoryError=err.message||'المسار المحدد غير صالح'}
-  const envelope=await createBackupEnvelope(type,note),json=JSON.stringify(envelope,null,2),checked=await verifyBackupPayload(JSON.parse(json)),size=new Blob([json]).size,id=crypto.randomUUID(),fileName=backupFileName(type,new Date(envelope.createdAt));
-  let stored=true;try{await backupVaultPut({id,envelope,json,size})}catch(err){console.error(err);stored=false}
+  const envelope=await createBackupEnvelope(type,note),json=JSON.stringify(envelope,null,2),checked=await verifyBackupPayload(JSON.parse(json)),size=new Blob([json]).size,id=envelope.recoveryId,fileName=backupFileName(type,new Date(envelope.createdAt),envelope.recoveryId);
+  let stored=true;try{await activeDataProtectionProvider().save({id,recoveryId:envelope.recoveryId,envelope,json,size,fileName})}catch(err){console.error(err);stored=false}
   let location='مخزن المتصفح فقط',fileSaved=false;
   if(directoryRecord)try{await writeVerifiedBackupFile(directoryRecord,fileName,json);location=`المجلد: ${directoryRecord.label||directoryRecord.handle.name}`;fileSaved=true}catch(err){directoryError=err.message||'تعذر الحفظ في المجلد المحدد'}
   if(downloadFile&&!fileSaved){download(fileName,json,'application/json');location='مجلد التنزيلات';fileSaved=true}
+  const rollbackReady=stored||fileSaved;
+  if(!rollbackReady)throw new Error(`تعذر إنشاء نقطة رجوع قابلة للاستعادة${directoryError?`: ${directoryError}`:'. مخزن المتصفح غير متاح ولم يُحفظ ملف بديل.'}`);
   db.backupHistory=Array.isArray(db.backupHistory)?db.backupHistory:[];
-  db.backupHistory.unshift({id,createdAt:envelope.createdAt,size,user:envelope.createdBy,type,version:APP_VERSION,stored,fileName,location,verified:true});db.backupHistory=db.backupHistory.slice(0,50);
-  addAudit('إنشاء','نسخة احتياطية',`${type} — ${formatBytes(size)} — تم فحص ${checked.summary.bookings} حجز${stored?'':' — تعذر حفظها محليًا'}`,null,{id,type,size,fileName,location,verified:true});
+  db.backupHistory.unshift({id,recoveryId:envelope.recoveryId,createdAt:envelope.createdAt,size,user:envelope.createdBy,type,version:APP_VERSION,stored,fileName,location,providerId:DATA_PROTECTION_PROVIDER_ID,verified:true,status:'سليمة',relationshipWarnings:checked.relationships.warnings.length});
+  addAudit('إنشاء','نسخة احتياطية',`${type} — Recovery ID: ${envelope.recoveryId} — ${formatBytes(size)} — تم فحص ${checked.summary.bookings} حجز${stored?'':' — تعذر حفظها محليًا'}`,null,{id,recoveryId:envelope.recoveryId,type,size,fileName,location,verified:true});
   await persist();
-  if(!silent){const detail=directoryError?` تم تنزيلها كبديل لأن: ${directoryError}`:` تم حفظها في ${location}.`;setBackupOperationMessage(`تم إنشاء النسخة وفحص سلامتها بنجاح.${detail}`,'success');alert(`تم إنشاء النسخة الاحتياطية وفحصها بنجاح.\nاسم الملف: ${fileName}\nالحجم: ${formatBytes(size)}\nالحفظ: ${location}${directoryError?`\nتنبيه: ${directoryError}`:''}`)}
-  renderBackupHistory();renderBackupManagement();
-  return {id,envelope,json,size,stored,fileName,location,verified:true};
+  let cloudResult={ok:false,error:'لم يبدأ الرفع السحابي'};
+  try{cloudResult=await syncBackupToGoogleDrive({id,recoveryId:envelope.recoveryId,envelope,json,size,fileName})}
+  catch(err){const message=err.message||String(err);cloudResult={ok:false,error:message};console.error('فشل سحابي مع بقاء النسخة المحلية سليمة',err);saveGoogleDriveState({lastUploadAt:new Date().toISOString(),lastUploadStatus:'فشل الرفع — النسخة المحلية سليمة',lastUploadOk:false,lastError:message});setGoogleDriveMessage(`النسخة المحلية سليمة، لكن الرفع إلى Google Drive لم ينجح: ${message}`,'error')}
+  if(!silent){const detail=directoryError?` تم تنزيلها كبديل لأن: ${directoryError}`:` تم حفظها في ${location}.`,cloudDetail=cloudResult?.ok?'\nGoogle Drive: تم الرفع والتحقق بنجاح':cloudResult?.busy?'\nGoogle Drive: لم يبدأ رفع ثانٍ لأن عملية أخرى جارية':'\nGoogle Drive: لم تُرفع سحابيًا، والنسخة المحلية سليمة';setBackupOperationMessage(`تم إنشاء النسخة وفحص سلامتها بنجاح.${detail}`,'success');alert(`تم إنشاء النسخة الاحتياطية وفحصها بنجاح.\nاسم الملف: ${fileName}\nالحجم: ${formatBytes(size)}\nالحفظ: ${location}${directoryError?`\nتنبيه: ${directoryError}`:''}${cloudDetail}`)}
+  renderBackupHistory();renderBackupManagement();renderDataProtectionCenter();
+  return {id,recoveryId:envelope.recoveryId,envelope,json,size,stored,fileSaved,rollbackReady,fileName,location,verified:true,cloudResult};
 }
 function createManualBackup(){return createBackup('يدوي',{downloadFile:true,preferDirectory:true})}
 function createRestorePoint(){return createBackup('نقطة استعادة',{downloadFile:true,note:'نقطة استعادة قبل تحديث أو تعديل كبير'})}
 function createPreChangeBackup(reason='تغيير بنية البيانات'){return createBackup('قبل التغيير',{downloadFile:false,silent:true,preferDirectory:true,note:`نسخة تلقائية قبل ${reason}`})}
 async function renderBackupHistory(){
   const body=document.getElementById('backupHistoryBody');if(!body)return;
-  const rows=(db.backupHistory||[]).slice(0,30);if(!rows.length){body.innerHTML='<tr><td colspan="5" class="empty">لم تُنشأ نسخ احتياطية بعد</td></tr>';return}
+  const rows=(db.backupHistory||[]);if(!rows.length){body.innerHTML='<tr><td colspan="5" class="empty">لم تُنشأ نسخ احتياطية بعد</td></tr>';return}
   body.innerHTML='<tr><td colspan="5" class="empty">جاري قراءة سجل النسخ...</td></tr>';
   const available=await backupVaultAvailability(rows.map(r=>r.id));
   body.innerHTML=rows.map(r=>`<tr><td><b>${formatDateTime(r.createdAt)}</b><div class="meta">v${escapeHtml(r.version||'—')}</div></td><td>${formatBytes(r.size)}</td><td>${escapeHtml(r.user||'الفوزان')}</td><td><span class="backup-type">${escapeHtml(r.type||'يدوي')}</span></td><td><div class="table-actions">${available[r.id]?`<button class="secondary" onclick="downloadStoredBackup('${r.id}')">تحميل</button><button class="primary" onclick="restoreStoredBackup('${r.id}')">استعادة</button>`:`<span class="local-missing">الملف غير موجود على هذا الجهاز؛ استخدم «استعادة من ملف»</span>`}</div></td></tr>`).join('');
 }
-async function downloadStoredBackup(id){const record=await backupVaultGet(id);if(!record){alert('ملف هذه النسخة غير موجود على هذا الجهاز. استخدم ملف النسخة الذي نُزّل سابقًا.');return}download(backupFileName(record.envelope.type,new Date(record.envelope.createdAt)),record.json||JSON.stringify(record.envelope,null,2),'application/json')}
-function mergeAuditLogs(current,restored){const map=new Map();[...(current||[]),...(restored||[])].forEach(x=>{if(x?.id&&!map.has(x.id))map.set(x.id,x)});return [...map.values()].sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,500)}
-async function applyRestorePayload(data,sourceLabel){
-  const history=[...(db.backupHistory||[])],currentAudit=[...(db.auditLog||[])];
-  const restored=normalizeDB(data);restored.backupHistory=history;restored.auditLog=mergeAuditLogs(currentAudit,restored.auditLog);db=restored;
-  addAudit('استعادة','نسخة احتياطية',sourceLabel||'استعادة بيانات',null,{bookings:db.bookings.length,expenses:db.expenses.length});
-  await persist();renderAll();
+async function downloadStoredBackup(id){const record=await activeDataProtectionProvider().get(id);if(!record){alert('ملف هذه النسخة غير موجود على هذا الجهاز. استخدم ملف النسخة الذي نُزّل سابقًا.');return}download(record.fileName||backupFileName(record.envelope.type,new Date(record.envelope.createdAt),record.envelope.recoveryId),record.json||JSON.stringify(record.envelope,null,2),'application/json')}
+function mergeAuditLogs(current,restored){const map=new Map();[...(current||[]),...(restored||[])].forEach(x=>{if(x?.id&&!map.has(x.id))map.set(x.id,x)});return [...map.values()].sort((a,b)=>String(b.at).localeCompare(String(a.at)))}
+async function createRequiredRestoreSafetyBackup(note){
+  const point=await createBackup('قبل الاستعادة',{downloadFile:false,silent:true,preferDirectory:true,note});
+  if(!point?.verified||!point?.rollbackReady)throw new Error('لم يتم إنشاء نقطة رجوع سليمة وقابلة للاستعادة.');
+  return point;
+}
+async function commitRestoredDataToSupabase(candidate){
+  if(!currentUser)throw new Error('انتهت جلسة الدخول. سجّل الدخول ثم أعد المحاولة.');
+  const next=normalizeDB(candidate),expectedHash=await dataStateHash(next);
+  try{
+    const {error:writeError}=await supabaseClient.from('app_state').upsert({id:STATE_ROW_ID,data:next,updated_at:new Date().toISOString()});
+    if(writeError)throw writeError;
+    const {data:confirmed,error:readError}=await supabaseClient.from('app_state').select('data').eq('id',STATE_ROW_ID).maybeSingle();
+    if(readError)throw readError;
+    if(!confirmed?.data)throw new Error('تم إرسال الاستعادة لكن تعذر قراءة البيانات من Supabase للتأكيد.');
+    const confirmedHash=await dataStateHash(confirmed.data);
+    if(!confirmedHash||confirmedHash!==expectedHash)throw new Error('لم تتطابق البيانات المقروءة من Supabase مع بيانات الاستعادة.');
+  }catch(err){
+    remoteReady=false;lastSyncError=`فشلت الاستعادة أو تعذر تأكيدها: ${err?.message||err}`;setSyncStatus('لم تكتمل الاستعادة في Supabase؛ تم الاحتفاظ بالبيانات المحلية الحالية.','error');void renderDataProtectionSyncStatus();throw new Error(lastSyncError);
+  }
+  db=next;invalidateCaches();
+  try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(storageErr){console.warn('نجحت الاستعادة السحابية وتعذر تحديث النسخة المحلية الدائمة',storageErr)}
+  remoteReady=true;lastSuccessfulWriteAt=new Date().toISOString();lastSuccessfulReadAt=lastSuccessfulWriteAt;lastSyncError='';lastConfirmedRemoteHash=expectedHash;
+  setSyncStatus('تمت الاستعادة والمزامنة مع Supabase','ok');scheduleRenderAll();try{renderAll()}catch(renderErr){console.error('تمت الاستعادة لكن تعذر تحديث جزء من الواجهة',renderErr)}void renderDataProtectionSyncStatus();return true;
+}
+async function applyRestorePayload(data,sourceLabel,extraHistory=[]){
+  const history=[...extraHistory,...(db.backupHistory||[])].filter((item,index,all)=>item?.id&&all.findIndex(x=>x?.id===item.id)===index),currentAudit=[...(db.auditLog||[])];
+  const restored=normalizeDB(data);restored.cleaningTasks=restored.cleaningTasks.map(task=>({...task,token:task.token||randomTaskToken()}));restored.backupHistory=history;restored.auditLog=mergeAuditLogs(currentAudit,restored.auditLog);
+  restored.auditLog.unshift({id:crypto.randomUUID(),at:new Date().toISOString(),user:currentUserLabel(),action:'استعادة',entity:'نسخة احتياطية',details:sourceLabel||'استعادة بيانات',before:null,after:auditSnapshot({bookings:restored.bookings.length,expenses:restored.expenses.length})});
+  return commitRestoredDataToSupabase(restored);
 }
 async function restoreStoredBackup(id){
-  const record=await backupVaultGet(id);if(!record){alert('ملف هذه النسخة غير موجود على هذا الجهاز.');return}
+  const record=await activeDataProtectionProvider().get(id);if(!record){alert('ملف هذه النسخة غير موجود على هذا الجهاز.');return}
   let checked;try{checked=await verifyBackupPayload(record.envelope)}catch(err){alert('تعذر الاستعادة: '+err.message);return}
-  const fileName=record.fileName||backupFileName(record.envelope.type,new Date(record.envelope.createdAt));
-  if(!confirm(`تم فحص النسخة بنجاح.\nاسم الملف: ${fileName}\nتاريخ الإنشاء: ${formatDateTime(record.envelope.createdAt)}\nالحجم: ${formatBytes(record.size)}\nالحجوزات: ${checked.summary.bookings}\nالمصروفات: ${checked.summary.expenses}\n\nتنبيه: الاستعادة ستستبدل البيانات الحالية. سيُنشئ النظام نسخة أمان أولًا.\n\nهل تؤكد الاستعادة؟`))return;
-  await createBackup('قبل الاستعادة',{downloadFile:false,silent:true,preferDirectory:true,note:'نسخة تلقائية قبل استعادة سجل محفوظ'});
-  await applyRestorePayload(checked.data,`استعادة النسخة ${formatDateTime(record.envelope.createdAt)}`);alert('تمت الاستعادة بنجاح.');
+  const recoveryId=record.envelope.recoveryId||record.recoveryId||record.id,fileName=record.fileName||backupFileName(record.envelope.type,new Date(record.envelope.createdAt),recoveryId);
+  if(!confirm(`تم فحص النسخة بنجاح.\nRecovery ID: ${recoveryId}\nاسم الملف: ${fileName}\nتاريخ الإنشاء: ${formatDateTime(record.envelope.createdAt)}\nالحجم: ${formatBytes(record.size)}\nالحجوزات: ${checked.summary.bookings}\nالمصروفات: ${checked.summary.expenses}\n\nتنبيه: الاستعادة ستستبدل البيانات الحالية. سيُنشئ النظام نسخة أمان أولًا.\nروابط عامل التنظيف القديمة ستتوقف بعد الاستعادة، ويلزم إعادة إرسال الروابط الجديدة.\n\nهل تؤكد الاستعادة؟`))return;
+  try{await createRequiredRestoreSafetyBackup('نسخة تلقائية قبل استعادة سجل محفوظ')}
+  catch(err){alert(`تم إلغاء الاستعادة بالكامل لأن نقطة الرجوع لم تُنشأ بنجاح.\n${err.message||err}`);return}
+  try{await applyRestorePayload(checked.data,`استعادة النسخة ${recoveryId} — ${formatDateTime(record.envelope.createdAt)}`);alert('تمت الاستعادة في Supabase وتأكيد تطابق البيانات بنجاح.')}
+  catch(err){alert(`لم تكتمل الاستعادة، ولم تُعتمد كعملية ناجحة.\n${err.message||err}\n\nاحتُفظ بالبيانات المحلية الحالية. راجع حالة المزامنة قبل أي إجراء آخر.`)}
 }
 function readJsonFile(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>{try{resolve(JSON.parse(r.result))}catch(_){reject(new Error('الملف ليس JSON صالحًا'))}};r.onerror=()=>reject(new Error('تعذر قراءة الملف'));r.readAsText(file)})}
 async function inspectBackupFile(ev){
@@ -2673,12 +3078,82 @@ async function importData(ev){
   const file=ev.target.files?.[0];if(!file)return;
   try{
     const raw=await readJsonFile(file),checked=await verifyBackupPayload(raw);
-    if(!confirm(`تم فحص الملف بنجاح.\nاسم الملف: ${file.name}\nتاريخ الإنشاء: ${formatDateTime(checked.envelope.createdAt)}\nالحجم: ${formatBytes(file.size)}\nالحجوزات: ${checked.summary.bookings}\nالمصروفات: ${checked.summary.expenses}\nمهام التنظيف: ${checked.summary.cleaning}\n\nتنبيه: الاستعادة ستستبدل البيانات الحالية. سيُنشئ النظام نسخة أمان أولًا.\n\nهل تؤكد الاستعادة؟`))return;
-    await createBackup('قبل الاستعادة',{downloadFile:false,silent:true,preferDirectory:true,note:'نسخة تلقائية قبل استعادة ملف خارجي'});
-    const json=JSON.stringify(checked.envelope,null,2),id=crypto.randomUUID(),size=new Blob([json]).size;try{await backupVaultPut({id,envelope:checked.envelope,json,size})}catch(_){}
-    db.backupHistory.unshift({id,createdAt:checked.envelope.createdAt||new Date().toISOString(),size,user:checked.envelope.createdBy||'ملف مستورد',type:'مستورد',version:checked.envelope.version||'قديم',stored:true,fileName:file.name,location:'ملف مستورد',verified:true});
-    await applyRestorePayload(checked.data,`استعادة من الملف ${file.name}`);alert('تم استيراد واستعادة النسخة بنجاح.');
+    if(!confirm(`تم فحص الملف بنجاح.\nاسم الملف: ${file.name}\nتاريخ الإنشاء: ${formatDateTime(checked.envelope.createdAt)}\nالحجم: ${formatBytes(file.size)}\nالحجوزات: ${checked.summary.bookings}\nالمصروفات: ${checked.summary.expenses}\nمهام التنظيف: ${checked.summary.cleaning}\n\nتنبيه: الاستعادة ستستبدل البيانات الحالية. سيُنشئ النظام نسخة أمان أولًا.\nروابط عامل التنظيف القديمة ستتوقف بعد الاستعادة، ويلزم إعادة إرسال الروابط الجديدة.\n\nهل تؤكد الاستعادة؟`))return;
+    try{await createRequiredRestoreSafetyBackup('نسخة تلقائية قبل استعادة ملف خارجي')}
+    catch(err){alert(`تم إلغاء الاستعادة بالكامل لأن نقطة الرجوع لم تُنشأ بنجاح.\n${err.message||err}`);return}
+    const json=JSON.stringify(checked.envelope,null,2),recoveryId=checked.envelope.recoveryId||createRecoveryId(new Date(checked.envelope.createdAt||Date.now())),id=recoveryId,size=new Blob([json]).size;let stored=!!(await activeDataProtectionProvider().get(id));if(!stored)try{await activeDataProtectionProvider().save({id,recoveryId,envelope:checked.envelope,json,size,fileName:file.name});stored=true}catch(_){}
+    const importedRecord={id,recoveryId,createdAt:checked.envelope.createdAt||new Date().toISOString(),size,user:checked.envelope.createdBy||'ملف مستورد',type:'مستورد',version:checked.envelope.version||'قديم',stored,fileName:file.name,location:'ملف مستورد',providerId:DATA_PROTECTION_PROVIDER_ID,verified:true,status:'سليمة'};
+    await applyRestorePayload(checked.data,`استعادة من الملف ${file.name}`,db.backupHistory.some(r=>r.id===id)?[]:[importedRecord]);alert('تمت الاستعادة في Supabase وتأكيد تطابق البيانات بنجاح.');
   }catch(err){alert('تعذر الاستعادة: '+err.message)}finally{ev.target.value=''}
+}
+function recoveryIdFor(record){return record?.recoveryId||record?.id||'نسخة قديمة بلا Recovery ID'}
+function backupRecordStatus(record,available){
+  if(record?.verified===false||record?.status==='فاشلة')return {label:'غير سليمة',className:'error'};
+  if(!available)return {label:'الملف خارج هذا الجهاز',className:'warn'};
+  return {label:record?.relationshipWarnings?'سليمة مع تنبيهات':'سليمة',className:record?.relationshipWarnings?'warn':'ok'};
+}
+function protectionLevelSummary(latest,available){
+  if(!latest)return {label:'منخفض',className:'error',reason:'لا توجد نسخة احتياطية'};
+  const age=(Date.now()-new Date(latest.createdAt).getTime())/86400000;
+  if(latest.verified===false||!available)return {label:'يحتاج مراجعة',className:'warn',reason:'آخر ملف غير متاح أو لم يجتز الفحص'};
+  if(age>7)return {label:'متوسط',className:'warn',reason:'آخر نسخة أقدم من 7 أيام'};
+  return {label:'مرتفع',className:'ok',reason:'نسخة حديثة وسليمة ومتاحة محليًا'};
+}
+async function renderDataProtectionCenter(){
+  const body=document.getElementById('protectionBackupHistoryBody');if(!body)return;
+  renderGoogleDriveStatus();if(googleDriveSessionActive())renderGoogleDriveBackupList();
+  const rows=[...(db.backupHistory||[])].sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||''))),latest=rows[0]||null;
+  body.innerHTML='<tr><td colspan="8" class="empty">جاري فحص النسخ المحلية...</td></tr>';
+  const available=await backupVaultAvailability(rows.map(r=>r.id)),level=protectionLevelSummary(latest,latest?available[latest.id]:false),health=runSystemHealthChecks();
+  setAboutText('protectionLevel',`${level.className==='ok'?'🟢':level.className==='warn'?'🟡':'🔴'} ${level.label}`);
+  setAboutText('protectionLatestBackup',latest?formatDateTime(latest.createdAt):'لا توجد نسخة');
+  setAboutText('protectionBackupCount',rows.length);
+  setAboutText('protectionSystemStatus',health.severity==='ok'?'🟢 سليم':health.severity==='warn'?'🟡 يحتاج مراجعة':'🔴 توجد أخطاء');
+  await renderDataProtectionSyncStatus();
+  const lastOperation=(db.auditLog||[]).find(x=>x.entity==='نسخة احتياطية');
+  setAboutText('protectionLastOperation',lastOperation?`${lastOperation.action} — ${formatDateTime(lastOperation.at)}`:'لا توجد عملية');
+  setAboutText('protectionProvider',DATA_PROTECTION_PROVIDERS[DATA_PROTECTION_PROVIDER_ID].label);
+  const levelBox=document.getElementById('protectionLevel');if(levelBox)levelBox.title=level.reason;
+  if(!rows.length){body.innerHTML='<tr><td colspan="8" class="empty">لم تُنشأ نسخ احتياطية بعد</td></tr>';return}
+  body.innerHTML=rows.map(r=>{const status=backupRecordStatus(r,available[r.id]),date=new Date(r.createdAt),valid=!Number.isNaN(date.getTime());return `<tr>
+    <td><span class="recovery-id">${escapeHtml(recoveryIdFor(r))}</span></td>
+    <td>${valid?date.toLocaleDateString('ar-SA',{calendar:'gregory'}):'—'}</td>
+    <td>${valid?date.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'}):'—'}</td>
+    <td>${formatBytes(r.size)}</td>
+    <td><span class="protection-status ${status.className}">${escapeHtml(status.label)}</span></td>
+    <td>${escapeHtml(r.location||'مخزن المتصفح')}</td>
+    <td>${escapeHtml(r.type||'يدوي')}</td>
+    <td><div class="table-actions">${available[r.id]?`<button class="secondary" type="button" onclick="downloadStoredBackup('${r.id}')">تحميل</button><button class="primary" type="button" onclick="restoreStoredBackup('${r.id}')">استعادة</button>`:'<span class="local-missing">استخدم ملف النسخة على هذا الجهاز</span>'}</div></td>
+  </tr>`}).join('');
+}
+function recoveryReportHtml(checked,record,fileName=''){
+  const warnings=checked.relationships.warnings||[],manifest=checked.summary;
+  return `<b>✅ النسخة سليمة وقابلة للتجهيز للاستعادة</b><br>
+    Recovery ID: <span class="recovery-id">${escapeHtml(checked.envelope.recoveryId||record?.recoveryId||record?.id||'نسخة قديمة')}</span><br>
+    ${fileName?`الملف: ${escapeHtml(fileName)}<br>`:''}
+    البصمة: ${checked.envelope.integrity?.dataHash?'SHA-256 متطابقة':'فحص بنيوي للنسخة القديمة'}<br>
+    المحتويات: ${manifest.bookings} حجز، ${manifest.customers} عميل، ${manifest.expenses} مصروف، ${manifest.cleaningTasks||manifest.cleaning||0} مهمة تنظيف، ${manifest.commissions||0} سجل عمولة، ${manifest.photos||0} صورة.<br>
+    العلاقات: ${warnings.length?`سليمة مع ${warnings.length} تنبيه غير حرج — ${escapeHtml(warnings.slice(0,3).join('، '))}`:'سليمة دون أخطاء'}.<br>
+    نتيجة المحاكاة: نجح تجهيز نسخة معزولة من البيانات، ولم يتم تعديل البيانات الحالية.`;
+}
+async function runRecoveryDrill(){
+  const button=document.getElementById('recoveryDrillButton'),box=document.getElementById('recoveryDrillReport');if(!box)return;
+  button.disabled=true;box.className='notice recovery-report show';box.textContent='جارٍ فحص أحدث نسخة محلية ومحاكاة تجهيزها للاستعادة...';
+  try{
+    const rows=[...(db.backupHistory||[])].sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||''))),available=await backupVaultAvailability(rows.map(r=>r.id)),latest=rows.find(r=>available[r.id]);
+    if(!latest)throw new Error('لا توجد نسخة كاملة متاحة على هذا الجهاز. أنشئ نسخة جديدة أو افحص ملف نسخة محفوظة.');
+    const record=await activeDataProtectionProvider().get(latest.id),checked=await verifyBackupPayload(record.envelope||JSON.parse(record.json)),dryRun=normalizeDB(safeClone(checked.data));
+    if(dryRun.bookings.length!==checked.summary.bookings||dryRun.expenses.length!==checked.summary.expenses)throw new Error('فشلت محاكاة الاستعادة: تغير عدد السجلات أثناء التجهيز.');
+    box.className=`notice recovery-report show ${checked.relationships.warnings.length?'warn':'ok'}`;box.innerHTML=recoveryReportHtml(checked,record,record.fileName);
+  }catch(err){box.className='notice recovery-report show error';box.innerHTML=`<b>❌ لم ينجح اختبار خطة التعافي</b><br>${escapeHtml(err.message||'تعذر فحص النسخة.')}`}
+  finally{button.disabled=false;renderDataProtectionCenter()}
+}
+async function inspectProtectionBackupFile(ev){
+  const file=ev.target.files?.[0],box=document.getElementById('recoveryDrillReport');if(!file||!box)return;
+  box.className='notice recovery-report show';box.textContent='جارٍ فحص الملف...';
+  try{const raw=await readJsonFile(file),checked=await verifyBackupPayload(raw),dryRun=normalizeDB(safeClone(checked.data));if(dryRun.bookings.length!==checked.summary.bookings)throw new Error('تغير عدد الحجوزات أثناء محاكاة الاستعادة');box.className=`notice recovery-report show ${checked.relationships.warnings.length?'warn':'ok'}`;box.innerHTML=recoveryReportHtml(checked,null,file.name)}
+  catch(err){box.className='notice recovery-report show error';box.innerHTML=`<b>❌ الملف غير صالح للاستعادة</b><br>${escapeHtml(err.message)}`}
+  finally{ev.target.value=''}
 }
 function renderAuditLog(){
   const body=document.getElementById('auditLogBody');if(!body)return;const rows=(db.auditLog||[]).slice(0,100);
