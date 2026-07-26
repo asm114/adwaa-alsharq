@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0d4c3f">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://accounts.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://pgdvlklpyrvmwzitsmbw.supabase.co wss://pgdvlklpyrvmwzitsmbw.supabase.co https://accounts.google.com https://www.googleapis.com https://*.googleapis.com; frame-src https://accounts.google.com; worker-src 'self'; manifest-src 'self'; font-src 'self' data:; media-src 'self'; upgrade-insecure-requests">
 <title>v9.7 RC1 — النسخ الاحتياطي السحابي</title>
 <link rel="manifest" href="manifest.json">
 <style>
@@ -861,7 +863,7 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
 <div id="resortStatusOptions" class="status-options"></div>
 </div></div>
 <script src="./security-validation.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.106.2/dist/umd/supabase.js" integrity="sha384-m/8UHFJHeU6nrCKP2hBnAseuvAKUmLF+8e5bWos5CJL023vuxX7kiVL5t8yjsJhV" crossorigin="anonymous"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 const SUPABASE_URL='https://pgdvlklpyrvmwzitsmbw.supabase.co';

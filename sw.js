@@ -1,6 +1,7 @@
-const CACHE='adwaa-v9.6-rc1';
+const CACHE='adwaa-v9.7-security-hardening-1';
 const FALLBACK='./index.html';
-const ASSETS=['./index.html','./manifest.json'];
+const ASSETS=['./index.html','./cleaner.html','./security-validation.js','./manifest.json'];
+const CACHEABLE_PATHS=new Set(ASSETS.map(path=>new URL(path,self.location.href).pathname));
 
 self.addEventListener('install',event=>{
   self.skipWaiting();
@@ -26,14 +27,20 @@ self.addEventListener('fetch',event=>{
     return;
   }
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request,{cache:'no-store'})
       .then(response=>{
-        if(response.ok&&new URL(event.request.url).origin===self.location.origin){
+        const requestUrl=new URL(event.request.url);
+        if(response.ok&&requestUrl.origin===self.location.origin&&CACHEABLE_PATHS.has(requestUrl.pathname)){
           const copy=response.clone();
           caches.open(CACHE).then(cache=>cache.put(event.request,copy));
         }
         return response;
       })
-      .catch(()=>caches.match(event.request))
+      .catch(()=>{
+        const requestUrl=new URL(event.request.url);
+        return requestUrl.origin===self.location.origin&&CACHEABLE_PATHS.has(requestUrl.pathname)
+          ?caches.match(event.request)
+          :Response.error()
+      })
   );
 });
