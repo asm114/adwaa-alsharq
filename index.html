@@ -1047,7 +1047,7 @@ async function saveManagerCredentialPreference(email,password){
     try{
       const credential=new PasswordCredential({id:email,password,name:'مدير منتجع أضواء الشرق'});
       await navigator.credentials.store(credential);
-    }catch(err){console.warn('تعذر استدعاء مدير كلمات المرور؛ يمكن للمتصفح عرض نافذة الحفظ تلقائيًا.',err)}
+    }catch(_){console.warn('تعذر استدعاء مدير كلمات المرور؛ يمكن للمتصفح عرض نافذة الحفظ تلقائيًا.')}
   }
 }
 function showLogin(){
@@ -1221,13 +1221,12 @@ async function loadRemoteData(){
     remoteReady=true;
     lastSuccessfulReadAt=new Date().toISOString();lastSyncError='';
     await markRemoteStateConfirmed(data?.data?normalizeDB(data.data):db);
-    try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(storageErr){console.warn('تعذر حفظ النسخة المحلية',storageErr)}
+    try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(_){console.warn('تعذر حفظ النسخة المحلية.')}
     scheduleRenderAll();
     setSyncStatus('متصل ومتزامن بحساب المدير','ok');
   }catch(err){
-    console.error(err);
     remoteReady=false;
-    lastSyncError=String(err?.message||err||'تعذر الاتصال بقاعدة البيانات');
+    lastSyncError='تعذر الاتصال الآمن بقاعدة البيانات.';
     void renderDataProtectionSyncStatus();
     scheduleRenderAll();
     const denied=String(err?.message||'').toLowerCase().includes('policy')||String(err?.code||'')==='42501';
@@ -1239,7 +1238,7 @@ async function persist(){
   if(!currentUser){alert('انتهت جلسة الدخول. سجّل الدخول من جديد.');showLogin();return}
   db=normalizeDB(db);
   invalidateCaches();
-  try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(storageErr){console.warn('تعذر حفظ النسخة المحلية',storageErr)}
+  try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(_){console.warn('تعذر حفظ النسخة المحلية.')}
   scheduleRenderAll();
 
   try{
@@ -1252,9 +1251,8 @@ async function persist(){
     await markRemoteStateConfirmed(db);
     setSyncStatus('تم الحفظ والمزامنة','ok');
   }catch(err){
-    console.error(err);
     remoteReady=false;
-    lastSyncError=String(err?.message||err||'تعذر حفظ البيانات في قاعدة البيانات');
+    lastSyncError='تعذر حفظ البيانات في قاعدة البيانات.';
     void renderDataProtectionSyncStatus();
     setSyncStatus('تعذر رفع آخر تعديل؛ محفوظ مؤقتًا على هذا الجهاز','error');
     alert('تعذر مزامنة آخر تعديل. تحقق من الاتصال وصلاحيات حساب المدير.');
@@ -2083,8 +2081,7 @@ async function handleBookingPhotos(event){
         uploadedAt:new Date().toISOString(),
         originalName:file.name||''
       });
-    }catch(err){
-      console.error(err);
+    }catch(_){
       alert(`تعذر إضافة الصورة ${file.name}`);
     }
   }
@@ -2768,7 +2765,7 @@ function loadGoogleDriveState(){
 function saveGoogleDriveState(changes={}){
   const current=loadGoogleDriveState(),next={...current,...changes};
   const safe={accountName:String(next.accountName||'').slice(0,160),accountEmail:String(next.accountEmail||'').slice(0,254),folderId:String(next.folderId||'').slice(0,256),folderName:String(next.folderName||GOOGLE_DRIVE_FOLDER_NAME).slice(0,160),lastUploadAt:String(next.lastUploadAt||'').slice(0,64),lastUploadStatus:String(next.lastUploadStatus||'لم يبدأ').slice(0,300),lastUploadOk:next.lastUploadOk===true?true:next.lastUploadOk===false?false:null,backupCount:Number.isFinite(Number(next.backupCount))?Math.max(0,Number(next.backupCount)):null,lastError:safeExternalError(next.lastError)};
-  try{localStorage.setItem(GOOGLE_DRIVE_STATE_KEY,JSON.stringify(safe))}catch(err){console.warn('تعذر حفظ حالة Google Drive غير الحساسة محليًا',err)}return safe
+  try{localStorage.setItem(GOOGLE_DRIVE_STATE_KEY,JSON.stringify(safe))}catch(_){console.warn('تعذر حفظ حالة Google Drive غير الحساسة محليًا.')}return safe
 }
 function googleDriveSessionActive(){return !!googleDriveAccessToken&&Date.now()<googleDriveTokenExpiresAt-30000}
 function clearGoogleDriveSession(reason=''){
@@ -2812,7 +2809,7 @@ function renderGoogleDriveStatus(){
   if(!connected&&document.getElementById('googleDriveBackupBody'))document.getElementById('googleDriveBackupBody').innerHTML='<tr><td colspan="5" class="empty">اربط Google Drive لعرض النسخ السحابية.</td></tr>'
 }
 async function recordGoogleDriveAudit(action,details,after=null){
-  try{addAudit(action,'Google Drive',details,null,after);await persist()}catch(err){console.warn('تعذر حفظ سجل Google Drive في Supabase',err)}
+  try{addAudit(action,'Google Drive',details,null,after);await persist()}catch(_){console.warn('تعذر حفظ سجل Google Drive في Supabase.')}
 }
 function requestGoogleDriveAccessToken(){
   return new Promise((resolve,reject)=>{
@@ -3135,7 +3132,7 @@ async function verifyBackupPayload(raw){const checked=validateBackupPayload(raw)
 async function createPreMigrationBackupFromData(rawData,migrationKey,note){
   const marker=`adwaaMigrationBackup-${migrationKey}`;if(localStorage.getItem(marker))return null;
   try{const data=sanitizeBackupValue(safeClone(rawData)||{}),dataHash=await sha256Text(JSON.stringify(data)),createdAt=new Date().toISOString(),recoveryId=createRecoveryId(new Date(createdAt)),envelope={schema:'adwaa-alsharq-backup',schemaVersion:BACKUP_SCHEMA_VERSION,recoveryId,version:APP_VERSION,createdAt,createdBy:currentUserLabel(),type:'قبل التغيير',note,provider:{id:DATA_PROTECTION_PROVIDER_ID,label:'الحفظ المحلي'},security:{secretsExcluded:true,regeneratedOnRestore:['cleaningTasks.token']},integrity:{algorithm:dataHash?'SHA-256':'structural',dataHash},contents:backupManifest(data),data},json=JSON.stringify(envelope,null,2);await verifyBackupPayload(JSON.parse(json));const id=recoveryId,size=new Blob([json]).size,fileName=backupFileName('قبل التغيير',new Date(createdAt),recoveryId);await activeDataProtectionProvider().save({id,recoveryId,envelope,json,size,fileName});localStorage.setItem(marker,createdAt);return {id,recoveryId,createdAt,size,user:envelope.createdBy,type:'قبل التغيير',version:APP_VERSION,stored:true,fileName,location:'مخزن المتصفح الآمن',providerId:DATA_PROTECTION_PROVIDER_ID,verified:true,status:'سليمة'}}
-  catch(err){console.error('تعذر إنشاء نسخة ما قبل التغيير',err);return null}
+  catch(_){console.warn('تعذر إنشاء نسخة ما قبل التغيير.');return null}
 }
 function backupFileName(type,at=new Date(),recoveryId=''){const stamp=at.toISOString().replace(/[:.]/g,'-'),safeId=String(recoveryId||'').replace(/[^A-Z0-9-]/gi,'');const kind=type==='نقطة استعادة'?'restore-point':type==='قبل الاستعادة'?'before-restore':type==='قبل التغيير'?'before-change':'backup';return `Adwaa-${kind}-${APP_VERSION}-${stamp}${safeId?`-${safeId}`:''}.json`}
 async function writableBackupDirectory(){const record=await getBackupDirectoryRecord();if(!record?.handle)return null;const permission=await getDirectoryPermission(record.handle,true);if(permission!=='granted')throw new Error('المجلد المحدد غير قابل للكتابة. اختر موقعًا جديدًا.');return record}
@@ -3145,7 +3142,7 @@ async function writeVerifiedBackupFile(record,fileName,json){
 async function createBackup(type='يدوي',options={}){
   const {downloadFile=true,silent=false,note='',preferDirectory=downloadFile}=options;let directoryRecord=null,directoryError='';if(preferDirectory)try{directoryRecord=await writableBackupDirectory()}catch(err){directoryError=err.message||'المسار المحدد غير صالح'}
   const envelope=await createBackupEnvelope(type,note),json=JSON.stringify(envelope,null,2),checked=await verifyBackupPayload(JSON.parse(json)),size=new Blob([json]).size,id=envelope.recoveryId,fileName=backupFileName(type,new Date(envelope.createdAt),envelope.recoveryId);
-  let stored=true;try{await activeDataProtectionProvider().save({id,recoveryId:envelope.recoveryId,envelope,json,size,fileName})}catch(err){console.error(err);stored=false}
+  let stored=true;try{await activeDataProtectionProvider().save({id,recoveryId:envelope.recoveryId,envelope,json,size,fileName})}catch(_){stored=false}
   let location='مخزن المتصفح فقط',fileSaved=false;
   if(directoryRecord)try{await writeVerifiedBackupFile(directoryRecord,fileName,json);location=`المجلد: ${directoryRecord.label||directoryRecord.handle.name}`;fileSaved=true}catch(err){directoryError=err.message||'تعذر الحفظ في المجلد المحدد'}
   if(downloadFile&&!fileSaved){download(fileName,json,'application/json');location='مجلد التنزيلات';fileSaved=true}
@@ -3157,7 +3154,7 @@ async function createBackup(type='يدوي',options={}){
   await persist();
   let cloudResult={ok:false,error:'لم يبدأ الرفع السحابي'};
   try{cloudResult=await syncBackupToGoogleDrive({id,recoveryId:envelope.recoveryId,envelope,json,size,fileName})}
-  catch(err){const message=err.message||String(err);cloudResult={ok:false,error:message};console.error('فشل سحابي مع بقاء النسخة المحلية سليمة',err);saveGoogleDriveState({lastUploadAt:new Date().toISOString(),lastUploadStatus:'فشل الرفع — النسخة المحلية سليمة',lastUploadOk:false,lastError:message});setGoogleDriveMessage(`النسخة المحلية سليمة، لكن الرفع إلى Google Drive لم ينجح: ${message}`,'error')}
+  catch(err){const message=safeExternalError(err);cloudResult={ok:false,error:message};saveGoogleDriveState({lastUploadAt:new Date().toISOString(),lastUploadStatus:'فشل الرفع — النسخة المحلية سليمة',lastUploadOk:false,lastError:message});setGoogleDriveMessage(`النسخة المحلية سليمة، لكن الرفع إلى Google Drive لم ينجح: ${message}`,'error')}
   if(!silent){const detail=directoryError?` تم تنزيلها كبديل لأن: ${directoryError}`:` تم حفظها في ${location}.`,cloudDetail=cloudResult?.ok?'\nGoogle Drive: تم الرفع والتحقق بنجاح':cloudResult?.busy?'\nGoogle Drive: لم يبدأ رفع ثانٍ لأن عملية أخرى جارية':'\nGoogle Drive: لم تُرفع سحابيًا، والنسخة المحلية سليمة';setBackupOperationMessage(`تم إنشاء النسخة وفحص سلامتها بنجاح.${detail}`,'success');alert(`تم إنشاء النسخة الاحتياطية وفحصها بنجاح.\nاسم الملف: ${fileName}\nالحجم: ${formatBytes(size)}\nالحفظ: ${location}${directoryError?`\nتنبيه: ${directoryError}`:''}${cloudDetail}`)}
   renderBackupHistory();renderBackupManagement();renderDataProtectionCenter();
   return {id,recoveryId:envelope.recoveryId,envelope,json,size,stored,fileSaved,rollbackReady,fileName,location,verified:true,cloudResult};
@@ -3194,9 +3191,9 @@ async function commitRestoredDataToSupabase(candidate){
     remoteReady=false;lastSyncError=`فشلت الاستعادة أو تعذر تأكيدها: ${err?.message||err}`;setSyncStatus('لم تكتمل الاستعادة في Supabase؛ تم الاحتفاظ بالبيانات المحلية الحالية.','error');void renderDataProtectionSyncStatus();throw new Error(lastSyncError);
   }
   db=next;invalidateCaches();
-  try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(storageErr){console.warn('نجحت الاستعادة السحابية وتعذر تحديث النسخة المحلية الدائمة',storageErr)}
+  try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(_){console.warn('نجحت الاستعادة السحابية وتعذر تحديث النسخة المحلية الدائمة.')}
   remoteReady=true;lastSuccessfulWriteAt=new Date().toISOString();lastSuccessfulReadAt=lastSuccessfulWriteAt;lastSyncError='';lastConfirmedRemoteHash=expectedHash;
-  setSyncStatus('تمت الاستعادة والمزامنة مع Supabase','ok');scheduleRenderAll();try{renderAll()}catch(renderErr){console.error('تمت الاستعادة لكن تعذر تحديث جزء من الواجهة',renderErr)}void renderDataProtectionSyncStatus();return true;
+  setSyncStatus('تمت الاستعادة والمزامنة مع Supabase','ok');scheduleRenderAll();try{renderAll()}catch(_){console.warn('تمت الاستعادة لكن تعذر تحديث جزء من الواجهة.')}void renderDataProtectionSyncStatus();return true;
 }
 async function applyRestorePayload(data,sourceLabel,extraHistory=[]){
   const history=[...extraHistory,...(db.backupHistory||[])].filter((item,index,all)=>item?.id&&all.findIndex(x=>x?.id===item.id)===index),currentAudit=[...(db.auditLog||[])];
@@ -3493,7 +3490,7 @@ function closeV92WhatsAppFallback(){const modal=document.getElementById('v92What
 async function copyV92WhatsAppMessage(){
   const text=document.getElementById('v92WhatsAppMessage')?.value||v92PendingWhatsApp?.message||'';const status=document.getElementById('v92CopyStatus');
   try{if(navigator.clipboard&&window.isSecureContext)await navigator.clipboard.writeText(text);else{const box=document.getElementById('v92WhatsAppMessage');box.focus();box.select();document.execCommand('copy');}if(status)status.textContent='تم نسخ الرسالة بنجاح.';}
-  catch(err){console.error(err);if(status)status.textContent='تعذر النسخ التلقائي؛ حدّد النص وانسخه يدويًا.';}
+  catch(_){if(status)status.textContent='تعذر النسخ التلقائي؛ حدّد النص وانسخه يدويًا.';}
 }
 function openV92WhatsAppFromFallback(){
   if(!v92PendingWhatsApp)return;const pending=v92PendingWhatsApp;
@@ -3522,7 +3519,7 @@ async function refreshBookingData(){
   if(v92BookingDirty&&!confirm('توجد تعديلات غير محفوظة. هل تريد تجاهلها وتحديث البيانات؟'))return;
   const button=document.activeElement?.tagName==='BUTTON'?document.activeElement:null;if(button)button.disabled=true;
   try{if(v92PendingRemoteData){db=normalizeDB(v92PendingRemoteData);v92PendingRemoteData=null;localStorage.setItem('adwaaDB',JSON.stringify(db));if(typeof renderAll==='function')renderAll();}else if(typeof loadRemoteData==='function')await loadRemoteData();else if(typeof renderAll==='function')renderAll();const found=(db.bookings||[]).find(x=>x.id===id);if(!found){alert('لم يعد الحجز موجودًا في قاعدة البيانات.');return;}v92OriginalOpenBooking(id);v92BookingDirty=false;alert('تم تحديث بيانات الحجز بنجاح.');}
-  catch(err){console.error(err);alert('تعذر تحديث البيانات. تحقق من الاتصال ثم حاول مرة أخرى.');}
+  catch(_){alert('تعذر تحديث البيانات. تحقق من الاتصال ثم حاول مرة أخرى.');}
   finally{if(button)button.disabled=false;}
 }
 function closeBookingAndReturn(){
