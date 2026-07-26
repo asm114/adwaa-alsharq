@@ -858,6 +858,7 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
 <div class="meta" style="margin-bottom:12px">اختر الحالة الحالية، وستظهر مباشرة على جميع الأجهزة.</div>
 <div id="resortStatusOptions" class="status-options"></div>
 </div></div>
+<script src="./security-validation.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
@@ -922,7 +923,7 @@ const DEFAULT_WELCOME_STAY=`يسرّنا استقبالكم في منتجع أض
 ⏰ موعد الخروج الساعة 8:00 صباحًا، مع سماح حتى الساعة 10:00 صباحًا.
 
 نسعد بخدمتكم، ونتمنى لكم إقامة طيبة.`;
-function readLocalDB(){try{return JSON.parse(localStorage.getItem('adwaaDB')||'null')}catch(err){console.warn('تعذر قراءة النسخة المحلية',err);return null}}
+function readLocalDB(){try{const raw=localStorage.getItem('adwaaDB');return raw?AdwaaValidation.validateDatabase(AdwaaValidation.parseJson(raw)):null}catch(_){return null}}
 let db=readLocalDB()||{bookings:[],expenses:[],cleaningTasks:[],notifications:[],customerNotes:{},backupHistory:[],auditLog:[],settings:{waNumber:'',welcomeMsgDaily:DEFAULT_WELCOME_DAILY,welcomeMsgStay:DEFAULT_WELCOME_STAY,resortStatus:'ready',resortStatusUpdated:'',calendarMode:'both',commissionEnabled:true,commissionMethod:'per_day',commissionRate:100},seq:1};
 const HELP_CONTENT={
   contract:{title:'متى يُستخدم العقد؟',text:'يُرسل العقد بعد الاتفاق مع العميل على التاريخ والسعر، وقبل تأكيد الحجز نهائيًا. يوضح العقد الشروط وأوقات الدخول والخروج ومسؤولية الأضرار.'},
@@ -1115,7 +1116,7 @@ function scheduleRenderAll(){
 }
 
 function normalizeDB(value){
-  const x=value&&typeof value==='object'?value:{};
+  const x=AdwaaValidation.validateDatabase(value&&typeof value==='object'?value:{});
   const normalizedSettings={
     waNumber:x.settings?.waNumber||'',
     welcomeMsgDaily:x.settings?.welcomeMsgDaily||DEFAULT_WELCOME_DAILY,
