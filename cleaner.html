@@ -109,11 +109,8 @@ function fmt(x){return x?new Date(x).toLocaleString('ar-SA'):'-'}
 async function load(){
  if(!TASK_ID_PATTERN.test(taskId||'')||!TOKEN_PATTERN.test(token||'')){show('invalid');syncState('رابط غير صالح','bad');return}
  try{
-  const {data,error}=await client.rpc('cleaner_get_task',{p_task_id:taskId,p_token:token});
-  if(error)throw error; task=data;
+  task=await fetchLatestTask();
   if(!task)throw new Error('المهمة غير موجودة أو الرابط غير صالح');
-  task.photos=Array.isArray(task.photos)?task.photos:[];task.issues=Array.isArray(task.issues)?task.issues:[];
-  state.photos=task.photos;state.issues=task.issues;
   bookingCode.textContent=task.bookingCode||'-';bookingDate.textContent=task.bookingDate||'-';buildPlaces();
   syncState('متصل بلوحة المدير','ok');
   if(['pending_approval','approved','done'].includes(task.status)){showFinish()}
@@ -121,12 +118,33 @@ async function load(){
   else {show('stages');renderStages();}
  }catch(_){invalidText.textContent='تعذر فتح المهمة. تأكد من صلاحية الرابط أو اطلب رابطًا جديدًا من المدير.';show('invalid');syncState('تعذر الاتصال','bad')}
 }
+async function fetchLatestTask(){
+ const {data,error}=await client.rpc('cleaner_get_task',{p_task_id:taskId,p_token:token});
+ if(error)throw error;
+ if(!data)return null;
+ const latest={...data,revision:Number.isSafeInteger(Number(data.revision))&&Number(data.revision)>=0?Number(data.revision):0};
+ latest.photos=Array.isArray(latest.photos)?latest.photos:[];latest.issues=Array.isArray(latest.issues)?latest.issues:[];
+ task=latest;state.photos=latest.photos;state.issues=latest.issues;
+ return latest;
+}
 async function saveRemote(){
  syncState('جاري الحفظ…');
  task.photos=state.photos;task.issues=state.issues;task.worker='جميل';
  const patch={status:task.status,photos:task.photos,issues:task.issues,arrivedAt:task.arrivedAt||null,handedOverAt:task.handedOverAt||null,departedAt:task.departedAt||null,startedAt:task.startedAt||null,completedAt:task.completedAt||null};
- const {data,error}=await client.rpc('cleaner_update_task',{p_task_id:taskId,p_token:token,p_patch:patch});
- if(error||!data)throw new Error('تعذر حفظ المهمة');
+ const expectedRevision=Number(task.revision);
+ if(!Number.isSafeInteger(expectedRevision)||expectedRevision<0)throw new Error('تعذر التحقق من نسخة المهمة');
+ const {data,error}=await client.rpc('cleaner_update_task',{p_task_id:taskId,p_token:token,p_expected_revision:expectedRevision,p_patch:patch});
+ if(error){
+  if(error.code==='40001'||error.message==='conflict'){
+   try{await fetchLatestTask();renderStages();}catch(_){}
+   syncState('أُعيد تحميل أحدث نسخة','bad');
+   alert('تم تحديث المهمة من جهاز آخر. أُعيد تحميل أحدث نسخة.');
+   throw new Error('task_conflict');
+  }
+  syncState('تعذر الحفظ','bad');
+  throw new Error('تعذر حفظ المهمة');
+ }
+ if(!data)throw new Error('تعذر حفظ المهمة');
  task=data;state.photos=Array.isArray(task.photos)?task.photos:[];state.issues=Array.isArray(task.issues)?task.issues:[];
  syncState('تم الحفظ والمزامنة','ok');
 }
@@ -163,6 +181,7 @@ async function finishTask(){
  await saveRemote();showFinish();speak('شكرًا يا جميل، تم استلام المهمة.');
 }
 function showFinish(){show('finish');photoCount.textContent=(task.photos||[]).length;issueCount.textContent=(task.issues||[]).length;finishStatus.innerHTML='بدأت المهمة: '+fmt(task.startedAt)+'<br>انتهت المهمة: '+fmt(task.completedAt)}
+window.addEventListener('unhandledrejection',event=>{if(event.reason?.message==='task_conflict')event.preventDefault()});
 load();
 </script>
 </body></html>

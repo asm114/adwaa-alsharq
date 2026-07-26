@@ -17,7 +17,7 @@
     'id','bookingId','bookingCode','bookingName','phone','date','type','token','accessExpiresAt',
     'status','worker','notes','photos','checklist','createdAt','updatedAt','completedAt','approvedAt',
     'returnedAt','taskName','taskDescription','publicStatus','cancelledAt','bookingDate','customer',
-    'checkoutAt','arrivedAt','startedAt','departedAt','handedOverAt','issues','returnReason','entry','exit'
+    'checkoutAt','arrivedAt','startedAt','departedAt','handedOverAt','issues','returnReason','entry','exit','revision'
   ]);
   const NOTIFICATION_FIELDS=new Set(['id','bookingId','taskId','type','title','message','read','at','createdAt','updatedAt']);
   const AUDIT_FIELDS=new Set(['id','at','user','action','entity','details','before','after']);
@@ -114,6 +114,7 @@
     const t=pick(raw,CLEANING_FIELDS);t.id=id(t.id);t.bookingId=id(t.bookingId);t.bookingCode=text(t.bookingCode,64);t.bookingName=text(t.bookingName,200);t.phone=phone(t.phone);
     t.date=isoDate(t.date);t.type=ALLOWED_BOOKING_TYPE.has(t.type)?t.type:'يومي';t.token=/^[a-f0-9]{32}$/i.test(text(t.token,32))?String(t.token):'';
     t.status=['جديدة','قيد التنفيذ','مكتملة','بانتظار الاعتماد','معتمدة','إعادة تنظيف','ملغي','done','pending'].includes(t.status)?t.status:'جديدة';
+    t.revision=finite(t.revision,{min:0,max:Number.MAX_SAFE_INTEGER,fallback:0});
     t.worker=text(t.worker,200);t.notes=text(t.notes,LIMITS.longText);t.photos=(Array.isArray(t.photos)?t.photos:[]).slice(0,LIMITS.photos).map(safePhoto).filter(photo=>photo.dataUrl);
     t.checklist=(Array.isArray(t.checklist)?t.checklist:[]).slice(0,100).map(item=>text(item,300));return t;
   }

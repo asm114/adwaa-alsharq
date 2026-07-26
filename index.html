@@ -2162,7 +2162,7 @@ function ensureCleaningTaskForBooking(booking,previousStatus){
   if(booking.status!=='تم الخروج'||previousStatus==='تم الخروج')return;
   const exists=db.cleaningTasks.some(t=>t.bookingId===booking.id&&t.status!=='ملغي');
   if(exists)return;
-  const createdTask={id:crypto.randomUUID(),token:randomTaskToken(),accessExpiresAt:cleanerAccessExpiry(),bookingId:booking.id,bookingCode:booking.code||'',customer:booking.name||'',bookingDate:booking.date||'',checkoutAt:new Date().toISOString(),worker:'جميل',bookingType:booking.type||'يومي',notes:'',status:'pending',photos:[],issues:[],createdAt:new Date().toISOString(),startedAt:'',completedAt:''};
+  const createdTask={id:crypto.randomUUID(),revision:0,token:randomTaskToken(),accessExpiresAt:cleanerAccessExpiry(),bookingId:booking.id,bookingCode:booking.code||'',customer:booking.name||'',bookingDate:booking.date||'',checkoutAt:new Date().toISOString(),worker:'جميل',bookingType:booking.type||'يومي',notes:'',status:'pending',photos:[],issues:[],createdAt:new Date().toISOString(),startedAt:'',completedAt:''};
   db.cleaningTasks.push(createdTask);addAudit('إضافة','مهمة تنظيف',`${booking.name||''} — #${booking.code||''}`,null,createdTask);
   db.settings.resortStatus='cleaning';db.settings.resortStatusUpdated=new Date().toISOString();
 }
@@ -2250,7 +2250,7 @@ function openCleaningTask(id){
   if(id){const t=db.cleaningTasks.find(x=>x.id===id);if(!t)return;cleanCustomer.value=t.customer||'';cleanBookingDate.value=t.bookingDate||'';cleanCheckout.value=localDateTimeValue(t.checkoutAt);cleanWorker.value=t.worker||'';cleanNotes.value=t.notes||'';}
   cleaningModal.classList.add('open');
 }
-async function saveCleaningTask(e){e.preventDefault();const id=cleanId.value;const old=id?db.cleaningTasks.find(x=>x.id===id):null;const task={id:id||crypto.randomUUID(),bookingId:old?.bookingId||'',bookingCode:old?.bookingCode||'',customer:cleanCustomer.value.trim(),bookingDate:cleanBookingDate.value,checkoutAt:cleanCheckout.value?new Date(cleanCheckout.value).toISOString():'',worker:cleanWorker.value.trim(),notes:cleanNotes.value.trim(),status:old?.status||'pending',token:old?.token||randomTaskToken(),accessExpiresAt:old?.accessExpiresAt||cleanerAccessExpiry(),photos:old?.photos||[],issues:old?.issues||[],arrivedAt:old?.arrivedAt||'',handedOverAt:old?.handedOverAt||'',departedAt:old?.departedAt||'',startedAt:old?.startedAt||'',createdAt:old?.createdAt||new Date().toISOString(),completedAt:old?.completedAt||''};if(id){const i=db.cleaningTasks.findIndex(x=>x.id===id);db.cleaningTasks[i]=task;addAudit('تعديل','مهمة تنظيف',`${task.customer||''} — #${task.bookingCode||''}`,old,task)}else{db.cleaningTasks.push(task);addAudit('إضافة','مهمة تنظيف',task.customer||'مهمة يدوية',null,task)}await persist();closeModal('cleaningModal')}
+async function saveCleaningTask(e){e.preventDefault();const id=cleanId.value;const old=id?db.cleaningTasks.find(x=>x.id===id):null;const task={id:id||crypto.randomUUID(),revision:Number.isSafeInteger(Number(old?.revision))&&Number(old?.revision)>=0?Number(old.revision):0,bookingId:old?.bookingId||'',bookingCode:old?.bookingCode||'',customer:cleanCustomer.value.trim(),bookingDate:cleanBookingDate.value,checkoutAt:cleanCheckout.value?new Date(cleanCheckout.value).toISOString():'',worker:cleanWorker.value.trim(),notes:cleanNotes.value.trim(),status:old?.status||'pending',token:old?.token||randomTaskToken(),accessExpiresAt:old?.accessExpiresAt||cleanerAccessExpiry(),photos:old?.photos||[],issues:old?.issues||[],arrivedAt:old?.arrivedAt||'',handedOverAt:old?.handedOverAt||'',departedAt:old?.departedAt||'',startedAt:old?.startedAt||'',createdAt:old?.createdAt||new Date().toISOString(),completedAt:old?.completedAt||''};if(id){const i=db.cleaningTasks.findIndex(x=>x.id===id);db.cleaningTasks[i]=task;addAudit('تعديل','مهمة تنظيف',`${task.customer||''} — #${task.bookingCode||''}`,old,task)}else{db.cleaningTasks.push(task);addAudit('إضافة','مهمة تنظيف',task.customer||'مهمة يدوية',null,task)}await persist();closeModal('cleaningModal')}
 async function completeCleaning(id){const t=db.cleaningTasks.find(x=>x.id===id);if(!t)return;const before=safeClone(t),worker=prompt('اسم منفذ التنظيف:',t.worker||'')??t.worker;t.worker=String(worker||'').trim();t.status='done';t.completedAt=new Date().toISOString();if(!(db.cleaningTasks||[]).some(x=>x.id!==id&&x.status!=='done')){db.settings.resortStatus='ready';db.settings.resortStatusUpdated=new Date().toISOString()}addAudit('إكمال','مهمة تنظيف',`${t.customer||''} — ${t.worker||''}`,before,t);await persist()}
 async function reopenCleaning(id){const t=db.cleaningTasks.find(x=>x.id===id);if(!t)return;const before=safeClone(t);t.status='pending';t.completedAt='';db.settings.resortStatus='cleaning';db.settings.resortStatusUpdated=new Date().toISOString();addAudit('إعادة فتح','مهمة تنظيف',t.customer||'',before,t);await persist()}
 async function deleteCleaningTask(){const id=cleanId.value,old=db.cleaningTasks.find(x=>x.id===id);if(!id||!old||!confirm('حذف مهمة التنظيف؟'))return;db.cleaningTasks=db.cleaningTasks.filter(x=>x.id!==id);addAudit('حذف','مهمة تنظيف',`${old.customer||''} — #${old.bookingCode||''}`,old,null);await persist();closeModal('cleaningModal')}
@@ -2283,6 +2283,7 @@ async function ensureCleanerTask(bookingId){
   if(!task){
     task={
       id:crypto.randomUUID(),
+      revision:0,
       token:randomTaskToken(),
       accessExpiresAt:cleanerAccessExpiry(),
       bookingId:booking.id,
@@ -2301,6 +2302,7 @@ async function ensureCleanerTask(bookingId){
     };
     db.cleaningTasks.push(task);addAudit('إضافة','مهمة تنظيف',`${booking.name||''} — #${booking.code||''}`,null,task);
   }else{
+    task.revision=Number.isSafeInteger(Number(task.revision))&&Number(task.revision)>=0?Number(task.revision):0;
     task.token=task.token||randomTaskToken();
     task.worker=task.worker||'جميل';
     task.photos=Array.isArray(task.photos)?task.photos:[];
