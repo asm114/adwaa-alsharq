@@ -1,0 +1,8 @@
+# Local staging credentials and database artifacts — never commit.
+staging-config.js
+.env
+.env.*
+!.env.example
+supabase/.temp/
+*.dump
+

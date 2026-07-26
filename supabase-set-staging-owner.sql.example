@@ -1,0 +1,32 @@
+-- STAGING ONLY. Replace the placeholder manually in a private SQL editor.
+-- This file must fail until the placeholder is replaced.
+
+do $owner$
+declare
+  v_owner_text constant text := '<STAGING_MANAGER_USER_UUID>';
+  v_owner uuid;
+begin
+  if v_owner_text = '<STAGING_MANAGER_USER_UUID>' then
+    raise exception using errcode='22023', message='replace_staging_manager_uuid_first';
+  end if;
+
+  begin
+    v_owner := v_owner_text::uuid;
+  exception when invalid_text_representation then
+    raise exception using errcode='22023', message='invalid_staging_manager_uuid';
+  end;
+
+  if not exists (select 1 from auth.users where id=v_owner) then
+    raise exception using errcode='22023', message='staging_manager_user_not_found';
+  end if;
+
+  update public.app_state
+  set owner_id=v_owner
+  where id='main';
+
+  if not found then
+    raise exception using errcode='55000', message='staging_main_row_not_found';
+  end if;
+end
+$owner$;
+
