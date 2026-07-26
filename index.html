@@ -636,6 +636,8 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
       <div id="syncStatus" class="notice">جاري الاتصال بقاعدة البيانات...</div>
       <div class="auth-user-row"><div><b>الحساب المسجل</b><div id="signedInEmail" class="meta">—</div></div><button class="danger" type="button" onclick="logoutManager()">تسجيل الخروج</button></div>
       <label class="auth-save-button" style="margin:12px 0"><input id="helpEnabledToggle" type="checkbox" onchange="setHelpEnabled(this.checked)" style="width:auto"> <span><b>إظهار تعليمات المساعدة</b><small class="meta" style="display:block">تشغيل / إيقاف أيقونات ⓘ على هذا الجهاز.</small></span></label>
+      <label class="auth-save-button" style="margin:12px 0"><input id="retainOfflineDataToggle" type="checkbox" onchange="saveSetting()" style="width:auto"> <span><b>الاحتفاظ بنسخة عمل دون اتصال</b><small class="meta" style="display:block">عند إيقافه تُحذف بيانات العمل المحلية عند تسجيل الخروج. لا تفعّله على جهاز مشترك.</small></span></label>
+      <div class="notice" style="margin:12px 0;background:#fff8df;color:#785b00"><b>تنبيه الجهاز المشترك:</b> لا تحفظ تسجيل الدخول أو نسخة العمل المحلية على جهاز يستخدمه أشخاص آخرون، وسجّل الخروج عند الانتهاء.</div>
       <div class="backup-tools">
         <span class="help-action"><button class="primary" type="button" onclick="createManualBackup()">💾 إنشاء نسخة احتياطية</button><span data-help="backup"></span></span>
         <button class="secondary" type="button" onclick="createRestorePoint()">🔒 إنشاء نقطة استعادة</button>
@@ -924,7 +926,9 @@ const DEFAULT_WELCOME_STAY=`يسرّنا استقبالكم في منتجع أض
 
 نسعد بخدمتكم، ونتمنى لكم إقامة طيبة.`;
 function readLocalDB(){try{const raw=localStorage.getItem('adwaaDB');return raw?AdwaaValidation.validateDatabase(AdwaaValidation.parseJson(raw)):null}catch(_){return null}}
-let db=readLocalDB()||{bookings:[],expenses:[],cleaningTasks:[],notifications:[],customerNotes:{},backupHistory:[],auditLog:[],settings:{waNumber:'',welcomeMsgDaily:DEFAULT_WELCOME_DAILY,welcomeMsgStay:DEFAULT_WELCOME_STAY,resortStatus:'ready',resortStatusUpdated:'',calendarMode:'both',commissionEnabled:true,commissionMethod:'per_day',commissionRate:100},seq:1};
+function emptyDatabase(){return {bookings:[],expenses:[],cleaningTasks:[],notifications:[],customerNotes:{},backupHistory:[],auditLog:[],settings:{waNumber:'',welcomeMsgDaily:DEFAULT_WELCOME_DAILY,welcomeMsgStay:DEFAULT_WELCOME_STAY,resortStatus:'ready',resortStatusUpdated:'',calendarMode:'both',commissionEnabled:true,commissionMethod:'per_day',commissionRate:100,retainOfflineData:true},seq:1}}
+// لا تُقرأ بيانات الإدارة المحلية قبل التحقق من جلسة صالحة.
+let db=emptyDatabase();
 const HELP_CONTENT={
   contract:{title:'متى يُستخدم العقد؟',text:'يُرسل العقد بعد الاتفاق مع العميل على التاريخ والسعر، وقبل تأكيد الحجز نهائيًا. يوضح العقد الشروط وأوقات الدخول والخروج ومسؤولية الأضرار.'},
   invoice:{title:'متى تُرسل الفاتورة النهائية؟',text:'تُرسل الفاتورة النهائية بعد استلام كامل مبلغ الحجز. يجب أن يظهر المتبقي صفرًا وحالة الدفع: مدفوع بالكامل.'},
@@ -1041,7 +1045,11 @@ async function saveManagerCredentialPreference(email,password){
   }
 }
 function showLogin(){
+  clearGoogleDriveSession('signed-out');
+  if(idleLockTimer){clearTimeout(idleLockTimer);idleLockTimer=0}
   currentUser=null;
+  db=emptyDatabase();
+  invalidateCaches();
   document.getElementById('authGate')?.removeAttribute('hidden');
   document.getElementById('appRoot')?.classList.add('auth-locked');
   document.getElementById('signedInEmail')&&(document.getElementById('signedInEmail').textContent='—');
@@ -1050,6 +1058,7 @@ function showLogin(){
 async function showApplication(user){
   currentUser=user||null;
   if(!currentUser){showLogin();return}
+  db=normalizeDB(readLocalDB()||emptyDatabase());
   document.getElementById('authGate')?.setAttribute('hidden','');
   document.getElementById('appRoot')?.classList.remove('auth-locked');
   const email=document.getElementById('signedInEmail');
@@ -1057,6 +1066,7 @@ async function showApplication(user){
   renderAll();
   await loadRemoteData();
   subscribeRealtime();
+  resetIdleLock();
   hideLaunchSplash();
 }
 async function loginManager(event){
@@ -1075,7 +1085,6 @@ async function loginManager(event){
     await showApplication(data.user);
     document.getElementById('loginPassword').value='';
   }catch(err){
-    console.error(err);
     const message=/Invalid login credentials/i.test(String(err?.message||''))?'البريد أو كلمة المرور غير صحيحة.':'تعذر تسجيل الدخول. تحقق من الاتصال وإعداد حساب المدير.';
     setAuthStatus(message,'error');
   }finally{
@@ -1084,10 +1093,33 @@ async function loginManager(event){
 }
 async function logoutManager(){
   if(!confirm('تسجيل الخروج من لوحة الإدارة؟'))return;
-  try{await supabaseClient.auth.signOut()}catch(err){console.error(err)}
+  const retainOfflineData=db.settings?.retainOfflineData!==false;
+  try{await supabaseClient.auth.signOut()}catch(_){}
   if(realtimeChannel){try{await supabaseClient.removeChannel(realtimeChannel)}catch(_){} realtimeChannel=null}
+  if(!retainOfflineData)try{localStorage.removeItem('adwaaDB')}catch(_){}
   showLogin();
 }
+const IDLE_LOCK_MS=30*60*1000;
+let idleLockTimer=0;
+function resetIdleLock(){
+  if(idleLockTimer)clearTimeout(idleLockTimer);
+  if(!currentUser)return;
+  idleLockTimer=setTimeout(async()=>{
+    clearGoogleDriveSession('idle');
+    try{await supabaseClient.auth.signOut()}catch(_){}
+    showLogin();
+    setAuthStatus('تم قفل لوحة الإدارة بعد 30 دقيقة من عدم النشاط. سجّل الدخول للمتابعة.','error');
+  },IDLE_LOCK_MS);
+}
+let lastIdleActivityAt=0;
+function noteAuthenticatedActivity(){
+  if(!currentUser)return;
+  const now=Date.now();
+  if(now-lastIdleActivityAt<15000)return;
+  lastIdleActivityAt=now;
+  resetIdleLock();
+}
+['pointerdown','keydown','touchstart'].forEach(type=>document.addEventListener(type,noteAuthenticatedActivity,{passive:true}));
 async function initializeSecureApp(){
   initializeRememberLogin();
   if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
@@ -1095,8 +1127,8 @@ async function initializeSecureApp(){
     const {data,error}=await supabaseClient.auth.getSession();
     if(error)throw error;
     if(data?.session?.user)await showApplication(data.session.user);else{showLogin();hideLaunchSplash()}
-  }catch(err){
-    console.error(err);showLogin();setAuthStatus('تعذر التحقق من الجلسة. تأكد من الاتصال ثم أعد المحاولة.','error');hideLaunchSplash();
+  }catch(_){
+    showLogin();setAuthStatus('تعذر التحقق من الجلسة. تأكد من الاتصال ثم أعد المحاولة.','error');hideLaunchSplash();
   }
   supabaseClient.auth.onAuthStateChange((event,session)=>{
     if(event==='SIGNED_OUT'||!session?.user){showLogin();return}
@@ -1126,7 +1158,8 @@ function normalizeDB(value){
     calendarMode:x.settings?.calendarMode||'both',
     commissionEnabled:x.settings?.commissionEnabled!==false,
     commissionMethod:['per_booking','per_day','percentage'].includes(x.settings?.commissionMethod)?x.settings.commissionMethod:'per_day',
-    commissionRate:Math.max(0,Number(x.settings?.commissionRate??100))
+    commissionRate:Math.max(0,Number(x.settings?.commissionRate??100)),
+    retainOfflineData:x.settings?.retainOfflineData!==false
   };
   const bookings=(Array.isArray(x.bookings)?x.bookings:[]).map(raw=>normalizeBookingCommission(raw,normalizedSettings));
   return {
@@ -1282,7 +1315,7 @@ function renderResortStatus(){const key=db.settings?.resortStatus||'ready',st=RE
 function openResortStatus(){const current=db.settings?.resortStatus||'ready';document.getElementById('resortStatusOptions').innerHTML=Object.entries(RESORT_STATUSES).map(([key,st])=>`<button class="status-option ${key===current?'active':''}" onclick="setResortStatus(${actionArg(key)})"><span style="font-size:24px">${escapeHtml(st.icon)}</span><br>${escapeHtml(st.label)}</button>`).join('');document.getElementById('resortStatusModal').classList.add('open');}
 async function setResortStatus(key){if(!RESORT_STATUSES[key])return;const before=db.settings.resortStatus||'ready';db.settings.resortStatus=key;db.settings.resortStatusUpdated=new Date().toISOString();addAudit('تعديل','حالة المنتجع',`${RESORT_STATUSES[before]?.label||before} ← ${RESORT_STATUSES[key]?.label||key}`,{status:before},{status:key});closeModal('resortStatusModal');await persist();}
 function switchView(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));const target=document.getElementById(id);if(!target)return;target.classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));(btn||document.querySelector(`nav button[data-view="${id}"]`))?.classList.add('active');const t={dashboard:['لوحة إدارة المنتجع','متابعة الحجوزات والمبالغ من مكان واحد'],bookings:['إدارة الحجوزات','إضافة وتعديل ومتابعة جميع الحجوزات'],customers:['سجل العملاء','عدد الزيارات والمدفوعات وآخر حجز'],calendarView:['تقويم الحجوزات','عرض الأيام المحجوزة ومنع التداخل'],cleaning:['مركز التنظيف','متابعة مهام التنظيف بعد مغادرة العملاء'],expenses:['المصاريف والدخل','متابعة المصروفات وصافي الدخل'],dataProtection:['مركز حماية البيانات','النسخ المحلية والسحابية وفحص السلامة وخطة التعافي'],about:['حول النظام','معلومات الإصدار والحماية وحالة البيانات'],settings:['الإعدادات','النسخ الاحتياطي وبيانات واتساب']}[id]||['نظام أضواء الشرق',''];pageTitle.textContent=t[0];pageSub.textContent=t[1];window.scrollTo(0,0);renderCurrentView(id)}
-function renderCurrentView(id){if(id==='dashboard')renderDashboard();else if(id==='bookings')renderBookings();else if(id==='customers')renderCustomers();else if(id==='calendarView')renderCalendar();else if(id==='cleaning')renderCleaning();else if(id==='expenses')renderExpenses();else if(id==='dataProtection')renderDataProtectionCenter();else if(id==='about')renderAbout();else if(id==='settings'){const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay'),enabledEl=document.getElementById('commissionEnabled'),methodEl=document.getElementById('commissionMethod'),rateEl=document.getElementById('commissionRate');if(waEl)waEl.value=db.settings.waNumber||'';if(dailyEl)dailyEl.value=db.settings.welcomeMsgDaily||DEFAULT_WELCOME_DAILY;if(stayEl)stayEl.value=db.settings.welcomeMsgStay||DEFAULT_WELCOME_STAY;if(enabledEl)enabledEl.checked=db.settings.commissionEnabled!==false;if(methodEl)methodEl.value=db.settings.commissionMethod||'per_day';if(rateEl)rateEl.value=Number(db.settings.commissionRate??100);renderBackupHistory();renderAuditLog()}}
+function renderCurrentView(id){if(id==='dashboard')renderDashboard();else if(id==='bookings')renderBookings();else if(id==='customers')renderCustomers();else if(id==='calendarView')renderCalendar();else if(id==='cleaning')renderCleaning();else if(id==='expenses')renderExpenses();else if(id==='dataProtection')renderDataProtectionCenter();else if(id==='about')renderAbout();else if(id==='settings'){const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay'),enabledEl=document.getElementById('commissionEnabled'),methodEl=document.getElementById('commissionMethod'),rateEl=document.getElementById('commissionRate'),offlineEl=document.getElementById('retainOfflineDataToggle');if(waEl)waEl.value=db.settings.waNumber||'';if(dailyEl)dailyEl.value=db.settings.welcomeMsgDaily||DEFAULT_WELCOME_DAILY;if(stayEl)stayEl.value=db.settings.welcomeMsgStay||DEFAULT_WELCOME_STAY;if(enabledEl)enabledEl.checked=db.settings.commissionEnabled!==false;if(methodEl)methodEl.value=db.settings.commissionMethod||'per_day';if(rateEl)rateEl.value=Number(db.settings.commissionRate??100);if(offlineEl)offlineEl.checked=db.settings.retainOfflineData!==false;renderBackupHistory();renderAuditLog()}}
 function renderAll(){renderDashboard();renderBookings();renderCustomers();renderCleaning();renderExpenses();renderCalendar();renderResortStatus();renderAbout();const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay'),calMode=document.getElementById('calendarMode');if(waEl)waEl.value=db.settings.waNumber||'';if(dailyEl)dailyEl.value=db.settings.welcomeMsgDaily||DEFAULT_WELCOME_DAILY;if(stayEl)stayEl.value=db.settings.welcomeMsgStay||DEFAULT_WELCOME_STAY;if(calMode)calMode.value=db.settings.calendarMode||'both';renderSendStatus()}
 
 function setAboutText(id,value){const el=document.getElementById(id);if(el)el.textContent=String(value??'—')}
@@ -2688,7 +2721,7 @@ function renderCalendarSummary(year,month,daysInMonth){
 function changeMonth(n){calDate.setMonth(calDate.getMonth()+n);renderCalendar()}
 function goCalendarToday(){calDate=new Date();renderCalendar()}
 async function changeCalendarMode(){const el=document.getElementById('calendarMode');if(!el)return;const before=db.settings.calendarMode||'both';db.settings.calendarMode=el.value||'both';addAudit('تعديل','إعداد التقويم',`${before} ← ${db.settings.calendarMode}`,{mode:before},{mode:db.settings.calendarMode});renderCalendar();await persist()}
-async function saveSetting(){const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay'),enabledEl=document.getElementById('commissionEnabled'),methodEl=document.getElementById('commissionMethod'),rateEl=document.getElementById('commissionRate');const before=safeClone(db.settings);db.settings.waNumber=waEl?.value.trim()||'';db.settings.welcomeMsgDaily=dailyEl?.value||DEFAULT_WELCOME_DAILY;db.settings.welcomeMsgStay=stayEl?.value||DEFAULT_WELCOME_STAY;if(enabledEl)db.settings.commissionEnabled=enabledEl.checked;if(methodEl)db.settings.commissionMethod=methodEl.value;if(rateEl)db.settings.commissionRate=Math.max(0,Number(rateEl.value||0));addAudit('تعديل','الإعدادات','تحديث الإعدادات وسياسة العمولة',before,db.settings);await persist()}
+async function saveSetting(){const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay'),enabledEl=document.getElementById('commissionEnabled'),methodEl=document.getElementById('commissionMethod'),rateEl=document.getElementById('commissionRate'),offlineEl=document.getElementById('retainOfflineDataToggle');const before=safeClone(db.settings);db.settings.waNumber=waEl?.value.trim()||'';db.settings.welcomeMsgDaily=dailyEl?.value||DEFAULT_WELCOME_DAILY;db.settings.welcomeMsgStay=stayEl?.value||DEFAULT_WELCOME_STAY;if(enabledEl)db.settings.commissionEnabled=enabledEl.checked;if(methodEl)db.settings.commissionMethod=methodEl.value;if(rateEl)db.settings.commissionRate=Math.max(0,Number(rateEl.value||0));if(offlineEl)db.settings.retainOfflineData=offlineEl.checked;addAudit('تعديل','الإعدادات','تحديث الإعدادات وسياسة العمولة',before,db.settings);await persist()}
 function waLink(phone,msg){let p=(phone||'').replace(/\D/g,'');if(p.startsWith('05'))p='966'+p.slice(1);return `https://wa.me/${p}?text=${encodeURIComponent(msg)}`}
 function sendWhatsAppFromForm(){let msg=`مرحبًا ${bName.value||''}\nتم تسجيل حجزكم في منتجع أضواء الشرق\nالتاريخ: ${bDate.value}\nنوع الحجز: ${bType.value}${bType.value==='مبيت'?`\nعدد أيام المبيت: ${Math.max(1,Number(bStayDays.value||1))}\nتاريخ الخروج: ${addDaysISO(bDate.value,Math.max(1,Number(bStayDays.value||1)))}`:''}\nالمدفوع: ${money(bPaid.value)}\nالمتبقي: ${money(Number(bTotal.value)-Number(bPaid.value))}`;window.open(waLink(bPhone.value,msg),'_blank')}
 function openBackupVault(){
@@ -2732,6 +2765,14 @@ function saveGoogleDriveState(changes={}){
   try{localStorage.setItem(GOOGLE_DRIVE_STATE_KEY,JSON.stringify(safe))}catch(err){console.warn('تعذر حفظ حالة Google Drive غير الحساسة محليًا',err)}return safe
 }
 function googleDriveSessionActive(){return !!googleDriveAccessToken&&Date.now()<googleDriveTokenExpiresAt-30000}
+function clearGoogleDriveSession(reason=''){
+  googleDriveAccessToken='';
+  googleDriveTokenExpiresAt=0;
+  googleDriveTokenClient=null;
+  googleDriveFiles=[];
+  if(reason==='expired'||reason==='unauthorized')saveGoogleDriveState({lastError:'انتهت جلسة Google Drive وتلزم إعادة الاتصال.'});
+  renderGoogleDriveStatus();
+}
 function setGoogleDriveMessage(message,type=''){
   const box=document.getElementById('googleDriveMessage');if(!box)return;box.className=`notice drive-message show ${type}`.trim();box.textContent=message
 }
