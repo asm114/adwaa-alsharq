@@ -939,7 +939,7 @@ function markHelpRead(key){const read=readHelpItems();read.add(key);localStorage
 function isHelpEnabled(){return localStorage.getItem(HELP_ENABLED_STORAGE_KEY)!=='false'}
 function applyHelpVisibility(){const enabled=isHelpEnabled();document.body.classList.toggle('help-disabled',!enabled);const toggle=document.getElementById('helpEnabledToggle');if(toggle)toggle.checked=enabled}
 function setHelpEnabled(enabled){localStorage.setItem(HELP_ENABLED_STORAGE_KEY,String(!!enabled));applyHelpVisibility();if(!enabled)closeHelp()}
-function helpIcon(key){const item=HELP_CONTENT[key];return item?`<button class="help-icon ${isHelpRead(key)?'':'unread'}" data-help-key="${key}" type="button" onclick="openHelp(event,'${key}')" aria-label="مساعدة: ${item.title}" title="مساعدة">ⓘ</button>`:''}
+function helpIcon(key){const item=HELP_CONTENT[key];return item?`<button class="help-icon ${isHelpRead(key)?'':'unread'}" data-help-key="${escapeHtml(key)}" type="button" onclick="openHelp(event,${actionArg(key)})" aria-label="مساعدة: ${escapeHtml(item.title)}" title="مساعدة">ⓘ</button>`:''}
 function renderHelpIcons(root=document){root.querySelectorAll('[data-help]').forEach(el=>{const key=el.dataset.help;if(HELP_CONTENT[key]&&!el.querySelector('.help-icon'))el.innerHTML=helpIcon(key)})}
 function openHelp(event,key){event?.preventDefault();event?.stopPropagation();const item=HELP_CONTENT[key],popover=document.getElementById('helpPopover');if(!item||!popover||!isHelpEnabled())return;markHelpRead(key);document.getElementById('helpPopoverTitle').textContent=item.title;document.getElementById('helpPopoverText').textContent=item.text;popover.classList.add('open');document.body.classList.add('modal-open');popover.querySelector('.help-popover-close')?.focus()}
 function closeHelp(){const popover=document.getElementById('helpPopover');if(!popover)return;popover.classList.remove('open');if(!document.querySelector('.modal.open'))document.body.classList.remove('modal-open')}
@@ -1271,7 +1271,7 @@ function upcoming(){return db.bookings.filter(b=>b.recordType!=='family'&&b.stat
 function statusClass(s){return s==='مؤكد'?'confirmed':s==='غير مؤكد'?'pending':s==='تم الدخول'?'entered':'cancelled'}
 const RESORT_STATUSES={ready:{label:'جاهز للاستقبال',icon:'🟢',className:'ready'},occupied:{label:'يوجد عميل',icon:'🔴',className:'occupied'},cleaning:{label:'تحت التنظيف',icon:'🧹',className:'cleaning'},maintenance:{label:'تحت الصيانة',icon:'🔧',className:'maintenance'},closed:{label:'مغلق',icon:'⛔',className:'closed'}};
 function renderResortStatus(){const key=db.settings?.resortStatus||'ready',st=RESORT_STATUSES[key]||RESORT_STATUSES.ready,card=document.getElementById('resortStatusCard');if(!card)return;card.className='resort-status-card '+st.className;document.getElementById('resortStatusIcon').textContent=st.icon;document.getElementById('resortStatusText').textContent=st.label;const u=db.settings?.resortStatusUpdated;document.getElementById('resortStatusUpdated').textContent=u?'آخر تحديث: '+new Date(u).toLocaleString('ar-SA'):'';}
-function openResortStatus(){const current=db.settings?.resortStatus||'ready';document.getElementById('resortStatusOptions').innerHTML=Object.entries(RESORT_STATUSES).map(([key,st])=>`<button class="status-option ${key===current?'active':''}" onclick="setResortStatus('${key}')"><span style="font-size:24px">${st.icon}</span><br>${st.label}</button>`).join('');document.getElementById('resortStatusModal').classList.add('open');}
+function openResortStatus(){const current=db.settings?.resortStatus||'ready';document.getElementById('resortStatusOptions').innerHTML=Object.entries(RESORT_STATUSES).map(([key,st])=>`<button class="status-option ${key===current?'active':''}" onclick="setResortStatus(${actionArg(key)})"><span style="font-size:24px">${escapeHtml(st.icon)}</span><br>${escapeHtml(st.label)}</button>`).join('');document.getElementById('resortStatusModal').classList.add('open');}
 async function setResortStatus(key){if(!RESORT_STATUSES[key])return;const before=db.settings.resortStatus||'ready';db.settings.resortStatus=key;db.settings.resortStatusUpdated=new Date().toISOString();addAudit('تعديل','حالة المنتجع',`${RESORT_STATUSES[before]?.label||before} ← ${RESORT_STATUSES[key]?.label||key}`,{status:before},{status:key});closeModal('resortStatusModal');await persist();}
 function switchView(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));const target=document.getElementById(id);if(!target)return;target.classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));(btn||document.querySelector(`nav button[data-view="${id}"]`))?.classList.add('active');const t={dashboard:['لوحة إدارة المنتجع','متابعة الحجوزات والمبالغ من مكان واحد'],bookings:['إدارة الحجوزات','إضافة وتعديل ومتابعة جميع الحجوزات'],customers:['سجل العملاء','عدد الزيارات والمدفوعات وآخر حجز'],calendarView:['تقويم الحجوزات','عرض الأيام المحجوزة ومنع التداخل'],cleaning:['مركز التنظيف','متابعة مهام التنظيف بعد مغادرة العملاء'],expenses:['المصاريف والدخل','متابعة المصروفات وصافي الدخل'],dataProtection:['مركز حماية البيانات','النسخ المحلية والسحابية وفحص السلامة وخطة التعافي'],about:['حول النظام','معلومات الإصدار والحماية وحالة البيانات'],settings:['الإعدادات','النسخ الاحتياطي وبيانات واتساب']}[id]||['نظام أضواء الشرق',''];pageTitle.textContent=t[0];pageSub.textContent=t[1];window.scrollTo(0,0);renderCurrentView(id)}
 function renderCurrentView(id){if(id==='dashboard')renderDashboard();else if(id==='bookings')renderBookings();else if(id==='customers')renderCustomers();else if(id==='calendarView')renderCalendar();else if(id==='cleaning')renderCleaning();else if(id==='expenses')renderExpenses();else if(id==='dataProtection')renderDataProtectionCenter();else if(id==='about')renderAbout();else if(id==='settings'){const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay'),enabledEl=document.getElementById('commissionEnabled'),methodEl=document.getElementById('commissionMethod'),rateEl=document.getElementById('commissionRate');if(waEl)waEl.value=db.settings.waNumber||'';if(dailyEl)dailyEl.value=db.settings.welcomeMsgDaily||DEFAULT_WELCOME_DAILY;if(stayEl)stayEl.value=db.settings.welcomeMsgStay||DEFAULT_WELCOME_STAY;if(enabledEl)enabledEl.checked=db.settings.commissionEnabled!==false;if(methodEl)methodEl.value=db.settings.commissionMethod||'per_day';if(rateEl)rateEl.value=Number(db.settings.commissionRate??100);renderBackupHistory();renderAuditLog()}}
@@ -1393,7 +1393,7 @@ function renderTopCustomers(){
           <span>آخر حجز: <b>${c.lastVisit||'-'}</b></span>
         </div>
       </div>
-      <button class="secondary" onclick="filterBookingsForCustomer('${key}')">عرض حجوزاته</button>
+      <button class="secondary" onclick="filterBookingsForCustomer(${actionArg(key)})">عرض حجوزاته</button>
     </div>`;
   }).join('')||'<div class="empty">لا توجد بيانات عملاء حتى الآن</div>';
 }
@@ -1597,16 +1597,16 @@ function itemHTML(b){
   const payment=getPaymentStatus(b),family=b.recordType==='family';
   const cleaning=family?null:(db.cleaningTasks||[]).find(t=>t.bookingId===b.id&&t.status!=='ملغي');
   const cleanLabel=cleaning?(cleaning.status==='done'?'✅ تم التنظيف':cleaning.status==='in_progress'?'🟠 جاري التنظيف':'🧹 بانتظار جميل'):'🧹 إنشاء مهمة جميل';
-  return `<div class="item" onclick="openBooking('${b.id}')">
+  return `<div class="item" onclick="openBooking(${actionArg(b.id)})">
     <div>
-      <h4>${escapeHtml(b.name)} <span class="small">#${b.code}</span></h4>
-      <div class="meta">${b.date} • ${b.type}<br>${family?'استخدام داخلي':(b.phone||'')}<br><span class="badge ${family?'family-badge':payment.code==='paid'?'paid-badge':'due-badge'}">${family?'تواجد العائلة':payment.label}</span></div>
+      <h4>${escapeHtml(b.name)} <span class="small">#${escapeHtml(b.code)}</span></h4>
+      <div class="meta">${escapeHtml(b.date)} • ${escapeHtml(b.type)}<br>${family?'استخدام داخلي':escapeHtml(b.phone||'')}<br><span class="badge ${family?'family-badge':payment.code==='paid'?'paid-badge':'due-badge'}">${family?'تواجد العائلة':escapeHtml(payment.label)}</span></div>
       <div class="task-actions" style="margin-top:9px">
-        ${family?'':`<button class="secondary small" type="button" onclick="event.stopPropagation();createCleaningLink('${b.id}',false)">${cleanLabel}</button>`}
-        ${cleaning?`<button class="primary small" type="button" onclick="event.stopPropagation();sendCleaningTaskToJameel('${b.id}')">واتساب جميل</button>`:''}
+        ${family?'':`<button class="secondary small" type="button" onclick="event.stopPropagation();createCleaningLink(${actionArg(b.id)},false)">${escapeHtml(cleanLabel)}</button>`}
+        ${cleaning?`<button class="primary small" type="button" onclick="event.stopPropagation();sendCleaningTaskToJameel(${actionArg(b.id)})">واتساب جميل</button>`:''}
       </div>
     </div>
-    <span class="badge ${statusClass(b.status)}">${b.status}</span>
+    <span class="badge ${escapeHtml(statusClass(b.status))}">${escapeHtml(b.status)}</span>
   </div>`
 }
 function renderBookings(){let q=(search?.value||'').trim(),s=statusFilter?.value||'';let arr=[...db.bookings].sort((a,b)=>b.date.localeCompare(a.date)).filter(b=>(!q||b.name.includes(q)||String(b.phone).includes(q)||String(b.code||'').includes(q))&&(!s||b.status===s));bookingList.innerHTML=arr.map(itemHTML).join('')||'<div class="empty">لا توجد نتائج</div>'}
@@ -1913,9 +1913,7 @@ function printBookingDocument(type){
     alert('المتصفح منع فتح نافذة الطباعة. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.');
     return;
   }
-  w.document.open();
-  w.document.write(bookingDocumentHTML(b,type));
-  w.document.close();
+  populateGeneratedWindow(w,bookingDocumentHTML(b,type));
 }
 
 function getCurrentStoredBooking(){
@@ -2056,7 +2054,7 @@ function renderBookingPhotos(){
   if(editingBookingPhotos.length&&!bookingPhotosExpanded){grid.innerHTML='<div class="photo-collapsed" style="grid-column:1/-1">الصور مخفية لتسريع فتح الحجز على الآيفون. اضغط «عرض الصور» عند الحاجة.</div>';return}
   grid.innerHTML=editingBookingPhotos.map((p,i)=>`
     <div class="photo-card">
-      <img src="${p.dataUrl}" loading="lazy" decoding="async" alt="صورة الحجز" onclick="openPhotoLightbox(${i})">
+      <img src="${escapeHtml(safeImageUrl(p.dataUrl))}" loading="lazy" decoding="async" alt="صورة الحجز" onclick="openPhotoLightbox(${i})">
       <div class="photo-card-body">
         <div class="photo-card-title">${p.type==='after'?'بعد المغادرة':'قبل الدخول'}</div>
         <input value="${escapeHtml(p.note||'')}" placeholder="ملاحظة على الصورة" oninput="updateBookingPhotoNote(${i},this.value)" style="margin-top:7px;font-size:11px">
@@ -2135,7 +2133,7 @@ function renderNotifications(){
   const arr=[...(db.notifications||[])].sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,20);
   el.innerHTML=arr.map(n=>`<div class="item ${n.read?'notification-read':'notification-unread'}">
     <div><h4>${escapeHtml(n.message)}</h4><div class="meta">${new Date(n.createdAt).toLocaleString('ar-SA')}</div></div>
-    <button class="secondary small" onclick="readNotification('${n.id}')">${n.read?'مقروء':'تم الاطلاع'}</button>
+    <button class="secondary small" onclick="readNotification(${actionArg(n.id)})">${n.read?'مقروء':'تم الاطلاع'}</button>
   </div>`).join('')||'<div class="empty">لا توجد تنبيهات جديدة</div>';
 }
 async function readNotification(id){const n=(db.notifications||[]).find(x=>x.id===id);if(n)n.read=true;await persist()}
@@ -2146,7 +2144,7 @@ function taskStatusText(t){
 function taskPhotosHTML(t){
   const photos=Array.isArray(t.photos)?t.photos:[];
   if(!photos.length)return '<div class="meta">لم تُرفع صور بعد.</div>';
-  return `<div class="photo-review-grid">${photos.map(p=>`<div><img src="${p.dataUrl}" onclick="window.open(this.src,'_blank')"><div class="meta">${escapeHtml(p.place||'صورة')} • ${p.phase==='after'?'بعد':'قبل'}</div></div>`).join('')}</div>`;
+  return `<div class="photo-review-grid">${photos.map(p=>`<div><img src="${escapeHtml(safeImageUrl(p.dataUrl))}" data-photo-preview="1"><div class="meta">${escapeHtml(p.place||'صورة')} • ${p.phase==='after'?'بعد':'قبل'}</div></div>`).join('')}</div>`;
 }
 async function approveCleaning(id){
   const t=db.cleaningTasks.find(x=>x.id===id);if(!t)return;
@@ -2190,13 +2188,13 @@ function renderCleaning(){
         <br>الصور: ${count} • الأعطال: ${issueCount}</div>
         ${t.returnReason?`<div class="task-note">سبب الإعادة: ${escapeHtml(t.returnReason)}</div>`:''}
         ${waiting?`<div class="review-box"><b>📸 صور جميل جاهزة للمراجعة</b>${taskPhotosHTML(t)}
-          <div class="task-actions"><button class="primary" onclick="approveCleaning('${t.id}')">✅ اعتماد التنظيف</button>
-          <button class="danger" onclick="returnCleaning('${t.id}')">🔄 إعادة المهمة لجميل</button></div></div>`:''}
+          <div class="task-actions"><button class="primary" onclick="approveCleaning(${actionArg(t.id)})">✅ اعتماد التنظيف</button>
+          <button class="danger" onclick="returnCleaning(${actionArg(t.id)})">🔄 إعادة المهمة لجميل</button></div></div>`:''}
         <div class="task-actions">
-          <button class="primary small" onclick="copyCleaningTaskLink('${t.id}')">نسخ الرابط</button>
-          <button class="secondary small" onclick="openCleaningTaskLink('${t.id}')">فتح بوابة جميل</button>
-          <button class="secondary small" onclick="sendCleaningTaskById('${t.id}')">إرسال واتساب</button>
-          <button class="secondary small" onclick="openCleaningTask('${t.id}')">تعديل</button>
+          <button class="primary small" onclick="copyCleaningTaskLink(${actionArg(t.id)})">نسخ الرابط</button>
+          <button class="secondary small" onclick="openCleaningTaskLink(${actionArg(t.id)})">فتح بوابة جميل</button>
+          <button class="secondary small" onclick="sendCleaningTaskById(${actionArg(t.id)})">إرسال واتساب</button>
+          <button class="secondary small" onclick="openCleaningTask(${actionArg(t.id)})">تعديل</button>
         </div>
       </div>
       <div><span class="badge ${finished?'confirmed':'pending'}">${taskStatusText(t)}</span></div>
@@ -2368,7 +2366,7 @@ function renderExpenses(){
   if(document.getElementById('finCommissionReceived'))finCommissionReceived.textContent=money(commissionReceived);
   commissionTotal.textContent=money(commissionOutstanding);fullyPaidCount.textContent=fullyPaidBookings.length;expenseCount.textContent=filteredExpenses.length;expenseAverage.textContent=money(filteredExpenses.length?filteredExpenses.reduce((sum,e)=>sum+Number(e.amount||0),0)/filteredExpenses.length:0);
 
-  expenseTableBody.innerHTML=[...filteredExpenses].sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(e=>`<tr><td>${escapeHtml(e.ref||'-')}</td><td>${escapeHtml(e.date||'-')}</td><td><b>${escapeHtml(e.title||'')}</b>${e.notes?`<div class="meta">${escapeHtml(e.notes)}</div>`:''}</td><td>${escapeHtml(e.cat||'-')}</td><td>${escapeHtml(e.paymentMethod||'غير محدد')}${e.externalRef?`<div class="meta">${escapeHtml(e.externalRef)}</div>`:''}</td><td><b>${money(e.amount)}</b></td><td><button class="secondary small" onclick="openExpense('${e.id}')">تعديل</button></td></tr>`).join('')||'<tr><td colspan="7" class="empty">لا توجد مصروفات مطابقة</td></tr>';
+  expenseTableBody.innerHTML=[...filteredExpenses].sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(e=>`<tr><td>${escapeHtml(e.ref||'-')}</td><td>${escapeHtml(e.date||'-')}</td><td><b>${escapeHtml(e.title||'')}</b>${e.notes?`<div class="meta">${escapeHtml(e.notes)}</div>`:''}</td><td>${escapeHtml(e.cat||'-')}</td><td>${escapeHtml(e.paymentMethod||'غير محدد')}${e.externalRef?`<div class="meta">${escapeHtml(e.externalRef)}</div>`:''}</td><td><b>${money(e.amount)}</b></td><td><button class="secondary small" onclick="openExpense(${actionArg(e.id)})">تعديل</button></td></tr>`).join('')||'<tr><td colspan="7" class="empty">لا توجد مصروفات مطابقة</td></tr>';
 
   const commissionBookings=periodCommissionBookings;
   commissionList.innerHTML=[...commissionBookings].sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(b=>{
@@ -2376,7 +2374,7 @@ function renderExpenses(){
     const s=b.commissionSnapshot,status=s.status,methodLabel={per_booking:'لكل حجز',per_day:'لكل يوم',percentage:'نسبة مئوية'}[s.method]||s.method;
     const statusLabel={earned:'مستحقة',received:'مستلمة',received_before_system:'مستلمة سابقًا قبل النظام',no_commission:'بدون عمولة'}[status]||'بدون عمولة',statusClassName=status==='received'?'status-success':status==='earned'?'status-warning':'';
     const details=status==='no_commission'?(s.reason||'يوم الأهل - بدون عمولة'):status==='received_before_system'?'مرجع تاريخي فقط — لا تدخل ضمن المستحقات أو صافي الربح':`${methodLabel} — القيمة ${s.method==='percentage'?s.rate+'٪':money(s.rate)} • إجمالي الحجز ${money(s.bookingTotal)}`;
-    return `<div class="item ${received?'commission-received':'commission-pending'}"><div><h4>${escapeHtml(b.name)} <span class="small">#${escapeHtml(b.code)}</span></h4><div class="meta">${escapeHtml(b.date)} • ${escapeHtml(b.type||'يومي')} • ${s.days} ${s.days===1?'يوم':'أيام'}<br>${escapeHtml(details)}${status==='earned'||status==='received'?`<br>استحقت: ${formatDateTime(s.earnedAt)}${s.receivedAt?` • استلمت: ${formatDateTime(s.receivedAt)}`:''}`:''}</div><div class="commission-status ${statusClassName}">${statusLabel}</div></div><div style="text-align:left"><b>${money(managerCommissionAmount(b))}</b><div class="table-actions" style="margin-top:8px">${status==='received'?`<button class="secondary small" onclick="undoCommissionReceived('${b.id}')">تراجع عن الاستلام</button>`:status==='earned'?`<span class="help-action"><button class="primary small" onclick="confirmCommissionReceived('${b.id}')">تأكيد استلام العمولة</button>${helpIcon('receiveCommission')}</span><button class="secondary small" onclick="markCommissionReceivedBeforeSystem('${b.id}')">مستلمة سابقًا</button>`:''}</div></div></div>`;
+    return `<div class="item ${received?'commission-received':'commission-pending'}"><div><h4>${escapeHtml(b.name)} <span class="small">#${escapeHtml(b.code)}</span></h4><div class="meta">${escapeHtml(b.date)} • ${escapeHtml(b.type||'يومي')} • ${Number(s.days)||0} ${s.days===1?'يوم':'أيام'}<br>${escapeHtml(details)}${status==='earned'||status==='received'?`<br>استحقت: ${escapeHtml(formatDateTime(s.earnedAt))}${s.receivedAt?` • استلمت: ${escapeHtml(formatDateTime(s.receivedAt))}`:''}`:''}</div><div class="commission-status ${statusClassName}">${escapeHtml(statusLabel)}</div></div><div style="text-align:left"><b>${money(managerCommissionAmount(b))}</b><div class="table-actions" style="margin-top:8px">${status==='received'?`<button class="secondary small" onclick="undoCommissionReceived(${actionArg(b.id)})">تراجع عن الاستلام</button>`:status==='earned'?`<span class="help-action"><button class="primary small" onclick="confirmCommissionReceived(${actionArg(b.id)})">تأكيد استلام العمولة</button>${helpIcon('receiveCommission')}</span><button class="secondary small" onclick="markCommissionReceivedBeforeSystem(${actionArg(b.id)})">مستلمة سابقًا</button>`:''}</div></div></div>`;
   }).join('')||'<div class="empty">لا توجد عمولات في الفترة المختارة</div>';
   renderFinanceChart();
 }
@@ -2453,8 +2451,8 @@ function renderCustomers(){
         <div class="customer-stat"><span class="meta">المتبقي</span><b>${money(c.totalDue)}</b></div>
       </div>
       <div class="actions">
-        <button class="primary" onclick="openCustomerProfile('${encodeURIComponent(c.key)}')">فتح سجل العميل</button>
-        <button class="secondary" onclick="filterBookingsForCustomer('${encodeURIComponent(c.phone||c.name)}')">عرض حجوزاته</button>
+        <button class="primary" onclick="openCustomerProfile(${actionArg(encodeURIComponent(c.key))})">فتح سجل العميل</button>
+        <button class="secondary" onclick="filterBookingsForCustomer(${actionArg(encodeURIComponent(c.phone||c.name))})">عرض حجوزاته</button>
       </div>
     </div>`).join('')||'<div class="empty">لا يوجد عملاء مطابقون</div>';
 }
@@ -2484,7 +2482,7 @@ function openCustomerProfile(value){
     const due=Math.max(0,Number(b.total||0)-Number(b.paid||0));
     return `<div class="customer-history-item">
       <div><b>${escapeHtml(b.code||'-')} — ${escapeHtml(b.date||'-')}</b><div class="meta">${escapeHtml(b.type||'')} • ${escapeHtml(b.status||'')}<br>المدفوع ${money(b.paid)} • المتبقي ${money(due)}</div></div>
-      <button class="secondary" onclick="closeModal('customerModal');openBooking('${b.id}')">فتح الحجز</button>
+      <button class="secondary" onclick="closeModal('customerModal');openBooking(${actionArg(b.id)})">فتح الحجز</button>
     </div>`;
   }).join('')||'<div class="empty">لا توجد حجوزات</div>';
   customerModal.classList.add('open');
@@ -2646,7 +2644,7 @@ function renderCalendar(){
       }).join('');
 
       html+=`
-        <div class="${cls.join(' ')} selectable" onclick="openBooking('${bs[0].id}')">
+        <div class="${cls.join(' ')} selectable" data-booking-id="${escapeHtml(bs[0].id)}" onclick="openBooking(${actionArg(bs[0].id)})">
           ${dateHtml}
           ${eventsHtml}
           ${details}
@@ -2654,7 +2652,7 @@ function renderCalendar(){
     }else{
       cls.push('selectable');
       html+=`
-        <div class="${cls.join(' ')}" onclick="openBooking(null,'${iso}')">
+        <div class="${cls.join(' ')}" onclick="openBooking(null,${actionArg(iso)})">
           ${dateHtml}
           ${eventsHtml}
           <span class="dot" style="color:var(--muted)">متاح</span>
@@ -2828,7 +2826,7 @@ function renderGoogleDriveBackupList(files=googleDriveFiles){
     <td>${formatDateTime(file.createdTime)}</td>
     <td>${formatBytes(Number(file.size||0))}</td>
     <td><span class="protection-status ${verified?'ok':'warn'}">${verified?'تم التحقق عند الرفع':'يُفحص عند التنزيل'}</span></td>
-    <td><button class="primary" type="button" onclick="downloadGoogleDriveBackup('${encodedId}')">تنزيل من Google Drive</button></td>
+    <td><button class="primary" type="button" onclick="downloadGoogleDriveBackup(${actionArg(encodedId)})">تنزيل من Google Drive</button></td>
   </tr>`}).join('')
 }
 async function refreshGoogleDriveBackups(showMessage=true){
@@ -3027,7 +3025,7 @@ async function renderBackupHistory(){
   const rows=(db.backupHistory||[]);if(!rows.length){body.innerHTML='<tr><td colspan="5" class="empty">لم تُنشأ نسخ احتياطية بعد</td></tr>';return}
   body.innerHTML='<tr><td colspan="5" class="empty">جاري قراءة سجل النسخ...</td></tr>';
   const available=await backupVaultAvailability(rows.map(r=>r.id));
-  body.innerHTML=rows.map(r=>`<tr><td><b>${formatDateTime(r.createdAt)}</b><div class="meta">v${escapeHtml(r.version||'—')}</div></td><td>${formatBytes(r.size)}</td><td>${escapeHtml(r.user||'الفوزان')}</td><td><span class="backup-type">${escapeHtml(r.type||'يدوي')}</span></td><td><div class="table-actions">${available[r.id]?`<button class="secondary" onclick="downloadStoredBackup('${r.id}')">تحميل</button><button class="primary" onclick="restoreStoredBackup('${r.id}')">استعادة</button>`:`<span class="local-missing">الملف غير موجود على هذا الجهاز؛ استخدم «استعادة من ملف»</span>`}</div></td></tr>`).join('');
+  body.innerHTML=rows.map(r=>`<tr><td><b>${escapeHtml(formatDateTime(r.createdAt))}</b><div class="meta">v${escapeHtml(r.version||'—')}</div></td><td>${formatBytes(r.size)}</td><td>${escapeHtml(r.user||'الفوزان')}</td><td><span class="backup-type">${escapeHtml(r.type||'يدوي')}</span></td><td><div class="table-actions">${available[r.id]?`<button class="secondary" onclick="downloadStoredBackup(${actionArg(r.id)})">تحميل</button><button class="primary" onclick="restoreStoredBackup(${actionArg(r.id)})">استعادة</button>`:`<span class="local-missing">الملف غير موجود على هذا الجهاز؛ استخدم «استعادة من ملف»</span>`}</div></td></tr>`).join('');
 }
 async function downloadStoredBackup(id){const record=await activeDataProtectionProvider().get(id);if(!record){alert('ملف هذه النسخة غير موجود على هذا الجهاز. استخدم ملف النسخة الذي نُزّل سابقًا.');return}download(record.fileName||backupFileName(record.envelope.type,new Date(record.envelope.createdAt),record.envelope.recoveryId),record.json||JSON.stringify(record.envelope,null,2),'application/json')}
 function mergeAuditLogs(current,restored){const map=new Map();[...(current||[]),...(restored||[])].forEach(x=>{if(x?.id&&!map.has(x.id))map.set(x.id,x)});return [...map.values()].sort((a,b)=>String(b.at).localeCompare(String(a.at)))}
@@ -3127,7 +3125,7 @@ async function renderDataProtectionCenter(){
     <td><span class="protection-status ${status.className}">${escapeHtml(status.label)}</span></td>
     <td>${escapeHtml(r.location||'مخزن المتصفح')}</td>
     <td>${escapeHtml(r.type||'يدوي')}</td>
-    <td><div class="table-actions">${available[r.id]?`<button class="secondary" type="button" onclick="downloadStoredBackup('${r.id}')">تحميل</button><button class="primary" type="button" onclick="restoreStoredBackup('${r.id}')">استعادة</button>`:'<span class="local-missing">استخدم ملف النسخة على هذا الجهاز</span>'}</div></td>
+    <td><div class="table-actions">${available[r.id]?`<button class="secondary" type="button" onclick="downloadStoredBackup(${actionArg(r.id)})">تحميل</button><button class="primary" type="button" onclick="restoreStoredBackup(${actionArg(r.id)})">استعادة</button>`:'<span class="local-missing">استخدم ملف النسخة على هذا الجهاز</span>'}</div></td>
   </tr>`}).join('');
 }
 function recoveryReportHtml(checked,record,fileName=''){
@@ -3168,6 +3166,51 @@ function exportCSV(){let rows=[['رقم الحجز','العميل','الجوال
 function download(name,content,type){const a=document.createElement('a'),url=URL.createObjectURL(new Blob([content],{type}));a.href=url;a.download=name;a.rel='noopener';document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},1500)}
 async function resetAll(){if(!confirm('سيتم مسح كل الحجوزات والمصروفات من جميع الأجهزة. سيُنشئ النظام نسخة أمان أولًا. هل أنت متأكد؟'))return;await createBackup('قبل المسح',{downloadFile:true,silent:true,note:'نسخة أمان قبل مسح جميع البيانات'});const history=[...(db.backupHistory||[])],audit=[...(db.auditLog||[])];db={bookings:[],expenses:[],cleaningTasks:[],notifications:[],customerNotes:{},backupHistory:history,auditLog:audit,settings:{waNumber:'',welcomeMsgDaily:DEFAULT_WELCOME_DAILY,welcomeMsgStay:DEFAULT_WELCOME_STAY,resortStatus:'ready',resortStatusUpdated:'',calendarMode:'both'},seq:1};addAudit('مسح','جميع البيانات','تم مسح الحجوزات والمصروفات بعد إنشاء نسخة أمان');await persist();alert('تم مسح البيانات من جميع الأجهزة')}
 function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function actionArg(value){return escapeHtml(JSON.stringify(String(value??'')))}
+function safeUrl(value,{protocols=['https:','tel:','mailto:'],allowBlob=false}={}){
+  const raw=String(value??'').trim();
+  if(!raw||raw.length>4096||/[\u0000-\u001f\u007f]/.test(raw))return '';
+  if(allowBlob&&raw.startsWith('blob:'))return raw;
+  try{
+    const url=new URL(raw,location.origin);
+    return protocols.includes(url.protocol)?url.href:'';
+  }catch(_){return ''}
+}
+function safeImageUrl(value){
+  const raw=String(value??'').trim();
+  if(raw.startsWith('blob:'))return safeUrl(raw,{protocols:[],allowBlob:true});
+  if(/^data:image\/(?:png|jpeg|webp);base64,[a-z0-9+/=\r\n]+$/i.test(raw)&&raw.length<=1000000)return raw;
+  return safeUrl(raw,{protocols:['https:']});
+}
+function sanitizeGeneratedDocument(html){
+  const parsed=new DOMParser().parseFromString(String(html??''),'text/html');
+  parsed.querySelectorAll('script,iframe,object,embed,base,form').forEach(node=>node.remove());
+  parsed.querySelectorAll('*').forEach(node=>{
+    [...node.attributes].forEach(attr=>{
+      const name=attr.name.toLowerCase();
+      if(name.startsWith('on')||name==='srcdoc'||name==='formaction')node.removeAttribute(attr.name);
+      if(['href','src','action'].includes(name)){
+        const safe=name==='src'?safeImageUrl(attr.value):safeUrl(attr.value,{protocols:['https:','tel:','mailto:']});
+        if(safe)node.setAttribute(attr.name,safe);else node.removeAttribute(attr.name);
+      }
+    });
+  });
+  return '<!doctype html>'+parsed.documentElement.outerHTML;
+}
+function populateGeneratedWindow(targetWindow,html){
+  const sanitized=sanitizeGeneratedDocument(html);
+  targetWindow.document.open();
+  targetWindow.document.documentElement.innerHTML=new DOMParser().parseFromString(sanitized,'text/html').documentElement.innerHTML;
+  targetWindow.document.close();
+  const printButton=targetWindow.document.querySelector('.actions button');
+  if(printButton)printButton.addEventListener('click',()=>targetWindow.print());
+}
+document.addEventListener('click',event=>{
+  const image=event.target.closest?.('img[data-photo-preview="1"]');
+  if(!image)return;
+  const url=safeImageUrl(image.getAttribute('src'));
+  if(url)window.open(url,'_blank','noopener');
+});
 function startVoice(){let SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert('الإدخال الصوتي غير مدعوم في هذا المتصفح. استخدم Chrome أو Safari الحديث.');return}let r=new SR();r.lang='ar-SA';r.interimResults=false;r.onresult=e=>parseVoice(e.results[0][0].transcript);r.onerror=()=>alert('تعذر التقاط الصوت');r.start();voiceHint.textContent='جاري الاستماع...'}
 function parseVoice(t){voiceHint.textContent='تم سماع: '+t;let paid=t.match(/(?:عربون|دفع|مدفوع)\s*(\d+)/),total=t.match(/(?:الإجمالي|اجمالي|المبلغ)\s*(\d+)/),phone=t.match(/05\d{8}/),day=t.match(/(?:يوم|بتاريخ)\s*(\d{1,2})\s*(?:\/|-|\s)\s*(\d{1,2})?/);let name=t.split(/يوم|بتاريخ|عربون|دفع|مدفوع|الإجمالي|اجمالي|المبلغ/)[0].replace(/سجل|حجز|جديد|للعميل/g,'').trim();if(name)bName.value=name;if(paid)bPaid.value=paid[1];if(total)bTotal.value=total[1];if(phone)bPhone.value=phone[0];if(/مبيت/.test(t)){bType.value='مبيت';const dm=t.match(/(\d+)\s*(?:يوم|أيام)/);if(dm)bStayDays.value=dm[1];updateStayFields();}if(day){let y=new Date().getFullYear(),m=day[2]?Number(day[2]):new Date().getMonth()+1,d=Number(day[1]);bDate.value=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`}}
 const AMOUNT_PRIVACY_KEY='adwaaAmountsHidden';
@@ -3280,8 +3323,8 @@ async function printBookingDocument(type){
   if(!['contract','invoice'].includes(type))return;
   const w=window.open('','_blank');
   if(!w){alert('المتصفح منع نافذة إنشاء PDF. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.');return;}
-  try{w.document.open();w.document.write(bookingDocumentHTML(form,type));w.document.close();await v92RecordOperation(type,'created');}
-  catch(err){console.error(err);try{w.close();}catch(_){ }alert('تعذر إنشاء المستند. لم تُسجل العملية.');}
+  try{populateGeneratedWindow(w,bookingDocumentHTML(form,type));await v92RecordOperation(type,'created');}
+  catch(_){try{w.close();}catch(_){ }alert('تعذر إنشاء المستند. لم تُسجل العملية.');}
 }
 async function markManualMessageSent(type){return v92RecordOperation(type,'sent');}
 function v92ConfirmSent(type){setTimeout(async()=>{if(confirm(`هل أرسلت ${messageStatusLabel(type)} للعميل بالفعل؟`))await markManualMessageSent(type);},650);}
@@ -3465,21 +3508,21 @@ let calendarViewMode='month';
 function bookingExitDate(b){return b.type==='مبيت'?addDaysISO(b.date,Math.max(1,Number(b.stayDays||1))):b.date}
 function bookingTimes(b){return {entry:V95_ENTRY_TIME,exit:b.type==='مبيت'?V95_STAY_EXIT:V95_DAILY_EXIT}}
 function paymentStateLabel(b){const total=Number(b.total||0),paid=Number(b.paid||0);return paid<=0?'لم يدفع':paid>=total&&total>0?'مدفوع بالكامل':'مدفوع جزئيًا'}
-function todayCard(b,kind){const p=getPaymentStatus(b),t=bookingTimes(b),task=(db.cleaningTasks||[]).find(x=>x.bookingId===b.id&&x.status!=='ملغي');return `<article class="today-booking-card"><div class="today-booking-head"><div><h4>${escapeHtml(b.name||'بدون اسم')} <span class="meta">#${escapeHtml(b.code||'')}</span></h4><div class="meta">${escapeHtml(b.phone||'بدون جوال')} • ${escapeHtml(b.type||'يومي')} • دخول ${t.entry} • خروج ${t.exit}</div></div><span class="badge ${statusClass(b.status)}">${escapeHtml(b.status||'غير مؤكد')}</span></div><div class="today-finance"><span>الإجمالي: <b class="money">${money(b.total)}</b></span><span>المستلم: <b class="money">${money(b.paid)}</b></span><span class="payment-help">الحالة: <b>${paymentStateLabel(b)}</b>${helpIcon(paymentHelpKey(b))}</span></div>${p.remaining>0?`<div class="today-due">⚠️ متبقٍ على العميل ${money(p.remaining)}</div>`:''}${kind==='exit'?`<div class="meta" style="margin-top:8px">🧹 التنظيف: ${task?(task.status==='done'?'مكتمل':'مهمة مسجلة'):'يُنشأ بعد تأكيد الخروج'}</div>`:''}<div class="today-actions"><button class="secondary" onclick="v95BookingDetails('${b.id}')">التفاصيل</button><button class="secondary" onclick="openBooking('${b.id}')">تعديل</button>${b.status!=='تم الدخول'&&b.status!=='تم الخروج'&&b.status!=='ملغي'?`<span class="help-action"><button class="primary" onclick="v95SetBookingStatus('${b.id}','تم الدخول')">تم الدخول</button>${helpIcon('checkIn')}</span>`:''}${b.status!=='تم الخروج'&&b.status!=='ملغي'?`<button class="primary" onclick="v95SetBookingStatus('${b.id}','تم الخروج')">تم الخروج</button>`:''}<button class="secondary" onclick="v95CopyPhone('${b.id}')">نسخ الجوال</button><button class="secondary" onclick="v95OpenWhatsApp('${b.id}')">واتساب</button>${p.remaining>0?`<button class="secondary" onclick="v95RecordPayment('${b.id}')">تسجيل دفعة</button>`:''}</div></article>`}
+function todayCard(b,kind){const p=getPaymentStatus(b),t=bookingTimes(b),task=(db.cleaningTasks||[]).find(x=>x.bookingId===b.id&&x.status!=='ملغي'),id=actionArg(b.id);return `<article class="today-booking-card"><div class="today-booking-head"><div><h4>${escapeHtml(b.name||'بدون اسم')} <span class="meta">#${escapeHtml(b.code||'')}</span></h4><div class="meta">${escapeHtml(b.phone||'بدون جوال')} • ${escapeHtml(b.type||'يومي')} • دخول ${escapeHtml(t.entry)} • خروج ${escapeHtml(t.exit)}</div></div><span class="badge ${escapeHtml(statusClass(b.status))}">${escapeHtml(b.status||'غير مؤكد')}</span></div><div class="today-finance"><span>الإجمالي: <b class="money">${money(b.total)}</b></span><span>المستلم: <b class="money">${money(b.paid)}</b></span><span class="payment-help">الحالة: <b>${escapeHtml(paymentStateLabel(b))}</b>${helpIcon(paymentHelpKey(b))}</span></div>${p.remaining>0?`<div class="today-due">⚠️ متبقٍ على العميل ${money(p.remaining)}</div>`:''}${kind==='exit'?`<div class="meta" style="margin-top:8px">🧹 التنظيف: ${task?(task.status==='done'?'مكتمل':'مهمة مسجلة'):'يُنشأ بعد تأكيد الخروج'}</div>`:''}<div class="today-actions"><button class="secondary" onclick="v95BookingDetails(${id})">التفاصيل</button><button class="secondary" onclick="openBooking(${id})">تعديل</button>${b.status!=='تم الدخول'&&b.status!=='تم الخروج'&&b.status!=='ملغي'?`<span class="help-action"><button class="primary" onclick="v95SetBookingStatus(${id},'تم الدخول')">تم الدخول</button>${helpIcon('checkIn')}</span>`:''}${b.status!=='تم الخروج'&&b.status!=='ملغي'?`<button class="primary" onclick="v95SetBookingStatus(${id},'تم الخروج')">تم الخروج</button>`:''}<button class="secondary" onclick="v95CopyPhone(${id})">نسخ الجوال</button><button class="secondary" onclick="v95OpenWhatsApp(${id})">واتساب</button>${p.remaining>0?`<button class="secondary" onclick="v95RecordPayment(${id})">تسجيل دفعة</button>`:''}</div></article>`}
 function monthMatch(value,now=new Date()){return String(value||'').slice(0,7)===`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`}
 function renderTodayBoard(){const root=document.getElementById('todayBoardContent');if(!root)return;try{const today=isoToday(),active=(db.bookings||[]).filter(b=>b.recordType!=='family'&&b.status!=='ملغي'),entries=active.filter(b=>b.date===today),exits=active.filter(b=>bookingExitDate(b)===today),month=active.filter(b=>monthMatch(b.date)),cashExpenses=(db.expenses||[]).filter(e=>monthMatch(e.date)).reduce((s,e)=>s+Number(e.amount||0),0),monthCommission=month.filter(isCommissionEligible).reduce((s,b)=>s+managerCommissionAmount(b),0),expenses=cashExpenses+monthCommission,revenue=month.reduce((s,b)=>s+Number(b.paid||0),0),due=active.reduce((s,b)=>s+getRemainingAmount(b),0);document.getElementById('todayBoardDate').textContent=new Date().toLocaleDateString('ar-SA',{weekday:'long',year:'numeric',month:'long',day:'numeric'});document.getElementById('todayQuickStats').innerHTML=[['حجوزات اليوم',new Set([...entries,...exits].map(x=>x.id)).size],['حجوزات الشهر',month.length],['المحصل هذا الشهر',money(revenue)],['المبالغ المتبقية',money(due)],['المصروفات والعمولة',money(expenses)],['صافي الربح',money(revenue-expenses)]].map(x=>`<div class="today-stat"><span>${x[0]}</span><b class="${String(x[1]).includes('ر.س')?'money':''}">${x[1]}</b></div>`).join('');root.innerHTML=entries.length||exits.length?`<div class="today-column"><div class="today-column-title">⬅️ دخول اليوم (${entries.length})</div>${entries.map(b=>todayCard(b,'entry')).join('')||'<div class="empty">لا يوجد دخول اليوم</div>'}</div><div class="today-column"><div class="today-column-title">➡️ خروج اليوم (${exits.length})</div>${exits.map(b=>todayCard(b,'exit')).join('')||'<div class="empty">لا يوجد خروج اليوم</div>'}</div>`:'<div class="empty" style="grid-column:1/-1">لا توجد حجوزات دخول أو خروج اليوم.</div>';const next=upcoming()[0],nextBox=document.getElementById('todayNextBooking');if(next){const start=new Date(next.date+'T15:30:00'),ms=Math.max(0,start-Date.now()),days=Math.floor(ms/86400000),hours=Math.floor(ms%86400000/3600000);nextBox.innerHTML=`<b>أقرب حجز قادم:</b> ${escapeHtml(next.name)} — بعد ${days} يوم و${hours} ساعة • ${escapeHtml(next.date)}`}else nextBox.textContent='لا يوجد حجز قادم.'}catch(err){root.innerHTML=`<div class="sync-banner error">تعذر عرض لوحة اليوم: ${escapeHtml(err.message||'خطأ غير معروف')}</div>`}}
 async function v95SetBookingStatus(id,status){const b=db.bookings.find(x=>x.id===id);if(!b)return;if(!confirm(`تأكيد تغيير حالة حجز ${b.name} إلى «${status}»؟`))return;const before=b.status;b.status=status;b.updatedAt=new Date().toISOString();ensureCleaningTaskForBooking(b,before);addAudit('تعديل','حالة حجز',`${b.name}: ${before} ← ${status}`,{status:before},{status});await persist();renderTodayBoard()}
 function v95CopyPhone(id){const b=db.bookings.find(x=>x.id===id);if(!b)return;const value=b.phone||'';navigator.clipboard?.writeText(value).then(()=>alert('تم نسخ رقم الجوال.')).catch(()=>prompt('انسخ رقم الجوال:',value))}
 function v95OpenWhatsApp(id){const b=db.bookings.find(x=>x.id===id);if(!b)return;const phone=normalizeSaudiPhone(b.phone);if(!phone){alert('رقم الجوال غير صالح لواتساب.');return}window.open(`https://wa.me/${phone}`,'_blank','noopener')}
 function v95RecordPayment(id){openBooking(id);setTimeout(()=>{bPaid?.focus();bPaid?.scrollIntoView({behavior:'smooth',block:'center'})},100)}
-function v95BookingDetails(id){const b=db.bookings.find(x=>x.id===id);if(!b)return;const p=getPaymentStatus(b),t=bookingTimes(b),remainingLabel=bookingDaysRemainingLabel(b);if(!document.getElementById('v95DetailsModal')){const modal=document.createElement('div');modal.id='v95DetailsModal';modal.className='modal';modal.innerHTML='<div class="sheet" style="max-width:620px;margin:auto"><div class="sheet-head"><h2>تفاصيل الحجز</h2><button class="close" onclick="closeModal(\'v95DetailsModal\')">×</button></div><div id="v95DetailsBody"></div></div>';document.body.appendChild(modal)}document.getElementById('v95DetailsBody').innerHTML=`<h3>${escapeHtml(b.name)}</h3><div class="notice" style="margin:0 0 12px">📅 ${escapeHtml(remainingLabel)}</div><div class="meta">#${escapeHtml(b.code||'')} • ${escapeHtml(b.phone||'')} • ${escapeHtml(b.type)}<br>الدخول: ${escapeHtml(b.date)} ${t.entry}<br>الخروج: ${escapeHtml(bookingExitDate(b))} ${t.exit}<br>الحالة: ${escapeHtml(b.status)} • <span class="payment-help">السداد: ${paymentStateLabel(b)} ${helpIcon(paymentHelpKey(b))}</span><br>الإجمالي ${money(b.total)} • المستلم ${money(b.paid)} • المتبقي ${money(p.remaining)}</div><div class="actions"><button class="primary" onclick="closeModal('v95DetailsModal');openBooking('${b.id}')">فتح الحجز كاملًا</button></div>`;document.getElementById('v95DetailsModal').classList.add('open')}
+function v95BookingDetails(id){const b=db.bookings.find(x=>x.id===id);if(!b)return;const p=getPaymentStatus(b),t=bookingTimes(b),remainingLabel=bookingDaysRemainingLabel(b);if(!document.getElementById('v95DetailsModal')){const modal=document.createElement('div');modal.id='v95DetailsModal';modal.className='modal';modal.innerHTML='<div class="sheet" style="max-width:620px;margin:auto"><div class="sheet-head"><h2>تفاصيل الحجز</h2><button class="close" onclick="closeModal(\'v95DetailsModal\')">×</button></div><div id="v95DetailsBody"></div></div>';document.body.appendChild(modal)}document.getElementById('v95DetailsBody').innerHTML=`<h3>${escapeHtml(b.name)}</h3><div class="notice" style="margin:0 0 12px">📅 ${escapeHtml(remainingLabel)}</div><div class="meta">#${escapeHtml(b.code||'')} • ${escapeHtml(b.phone||'')} • ${escapeHtml(b.type)}<br>الدخول: ${escapeHtml(b.date)} ${escapeHtml(t.entry)}<br>الخروج: ${escapeHtml(bookingExitDate(b))} ${escapeHtml(t.exit)}<br>الحالة: ${escapeHtml(b.status)} • <span class="payment-help">السداد: ${escapeHtml(paymentStateLabel(b))} ${helpIcon(paymentHelpKey(b))}</span><br>الإجمالي ${money(b.total)} • المستلم ${money(b.paid)} • المتبقي ${money(p.remaining)}</div><div class="actions"><button class="primary" onclick="closeModal('v95DetailsModal');openBooking(${actionArg(b.id)})">فتح الحجز كاملًا</button></div>`;document.getElementById('v95DetailsModal').classList.add('open')}
 function calendarStatusClass(b){if(b.status==='غير مؤكد')return 'cal-status-unconfirmed';if(b.status==='تم الدخول')return 'cal-status-entered';if(b.status==='تم الخروج')return 'cal-status-exited';if(b.status==='ملغي')return 'cal-status-cancelled';return 'cal-status-confirmed'}
-function v95CalendarEvent(b){const remainingLabel=bookingDaysRemainingLabel(b,true);return `<button class="calendar-event-chip ${calendarStatusClass(b)} ${isFullyPaid(b)?'cal-status-paid':'cal-status-due'}" title="${escapeHtml(b.name)} — ${escapeHtml(b.status)} — ${paymentStateLabel(b)} — ${escapeHtml(remainingLabel)}" onclick="event.stopPropagation();v95BookingDetails('${b.id}')">${b.recordType==='family'?'👨‍👩‍👧‍👦 العائلة':escapeHtml((b.name||'حجز').slice(0,18))}<span style="display:block;font-size:9px;margin-top:2px">${escapeHtml(remainingLabel)}</span></button>`}
+function v95CalendarEvent(b){const remainingLabel=bookingDaysRemainingLabel(b,true);return `<button class="calendar-event-chip ${escapeHtml(calendarStatusClass(b))} ${isFullyPaid(b)?'cal-status-paid':'cal-status-due'}" title="${escapeHtml(b.name)} — ${escapeHtml(b.status)} — ${escapeHtml(paymentStateLabel(b))} — ${escapeHtml(remainingLabel)}" onclick="event.stopPropagation();v95BookingDetails(${actionArg(b.id)})">${b.recordType==='family'?'👨‍👩‍👧‍👦 العائلة':escapeHtml((b.name||'حجز').slice(0,18))}<span style="display:block;font-size:9px;margin-top:2px">${escapeHtml(remainingLabel)}</span></button>`}
 function fillCalendarPickers(){const mp=document.getElementById('calendarMonthPicker'),yp=document.getElementById('calendarYearPicker');if(!mp||!yp)return;mp.innerHTML=gregorianMonthsAr.map((x,i)=>`<option value="${i}" ${i===calDate.getMonth()?'selected':''}>${x}</option>`).join('');const y=calDate.getFullYear();yp.innerHTML=Array.from({length:11},(_,i)=>y-5+i).map(x=>`<option ${x===y?'selected':''}>${x}</option>`).join('')}
 function jumpCalendarDate(){const m=Number(document.getElementById('calendarMonthPicker').value),y=Number(document.getElementById('calendarYearPicker').value);calDate=new Date(y,m,1);renderCalendar()}
 function changeCalendarViewMode(){calendarViewMode=document.getElementById('calendarViewMode')?.value||'month';renderCalendar()}
 const v95OriginalRenderCalendar=renderCalendar;
-renderCalendar=function(){fillCalendarPickers();if(calendarViewMode==='month'){document.getElementById('calendar')?.classList.remove('v95-week');v95OriginalRenderCalendar();document.querySelectorAll('#calendar .day.selectable').forEach(day=>{const onclick=day.getAttribute('onclick')||'',id=onclick.match(/openBooking\('([^']+)'\)/)?.[1];if(!id)return;const iso=[...day.querySelectorAll('.calendar-date-primary')][0];const b=db.bookings.find(x=>x.id===id);if(b){day.querySelectorAll('.dot,.meta[style]').forEach(x=>x.remove());day.insertAdjacentHTML('beforeend',v95CalendarEvent(b))}});return}const cal=document.getElementById('calendar');cal.classList.add('v95-week');const start=new Date(calDate);start.setDate(start.getDate()-start.getDay());const names=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];let html=names.map(n=>`<div class="day calendar-weekday">${n}</div>`).join('');for(let i=0;i<7;i++){const d=new Date(start);d.setDate(start.getDate()+i);const iso=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,events=getSaudiCalendarEvents(d),bs=db.bookings.filter(b=>bookingOccupiedDates(b).includes(iso));html+=`<div class="day selectable ${iso===isoToday()?'today':''}" onclick="openBooking(null,'${iso}')">${formatCalendarDay(d,db.settings.calendarMode||'both')}${events.map(e=>`<span class="calendar-event">${escapeHtml(e)}</span>`).join('')}${bs.map(v95CalendarEvent).join('')}${bs.length?'':'<span class="dot" style="color:var(--muted)">متاح</span>'}</div>`}cal.innerHTML=html;calTitle.textContent=`الأسبوع من ${start.toLocaleDateString('ar-SA')} إلى ${new Date(start.getFullYear(),start.getMonth(),start.getDate()+6).toLocaleDateString('ar-SA')}`;renderCalendarSummary(calDate.getFullYear(),calDate.getMonth(),new Date(calDate.getFullYear(),calDate.getMonth()+1,0).getDate())};
+renderCalendar=function(){fillCalendarPickers();if(calendarViewMode==='month'){document.getElementById('calendar')?.classList.remove('v95-week');v95OriginalRenderCalendar();document.querySelectorAll('#calendar .day.selectable').forEach(day=>{const id=day.dataset.bookingId;if(!id)return;const b=db.bookings.find(x=>x.id===id);if(b){day.querySelectorAll('.dot,.meta[style]').forEach(x=>x.remove());day.insertAdjacentHTML('beforeend',v95CalendarEvent(b))}});return}const cal=document.getElementById('calendar');cal.classList.add('v95-week');const start=new Date(calDate);start.setDate(start.getDate()-start.getDay());const names=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];let html=names.map(n=>`<div class="day calendar-weekday">${n}</div>`).join('');for(let i=0;i<7;i++){const d=new Date(start);d.setDate(start.getDate()+i);const iso=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,events=getSaudiCalendarEvents(d),bs=db.bookings.filter(b=>bookingOccupiedDates(b).includes(iso));html+=`<div class="day selectable ${iso===isoToday()?'today':''}" onclick="openBooking(null,${actionArg(iso)})">${formatCalendarDay(d,db.settings.calendarMode||'both')}${events.map(e=>`<span class="calendar-event">${escapeHtml(e)}</span>`).join('')}${bs.map(v95CalendarEvent).join('')}${bs.length?'':'<span class="dot" style="color:var(--muted)">متاح</span>'}</div>`}cal.innerHTML=html;calTitle.textContent=`الأسبوع من ${start.toLocaleDateString('ar-SA')} إلى ${new Date(start.getFullYear(),start.getMonth(),start.getDate()+6).toLocaleDateString('ar-SA')}`;renderCalendarSummary(calDate.getFullYear(),calDate.getMonth(),new Date(calDate.getFullYear(),calDate.getMonth()+1,0).getDate())};
 const v95RenderDashboardBase=renderDashboard;renderDashboard=function(){v95RenderDashboardBase();renderTodayBoard()};
 const v95RenderAllBase=renderAll;renderAll=function(){v95RenderAllBase();renderTodayBoard()};
 document.addEventListener('DOMContentLoaded',()=>{renderHelpIcons();applyHelpVisibility();fillCalendarPickers();renderTodayBoard()});
