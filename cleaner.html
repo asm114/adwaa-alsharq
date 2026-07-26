@@ -93,21 +93,22 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
 const SUPABASE_URL='https://pgdvlklpyrvmwzitsmbw.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_BFTIR_8VK2qQuKnl2c-jDA_cMnWz0E-';
 const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
-const ROW_ID='main';
 const params=new URLSearchParams(location.search),taskId=params.get('task'),token=params.get('token');
 let places=[];
 function buildPlaces(){places=[{name:'المجلس أو الصالة',icon:'🛋️'},{name:'المطبخ الداخلي',icon:'🍽️'},{name:'المطبخ الخارجي',icon:'🔥'},{name:'المسبح',icon:'🏊'},{name:'دورات المياه',icon:'🚻'},{name:'الجلسات الخارجية',icon:'🌴'},{name:'مدخل المنتجع',icon:'🚪'}];if(task?.bookingType==='مبيت')places.push({name:'غرف النوم',icon:'🛏️'});}
-let db=null,task=null,state={phase:'before',index:0,photos:[],issues:[]},currentPhoto=null,currentIssuePhoto=null,currentIssueTypes=[];
+let task=null,state={phase:'before',index:0,photos:[],issues:[]},currentPhoto=null,currentIssuePhoto=null,currentIssueTypes=[];
+const TASK_ID_PATTERN=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const TOKEN_PATTERN=/^[0-9a-f]{32}$/;
 
 function show(id){['loading','invalid','stages','start','work','issues','middle','finish'].forEach(x=>document.getElementById(x).classList.add('hidden'));document.getElementById(id).classList.remove('hidden')}
 function syncState(text,type=''){sync.textContent=text;sync.className='sync '+type}
 function speak(text){if(!('speechSynthesis'in window))return; speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='ar-SA';u.rate=.85;speechSynthesis.speak(u)}
 function fmt(x){return x?new Date(x).toLocaleString('ar-SA'):'-'}
 async function load(){
- if(!taskId||!token){show('invalid');syncState('بانتظار رابط مهمة');return}
+ if(!TASK_ID_PATTERN.test(taskId||'')||!TOKEN_PATTERN.test(token||'')){show('invalid');syncState('رابط غير صالح','bad');return}
  try{
-  const {data,error}=await client.from('app_state').select('data').eq('id',ROW_ID).maybeSingle();
-  if(error)throw error; db=data?.data; task=(db?.cleaningTasks||[]).find(t=>t.id===taskId&&t.token===token);
+  const {data,error}=await client.rpc('cleaner_get_task',{p_task_id:taskId,p_token:token});
+  if(error)throw error; task=data;
   if(!task)throw new Error('المهمة غير موجودة أو الرابط غير صالح');
   task.photos=Array.isArray(task.photos)?task.photos:[];task.issues=Array.isArray(task.issues)?task.issues:[];
   state.photos=task.photos;state.issues=task.issues;
@@ -116,19 +117,19 @@ async function load(){
   if(['pending_approval','approved','done'].includes(task.status)){showFinish()}
   else if(task.departedAt){show('start')}
   else {show('stages');renderStages();}
- }catch(e){console.error(e);invalidText.textContent=e.message||'تعذر فتح المهمة';show('invalid');syncState('تعذر الاتصال','bad')}
+ }catch(_){invalidText.textContent='تعذر فتح المهمة. تأكد من صلاحية الرابط أو اطلب رابطًا جديدًا من المدير.';show('invalid');syncState('تعذر الاتصال','bad')}
 }
 async function saveRemote(){
  syncState('جاري الحفظ…');
  task.photos=state.photos;task.issues=state.issues;task.worker='جميل';
- const i=db.cleaningTasks.findIndex(t=>t.id===task.id);db.cleaningTasks[i]=task;
- const {error}=await client.from('app_state').upsert({id:ROW_ID,data:db,updated_at:new Date().toISOString()});
- if(error)throw error;syncState('تم الحفظ والمزامنة','ok');
+ const patch={status:task.status,photos:task.photos,issues:task.issues,arrivedAt:task.arrivedAt||null,handedOverAt:task.handedOverAt||null,departedAt:task.departedAt||null,startedAt:task.startedAt||null,completedAt:task.completedAt||null};
+ const {data,error}=await client.rpc('cleaner_update_task',{p_task_id:taskId,p_token:token,p_patch:patch});
+ if(error||!data)throw new Error('تعذر حفظ المهمة');
+ task=data;state.photos=Array.isArray(task.photos)?task.photos:[];state.issues=Array.isArray(task.issues)?task.issues:[];
+ syncState('تم الحفظ والمزامنة','ok');
 }
 function notifyManager(type,message){
- db.notifications=Array.isArray(db.notifications)?db.notifications:[];
- db.notifications.unshift({id:crypto.randomUUID(),type,message,taskId:task.id,bookingId:task.bookingId,createdAt:new Date().toISOString(),read:false});
- db.notifications=db.notifications.slice(0,100);
+ void type;void message;
 }
 function renderStages(){
  const a=!!task.arrivedAt,h=!!task.handedOverAt,d=!!task.departedAt;
@@ -138,9 +139,9 @@ function renderStages(){
 }
 async function markStage(stage){
  const now=new Date().toISOString();
- if(stage==='arrived'){task.arrivedAt=now;task.status='arrived';db.settings=db.settings||{};db.settings.resortStatus='occupied';notifyManager('arrival',`وصل العميل للحجز ${task.bookingCode?'#'+task.bookingCode:''}`);}
+ if(stage==='arrived'){task.arrivedAt=now;task.status='arrived';notifyManager('arrival',`وصل العميل للحجز ${task.bookingCode?'#'+task.bookingCode:''}`);}
  if(stage==='handed_over'){task.handedOverAt=now;task.status='handed_over';notifyManager('handover',`تم تسليم المنتجع للعميل في الحجز ${task.bookingCode?'#'+task.bookingCode:''}`);}
- if(stage==='departed'){task.departedAt=now;task.status='departed';db.settings=db.settings||{};db.settings.resortStatus='cleaning';notifyManager('departure',`غادر العميل وبدأت مرحلة التنظيف للحجز ${task.bookingCode?'#'+task.bookingCode:''}`);}
+ if(stage==='departed'){task.departedAt=now;task.status='departed';notifyManager('departure',`غادر العميل وبدأت مرحلة التنظيف للحجز ${task.bookingCode?'#'+task.bookingCode:''}`);}
  await saveRemote();renderStages();speak(stage==='arrived'?'تم إبلاغ المدير بوصول العميل':stage==='handed_over'?'تم تسجيل تسليم المنتجع': 'تم إبلاغ المدير بمغادرة العميل. يمكنك بدء التنظيف.');
 }
 async function beginTask(){task.status='in_progress';task.startedAt=task.startedAt||new Date().toISOString();notifyManager('cleaning_started',`بدأ جميل تنظيف الحجز ${task.bookingCode?'#'+task.bookingCode:''}`);await saveRemote();state.phase='before';state.index=0;show('work');renderStep();speakCurrent()}
@@ -156,14 +157,7 @@ async function handleIssuePhoto(e){const f=e.target.files[0];if(!f)return;try{cu
 async function saveIssue(){if(!currentIssueTypes.length)return alert('اختر نوع العطل');state.issues.push({id:crypto.randomUUID(),types:currentIssueTypes,place:places[state.index].name,phase:state.phase,time:new Date().toISOString(),photoDataUrl:currentIssuePhoto||''});await saveRemote();currentIssueTypes=[];currentIssuePhoto=null;document.querySelectorAll('.issue').forEach(x=>x.classList.remove('selected'));issuePreview.classList.add('hidden');issueCamera.value='';show('work');speak('تم حفظ ملاحظة العطل.')}
 async function finishTask(){
  task.status='pending_approval';task.completedAt=new Date().toISOString();task.worker='جميل';task.photos=state.photos;task.issues=state.issues;
- const booking=(db.bookings||[]).find(b=>b.id===task.bookingId);
- if(booking){
-  booking.photos=(Array.isArray(booking.photos)?booking.photos:[]).filter(p=>p.cleaningTaskId!==task.id);
-  const mapped=state.photos.map(p=>({id:p.id||crypto.randomUUID(),type:p.phase==='after'?'after':'before',dataUrl:p.dataUrl,note:p.place,uploadedBy:'جميل',uploadedAt:p.time,originalName:'',cleaningTaskId:task.id}));
-  booking.photos=[...booking.photos,...mapped].slice(-12);
-  booking.cleaningStatus='بانتظار اعتماد المدير';booking.cleaningCompletedAt=task.completedAt;
- }
- db.settings=db.settings||{};db.settings.resortStatus='cleaning';db.settings.resortStatusUpdated=new Date().toISOString();notifyManager('cleaning_complete',`أنهى جميل التنظيف ورفع ${(state.photos||[]).length} صورة للحجز ${task.bookingCode?'#'+task.bookingCode:''}. بانتظار اعتمادك.`)
+ notifyManager('cleaning_complete',`أنهى جميل التنظيف ورفع ${(state.photos||[]).length} صورة للحجز ${task.bookingCode?'#'+task.bookingCode:''}. بانتظار اعتمادك.`)
  await saveRemote();showFinish();speak('شكرًا يا جميل، تم استلام المهمة.');
 }
 function showFinish(){show('finish');photoCount.textContent=(task.photos||[]).length;issueCount.textContent=(task.issues||[]).length;finishStatus.innerHTML='بدأت المهمة: '+fmt(task.startedAt)+'<br>انتهت المهمة: '+fmt(task.completedAt)}
