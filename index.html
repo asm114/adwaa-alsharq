@@ -892,6 +892,9 @@ const GOOGLE_DRIVE_FOLDER_NAME='Adwaa Al Sharq Backups';
 const GOOGLE_DRIVE_STATE_KEY='adwaaGoogleDriveState';
 const GOOGLE_DRIVE_RESUMABLE_THRESHOLD=5*1024*1024;
 const GOOGLE_DRIVE_CHUNK_SIZE=5*1024*1024;
+const GOOGLE_DRIVE_REQUEST_TIMEOUT_MS=25000;
+const GOOGLE_DRIVE_MAX_RETRIES=3;
+const GOOGLE_DRIVE_RETRYABLE_STATUS=new Set([408,429,500,502,503,504]);
 let remoteReady=false;
 let lastSuccessfulReadAt='';
 let lastSuccessfulWriteAt='';
@@ -903,6 +906,7 @@ let googleDriveTokenExpiresAt=0;
 let googleDriveTokenClient=null;
 let googleDriveUploadInProgress=false;
 let googleDriveUploadPromise=null;
+let googleDriveConnectPromise=null;
 const knownRuntimeErrors=[];
 let currentUser=null;
 let realtimeChannel=null;
@@ -2761,7 +2765,7 @@ function loadGoogleDriveState(){
 }
 function saveGoogleDriveState(changes={}){
   const current=loadGoogleDriveState(),next={...current,...changes};
-  const safe={accountName:String(next.accountName||''),accountEmail:String(next.accountEmail||''),folderId:String(next.folderId||''),folderName:String(next.folderName||GOOGLE_DRIVE_FOLDER_NAME),lastUploadAt:String(next.lastUploadAt||''),lastUploadStatus:String(next.lastUploadStatus||'لم يبدأ'),lastUploadOk:next.lastUploadOk===true?true:next.lastUploadOk===false?false:null,backupCount:Number.isFinite(Number(next.backupCount))?Number(next.backupCount):null,lastError:String(next.lastError||'')};
+  const safe={accountName:String(next.accountName||'').slice(0,160),accountEmail:String(next.accountEmail||'').slice(0,254),folderId:String(next.folderId||'').slice(0,256),folderName:String(next.folderName||GOOGLE_DRIVE_FOLDER_NAME).slice(0,160),lastUploadAt:String(next.lastUploadAt||'').slice(0,64),lastUploadStatus:String(next.lastUploadStatus||'لم يبدأ').slice(0,300),lastUploadOk:next.lastUploadOk===true?true:next.lastUploadOk===false?false:null,backupCount:Number.isFinite(Number(next.backupCount))?Math.max(0,Number(next.backupCount)):null,lastError:safeExternalError(next.lastError)};
   try{localStorage.setItem(GOOGLE_DRIVE_STATE_KEY,JSON.stringify(safe))}catch(err){console.warn('تعذر حفظ حالة Google Drive غير الحساسة محليًا',err)}return safe
 }
 function googleDriveSessionActive(){return !!googleDriveAccessToken&&Date.now()<googleDriveTokenExpiresAt-30000}
@@ -2773,6 +2777,18 @@ function clearGoogleDriveSession(reason=''){
   if(reason==='expired'||reason==='unauthorized')saveGoogleDriveState({lastError:'انتهت جلسة Google Drive وتلزم إعادة الاتصال.'});
   renderGoogleDriveStatus();
 }
+function safeExternalError(value){
+  const text=String(value?.message||value||'').replace(/Bearer\s+[A-Za-z0-9._~-]+/gi,'Bearer [محجوب]').replace(/https?:\/\/\S+/g,'[رابط محجوب]').replace(/[\r\n\t]+/g,' ').trim();
+  return text.slice(0,300);
+}
+function googleDriveError(message,status=0,cause=null){
+  const error=new Error(safeExternalError(message)||'تعذر إكمال طلب Google Drive.');
+  error.status=Number(status)||0;
+  if(cause)error.cause=cause;
+  return error;
+}
+function isRetryableGoogleError(error){return GOOGLE_DRIVE_RETRYABLE_STATUS.has(Number(error?.status))||Number(error?.status)===0&&error?.name!=='AbortError'}
+function googleDriveBackoff(attempt){return Math.min(4000,400*2**Math.max(0,attempt-1))+Math.floor(Math.random()*150)}
 function setGoogleDriveMessage(message,type=''){
   const box=document.getElementById('googleDriveMessage');if(!box)return;box.className=`notice drive-message show ${type}`.trim();box.textContent=message
 }
@@ -2803,28 +2819,50 @@ function requestGoogleDriveAccessToken(){
       client_id:GOOGLE_DRIVE_CLIENT_ID,
       scope:GOOGLE_DRIVE_SCOPE,
       callback:response=>{
-        if(response?.error){reject(new Error(response.error_description||response.error));return}
+        if(response?.error){reject(googleDriveError('رفض Google طلب تسجيل الدخول أو لم يكتمل.'));return}
         if(!response?.access_token){reject(new Error('لم تُرجع Google رمز وصول صالحًا.'));return}
         if(google.accounts.oauth2.hasGrantedAllScopes&&!google.accounts.oauth2.hasGrantedAllScopes(response,GOOGLE_DRIVE_SCOPE)){reject(new Error('لم تُمنح صلاحية drive.file المطلوبة. لم يتم ربط Google Drive.'));return}
         googleDriveAccessToken=response.access_token;googleDriveTokenExpiresAt=Date.now()+Math.max(60,Number(response.expires_in||3600))*1000;resolve(response)
       },
-      error_callback:error=>reject(new Error(error?.message||error?.type||'أُغلقت نافذة Google قبل اكتمال الربط.'))
+      error_callback:()=>reject(googleDriveError('أُغلقت نافذة Google أو تعذر إكمال الربط.'))
     });
     googleDriveTokenClient.requestAccessToken({prompt:'consent'})
   })
 }
 async function googleDriveFetch(url,options={}){
   if(!googleDriveSessionActive())throw new Error('جلسة Google Drive غير متصلة أو انتهت. اضغط «ربط Google Drive» مرة أخرى.');
-  const headers=new Headers(options.headers||{});headers.set('Authorization',`Bearer ${googleDriveAccessToken}`);
-  const response=await fetch(url,{...options,headers});
-  if(response.status===401||response.status===403){
-    googleDriveAccessToken='';googleDriveTokenExpiresAt=0;renderGoogleDriveStatus()
+  const target=new URL(url);
+  if(target.protocol!=='https:'||!(target.hostname==='www.googleapis.com'||target.hostname.endsWith('.googleapis.com')))throw googleDriveError('رفض النظام طلبًا إلى نطاق غير موثوق.');
+  let lastError=null;
+  for(let attempt=1;attempt<=GOOGLE_DRIVE_MAX_RETRIES;attempt++){
+    const controller=new AbortController(),externalSignal=options.signal;
+    const relayAbort=()=>controller.abort(externalSignal?.reason);
+    if(externalSignal){if(externalSignal.aborted)relayAbort();else externalSignal.addEventListener('abort',relayAbort,{once:true})}
+    const timeout=setTimeout(()=>controller.abort('timeout'),GOOGLE_DRIVE_REQUEST_TIMEOUT_MS);
+    try{
+      const headers=new Headers(options.headers||{});headers.set('Authorization',`Bearer ${googleDriveAccessToken}`);
+      const response=await fetch(target.href,{...options,headers,signal:controller.signal});
+      if(response.status===401){
+        clearGoogleDriveSession('unauthorized');
+        throw googleDriveError('انتهت جلسة Google Drive. أعد تسجيل الدخول ثم حاول مرة أخرى.',401);
+      }
+      if(response.status===403)throw googleDriveError('رفض Google Drive العملية. تحقق من صلاحية drive.file أو ملكية الملف.',403);
+      if(!response.ok){
+        let reason='';try{const payload=await response.clone().json();reason=payload?.error?.message||''}catch(_){}
+        throw googleDriveError(reason||`تعذر إكمال طلب Google Drive (${response.status}).`,response.status);
+      }
+      return response
+    }catch(error){
+      if(error?.name==='AbortError'||controller.signal.aborted)lastError=googleDriveError(externalSignal?.aborted?'أُلغيت العملية.':'انتهت مهلة الاتصال بـ Google Drive.',0,error);
+      else lastError=error?.status!==undefined?error:googleDriveError('انقطع الاتصال أثناء طلب Google Drive.',0,error);
+      if(!isRetryableGoogleError(lastError)||attempt===GOOGLE_DRIVE_MAX_RETRIES)throw lastError;
+      await new Promise(resolve=>setTimeout(resolve,googleDriveBackoff(attempt)))
+    }finally{
+      clearTimeout(timeout);
+      externalSignal?.removeEventListener?.('abort',relayAbort)
+    }
   }
-  if(!response.ok){
-    let reason='';try{const payload=await response.json();reason=payload?.error?.message||''}catch(_){reason=await response.text().catch(()=> '')}
-    throw new Error(reason||`فشل طلب Google Drive (${response.status})`)
-  }
-  return response
+  throw lastError||googleDriveError('تعذر إكمال طلب Google Drive.')
 }
 function googleDriveEscapedQuery(value){return String(value||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
 async function ensureGoogleDriveFolder(){
@@ -2847,15 +2885,17 @@ async function googleDriveAccountInfo(){
   try{const response=await googleDriveFetch('https://www.googleapis.com/drive/v3/about?fields=user(displayName,emailAddress)'),payload=await response.json();return payload.user||{}}catch(_){return {}}
 }
 async function connectGoogleDrive(){
+  if(googleDriveConnectPromise)return googleDriveConnectPromise;
   setGoogleDriveBusy(true);setGoogleDriveMessage('جاري فتح نافذة Google الآمنة...','');
-  try{
+  googleDriveConnectPromise=(async()=>{try{
     await requestGoogleDriveAccessToken();const [folder,user]=await Promise.all([ensureGoogleDriveFolder(),googleDriveAccountInfo()]);
     saveGoogleDriveState({accountName:user.displayName||'',accountEmail:user.emailAddress||'',folderId:folder.id,folderName:folder.name||GOOGLE_DRIVE_FOLDER_NAME,lastError:''});
     await recordGoogleDriveAudit('ربط',`تم ربط الحساب ${user.emailAddress||user.displayName||'Google'} بالمجلد ${folder.name||GOOGLE_DRIVE_FOLDER_NAME}`,{folderId:folder.id,scope:GOOGLE_DRIVE_SCOPE});
     setGoogleDriveMessage('تم ربط Google Drive وتجهيز مجلد النسخ الاحتياطية بنجاح.','success');await refreshGoogleDriveBackups(false)
   }catch(err){
-    saveGoogleDriveState({lastError:err.message||String(err)});setGoogleDriveMessage(`تعذر ربط Google Drive: ${err.message||err}`,'error');await recordGoogleDriveAudit('فشل ربط',err.message||String(err))
-  }finally{setGoogleDriveBusy(false);renderGoogleDriveStatus()}
+    const message=safeExternalError(err);saveGoogleDriveState({lastError:message});setGoogleDriveMessage(`تعذر ربط Google Drive: ${message}`,'error');await recordGoogleDriveAudit('فشل ربط',message)
+  }finally{googleDriveConnectPromise=null;setGoogleDriveBusy(false);renderGoogleDriveStatus()}})();
+  return googleDriveConnectPromise
 }
 async function listGoogleDriveBackups(){
   const folder=await ensureGoogleDriveFolder(),files=[];let pageToken='';
@@ -2904,8 +2944,16 @@ async function multipartGoogleDriveUpload(record,metadata){
 function uploadGoogleDriveChunk(sessionUrl,blob,start,total){
   return new Promise((resolve,reject)=>{
     const end=start+blob.size-1,xhr=new XMLHttpRequest();xhr.open('PUT',sessionUrl,true);xhr.setRequestHeader('Authorization',`Bearer ${googleDriveAccessToken}`);xhr.setRequestHeader('Content-Type','application/json');xhr.setRequestHeader('Content-Range',`bytes ${start}-${end}/${total}`);
-    xhr.onload=()=>{if(xhr.status===200||xhr.status===201||xhr.status===308)resolve({status:xhr.status,body:xhr.responseText,range:xhr.getResponseHeader('Range')});else reject(new Error(`فشل رفع الجزء السحابي (${xhr.status}): ${xhr.responseText||'استجابة غير معروفة'}`))};
-    xhr.onerror=()=>reject(new Error('انقطع الاتصال أثناء رفع النسخة الكبيرة إلى Google Drive.'));xhr.send(blob)
+    xhr.timeout=GOOGLE_DRIVE_REQUEST_TIMEOUT_MS;
+    xhr.onload=()=>{
+      if(xhr.status===200||xhr.status===201||xhr.status===308){resolve({status:xhr.status,body:xhr.responseText,range:xhr.getResponseHeader('Range')});return}
+      if(xhr.status===401){clearGoogleDriveSession('unauthorized');reject(googleDriveError('انتهت جلسة Google Drive أثناء الرفع. أعد تسجيل الدخول.',401));return}
+      if(xhr.status===403){reject(googleDriveError('رفض Google Drive رفع الملف. تحقق من الصلاحية أو مساحة الحساب.',403));return}
+      reject(googleDriveError(`تعذر رفع جزء النسخة إلى Google Drive (${xhr.status}).`,xhr.status))
+    };
+    xhr.onerror=()=>reject(googleDriveError('انقطع الاتصال أثناء رفع النسخة الكبيرة إلى Google Drive.',0));
+    xhr.ontimeout=()=>reject(googleDriveError('انتهت مهلة رفع جزء النسخة إلى Google Drive.',0));
+    xhr.send(blob)
   })
 }
 function trustedGoogleUploadUrl(value){
@@ -2918,7 +2966,7 @@ async function resumableGoogleDriveUpload(record,metadata){
   let offset=0,result=null;
   while(offset<source.size){
     const chunk=source.slice(offset,Math.min(offset+GOOGLE_DRIVE_CHUNK_SIZE,source.size));let uploaded=null,lastError=null;
-    for(let attempt=1;attempt<=3&&!uploaded;attempt++)try{uploaded=await uploadGoogleDriveChunk(sessionUrl,chunk,offset,source.size)}catch(err){lastError=err;if(attempt<3)await new Promise(resolve=>setTimeout(resolve,attempt*500))}
+    for(let attempt=1;attempt<=GOOGLE_DRIVE_MAX_RETRIES&&!uploaded;attempt++)try{uploaded=await uploadGoogleDriveChunk(sessionUrl,chunk,offset,source.size)}catch(err){lastError=err;if(!isRetryableGoogleError(err))break;if(attempt<GOOGLE_DRIVE_MAX_RETRIES)await new Promise(resolve=>setTimeout(resolve,googleDriveBackoff(attempt)))}
     if(!uploaded)throw lastError||new Error('تعذر استكمال رفع النسخة الكبيرة.');
     if(uploaded.status===200||uploaded.status===201){result=JSON.parse(uploaded.body||'{}');offset=source.size}
     else{const confirmed=String(uploaded.range||'').match(/bytes=0-(\d+)/),next=confirmed?Number(confirmed[1])+1:offset+chunk.size;if(!Number.isFinite(next)||next<=offset)throw new Error('لم يؤكد Google تقدم جلسة الرفع القابل للاستكمال.');offset=next}
@@ -2957,7 +3005,11 @@ async function syncBackupToGoogleDrive(record){
   return googleDriveUploadPromise
 }
 async function downloadGoogleDriveRecord(fileId){
-  const response=await googleDriveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`),text=await response.text(),envelope=secureJsonParse(text),checked=await verifyBackupPayload(envelope);
+  const response=await googleDriveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`),declaredSize=Number(response.headers.get('Content-Length')||0);
+  if(declaredSize>MAX_BACKUP_FILE_BYTES)throw new Error('حجم النسخة السحابية يتجاوز الحد الآمن المسموح.');
+  const text=await response.text();
+  if(new Blob([text]).size>MAX_BACKUP_FILE_BYTES)throw new Error('حجم النسخة السحابية يتجاوز الحد الآمن المسموح.');
+  const envelope=secureJsonParse(text),checked=await verifyBackupPayload(envelope);
   return {id:fileId,recoveryId:checked.envelope.recoveryId,envelope:checked.envelope,json:text,size:new Blob([text]).size,fileName:googleDriveFiles.find(x=>x.id===fileId)?.name||backupFileName(checked.envelope.type,new Date(checked.envelope.createdAt),checked.envelope.recoveryId)}
 }
 async function downloadGoogleDriveBackup(encodedId){
