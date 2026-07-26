@@ -874,6 +874,13 @@ const BACKUP_STORE_NAME='backups';
 const BACKUP_DIRECTORY_RECORD_ID='__backup_directory__';
 const BACKUP_DIRECTORY_LABEL_KEY='adwaaBackupDirectoryLabel';
 const BACKUP_SCHEMA_VERSION=2;
+const MAX_BACKUP_FILE_BYTES=25*1024*1024;
+const MAX_BACKUP_JSON_DEPTH=24;
+const MAX_BACKUP_JSON_NODES=120000;
+const MAX_BACKUP_TEXT_LENGTH=1000000;
+const BACKUP_DATA_FIELDS=new Set(['bookings','expenses','cleaningTasks','notifications','customerNotes','backupHistory','auditLog','settings','seq']);
+const BACKUP_ENVELOPE_FIELDS=new Set(['schema','schemaVersion','recoveryId','version','createdAt','createdBy','type','note','provider','security','integrity','contents','relationships','data']);
+const FORBIDDEN_OBJECT_KEYS=new Set(['__proto__','constructor','prototype']);
 const DATA_PROTECTION_PROVIDER_ID='local';
 const DEFAULT_BACKUP_PATH='Documents\\Adwaa AlSharq\\Backups';
 const GOOGLE_DRIVE_CLIENT_ID='788356174203-htuqsul3e43qul0g42ja60abb428m7oa.apps.googleusercontent.com';
@@ -2908,7 +2915,7 @@ async function syncBackupToGoogleDrive(record){
   return googleDriveUploadPromise
 }
 async function downloadGoogleDriveRecord(fileId){
-  const response=await googleDriveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`),text=await response.text(),envelope=JSON.parse(text),checked=await verifyBackupPayload(envelope);
+  const response=await googleDriveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`),text=await response.text(),envelope=secureJsonParse(text),checked=await verifyBackupPayload(envelope);
   return {id:fileId,recoveryId:checked.envelope.recoveryId,envelope:checked.envelope,json:text,size:new Blob([text]).size,fileName:googleDriveFiles.find(x=>x.id===fileId)?.name||backupFileName(checked.envelope.type,new Date(checked.envelope.createdAt),checked.envelope.recoveryId)}
 }
 async function downloadGoogleDriveBackup(encodedId){
@@ -2936,7 +2943,41 @@ async function renderBackupManagement(){
   if(record?.handle){path.textContent=`المجلد المختار: ${record.label||record.handle.name} — المسار الكامل محمي بواسطة المتصفح`;status.className=`backup-location-status ${permission==='granted'?'ok':'warn'}`;status.textContent=permission==='granted'?'🟢 المجلد محفوظ وقابل للكتابة.':'🟡 المجلد محفوظ، وقد يطلب المتصفح تجديد الإذن عند الحفظ.';badge.className=`release-info-status ${permission==='granted'?'':'update'}`;badge.textContent=permission==='granted'?'🟢 جاهز':'🟡 يحتاج إذن'}else{path.textContent=DEFAULT_BACKUP_PATH;status.className='backup-location-status warn';status.textContent=backupDirectorySupported()?'🟡 مسار مقترح؛ اختر المجلد للسماح بالحفظ المباشر.':'🟡 الحفظ المباشر غير مدعوم؛ ستُنزل النسخة إلى الجهاز.';badge.className='release-info-status update';badge.textContent='🟡 تنزيل آمن'}
   const latest=latestBackupRecord();setAboutText('backupLastFileName',latest?.fileName||'لا توجد نسخة');const date=latest?.createdAt?new Date(latest.createdAt):null,validDate=date&&!Number.isNaN(date.getTime());setAboutText('backupLastDate',validDate?date.toLocaleDateString('ar-SA',{calendar:'gregory'}):'—');setAboutText('backupLastTime',validDate?date.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'}):'—');setAboutText('backupLastSize',latest?formatBytes(latest.size):'—');setAboutText('backupLastStatus',latest?(latest.verified===false?'❌ لم تجتز الفحص':'✅ ناجحة وسليمة'):'—');setAboutText('backupLastLocation',latest?.location||'—')
 }
-function sanitizeBackupValue(value){if(Array.isArray(value))return value.map(sanitizeBackupValue);if(!value||typeof value!=='object')return value;const clean={};Object.entries(value).forEach(([key,item])=>{if(!/(?:password|passwd|secret|token|api[_-]?key|private[_-]?key)/i.test(key))clean[key]=sanitizeBackupValue(item)});return clean}
+function inspectJsonComplexity(value,{maxDepth=MAX_BACKUP_JSON_DEPTH,maxNodes=MAX_BACKUP_JSON_NODES}={}){
+  let nodes=0;
+  const visit=(item,depth)=>{
+    if(++nodes>maxNodes)throw new Error('ملف النسخة يحتوي عدد عناصر أكبر من الحد الآمن');
+    if(depth>maxDepth)throw new Error('ملف النسخة متداخل بعمق أكبر من الحد الآمن');
+    if(typeof item==='string'&&item.length>MAX_BACKUP_TEXT_LENGTH)throw new Error('ملف النسخة يحتوي قيمة نصية أكبر من الحد الآمن');
+    if(!item||typeof item!=='object')return;
+    for(const [key,child] of Object.entries(item)){
+      if(FORBIDDEN_OBJECT_KEYS.has(key))throw new Error('ملف النسخة يحتوي مفتاحًا محظورًا');
+      visit(child,depth+1);
+    }
+  };
+  visit(value,0);return nodes;
+}
+function secureJsonParse(text){
+  const raw=String(text??'');
+  if(new Blob([raw]).size>MAX_BACKUP_FILE_BYTES)throw new Error('حجم ملف النسخة يتجاوز الحد الآمن المسموح');
+  const value=JSON.parse(raw,(key,item)=>{
+    if(FORBIDDEN_OBJECT_KEYS.has(key))throw new Error('ملف النسخة يحتوي مفتاحًا محظورًا');
+    return item;
+  });
+  inspectJsonComplexity(value);return value;
+}
+function sanitizeBackupValue(value,depth=0,state={nodes:0}){
+  if(++state.nodes>MAX_BACKUP_JSON_NODES||depth>MAX_BACKUP_JSON_DEPTH)throw new Error('تعذر إنشاء النسخة لأن بنية البيانات تتجاوز الحدود الآمنة');
+  if(typeof value==='string')return value.slice(0,MAX_BACKUP_TEXT_LENGTH);
+  if(Array.isArray(value))return value.map(item=>sanitizeBackupValue(item,depth+1,state));
+  if(!value||typeof value!=='object')return value;
+  const clean=Object.create(null);
+  Object.entries(value).forEach(([key,item])=>{
+    if(FORBIDDEN_OBJECT_KEYS.has(key))return;
+    if(!/(?:password|passwd|secret|token|session|refresh|access[_-]?token|api[_-]?key|private[_-]?key)/i.test(key))clean[key]=sanitizeBackupValue(item,depth+1,state);
+  });
+  return clean;
+}
 function backupCoreData(){const copy=sanitizeBackupValue(safeClone(db)||{});copy.backupHistory=[];return copy}
 async function sha256Text(value){if(!crypto?.subtle)return '';const bytes=new TextEncoder().encode(value),hash=await crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 function createRecoveryId(at=new Date()){const stamp=at.toISOString().slice(0,10).replaceAll('-',''),uuid=(crypto?.randomUUID?.()||`${Date.now()}-${Math.random()}`).replaceAll('-','').toUpperCase();return `ADW-${stamp}-${uuid}`}
@@ -2978,9 +3019,17 @@ async function createBackupEnvelope(type='يدوي',note=''){
   return {schema:'adwaa-alsharq-backup',schemaVersion:BACKUP_SCHEMA_VERSION,recoveryId,version:APP_VERSION,createdAt:createdAt.toISOString(),createdBy:currentUserLabel(),type,note,provider:{id:DATA_PROTECTION_PROVIDER_ID,label:'الحفظ المحلي'},security:{secretsExcluded:true,regeneratedOnRestore:['cleaningTasks.token']},integrity:{algorithm:dataHash?'SHA-256':'structural',dataHash},contents:backupManifest(data),relationships:{checked:true,warnings:relationships.warnings.length},data};
 }
 function validateBackupPayload(raw){
-  const envelope=raw?.schema==='adwaa-alsharq-backup'?raw:{schema:'adwaa-alsharq-backup',version:'قديم',createdAt:new Date().toISOString(),createdBy:'ملف قديم',type:'مستورد',data:raw};
+  inspectJsonComplexity(raw);
+  if(!raw||typeof raw!=='object'||Array.isArray(raw)||raw.schema!=='adwaa-alsharq-backup')throw new Error('الملف ليس نسخة احتياطية معتمدة من نظام أضواء الشرق');
+  if(raw.schemaVersion!==BACKUP_SCHEMA_VERSION)throw new Error(`إصدار بنية النسخة غير مدعوم. المطلوب schemaVersion ${BACKUP_SCHEMA_VERSION}`);
+  const unexpectedEnvelope=Object.keys(raw).filter(key=>!BACKUP_ENVELOPE_FIELDS.has(key));
+  if(unexpectedEnvelope.length)throw new Error('ملف النسخة يحتوي حقولًا غير متوقعة في الغلاف');
+  const envelope=raw;
   const data=envelope?.data;
   if(!data||typeof data!=='object'||!Array.isArray(data.bookings)||!Array.isArray(data.expenses))throw new Error('الملف لا يحتوي بنية بيانات أضواء الشرق الصحيحة');
+  const unexpectedData=Object.keys(data).filter(key=>!BACKUP_DATA_FIELDS.has(key));
+  if(unexpectedData.length)throw new Error('ملف النسخة يحتوي أقسام بيانات غير معتمدة');
+  if(data.bookings.length>10000||data.expenses.length>20000||(data.cleaningTasks?.length||0)>20000||(data.notifications?.length||0)>50000||(data.auditLog?.length||0)>100000)throw new Error('ملف النسخة يتجاوز الحدود المسموحة لعدد السجلات');
   for(const field of ['cleaningTasks','notifications','auditLog'])if(data[field]!==undefined&&!Array.isArray(data[field]))throw new Error(`قسم ${field} غير صالح داخل النسخة`);
   const relationships=inspectBackupRelationships(data);
   if(!relationships.ok)throw new Error(`فشل فحص العلاقات: ${relationships.errors[0]}`);
@@ -2995,7 +3044,7 @@ async function createPreMigrationBackupFromData(rawData,migrationKey,note){
 function backupFileName(type,at=new Date(),recoveryId=''){const stamp=at.toISOString().replace(/[:.]/g,'-'),safeId=String(recoveryId||'').replace(/[^A-Z0-9-]/gi,'');const kind=type==='نقطة استعادة'?'restore-point':type==='قبل الاستعادة'?'before-restore':type==='قبل التغيير'?'before-change':'backup';return `Adwaa-${kind}-${APP_VERSION}-${stamp}${safeId?`-${safeId}`:''}.json`}
 async function writableBackupDirectory(){const record=await getBackupDirectoryRecord();if(!record?.handle)return null;const permission=await getDirectoryPermission(record.handle,true);if(permission!=='granted')throw new Error('المجلد المحدد غير قابل للكتابة. اختر موقعًا جديدًا.');return record}
 async function writeVerifiedBackupFile(record,fileName,json){
-  const handle=await record.handle.getFileHandle(fileName,{create:true}),writer=await handle.createWritable();await writer.write(json);await writer.close();const saved=await (await handle.getFile()).text();if(saved!==json)throw new Error('فشل التحقق من الملف بعد حفظه داخل المجلد');await verifyBackupPayload(JSON.parse(saved));return true
+  const handle=await record.handle.getFileHandle(fileName,{create:true}),writer=await handle.createWritable();await writer.write(json);await writer.close();const saved=await (await handle.getFile()).text();if(saved!==json)throw new Error('فشل التحقق من الملف بعد حفظه داخل المجلد');await verifyBackupPayload(secureJsonParse(saved));return true
 }
 async function createBackup(type='يدوي',options={}){
   const {downloadFile=true,silent=false,note='',preferDirectory=downloadFile}=options;let directoryRecord=null,directoryError='';if(preferDirectory)try{directoryRecord=await writableBackupDirectory()}catch(err){directoryError=err.message||'المسار المحدد غير صالح'}
@@ -3069,7 +3118,17 @@ async function restoreStoredBackup(id){
   try{await applyRestorePayload(checked.data,`استعادة النسخة ${recoveryId} — ${formatDateTime(record.envelope.createdAt)}`);alert('تمت الاستعادة في Supabase وتأكيد تطابق البيانات بنجاح.')}
   catch(err){alert(`لم تكتمل الاستعادة، ولم تُعتمد كعملية ناجحة.\n${err.message||err}\n\nاحتُفظ بالبيانات المحلية الحالية. راجع حالة المزامنة قبل أي إجراء آخر.`)}
 }
-function readJsonFile(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>{try{resolve(JSON.parse(r.result))}catch(_){reject(new Error('الملف ليس JSON صالحًا'))}};r.onerror=()=>reject(new Error('تعذر قراءة الملف'));r.readAsText(file)})}
+function readJsonFile(file){
+  return new Promise((resolve,reject)=>{
+    if(!file||typeof file.name!=='string'||!file.name.toLowerCase().endsWith('.json')){reject(new Error('يُسمح فقط بملفات JSON'));return}
+    if(file.size>MAX_BACKUP_FILE_BYTES){reject(new Error(`حجم ملف النسخة يتجاوز الحد الآمن (${formatBytes(MAX_BACKUP_FILE_BYTES)})`));return}
+    if(file.type&&!['application/json','text/json','text/plain'].includes(file.type)){reject(new Error('نوع ملف النسخة غير مسموح'));return}
+    const r=new FileReader();
+    r.onload=()=>{try{resolve(secureJsonParse(r.result))}catch(err){reject(new Error(err instanceof SyntaxError?'الملف ليس JSON صالحًا':err.message))}};
+    r.onerror=()=>reject(new Error('تعذر قراءة الملف'));
+    r.readAsText(file);
+  });
+}
 async function inspectBackupFile(ev){
   const file=ev.target.files?.[0];if(!file)return;const box=document.getElementById('backupCheckStatus');box.style.display='block';
   try{const raw=await readJsonFile(file),checked=await verifyBackupPayload(raw);box.className='notice backup-status';box.innerHTML=`✅ <b>النسخة سليمة وقابلة للاستعادة</b><br>اسم الملف: ${escapeHtml(file.name)} • الحجم: ${formatBytes(file.size)}<br>الحجوزات: ${checked.summary.bookings} • المصروفات: ${checked.summary.expenses} • مهام التنظيف: ${checked.summary.cleaning}<br>الإصدار: ${escapeHtml(checked.envelope.version||'قديم')} • تاريخ الإنشاء: ${formatDateTime(checked.envelope.createdAt)}`}
