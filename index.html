@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#0d4c3f">
 <title>v9.7 RC1 — النسخ الاحتياطي السحابي</title>
 <link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="portal-admin.css">
 <style>
 :root{--green:#0d4c3f;--green2:#155f50;--gold:#d8a33e;--bg:#f7f5ef;--card:#fff;--text:#10251f;--muted:#7d8a85;--danger:#b54545;--line:#e7e5df}
 *{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text)}
@@ -629,6 +630,84 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
   </div>
 </section>
 
+<section id="customerPortalAdmin" class="view" aria-labelledby="customerPortalAdminTitle">
+  <div class="portal-admin-hero">
+    <div>
+      <div class="eyebrow">بوابة العملاء</div>
+      <h2 id="customerPortalAdminTitle">إدارة بوابة العملاء</h2>
+      <p>إدارة البيانات المتغيرة والصور فقط. النصوص التعريفية والسياسات والأسئلة الشائعة جاهزة داخل البوابة.</p>
+    </div>
+    <a class="secondary" href="resort/" target="_blank" rel="noopener">معاينة بوابة العملاء</a>
+  </div>
+
+  <div id="portalAdminStatus" class="notice" role="status">اختر القسم لتحميل البيانات.</div>
+
+  <form id="portalSettingsForm" class="portal-admin-grid" onsubmit="saveCustomerPortalSettings(event)">
+    <section class="portal-admin-card">
+      <h3>البيانات الأساسية</h3>
+      <label>رقم واتساب استقبال الطلبات
+        <input id="portalWhatsapp" inputmode="numeric" dir="ltr" required placeholder="9665xxxxxxxx">
+      </label>
+      <label>رابط إنستغرام
+        <input id="portalInstagram" type="url" dir="ltr" required>
+      </label>
+      <label>رابط Google Maps
+        <input id="portalMaps" type="url" dir="ltr" required>
+      </label>
+      <label>استقبال طلبات الحجز
+        <select id="portalRequestsOpen">
+          <option value="true">مفتوح</option>
+          <option value="false">متوقف مؤقتًا</option>
+        </select>
+      </label>
+      <label>رسالة التوقف المؤقت
+        <textarea id="portalPauseMessage" maxlength="500" required></textarea>
+      </label>
+    </section>
+
+    <section class="portal-admin-card">
+      <h3>الأسعار</h3>
+      <label>سعر الحجز اليومي
+        <input id="portalDailyPrice" type="number" min="0" step="0.01" placeholder="لم يحدد">
+      </label>
+      <label>رسوم المبيت — مرة واحدة لكل حجز
+        <input id="portalOvernightFee" type="number" min="0" step="0.01" required>
+      </label>
+      <label class="portal-toggle">
+        <input id="portalOvernightEnabled" type="checkbox">
+        <span>تفعيل حجوزات المبيت</span>
+      </label>
+      <div class="portal-price-preview" aria-live="polite">
+        <span>السعر الأساسي <b id="portalPreviewBase">—</b></span>
+        <span>رسوم المبيت <b id="portalPreviewFee">—</b></span>
+        <span class="total">الإجمالي <b id="portalPreviewTotal">—</b></span>
+      </div>
+    </section>
+
+    <div class="portal-admin-actions">
+      <button class="primary" type="submit">حفظ بيانات البوابة</button>
+    </div>
+  </form>
+
+  <section class="portal-admin-card portal-images-card">
+    <div class="portal-images-head">
+      <div>
+        <h3>صور المنتجع</h3>
+        <p class="meta">JPG أو PNG أو WebP، وبحد أقصى 10MB للصورة الأصلية. يعاد ترميز الصور وتصغير الأبعاد قبل الرفع.</p>
+      </div>
+      <label class="secondary portal-file-button">اختيار صور
+        <input id="portalImageInput" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple hidden>
+      </label>
+    </div>
+    <div id="portalImagePreview" class="portal-image-preview" aria-live="polite"></div>
+    <div class="actions">
+      <button id="portalUploadButton" class="primary" type="button" disabled>رفع الصور المحددة</button>
+      <button id="portalClearPreviewButton" class="secondary" type="button" disabled>إلغاء الاختيار</button>
+    </div>
+    <div id="portalImagesList" class="portal-images-list"></div>
+  </section>
+</section>
+
 <section id="settings" class="view">
   <div class="section">
     <div class="section-head"><div><h3>الحماية والنسخ الاحتياطي</h3><div class="meta">نسخة يدوية، نقطة استعادة، وفحص الملف قبل الاسترجاع</div></div></div>
@@ -683,6 +762,7 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
 <button data-view="expenses" onclick="switchView('expenses',this)"><b>◫</b>المصاريف</button>
 <button data-view="cleaning" onclick="switchView('cleaning',this)" title="إدارة مهام جميل"><b>👷</b>بوابة جميل</button>
 <button data-view="dataProtection" onclick="switchView('dataProtection',this)"><b>🛡️</b>حماية البيانات</button>
+<button data-view="customerPortalAdmin" onclick="switchView('customerPortalAdmin',this)"><b>▤</b>بوابة العملاء</button>
 <button data-view="about" onclick="switchView('about',this)"><b>ⓘ</b>حول النظام</button>
 <button data-view="settings" onclick="switchView('settings',this)"><b>⚙</b>الإعدادات</button>
 </nav>
@@ -1273,8 +1353,8 @@ const RESORT_STATUSES={ready:{label:'جاهز للاستقبال',icon:'🟢',cl
 function renderResortStatus(){const key=db.settings?.resortStatus||'ready',st=RESORT_STATUSES[key]||RESORT_STATUSES.ready,card=document.getElementById('resortStatusCard');if(!card)return;card.className='resort-status-card '+st.className;document.getElementById('resortStatusIcon').textContent=st.icon;document.getElementById('resortStatusText').textContent=st.label;const u=db.settings?.resortStatusUpdated;document.getElementById('resortStatusUpdated').textContent=u?'آخر تحديث: '+new Date(u).toLocaleString('ar-SA'):'';}
 function openResortStatus(){const current=db.settings?.resortStatus||'ready';document.getElementById('resortStatusOptions').innerHTML=Object.entries(RESORT_STATUSES).map(([key,st])=>`<button class="status-option ${key===current?'active':''}" onclick="setResortStatus('${key}')"><span style="font-size:24px">${st.icon}</span><br>${st.label}</button>`).join('');document.getElementById('resortStatusModal').classList.add('open');}
 async function setResortStatus(key){if(!RESORT_STATUSES[key])return;const before=db.settings.resortStatus||'ready';db.settings.resortStatus=key;db.settings.resortStatusUpdated=new Date().toISOString();addAudit('تعديل','حالة المنتجع',`${RESORT_STATUSES[before]?.label||before} ← ${RESORT_STATUSES[key]?.label||key}`,{status:before},{status:key});closeModal('resortStatusModal');await persist();}
-function switchView(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));const target=document.getElementById(id);if(!target)return;target.classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));(btn||document.querySelector(`nav button[data-view="${id}"]`))?.classList.add('active');const t={dashboard:['لوحة إدارة المنتجع','متابعة الحجوزات والمبالغ من مكان واحد'],bookings:['إدارة الحجوزات','إضافة وتعديل ومتابعة جميع الحجوزات'],customers:['سجل العملاء','عدد الزيارات والمدفوعات وآخر حجز'],calendarView:['تقويم الحجوزات','عرض الأيام المحجوزة ومنع التداخل'],cleaning:['مركز التنظيف','متابعة مهام التنظيف بعد مغادرة العملاء'],expenses:['المصاريف والدخل','متابعة المصروفات وصافي الدخل'],dataProtection:['مركز حماية البيانات','النسخ المحلية والسحابية وفحص السلامة وخطة التعافي'],about:['حول النظام','معلومات الإصدار والحماية وحالة البيانات'],settings:['الإعدادات','النسخ الاحتياطي وبيانات واتساب']}[id]||['نظام أضواء الشرق',''];pageTitle.textContent=t[0];pageSub.textContent=t[1];window.scrollTo(0,0);renderCurrentView(id)}
-function renderCurrentView(id){if(id==='dashboard')renderDashboard();else if(id==='bookings')renderBookings();else if(id==='customers')renderCustomers();else if(id==='calendarView')renderCalendar();else if(id==='cleaning')renderCleaning();else if(id==='expenses')renderExpenses();else if(id==='dataProtection')renderDataProtectionCenter();else if(id==='about')renderAbout();else if(id==='settings'){const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay'),enabledEl=document.getElementById('commissionEnabled'),methodEl=document.getElementById('commissionMethod'),rateEl=document.getElementById('commissionRate');if(waEl)waEl.value=db.settings.waNumber||'';if(dailyEl)dailyEl.value=db.settings.welcomeMsgDaily||DEFAULT_WELCOME_DAILY;if(stayEl)stayEl.value=db.settings.welcomeMsgStay||DEFAULT_WELCOME_STAY;if(enabledEl)enabledEl.checked=db.settings.commissionEnabled!==false;if(methodEl)methodEl.value=db.settings.commissionMethod||'per_day';if(rateEl)rateEl.value=Number(db.settings.commissionRate??100);renderBackupHistory();renderAuditLog()}}
+function switchView(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));const target=document.getElementById(id);if(!target)return;target.classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));(btn||document.querySelector(`nav button[data-view="${id}"]`))?.classList.add('active');const t={dashboard:['لوحة إدارة المنتجع','متابعة الحجوزات والمبالغ من مكان واحد'],bookings:['إدارة الحجوزات','إضافة وتعديل ومتابعة جميع الحجوزات'],customers:['سجل العملاء','عدد الزيارات والمدفوعات وآخر حجز'],calendarView:['تقويم الحجوزات','عرض الأيام المحجوزة ومنع التداخل'],cleaning:['مركز التنظيف','متابعة مهام التنظيف بعد مغادرة العملاء'],expenses:['المصاريف والدخل','متابعة المصروفات وصافي الدخل'],dataProtection:['مركز حماية البيانات','النسخ المحلية والسحابية وفحص السلامة وخطة التعافي'],customerPortalAdmin:['إدارة بوابة العملاء','الصور والأسعار وروابط التواصل والبيانات المتغيرة'],about:['حول النظام','معلومات الإصدار والحماية وحالة البيانات'],settings:['الإعدادات','النسخ الاحتياطي وبيانات واتساب']}[id]||['نظام أضواء الشرق',''];pageTitle.textContent=t[0];pageSub.textContent=t[1];window.scrollTo(0,0);renderCurrentView(id)}
+function renderCurrentView(id){if(id==='dashboard')renderDashboard();else if(id==='bookings')renderBookings();else if(id==='customers')renderCustomers();else if(id==='calendarView')renderCalendar();else if(id==='cleaning')renderCleaning();else if(id==='expenses')renderExpenses();else if(id==='dataProtection')renderDataProtectionCenter();else if(id==='customerPortalAdmin')loadCustomerPortalAdmin();else if(id==='about')renderAbout();else if(id==='settings'){const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay'),enabledEl=document.getElementById('commissionEnabled'),methodEl=document.getElementById('commissionMethod'),rateEl=document.getElementById('commissionRate');if(waEl)waEl.value=db.settings.waNumber||'';if(dailyEl)dailyEl.value=db.settings.welcomeMsgDaily||DEFAULT_WELCOME_DAILY;if(stayEl)stayEl.value=db.settings.welcomeMsgStay||DEFAULT_WELCOME_STAY;if(enabledEl)enabledEl.checked=db.settings.commissionEnabled!==false;if(methodEl)methodEl.value=db.settings.commissionMethod||'per_day';if(rateEl)rateEl.value=Number(db.settings.commissionRate??100);renderBackupHistory();renderAuditLog()}}
 function renderAll(){renderDashboard();renderBookings();renderCustomers();renderCleaning();renderExpenses();renderCalendar();renderResortStatus();renderAbout();const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay'),calMode=document.getElementById('calendarMode');if(waEl)waEl.value=db.settings.waNumber||'';if(dailyEl)dailyEl.value=db.settings.welcomeMsgDaily||DEFAULT_WELCOME_DAILY;if(stayEl)stayEl.value=db.settings.welcomeMsgStay||DEFAULT_WELCOME_STAY;if(calMode)calMode.value=db.settings.calendarMode||'both';renderSendStatus()}
 
 function setAboutText(id,value){const el=document.getElementById(id);if(el)el.textContent=String(value??'—')}
@@ -3480,5 +3560,6 @@ const v95RenderDashboardBase=renderDashboard;renderDashboard=function(){v95Rende
 const v95RenderAllBase=renderAll;renderAll=function(){v95RenderAllBase();renderTodayBoard()};
 document.addEventListener('DOMContentLoaded',()=>{renderHelpIcons();applyHelpVisibility();fillCalendarPickers();renderTodayBoard()});
 </script>
+<script src="portal-admin.js"></script>
 </body>
 </html>
