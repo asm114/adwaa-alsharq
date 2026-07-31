@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#0d4c3f">
 <title>v9.7 RC1 — النسخ الاحتياطي السحابي</title>
 <link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="portal-admin.css">
 <style>
 :root{--green:#0d4c3f;--green2:#155f50;--gold:#d8a33e;--bg:#f7f5ef;--card:#fff;--text:#10251f;--muted:#7d8a85;--danger:#b54545;--line:#e7e5df}
 *{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text)}
@@ -629,6 +630,242 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
   </div>
 </section>
 
+<section id="customerPortalAdmin" class="view" aria-labelledby="customerPortalAdminTitle">
+  <div class="portal-admin-hero">
+    <div>
+      <div class="eyebrow">بوابة العملاء</div>
+      <h2 id="customerPortalAdminTitle">إدارة بوابة العملاء</h2>
+      <p>إدارة البيانات العامة والصور الخاصة ببوابة العملاء دون ربطها بحجوزات نظام المدير.</p>
+    </div>
+    <a class="secondary" href="resort/preview.html" target="_blank" rel="noopener">معاينة البوابة</a>
+  </div>
+
+  <div class="portal-admin-stage-note" role="status">هذه المهمة تنفذ قسم التقويم والتواريخ غير المتاحة فقط بعد معلومات المنتجع والصور. الأسعار والمواسم وصفحة العملاء مؤجلة.</div>
+
+  <div class="portal-admin-shell" aria-label="أقسام إدارة بوابة العملاء">
+    <section class="portal-admin-card portal-info-card">
+      <div class="portal-section-heading">
+        <div class="portal-section-icon">01</div>
+        <h3>معلومات المنتجع</h3>
+        <p>البيانات العامة التي يسمح بعرضها في بوابة العملاء.</p>
+      </div>
+      <div id="portalResortInfoStatus" class="portal-inline-status" role="status">جاري تهيئة النموذج...</div>
+      <form id="portalResortInfoForm" class="portal-info-form" onsubmit="savePortalResortInfo(event)">
+        <label>اسم المنتجع
+          <input id="portalResortName" required maxlength="120" placeholder="أضواء الشرق">
+        </label>
+        <label>وصف مختصر
+          <input id="portalShortDescription" required maxlength="220" placeholder="منتجع واسع في القاع البارد">
+        </label>
+        <label class="portal-full">وصف تفصيلي
+          <textarea id="portalDetailedDescription" required maxlength="2500"></textarea>
+        </label>
+        <label>وقت الدخول
+          <input id="portalCheckinTime" required maxlength="80" placeholder="3:30 عصرًا">
+        </label>
+        <label>وقت الخروج
+          <input id="portalCheckoutTime" required maxlength="80" placeholder="3:00 فجرًا">
+        </label>
+        <label>رابط خرائط Google
+          <input id="portalMapsUrl" type="url" dir="ltr" placeholder="https://maps.app.goo.gl/...">
+        </label>
+        <label>رابط واتساب
+          <input id="portalWhatsappUrl" type="url" dir="ltr" placeholder="https://iwtsp.com/966...">
+        </label>
+        <label>رابط إنستغرام
+          <input id="portalInstagramUrl" type="url" dir="ltr" placeholder="https://www.instagram.com/...">
+        </label>
+        <label>عنوان المنتجع
+          <input id="portalAddress" maxlength="220" placeholder="القاع البارد">
+        </label>
+        <label class="portal-full">تعليمات الدخول
+          <textarea id="portalCheckinInstructions" maxlength="1500" placeholder="تعليمات تظهر للعميل عند الحاجة"></textarea>
+        </label>
+        <div class="portal-full portal-feature-editor">
+          <label>مميزات المنتجع
+            <div class="portal-feature-input-row">
+              <input id="portalFeatureInput" maxlength="120" placeholder="أضف ميزة مثل: مسبح كبير">
+              <button id="portalAddFeatureButton" class="secondary" type="button">إضافة</button>
+            </div>
+          </label>
+          <div id="portalFeatureList" class="portal-feature-list" aria-live="polite"></div>
+        </div>
+        <label>استقبال طلبات الحجز
+          <select id="portalRequestsOpen">
+            <option value="true">مفتوح</option>
+            <option value="false">مغلق</option>
+          </select>
+        </label>
+        <label class="portal-full">رسالة إيقاف استقبال الطلبات
+          <textarea id="portalClosedMessage" required maxlength="500"></textarea>
+        </label>
+        <div class="portal-full portal-form-actions">
+          <button class="primary" type="submit">حفظ معلومات المنتجع</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="portal-admin-card portal-images-card">
+      <div class="portal-section-heading">
+        <div class="portal-section-icon">02</div>
+        <h3>الصور</h3>
+        <p>إدارة صور بوابة العملاء: الرفع، التصنيف، الغلاف، الظهور، والترتيب.</p>
+      </div>
+      <div id="portalImagesStatus" class="portal-inline-status" role="status">جاري تهيئة الصور...</div>
+      <form id="portalImageUploadForm" class="portal-image-form" onsubmit="uploadPortalImage(event)">
+        <label class="portal-full">اختيار صورة
+          <input id="portalImageFile" type="file" accept="image/jpeg,image/png,image/webp">
+        </label>
+        <div id="portalImagePreview" class="portal-image-preview">اختر صورة JPG أو PNG أو WebP لمعاينتها قبل الحفظ.</div>
+        <label>التصنيف
+          <select id="portalImageCategory"></select>
+        </label>
+        <label>العنوان
+          <input id="portalImageTitle" maxlength="140" placeholder="مثال: المسطحات الخضراء">
+        </label>
+        <label class="portal-full">الوصف
+          <textarea id="portalImageDescription" maxlength="500" placeholder="وصف اختياري للصورة"></textarea>
+        </label>
+        <label class="portal-full">النص البديل Alt Text
+          <input id="portalImageAlt" maxlength="180" placeholder="وصف مختصر يساعد الوصول ومحركات البحث">
+        </label>
+        <label class="portal-checkbox">
+          <input id="portalImageIsCover" type="checkbox">
+          <span>تعيين كصورة غلاف</span>
+        </label>
+        <label class="portal-checkbox">
+          <input id="portalImageIsVisible" type="checkbox" checked>
+          <span>إظهار الصورة في البوابة</span>
+        </label>
+        <div class="portal-full portal-form-actions">
+          <button class="primary" type="submit">رفع الصورة وحفظها</button>
+        </div>
+      </form>
+      <div class="portal-image-toolbar">
+        <button class="secondary" type="button" onclick="loadPortalImages()">تحديث الصور</button>
+        <span class="meta">الحد الأقصى للصورة الأصلية 10MB. لا تقبل HEIC أو SVG.</span>
+      </div>
+      <div id="portalImagesList" class="portal-images-list" aria-live="polite"></div>
+    </section>
+
+    <section class="portal-admin-card portal-unavailable-card">
+      <div class="portal-section-heading">
+        <div class="portal-section-icon">03</div>
+        <h3>التقويم والتواريخ غير المتاحة</h3>
+        <p>إدارة الفترات التي تظهر للعميل كغير متاحة، دون ربطها بحجوزات نظام المدير.</p>
+      </div>
+      <div id="portalUnavailableStatus" class="portal-inline-status" role="status">جاري تهيئة التواريخ...</div>
+      <form id="portalUnavailableForm" class="portal-unavailable-form" onsubmit="savePortalUnavailablePeriod(event)">
+        <input id="portalUnavailableId" type="hidden">
+        <label>من تاريخ
+          <input id="portalUnavailableStart" type="date" required>
+        </label>
+        <label>إلى تاريخ
+          <input id="portalUnavailableEnd" type="date" required>
+        </label>
+        <div class="portal-full portal-unavailable-preview" id="portalUnavailablePreview">اختر بداية ونهاية الفترة لعرض التاريخين بالميلادي والهجري.</div>
+        <div class="portal-full portal-form-actions">
+          <button class="secondary" type="button" onclick="resetPortalUnavailableForm()">إلغاء التعديل</button>
+          <button class="primary" type="submit">حفظ الفترة</button>
+        </div>
+      </form>
+      <div class="portal-image-toolbar">
+        <button class="secondary" type="button" onclick="loadPortalUnavailablePeriods()">تحديث الفترات</button>
+        <span class="meta">الفترات المتداخلة ممنوعة. لا تُعرض أسباب داخلية للعميل.</span>
+      </div>
+      <div id="portalUnavailableList" class="portal-unavailable-list" aria-live="polite"></div>
+    </section>
+
+    <section class="portal-admin-card portal-pricing-card">
+      <div class="portal-section-heading">
+        <div class="portal-section-icon">04</div>
+        <h3>الأسعار والمواسم</h3>
+        <p>إدارة الأسعار الأساسية والمواسم دون ربطها بالتقويم أو صفحة العملاء في هذه المهمة.</p>
+      </div>
+      <div id="portalPricingStatus" class="portal-inline-status" role="status">جاري تهيئة الأسعار...</div>
+      <form id="portalPricingForm" class="portal-pricing-form" onsubmit="savePortalPricing(event)">
+        <label>سعر أيام الأسبوع
+          <input id="portalWeekdayPrice" type="number" inputmode="decimal" min="0" step="1" placeholder="0">
+        </label>
+        <label>سعر نهاية الأسبوع
+          <input id="portalWeekendPrice" type="number" inputmode="decimal" min="0" step="1" placeholder="0">
+        </label>
+        <div class="portal-full portal-form-actions">
+          <button class="primary" type="submit">حفظ الأسعار الأساسية</button>
+        </div>
+      </form>
+      <div id="portalSeasonsStatus" class="portal-inline-status" role="status">جاري تهيئة المواسم...</div>
+      <form id="portalSeasonForm" class="portal-season-form" onsubmit="savePortalSeason(event)">
+        <input id="portalSeasonId" type="hidden">
+        <label>اسم الموسم
+          <input id="portalSeasonName" maxlength="120" placeholder="مثال: إجازة منتصف العام" required>
+        </label>
+        <label>سعر الموسم
+          <input id="portalSeasonPrice" type="number" inputmode="decimal" min="0" step="1" placeholder="0" required>
+        </label>
+        <label>بداية الموسم
+          <input id="portalSeasonStart" type="date" required>
+        </label>
+        <label>نهاية الموسم
+          <input id="portalSeasonEnd" type="date" required>
+        </label>
+        <label class="portal-checkbox">
+          <input id="portalSeasonActive" type="checkbox" checked>
+          <span>الموسم مفعّل</span>
+        </label>
+        <div class="portal-full portal-season-preview" id="portalSeasonPreview">اختر بداية ونهاية الموسم لعرض التاريخين بالميلادي والهجري.</div>
+        <div class="portal-full portal-form-actions">
+          <button class="secondary" type="button" onclick="resetPortalSeasonForm()">إلغاء التعديل</button>
+          <button class="primary" type="submit">حفظ الموسم</button>
+        </div>
+      </form>
+      <div class="portal-image-toolbar">
+        <button class="secondary" type="button" onclick="loadPortalSeasons()">تحديث المواسم</button>
+        <span class="meta">المواسم المتداخلة ممنوعة. لا يوجد ربط بالتقويم أو الحجز في هذه المهمة.</span>
+      </div>
+      <div id="portalSeasonsList" class="portal-seasons-list" aria-live="polite"></div>
+    </section>
+
+    <section class="portal-admin-card portal-contact-card">
+      <div class="portal-section-heading">
+        <div class="portal-section-icon">05</div>
+        <h3>التواصل</h3>
+        <p>إدارة بيانات التواصل العامة التي تظهر لاحقًا في بوابة العملاء دون نموذج إرسال رسائل.</p>
+      </div>
+      <div id="portalContactStatus" class="portal-inline-status" role="status">جاري تهيئة بيانات التواصل...</div>
+      <form id="portalContactForm" class="portal-contact-form" onsubmit="savePortalContact(event)">
+        <label>رقم واتساب
+          <input id="portalContactWhatsapp" inputmode="tel" dir="ltr" maxlength="24" placeholder="966560442799" required>
+        </label>
+        <label>رابط خرائط Google
+          <input id="portalContactMapsUrl" type="url" dir="ltr" placeholder="https://maps.app.goo.gl/..." required>
+        </label>
+        <label>رابط إنستغرام
+          <input id="portalContactInstagramUrl" type="url" dir="ltr" placeholder="https://www.instagram.com/..." required>
+        </label>
+        <label>البريد الإلكتروني اختياري
+          <input id="portalContactEmail" type="email" dir="ltr" maxlength="180" placeholder="name@example.com">
+        </label>
+        <label class="portal-full">أوقات التواصل
+          <textarea id="portalContactHours" maxlength="500" placeholder="مثال: يوميًا من 9 صباحًا إلى 10 مساءً" required></textarea>
+        </label>
+        <div class="portal-full portal-form-actions">
+          <button class="primary" type="submit">حفظ بيانات التواصل</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="portal-admin-card portal-section-card portal-preview-section">
+      <div class="portal-section-icon">06</div>
+      <div>
+        <h3>معاينة البوابة</h3>
+        <p>مدخل سريع لمعاينة بوابة العملاء كما تظهر من البيانات المركزية، للعرض فقط.</p>
+      </div>
+      <a class="primary" href="resort/preview.html" target="_blank" rel="noopener">فتح المعاينة</a>
+    </section>
+  </div>
+</section>
+
 <section id="settings" class="view">
   <div class="section">
     <div class="section-head"><div><h3>الحماية والنسخ الاحتياطي</h3><div class="meta">نسخة يدوية، نقطة استعادة، وفحص الملف قبل الاسترجاع</div></div></div>
@@ -683,6 +920,7 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
 <button data-view="expenses" onclick="switchView('expenses',this)"><b>◫</b>المصاريف</button>
 <button data-view="cleaning" onclick="switchView('cleaning',this)" title="إدارة مهام جميل"><b>👷</b>بوابة جميل</button>
 <button data-view="dataProtection" onclick="switchView('dataProtection',this)"><b>🛡️</b>حماية البيانات</button>
+<button data-view="customerPortalAdmin" onclick="switchView('customerPortalAdmin',this)"><b>▤</b>بوابة العملاء</button>
 <button data-view="about" onclick="switchView('about',this)"><b>ⓘ</b>حول النظام</button>
 <button data-view="settings" onclick="switchView('settings',this)"><b>⚙</b>الإعدادات</button>
 </nav>
@@ -861,14 +1099,15 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
-const SUPABASE_URL='https://pgdvlklpyrvmwzitsmbw.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY='sb_publishable_BFTIR_8VK2qQuKnl2c-jDA_cMnWz0E-';
+const SUPABASE_URL='https://ztqqdjryvecscidxxbfe.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_M3MQwFfxiMMKt_-tq-KAjQ_OQTtg2MD';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+window.supabaseClient=supabaseClient;
 const STATE_ROW_ID='main';
 // v9.7 RC1 — optional Google Drive cloud backup layer over the stable local provider.
-const APP_VERSION='9.7-RC1';
-const APP_BUILD='20260723.1';
-const APP_RELEASE_DATE='2026-07-23';
+const APP_VERSION='9.7.0';
+const APP_BUILD='20260731.1';
+const APP_RELEASE_DATE='2026-07-31';
 const BACKUP_DB_NAME='adwaa-backup-vault';
 const BACKUP_STORE_NAME='backups';
 const BACKUP_DIRECTORY_RECORD_ID='__backup_directory__';
@@ -1273,8 +1512,8 @@ const RESORT_STATUSES={ready:{label:'جاهز للاستقبال',icon:'🟢',cl
 function renderResortStatus(){const key=db.settings?.resortStatus||'ready',st=RESORT_STATUSES[key]||RESORT_STATUSES.ready,card=document.getElementById('resortStatusCard');if(!card)return;card.className='resort-status-card '+st.className;document.getElementById('resortStatusIcon').textContent=st.icon;document.getElementById('resortStatusText').textContent=st.label;const u=db.settings?.resortStatusUpdated;document.getElementById('resortStatusUpdated').textContent=u?'آخر تحديث: '+new Date(u).toLocaleString('ar-SA'):'';}
 function openResortStatus(){const current=db.settings?.resortStatus||'ready';document.getElementById('resortStatusOptions').innerHTML=Object.entries(RESORT_STATUSES).map(([key,st])=>`<button class="status-option ${key===current?'active':''}" onclick="setResortStatus('${key}')"><span style="font-size:24px">${st.icon}</span><br>${st.label}</button>`).join('');document.getElementById('resortStatusModal').classList.add('open');}
 async function setResortStatus(key){if(!RESORT_STATUSES[key])return;const before=db.settings.resortStatus||'ready';db.settings.resortStatus=key;db.settings.resortStatusUpdated=new Date().toISOString();addAudit('تعديل','حالة المنتجع',`${RESORT_STATUSES[before]?.label||before} ← ${RESORT_STATUSES[key]?.label||key}`,{status:before},{status:key});closeModal('resortStatusModal');await persist();}
-function switchView(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));const target=document.getElementById(id);if(!target)return;target.classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));(btn||document.querySelector(`nav button[data-view="${id}"]`))?.classList.add('active');const t={dashboard:['لوحة إدارة المنتجع','متابعة الحجوزات والمبالغ من مكان واحد'],bookings:['إدارة الحجوزات','إضافة وتعديل ومتابعة جميع الحجوزات'],customers:['سجل العملاء','عدد الزيارات والمدفوعات وآخر حجز'],calendarView:['تقويم الحجوزات','عرض الأيام المحجوزة ومنع التداخل'],cleaning:['مركز التنظيف','متابعة مهام التنظيف بعد مغادرة العملاء'],expenses:['المصاريف والدخل','متابعة المصروفات وصافي الدخل'],dataProtection:['مركز حماية البيانات','النسخ المحلية والسحابية وفحص السلامة وخطة التعافي'],about:['حول النظام','معلومات الإصدار والحماية وحالة البيانات'],settings:['الإعدادات','النسخ الاحتياطي وبيانات واتساب']}[id]||['نظام أضواء الشرق',''];pageTitle.textContent=t[0];pageSub.textContent=t[1];window.scrollTo(0,0);renderCurrentView(id)}
-function renderCurrentView(id){if(id==='dashboard')renderDashboard();else if(id==='bookings')renderBookings();else if(id==='customers')renderCustomers();else if(id==='calendarView')renderCalendar();else if(id==='cleaning')renderCleaning();else if(id==='expenses')renderExpenses();else if(id==='dataProtection')renderDataProtectionCenter();else if(id==='about')renderAbout();else if(id==='settings'){const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay'),enabledEl=document.getElementById('commissionEnabled'),methodEl=document.getElementById('commissionMethod'),rateEl=document.getElementById('commissionRate');if(waEl)waEl.value=db.settings.waNumber||'';if(dailyEl)dailyEl.value=db.settings.welcomeMsgDaily||DEFAULT_WELCOME_DAILY;if(stayEl)stayEl.value=db.settings.welcomeMsgStay||DEFAULT_WELCOME_STAY;if(enabledEl)enabledEl.checked=db.settings.commissionEnabled!==false;if(methodEl)methodEl.value=db.settings.commissionMethod||'per_day';if(rateEl)rateEl.value=Number(db.settings.commissionRate??100);renderBackupHistory();renderAuditLog()}}
+function switchView(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));const target=document.getElementById(id);if(!target)return;target.classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));(btn||document.querySelector(`nav button[data-view="${id}"]`))?.classList.add('active');const t={dashboard:['لوحة إدارة المنتجع','متابعة الحجوزات والمبالغ من مكان واحد'],bookings:['إدارة الحجوزات','إضافة وتعديل ومتابعة جميع الحجوزات'],customers:['سجل العملاء','عدد الزيارات والمدفوعات وآخر حجز'],calendarView:['تقويم الحجوزات','عرض الأيام المحجوزة ومنع التداخل'],cleaning:['مركز التنظيف','متابعة مهام التنظيف بعد مغادرة العملاء'],expenses:['المصاريف والدخل','متابعة المصروفات وصافي الدخل'],dataProtection:['مركز حماية البيانات','النسخ المحلية والسحابية وفحص السلامة وخطة التعافي'],customerPortalAdmin:['إدارة بوابة العملاء','الصور والأسعار وروابط التواصل والبيانات المتغيرة'],about:['حول النظام','معلومات الإصدار والحماية وحالة البيانات'],settings:['الإعدادات','النسخ الاحتياطي وبيانات واتساب']}[id]||['نظام أضواء الشرق',''];pageTitle.textContent=t[0];pageSub.textContent=t[1];window.scrollTo(0,0);renderCurrentView(id)}
+function renderCurrentView(id){if(id==='dashboard')renderDashboard();else if(id==='bookings')renderBookings();else if(id==='customers')renderCustomers();else if(id==='calendarView')renderCalendar();else if(id==='cleaning')renderCleaning();else if(id==='expenses')renderExpenses();else if(id==='dataProtection')renderDataProtectionCenter();else if(id==='customerPortalAdmin'){}else if(id==='about')renderAbout();else if(id==='settings'){const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay'),enabledEl=document.getElementById('commissionEnabled'),methodEl=document.getElementById('commissionMethod'),rateEl=document.getElementById('commissionRate');if(waEl)waEl.value=db.settings.waNumber||'';if(dailyEl)dailyEl.value=db.settings.welcomeMsgDaily||DEFAULT_WELCOME_DAILY;if(stayEl)stayEl.value=db.settings.welcomeMsgStay||DEFAULT_WELCOME_STAY;if(enabledEl)enabledEl.checked=db.settings.commissionEnabled!==false;if(methodEl)methodEl.value=db.settings.commissionMethod||'per_day';if(rateEl)rateEl.value=Number(db.settings.commissionRate??100);renderBackupHistory();renderAuditLog()}}
 function renderAll(){renderDashboard();renderBookings();renderCustomers();renderCleaning();renderExpenses();renderCalendar();renderResortStatus();renderAbout();const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay'),calMode=document.getElementById('calendarMode');if(waEl)waEl.value=db.settings.waNumber||'';if(dailyEl)dailyEl.value=db.settings.welcomeMsgDaily||DEFAULT_WELCOME_DAILY;if(stayEl)stayEl.value=db.settings.welcomeMsgStay||DEFAULT_WELCOME_STAY;if(calMode)calMode.value=db.settings.calendarMode||'both';renderSendStatus()}
 
 function setAboutText(id,value){const el=document.getElementById(id);if(el)el.textContent=String(value??'—')}
@@ -3480,5 +3719,6 @@ const v95RenderDashboardBase=renderDashboard;renderDashboard=function(){v95Rende
 const v95RenderAllBase=renderAll;renderAll=function(){v95RenderAllBase();renderTodayBoard()};
 document.addEventListener('DOMContentLoaded',()=>{renderHelpIcons();applyHelpVisibility();fillCalendarPickers();renderTodayBoard()});
 </script>
+<script src="portal-admin.js"></script>
 </body>
 </html>
