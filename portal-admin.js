@@ -38,8 +38,8 @@ let portalResortFeatures=[];
 let portalImages=[];
 let portalUnavailablePeriods=[];
 let portalSeasons=[];
-let portalSelectedImageFile=null;
-let portalSelectedImageBlob=null;
+let portalSelectedImages=[];
+let portalDraggedImageId='';
 
 const PORTAL_RESORT_DEFAULTS={
   id:'main',
@@ -317,34 +317,54 @@ function resizePortalImage(file){
   });
 }
 
-async function previewPortalImage(){
+async function previewPortalImages(){
   const input=document.getElementById('portalImageFile');
   const preview=document.getElementById('portalImagePreview');
-  const file=input?.files?.[0]||null;
-  portalSelectedImageFile=null;
-  portalSelectedImageBlob=null;
+  const files=[...(input?.files||[])];
+  portalSelectedImages.forEach(item=>URL.revokeObjectURL(item.previewUrl));
+  portalSelectedImages=[];
   if(!preview)return;
-  if(!file){
-    preview.textContent='اختر صورة JPG أو PNG أو WebP لمعاينتها قبل الحفظ.';
+  if(!files.length){
+    preview.textContent='اختر صور JPG أو PNG أو WebP لمعاينتها قبل الرفع.';
     return;
   }
-  try{
-    const blob=await resizePortalImage(file);
-    portalSelectedImageFile=file;
-    portalSelectedImageBlob=blob;
-    const old=preview.querySelector('img')?.src;
-    if(old?.startsWith('blob:'))URL.revokeObjectURL(old);
-    const url=URL.createObjectURL(blob);
-    preview.innerHTML=`
-      <img src="${url}" alt="معاينة الصورة قبل الحفظ">
-      <div class="meta">سيتم رفع نسخة WebP محسّنة. الحجم بعد التحسين: ${Math.round(blob.size/1024)} KB.</div>
-    `;
-    portalImageStatus('تم تجهيز معاينة الصورة.','success');
-  }catch(error){
-    console.error(error);
-    preview.textContent=error.message;
-    portalImageStatus(error.message,'error');
+  portalImageStatus(`جاري تجهيز ${files.length} صورة...`);
+  const errors=[];
+  for(const file of files){
+    try{
+      const blob=await resizePortalImage(file);
+      portalSelectedImages.push({file,blob,previewUrl:URL.createObjectURL(blob)});
+    }catch(error){
+      console.error(error);
+      errors.push(`${file.name}: ${error.message}`);
+    }
   }
+  renderPortalImagePreviews();
+  if(errors.length)portalImageStatus(`تم تجهيز ${portalSelectedImages.length} صورة، وتعذر تجهيز ${errors.length}: ${errors.join(' | ')}`,'error');
+  else portalImageStatus(`تم تجهيز ${portalSelectedImages.length} صورة للرفع. الحجم محسّن بصيغة WebP.`,'success');
+}
+
+function renderPortalImagePreviews(){
+  const preview=document.getElementById('portalImagePreview');
+  if(!preview)return;
+  if(!portalSelectedImages.length){
+    preview.textContent='اختر صور JPG أو PNG أو WebP لمعاينتها قبل الرفع.';
+    return;
+  }
+  preview.innerHTML=portalSelectedImages.map((item,index)=>`
+    <article class="portal-preview-item">
+      <img src="${item.previewUrl}" alt="معاينة ${escapeHtml(item.file.name)}">
+      <button type="button" onclick="removePortalImagePreview(${index})" aria-label="إزالة الصورة من قائمة الرفع">×</button>
+      <div class="meta">${escapeHtml(item.file.name)}<br>${Math.round(item.blob.size/1024)} KB</div>
+    </article>
+  `).join('');
+}
+
+function removePortalImagePreview(index){
+  const [removed]=portalSelectedImages.splice(index,1);
+  if(removed)URL.revokeObjectURL(removed.previewUrl);
+  renderPortalImagePreviews();
+  portalImageStatus(portalSelectedImages.length?`متبقي ${portalSelectedImages.length} صورة جاهزة للرفع.`:'تم إفراغ قائمة الرفع.',portalSelectedImages.length?'success':'');
 }
 
 function portalImagePathFromUrl(url){
@@ -360,14 +380,14 @@ function buildPortalImagePath(file){
   return `portal/${stamp}-${Math.random().toString(36).slice(2,8)}-${safeName}.webp`;
 }
 
-async function uploadPortalImage(event){
+async function uploadPortalImages(event){
   event.preventDefault();
   if(!window.supabaseClient){
     portalImageStatus('تعذر الرفع: الاتصال بقاعدة البيانات غير مهيأ.','error');
     return;
   }
-  if(!portalSelectedImageFile||!portalSelectedImageBlob){
-    portalImageStatus('اختر صورة صالحة وانتظر ظهور المعاينة قبل الحفظ.','error');
+  if(!portalSelectedImages.length){
+    portalImageStatus('اختر صورة واحدة أو أكثر وانتظر ظهور المعاينة قبل الرفع.','error');
     return;
   }
   const category=portalReadValue('portalImageCategory')||'general';
@@ -377,58 +397,62 @@ async function uploadPortalImage(event){
   }
   const form=document.getElementById('portalImageUploadForm');
   form?.classList.add('portal-busy');
-  portalImageStatus('جاري رفع الصورة...');
-  const path=buildPortalImagePath(portalSelectedImageFile);
-  const upload=await supabaseClient.storage
-    .from(PORTAL_IMAGES_BUCKET)
-    .upload(path,portalSelectedImageBlob,{contentType:'image/webp',upsert:false});
-  if(upload.error){
-    console.error(upload.error);
-    form?.classList.remove('portal-busy');
-    portalImageStatus('تعذر رفع الصورة إلى التخزين.','error');
-    return;
-  }
-  const {data:publicData}=supabaseClient.storage.from(PORTAL_IMAGES_BUCKET).getPublicUrl(path);
-  const order=portalImages.length?Math.max(...portalImages.map(img=>Number(img.display_order)||0))+1:1;
-  if(document.getElementById('portalImageIsCover')?.checked){
+  const shouldSetCover=document.getElementById('portalImageIsCover')?.checked===true;
+  if(shouldSetCover){
     const coverReset=await supabaseClient
       .from(PORTAL_IMAGES_TABLE)
       .update({is_cover:false,updated_by:currentUser?.id||null})
       .eq('category',category);
     if(coverReset.error){
       console.error(coverReset.error);
-      await supabaseClient.storage.from(PORTAL_IMAGES_BUCKET).remove([path]);
       form?.classList.remove('portal-busy');
-      portalImageStatus('تعذر تجهيز صورة الغلاف، وتم حذف الملف المرفوع لتجنب الملفات اليتيمة.','error');
+      portalImageStatus('تعذر تجهيز صورة الغلاف. لم يتم رفع أي ملف.','error');
       return;
     }
   }
-  const payload={
-    category,
-    title:portalReadValue('portalImageTitle'),
-    description:portalReadValue('portalImageDescription'),
-    image_alt:portalReadValue('portalImageAlt'),
-    image_url:publicData.publicUrl,
-    display_order:order,
-    is_cover:document.getElementById('portalImageIsCover')?.checked===true,
-    is_visible:document.getElementById('portalImageIsVisible')?.checked!==false,
-    updated_by:currentUser?.id||null
-  };
-  const insert=await supabaseClient.from(PORTAL_IMAGES_TABLE).insert(payload);
-  if(insert.error){
-    console.error(insert.error);
-    await supabaseClient.storage.from(PORTAL_IMAGES_BUCKET).remove([path]);
-    form?.classList.remove('portal-busy');
-    portalImageStatus('تعذر حفظ بيانات الصورة، وتم حذف الملف المرفوع لتجنب الملفات اليتيمة.','error');
-    return;
+  const items=[...portalSelectedImages];
+  const baseOrder=portalImages.length?Math.max(...portalImages.map(img=>Number(img.display_order)||0))+1:1;
+  const customTitle=portalReadValue('portalImageTitle');
+  let completed=0;
+  const errors=[];
+  for(let index=0;index<items.length;index+=1){
+    const item=items[index];
+    portalImageStatus(`جاري رفع الصورة ${index+1} من ${items.length}...`);
+    const path=buildPortalImagePath(item.file);
+    const upload=await supabaseClient.storage.from(PORTAL_IMAGES_BUCKET).upload(path,item.blob,{contentType:'image/webp',upsert:false});
+    if(upload.error){
+      console.error(upload.error);
+      errors.push(item.file.name);
+      continue;
+    }
+    const {data:publicData}=supabaseClient.storage.from(PORTAL_IMAGES_BUCKET).getPublicUrl(path);
+    const payload={
+      category,
+      title:customTitle?(items.length===1?customTitle:`${customTitle} ${index+1}`):`صورة منتجع أضواء الشرق ${baseOrder+index}`,
+      description:portalReadValue('portalImageDescription'),
+      image_alt:portalReadValue('portalImageAlt'),
+      image_url:publicData.publicUrl,
+      display_order:baseOrder+index,
+      is_cover:shouldSetCover&&index===0,
+      is_visible:document.getElementById('portalImageIsVisible')?.checked!==false,
+      updated_by:currentUser?.id||null
+    };
+    const insert=await supabaseClient.from(PORTAL_IMAGES_TABLE).insert(payload);
+    if(insert.error){
+      console.error(insert.error);
+      await supabaseClient.storage.from(PORTAL_IMAGES_BUCKET).remove([path]);
+      errors.push(item.file.name);
+      continue;
+    }
+    completed+=1;
   }
+  portalSelectedImages.forEach(item=>URL.revokeObjectURL(item.previewUrl));
   form?.reset();
   document.getElementById('portalImageIsVisible').checked=true;
-  document.getElementById('portalImagePreview').textContent='اختر صورة JPG أو PNG أو WebP لمعاينتها قبل الحفظ.';
-  portalSelectedImageFile=null;
-  portalSelectedImageBlob=null;
+  document.getElementById('portalImagePreview').textContent='اختر صور JPG أو PNG أو WebP لمعاينتها قبل الرفع.';
+  portalSelectedImages=[];
   form?.classList.remove('portal-busy');
-  portalImageStatus('تم رفع الصورة وحفظ بياناتها بنجاح.','success');
+  portalImageStatus(errors.length?`تم رفع ${completed} صورة، وتعذر رفع ${errors.length}: ${errors.join('، ')}.`:`تم رفع الصور وحفظها بنجاح (${completed}).`,errors.length?'error':'success');
   await loadPortalImages();
 }
 
@@ -464,7 +488,7 @@ function renderPortalImages(){
     return;
   }
   root.innerHTML=portalImages.map((image,index)=>`
-    <article class="portal-image-item ${image.is_visible?'':'portal-image-hidden'}">
+    <article class="portal-image-item ${image.is_visible?'':'portal-image-hidden'}" draggable="true" data-portal-image-id="${image.id}" ondragstart="startPortalImageDrag(event,'${image.id}')" ondragend="endPortalImageDrag(event)" ondragover="allowPortalImageDrop(event)" ondragleave="leavePortalImageDrop(event)" ondrop="dropPortalImage(event,'${image.id}')">
       <img src="${escapeHtml(image.image_url)}" alt="${escapeHtml(image.image_alt||image.title||'صورة من منتجع أضواء الشرق')}" loading="lazy">
       <div class="portal-image-editor">
         <div class="portal-image-flags">
@@ -499,6 +523,49 @@ function renderPortalImages(){
     const select=root.querySelector(`select[onchange*="${image.id}"]`);
     if(select)select.value=image.category||'general';
   });
+}
+
+function startPortalImageDrag(event,id){
+  portalDraggedImageId=id;
+  event.currentTarget.classList.add('portal-image-dragging');
+  event.dataTransfer.effectAllowed='move';
+}
+
+function allowPortalImageDrop(event){
+  event.preventDefault();
+  event.currentTarget.classList.add('portal-image-drop-target');
+}
+
+function leavePortalImageDrop(event){
+  event.currentTarget.classList.remove('portal-image-drop-target');
+}
+
+function endPortalImageDrag(event){
+  event.currentTarget.classList.remove('portal-image-dragging');
+  document.querySelectorAll('.portal-image-drop-target').forEach(item=>item.classList.remove('portal-image-drop-target'));
+}
+
+async function dropPortalImage(event,targetId){
+  event.preventDefault();
+  leavePortalImageDrop(event);
+  const sourceIndex=portalImages.findIndex(item=>item.id===portalDraggedImageId);
+  const targetIndex=portalImages.findIndex(item=>item.id===targetId);
+  if(sourceIndex<0||targetIndex<0||sourceIndex===targetIndex)return;
+  const [moved]=portalImages.splice(sourceIndex,1);
+  portalImages.splice(targetIndex,0,moved);
+  renderPortalImages();
+  portalImageStatus('جاري حفظ ترتيب الصور...');
+  for(let index=0;index<portalImages.length;index+=1){
+    const {error}=await supabaseClient.from(PORTAL_IMAGES_TABLE).update({display_order:index+1,updated_by:currentUser?.id||null}).eq('id',portalImages[index].id);
+    if(error){
+      console.error(error);
+      portalImageStatus('تعذر حفظ ترتيب الصور بالكامل. أعد تحميل الصور وحاول مرة أخرى.','error');
+      await loadPortalImages();
+      return;
+    }
+  }
+  portalImageStatus('تم حفظ ترتيب الصور.','success');
+  await loadPortalImages();
 }
 
 function updatePortalImageDraft(id,key,value){
@@ -1087,7 +1154,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       addPortalFeature();
     }
   });
-  document.getElementById('portalImageFile')?.addEventListener('change',previewPortalImage);
+  document.getElementById('portalImageFile')?.addEventListener('change',previewPortalImages);
   document.getElementById('portalUnavailableStart')?.addEventListener('change',updatePortalUnavailablePreview);
   document.getElementById('portalUnavailableEnd')?.addEventListener('change',updatePortalUnavailablePreview);
   document.getElementById('portalSeasonStart')?.addEventListener('change',updatePortalSeasonPreview);

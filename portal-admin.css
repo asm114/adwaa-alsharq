@@ -4,7 +4,19 @@
 .portal-admin-stage-note{margin-top:14px;padding:14px 16px;border:1px solid #e1c271;border-radius:16px;background:#fff3d9;color:#805800;font-weight:800}
 .portal-admin-shell{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
 .portal-admin-card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:18px}
-.portal-info-card,.portal-images-card,.portal-unavailable-card,.portal-pricing-card,.portal-contact-card{grid-column:1/-1}
+.portal-info-card,.portal-images-card,.portal-unavailable-card,.portal-pricing-card,.portal-contact-card,.portal-feedback-card,.portal-backup-card,.portal-activity-card{grid-column:1/-1}
+.portal-final-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:14px}
+.portal-final-summary article{padding:16px;border:1px solid var(--line);border-radius:17px;background:#fff}
+.portal-final-summary span{display:block;color:var(--muted);font-size:12px;font-weight:800}
+.portal-final-summary strong{display:block;margin-top:7px;font-size:25px;color:var(--green)}
+.portal-feedback-list,.portal-activity-list{display:grid;gap:10px;margin-top:12px}
+.portal-feedback-item,.portal-activity-item{padding:14px;border:1px solid var(--line);border-radius:16px;background:#fff}
+.portal-feedback-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.portal-feedback-item h4{margin:0 0 6px}.portal-feedback-item p{line-height:1.8;white-space:pre-wrap}
+.portal-feedback-controls{display:grid;grid-template-columns:220px 1fr;gap:9px;margin-top:10px}
+.portal-feedback-images{display:flex;gap:8px;overflow-x:auto;margin-top:10px}
+.portal-feedback-images img{width:150px;height:110px;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
+.portal-restore-plan{margin-top:12px;padding:13px;border:1px solid #e1c271;border-radius:14px;background:#fff3d9;color:#805800;line-height:1.8}
 .portal-section-heading{display:flex;align-items:center;gap:12px;margin-bottom:14px}
 .portal-section-heading h3{margin:0;font-size:22px}
 .portal-section-heading p{margin:4px 0 0;color:var(--muted);line-height:1.7}
@@ -33,13 +45,22 @@
 .portal-image-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
 .portal-image-form label,.portal-image-editor label{display:grid;gap:6px;color:var(--muted);font-size:13px;font-weight:800}
 .portal-image-form textarea,.portal-image-editor textarea{min-height:84px}
-.portal-image-preview{grid-column:1/-1;display:grid;gap:9px;place-items:center;min-height:190px;padding:14px;border:1px dashed #cfd7d3;border-radius:16px;background:#f8faf9;color:var(--muted);text-align:center;overflow:hidden}
-.portal-image-preview img{width:min(100%,440px);max-height:260px;object-fit:cover;border-radius:14px;border:1px solid var(--line)}
+.portal-image-picker{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:16px;border:1px dashed #9bbcaf;border-radius:18px;background:#f3faf7;color:var(--muted);font-weight:800}
+.portal-add-images-button{min-width:190px;min-height:58px;font-size:18px}
+.portal-image-preview{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;min-height:150px;padding:14px;border:1px dashed #cfd7d3;border-radius:16px;background:#f8faf9;color:var(--muted);text-align:center;overflow:hidden}
+.portal-image-preview:has(.portal-preview-item){place-items:stretch}
+.portal-preview-item{position:relative;display:grid;grid-template-rows:130px auto;gap:7px;padding:7px;border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden}
+.portal-preview-item img{width:100%;height:130px;object-fit:cover;border-radius:9px;background:#eef3f0}
+.portal-preview-item button{position:absolute;top:12px;inset-inline-end:12px;width:34px;height:34px;padding:0;border-radius:50%;border:0;background:#fff;color:#a63c3c;box-shadow:0 3px 12px #0002;font-size:18px;font-weight:900}
+.portal-preview-item .meta{font-size:11px;overflow-wrap:anywhere}
 .portal-checkbox{display:flex!important;align-items:center;gap:9px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#f8faf9;color:var(--text)!important}
 .portal-checkbox input{width:auto;min-height:auto}
 .portal-image-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:14px 0}
 .portal-images-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
-.portal-image-item{display:grid;grid-template-rows:210px auto;overflow:hidden;border:1px solid var(--line);border-radius:18px;background:#fff}
+.portal-image-item{display:grid;grid-template-rows:210px auto;overflow:hidden;border:1px solid var(--line);border-radius:18px;background:#fff;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.portal-image-item[draggable="true"]{cursor:grab}
+.portal-image-item.portal-image-dragging{opacity:.48;transform:scale(.98)}
+.portal-image-item.portal-image-drop-target{border-color:#c89b34;box-shadow:0 0 0 3px #c89b3426}
 .portal-image-item>img{width:100%;height:100%;object-fit:cover;background:#eef3f0}
 .portal-image-hidden>img{filter:grayscale(.45);opacity:.56}
 .portal-image-editor{display:grid;gap:10px;padding:12px}
@@ -71,6 +92,7 @@
 .portal-contact-form label{display:grid;gap:6px;color:var(--muted);font-size:13px;font-weight:800}
 .portal-contact-form textarea{min-height:92px}
 @media(max-width:760px){
+  .portal-final-summary{grid-template-columns:1fr 1fr}
   .portal-admin-hero{align-items:stretch;flex-direction:column}
   .portal-admin-hero a{width:100%;justify-content:center;text-align:center}
   .portal-admin-shell{grid-template-columns:1fr}
@@ -82,6 +104,8 @@
   .portal-section-status,.portal-preview-section .primary{width:100%;text-align:center}
   .portal-form-actions button{width:100%}
   .portal-image-form{grid-template-columns:1fr}
+  .portal-image-picker{align-items:stretch;flex-direction:column}
+  .portal-add-images-button{width:100%}
   .portal-image-preview{grid-column:auto}
   .portal-images-list{grid-template-columns:1fr}
   .portal-image-actions{grid-template-columns:1fr 1fr}
@@ -92,4 +116,5 @@
   .portal-season-item{grid-template-columns:1fr}
   .portal-season-actions button{flex:1}
   .portal-contact-form{grid-template-columns:1fr}
+  .portal-feedback-controls{grid-template-columns:1fr}
 }

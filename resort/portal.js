@@ -7,7 +7,25 @@ let activeSeasons=[];
 let portalContact=null;
 let portalResortInfo=null;
 let selectedDateIso=null;
+let galleryImages=[];
+let lightboxImageIndex=-1;
+let lightboxTouchStartX=null;
 let calendarCursor=startOfMonth(new Date());
+
+function customerPortalVisitorKey(){
+  const storageKey='adwaa_portal_visitor_key';
+  let value=localStorage.getItem(storageKey);
+  if(!value){
+    value=crypto.randomUUID?.()||`${Date.now()}-${Math.random()}-${Math.random()}`;
+    localStorage.setItem(storageKey,value);
+  }
+  return value;
+}
+
+async function countCustomerPortalVisit(){
+  const {error}=await portalClient.rpc('increment_customer_portal_visitor',{p_visitor_key:customerPortalVisitorKey()});
+  if(error)console.warn('تعذر تسجيل زيارة البوابة.',error.message);
+}
 
 const CATEGORY_LABELS={
   general:'عام',
@@ -133,10 +151,17 @@ function groupImages(images){
   },new Map());
 }
 
-function openLightbox(image){
+function updateLightboxImage(){
+  const image=galleryImages[lightboxImageIndex];
+  if(!image)return;
   lightboxImage.src=image.image_url;
   lightboxImage.alt=image.image_alt||image.title||'صورة من منتجع أضواء الشرق';
   lightboxCaption.textContent=image.title||image.description||CATEGORY_LABELS[image.category]||'صورة من منتجع أضواء الشرق';
+}
+
+function openLightbox(image){
+  lightboxImageIndex=galleryImages.findIndex(item=>item.id===image.id);
+  updateLightboxImage();
   imageLightbox.hidden=false;
   document.body.classList.add('lightbox-open');
   lightboxClose.focus();
@@ -145,14 +170,27 @@ function openLightbox(image){
 function closeLightbox(){
   imageLightbox.hidden=true;
   lightboxImage.removeAttribute('src');
+  lightboxImageIndex=-1;
   document.body.classList.remove('lightbox-open');
 }
 
+function moveLightbox(direction){
+  if(!galleryImages.length)return;
+  lightboxImageIndex=(lightboxImageIndex+direction+galleryImages.length)%galleryImages.length;
+  updateLightboxImage();
+}
+
 function renderGallery(images){
+  galleryImages=sortImages(images);
   if(!images.length){
+    heroCoverImage.hidden=true;
     portalGallery.innerHTML='<div class="empty">لا توجد صور ظاهرة حاليًا.</div>';
     return;
   }
+  const cover=images.find(image=>image.is_cover)||galleryImages[0];
+  heroCoverImage.src=cover.image_url;
+  heroCoverImage.alt=cover.image_alt||cover.title||'منظر من منتجع أضواء الشرق';
+  heroCoverImage.hidden=false;
   const groups=groupImages(images);
   portalGallery.innerHTML=[...groups.entries()].map(([category,items])=>{
     const sorted=sortImages(items);
@@ -248,6 +286,9 @@ function renderContact(){
   contactWhatsappNumber.textContent=portalContact.whatsapp_number||'غير متوفر';
   contactHours.textContent=portalContact.contact_hours||'غير محدد';
   contactWhatsappButton.href=createWhatsappUrl(portalContact.whatsapp_number,inquiryMessage);
+  heroWhatsappButton.href=contactWhatsappButton.href;
+  headerWhatsappButton.href=contactWhatsappButton.href;
+  floatingWhatsappButton.href=contactWhatsappButton.href;
   contactMapsButton.href=portalContact.maps_url||'#';
   if(portalContact.instagram_url){
     contactInstagramButton.href=portalContact.instagram_url;
@@ -278,8 +319,20 @@ function renderResortInfo(){
   portalResortAddress.textContent=portalResortInfo.resort_address||'غير محدد';
   portalCheckinTime.textContent=portalResortInfo.checkin_time||'غير محدد';
   portalCheckoutTime.textContent=portalResortInfo.checkout_time||'غير محدد';
+  heroAddress.textContent=portalResortInfo.resort_address||'القاع البارد';
+  heroCheckin.textContent=portalResortInfo.checkin_time||'غير محدد';
+  heroCheckout.textContent=portalResortInfo.checkout_time||'غير محدد';
   const features=Array.isArray(portalResortInfo.features)?portalResortInfo.features:[];
   portalFeatures.innerHTML=features.map(item=>`<li>${escapeText(item)}</li>`).join('');
+}
+
+function renderPricingOverview(){
+  weekdayPrice.textContent=portalPricing?formatMoney(portalPricing.weekday_price):'غير محدد';
+  weekendPrice.textContent=portalPricing?formatMoney(portalPricing.weekend_price):'غير محدد';
+  activeSeasonsCount.textContent=activeSeasons.length?`${activeSeasons.length.toLocaleString('ar-SA')} موسم`:'لا توجد مواسم فعالة';
+  activeSeasonsSummary.textContent=activeSeasons.length
+    ?activeSeasons.map(season=>season.season_name).join('، ')
+    :'يُطبّق السعر الأساسي حسب اليوم';
 }
 
 async function loadResortInfo(){
@@ -347,6 +400,7 @@ async function loadPricing(){
     return false;
   }
   portalPricing=data||null;
+  renderPricingOverview();
   return true;
 }
 
@@ -362,6 +416,7 @@ async function loadActiveSeasons(){
     return false;
   }
   activeSeasons=data||[];
+  renderPricingOverview();
   return true;
 }
 
@@ -394,13 +449,28 @@ async function loadPortal(){
     loadContact()
   ]);
   renderCalendar();
+  renderPricingOverview();
   if(resortInfoLoaded&&galleryLoaded&&calendarLoaded&&pricingLoaded&&seasonsLoaded&&contactLoaded)setConnectionStatus('تم تحميل بيانات البوابة من Supabase.','success');
   else setConnectionStatus('تعذر تحميل بعض بيانات البوابة من Supabase.','error');
 }
 
 lightboxClose.addEventListener('click',closeLightbox);
+lightboxPrevious.addEventListener('click',()=>moveLightbox(-1));
+lightboxNext.addEventListener('click',()=>moveLightbox(1));
 imageLightbox.addEventListener('click',event=>{if(event.target===imageLightbox)closeLightbox()});
-document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!imageLightbox.hidden)closeLightbox()});
+imageLightbox.addEventListener('touchstart',event=>{lightboxTouchStartX=event.changedTouches[0]?.clientX??null},{passive:true});
+imageLightbox.addEventListener('touchend',event=>{
+  if(lightboxTouchStartX===null)return;
+  const distance=(event.changedTouches[0]?.clientX??lightboxTouchStartX)-lightboxTouchStartX;
+  if(Math.abs(distance)>50)moveLightbox(distance>0?-1:1);
+  lightboxTouchStartX=null;
+},{passive:true});
+document.addEventListener('keydown',event=>{
+  if(imageLightbox.hidden)return;
+  if(event.key==='Escape')closeLightbox();
+  if(event.key==='ArrowRight')moveLightbox(-1);
+  if(event.key==='ArrowLeft')moveLightbox(1);
+});
 prevMonthButton.addEventListener('click',()=>{
   calendarCursor=addMonths(calendarCursor,-1);
   renderCalendar();
@@ -411,4 +481,5 @@ nextMonthButton.addEventListener('click',()=>{
   renderCalendar();
   clearSelectedDay();
 });
+countCustomerPortalVisit();
 loadPortal();
