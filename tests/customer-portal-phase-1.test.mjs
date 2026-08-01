@@ -40,7 +40,7 @@ test('لوحة إدارة بوابة العملاء تعرض أقسام الإد
     'portalImageIsVisible',
     'portalImagesList'
   ]) assert.match(html,new RegExp(`id="${id}"`));
-  assert.match(html,/رفع الصورة وحفظها/);
+  assert.match(html,/رفع جميع الصور/);
   for(const id of [
     'portalUnavailableForm',
     'portalUnavailableId',
@@ -259,6 +259,9 @@ test('تنسيق أقسام بوابة العملاء متجاوب للجوال'
   assert.match(css,/portal-image-form/);
   assert.match(css,/portal-images-list/);
   assert.match(css,/portal-image-actions/);
+  assert.match(css,/portal-image-picker/);
+  assert.match(css,/portal-preview-item/);
+  assert.match(css,/portal-image-drop-target/);
   assert.match(css,/portal-unavailable-form/);
   assert.match(css,/portal-unavailable-list/);
   assert.match(css,/portal-pricing-form/);
@@ -267,6 +270,15 @@ test('تنسيق أقسام بوابة العملاء متجاوب للجوال'
   assert.match(css,/portal-contact-form/);
   assert.match(css,/@media\(max-width:760px\)/);
   assert.match(css,/portal-feature-input-row/);
+  const html=await read('index.html');
+  const js=await read('portal-admin.js');
+  assert.match(html,/id="portalImageFile"[^>]*multiple/);
+  assert.match(html,/إضافة صور/);
+  assert.match(html,/رفع جميع الصور/);
+  assert.match(js,/function previewPortalImages/);
+  assert.match(js,/function uploadPortalImages/);
+  assert.match(js,/function dropPortalImage/);
+  assert.match(js,/صورة منتجع أضواء الشرق/);
 });
 
 test('بوابة العملاء تعرض المعرض والتقويم والأسعار والتواصل وطلب واتساب دون حفظ حجز',async()=>{
@@ -275,7 +287,13 @@ test('بوابة العملاء تعرض المعرض والتقويم والأ�
   const css=await read('resort/portal.css');
 
   assert.match(html,/<html lang="ar" dir="rtl">/);
-  assert.match(html,/بوابة عملاء منتجع أضواء الشرق/);
+  assert.match(html,/<title>منتجع أضواء الشرق<\/title>/);
+  assert.match(html,/id="portalHero"/);
+  assert.match(html,/id="heroCoverImage"/);
+  assert.match(html,/استعرض التوفر/);
+  assert.match(html,/id="heroWhatsappButton"/);
+  assert.match(html,/id="facilities"/);
+  for(const facility of ['المسطحات الخضراء','المسبح','الخيمة','مجلس الرجال','الصالة الداخلية','غرف النوم','المطابخ'])assert.match(html,new RegExp(facility));
   assert.match(html,/id="portalGallery"/);
   assert.match(html,/id="resortInformation"/);
   assert.match(html,/id="portalResortName"/);
@@ -293,6 +311,13 @@ test('بوابة العملاء تعرض المعرض والتقويم والأ�
   assert.match(html,/id="contactHours"/);
   assert.match(html,/id="imageLightbox"/);
   assert.match(html,/id="lightboxImage"/);
+  assert.match(html,/id="lightboxPrevious"/);
+  assert.match(html,/id="lightboxNext"/);
+  assert.match(html,/id="pricing"/);
+  assert.match(html,/id="weekdayPrice"/);
+  assert.match(html,/id="weekendPrice"/);
+  assert.match(html,/id="activeSeasonsCount"/);
+  assert.match(html,/id="floatingWhatsappButton"/);
 
   assert.match(js,/customer_portal_images/);
   assert.match(js,/customer_portal_resort_info/);
@@ -305,6 +330,11 @@ test('بوابة العملاء تعرض المعرض والتقويم والأ�
   assert.match(js,/function sortImages/);
   assert.match(js,/function groupImages/);
   assert.match(js,/function openLightbox/);
+  assert.match(js,/function moveLightbox/);
+  assert.match(js,/touchstart/);
+  assert.match(js,/touchend/);
+  assert.match(js,/heroCoverImage\.src/);
+  assert.match(js,/function renderPricingOverview/);
   assert.match(js,/CATEGORY_LABELS/);
   assert.match(js,/customer_portal_unavailable_periods/);
   assert.match(js,/\.select\('id,start_date,end_date'\)/);
@@ -348,10 +378,80 @@ test('بوابة العملاء تعرض المعرض والتقويم والأ�
   assert.match(css,/calendar-day em/);
   assert.match(css,/calendar-day b/);
   assert.match(css,/calendar-day\.unavailable em/);
-  assert.match(css,/contact-card/);
+  assert.match(css,/hero-image/);
+  assert.match(css,/facility-grid/);
+  assert.match(css,/pricing-grid/);
+  assert.match(css,/contact-layout/);
   assert.match(css,/contact-button/);
   assert.match(css,/booking-request-button/);
   assert.match(css,/booking-request-note/);
-  assert.match(css,/@media\(max-width:760px\)/);
-  assert.doesNotMatch(html+js,/bookingRequestForm|get_resort_date_availability|insert\(|upsert\(|update\(|delete\(|نموذج طلب|تأكيد الحجز|الدفع|payment/);
+  assert.match(css,/floating-whatsapp/);
+  assert.match(css,/scroll-snap-type:x mandatory/);
+  assert.match(css,/@media\(max-width:680px\)/);
+  assert.doesNotMatch(html+js,/bookingRequestForm|get_resort_date_availability|insert\(|upsert\(|update\(|delete\(|نموذج طلب|الدفع|payment/);
+});
+
+test('الميزات النهائية للبوابة محمية ومحدودة النطاق',async()=>{
+  const sql=await read('supabase/migrations/20260801010000_customer_portal_final_features.sql');
+  const adminHtml=await read('index.html');
+  const adminJs=await read('portal-final-admin.js');
+  const feedbackHtml=await read('resort/feedback.html');
+  const feedbackJs=await read('resort/feedback.js');
+  const feedbackCss=await read('resort/feedback.css');
+  for(const table of ['customer_portal_visitor_counter','customer_portal_feedback','customer_portal_activity_log'])assert.match(sql,new RegExp(`create table if not exists public\\.${table}`));
+  assert.match(sql,/increment_customer_portal_visitor/);
+  assert.match(sql,/interval '24 hours'/);
+  assert.match(sql,/begin_customer_portal_feedback/);
+  assert.match(sql,/finalize_customer_portal_feedback/);
+  assert.match(sql,/rate limit exceeded/);
+  assert.match(sql,/customer-portal-feedback/);
+  assert.match(sql,/public\s*=\s*false/);
+  assert.match(sql,/file_size_limit=excluded\.file_size_limit/);
+  assert.match(sql,/private\.can_upload_customer_portal_feedback/);
+  assert.match(sql,/admins read customer portal feedback/);
+  assert.match(sql,/admins read customer portal activity log/);
+  assert.doesNotMatch(sql,/grant (select|update|delete) on public\.customer_portal_feedback to anon/i);
+  assert.doesNotMatch(sql,/service_role/i);
+  for(const id of ['portalSummaryVisitors','portalSummaryImages','portalSummaryUnavailable','portalSummarySeasons','portalSummaryFeedback','portalFeedbackList','portalActivityList'])assert.match(adminHtml,new RegExp(`id="${id}"`));
+  assert.match(adminJs,/exportCustomerPortalBackup/);
+  assert.match(adminJs,/لم يتم تنزيل ملف جزئي/);
+  assert.doesNotMatch(adminJs,/restoreCustomerPortalBackup/);
+  assert.match(feedbackHtml,/<html lang="ar" dir="rtl">/);
+  assert.match(feedbackHtml,/شاركنا ملاحظتك/);
+  assert.match(feedbackJs,/begin_customer_portal_feedback/);
+  assert.match(feedbackJs,/finalize_customer_portal_feedback/);
+  assert.match(feedbackJs,/MAX_FILES=5/);
+  assert.match(feedbackCss,/@media\(max-width:620px\)/);
+});
+
+test('تقوية الميزات النهائية تنظف الرفع الفاشل وتحمي وظيفة السجل',async()=>{
+  const hardening=await read('supabase/migrations/20260801013000_customer_portal_final_features_hardening.sql');
+  const advisorFixes=await read('supabase/migrations/20260801014500_customer_portal_final_features_advisor_fixes.sql');
+  const triggerFix=await read('supabase/migrations/20260801020000_customer_portal_activity_log_trigger_fix.sql');
+  const feedback=await read('resort/feedback.js');
+  const admin=await read('portal-final-admin.js');
+  assert.match(hardening,/visitors clean failed customer portal feedback uploads/);
+  assert.match(feedback,/\.remove\(paths\)/);
+  assert.match(advisorFixes,/revoke all on function public\.log_customer_portal_admin_change\(\)/);
+  assert.match(advisorFixes,/customer_portal_activity_log_admin_idx/);
+  assert.match(triggerFix,/to_jsonb\(old\)/);
+  assert.match(triggerFix,/to_jsonb\(new\)/);
+  assert.doesNotMatch(admin,/upload_token_hash/);
+});
+
+test('فحص النظام يكتب app_state بملكية المدير دون تعطيل RLS أو بيانات حساسة',async()=>{
+  const html=await read('index.html');
+  const ownerWrites=html.match(/\.upsert\(\{id:STATE_ROW_ID,data:(?:db|next),owner_id:currentUser\.id,updated_at:/g)||[];
+  assert.equal(ownerWrites.length,3);
+  assert.match(html,/async function runSystemDatabaseHealthCheck\(\)/);
+  assert.match(html,/\.select\('id,data,owner_id,updated_at'\)/);
+  assert.match(html,/\.update\(\{updated_at:row\.updated_at\}\)\.eq\('id',STATE_ROW_ID\)\.eq\('owner_id',currentUser\.id\)/);
+  assert.match(html,/written\.id===STATE_ROW_ID&&written\.owner_id===currentUser\.id/);
+  assert.match(html,/تم تأكيد القراءة والكتابة على سجل المدير نفسه في Supabase/);
+  assert.match(html,/الكتابة الاختبارية ناجحة/);
+  assert.match(html,/المزامنة ناجحة/);
+  assert.match(html,/كتابة اختبارية غير متلفة/);
+  assert.doesNotMatch(html,/البيانات المحلية لا تطابق البيانات المقروءة من Supabase/);
+  assert.doesNotMatch(html,/هذا الفحص للقراءة فقط/);
+  assert.doesNotMatch(html,/service_role/);
 });

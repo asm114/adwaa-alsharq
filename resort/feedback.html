@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#123f34">
+  <title>ملاحظات العملاء | منتجع أضواء الشرق</title>
+  <link rel="stylesheet" href="feedback.css">
+</head>
+<body>
+  <header><a href="index.html">العودة إلى البوابة</a><strong>منتجع أضواء الشرق</strong></header>
+  <main>
+    <section class="feedback-card">
+      <p class="eyebrow">رأيكم يهمنا</p>
+      <h1>شاركنا ملاحظتك</h1>
+      <p class="intro">تصل ملاحظتك مباشرة إلى إدارة المنتجع ولا تظهر للزوار.</p>
+      <div id="feedbackStatus" class="status" role="status">جاهز لاستقبال ملاحظتك.</div>
+      <form id="feedbackForm">
+        <label>نوع الملاحظة<select id="feedbackCategory" required><option value="complaint">شكوى</option><option value="cleanliness">نظافة</option><option value="maintenance">صيانة أو عطل</option><option value="suggestion">اقتراح</option><option value="thanks">شكر</option><option value="other">أخرى</option></select></label>
+        <label>الملاحظة<textarea id="feedbackMessage" required minlength="10" maxlength="4000" placeholder="اكتب ملاحظتك بوضوح..."></textarea></label>
+        <div class="optional-grid"><label>الاسم (اختياري)<input id="feedbackName" maxlength="120"></label><label>رقم التواصل (اختياري)<input id="feedbackContact" inputmode="tel" maxlength="80"></label></div>
+        <label class="image-picker">صور اختيارية، بحد أقصى 5 صور<input id="feedbackImages" type="file" accept="image/jpeg,image/png,image/webp" multiple></label>
+        <div id="feedbackPreview" class="preview-grid"></div>
+        <button id="feedbackSubmit" type="submit">إرسال الملاحظة</button>
+      </form>
+      <p class="privacy">لا نطلب تسجيل حساب. الاسم ورقم التواصل اختياريان، ولا تُستخدم البيانات إلا لمتابعة الملاحظة.</p>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="feedback.js"></script>
+</body>
+</html>

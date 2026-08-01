@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0d4c3f">
-<title>v9.7 RC1 — النسخ الاحتياطي السحابي</title>
+<title>v9.8.0 — بوابة العملاء والاعتماد النهائي</title>
 <link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="portal-admin.css">
 <style>
@@ -640,7 +640,15 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
     <a class="secondary" href="resort/preview.html" target="_blank" rel="noopener">معاينة البوابة</a>
   </div>
 
-  <div class="portal-admin-stage-note" role="status">هذه المهمة تنفذ قسم التقويم والتواريخ غير المتاحة فقط بعد معلومات المنتجع والصور. الأسعار والمواسم وصفحة العملاء مؤجلة.</div>
+  <div class="portal-admin-stage-note" role="status">إدارة مركزية لبيانات بوابة العملاء فقط، مستقلة عن نظام الحجوزات الأساسي.</div>
+
+  <section class="portal-final-summary" aria-label="ملخص بوابة العملاء">
+    <article><span>إجمالي الزوار</span><strong id="portalSummaryVisitors">—</strong></article>
+    <article><span>الصور الظاهرة</span><strong id="portalSummaryImages">—</strong></article>
+    <article><span>الفترات غير المتاحة</span><strong id="portalSummaryUnavailable">—</strong></article>
+    <article><span>المواسم المفعلة</span><strong id="portalSummarySeasons">—</strong></article>
+    <article><span>الملاحظات الجديدة</span><strong id="portalSummaryFeedback">—</strong></article>
+  </section>
 
   <div class="portal-admin-shell" aria-label="أقسام إدارة بوابة العملاء">
     <section class="portal-admin-card portal-info-card">
@@ -712,16 +720,18 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
         <p>إدارة صور بوابة العملاء: الرفع، التصنيف، الغلاف، الظهور، والترتيب.</p>
       </div>
       <div id="portalImagesStatus" class="portal-inline-status" role="status">جاري تهيئة الصور...</div>
-      <form id="portalImageUploadForm" class="portal-image-form" onsubmit="uploadPortalImage(event)">
-        <label class="portal-full">اختيار صورة
-          <input id="portalImageFile" type="file" accept="image/jpeg,image/png,image/webp">
-        </label>
-        <div id="portalImagePreview" class="portal-image-preview">اختر صورة JPG أو PNG أو WebP لمعاينتها قبل الحفظ.</div>
+      <form id="portalImageUploadForm" class="portal-image-form" onsubmit="uploadPortalImages(event)">
+        <div class="portal-full portal-image-picker">
+          <input id="portalImageFile" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+          <button class="primary portal-add-images-button" type="button" onclick="document.getElementById('portalImageFile').click()">+ إضافة صور</button>
+          <span>يمكنك اختيار عدة صور دفعة واحدة، ثم مراجعتها قبل الرفع.</span>
+        </div>
+        <div id="portalImagePreview" class="portal-image-preview">اختر صور JPG أو PNG أو WebP لمعاينتها قبل الرفع.</div>
         <label>التصنيف
           <select id="portalImageCategory"></select>
         </label>
-        <label>العنوان
-          <input id="portalImageTitle" maxlength="140" placeholder="مثال: المسطحات الخضراء">
+        <label>العنوان (اختياري)
+          <input id="portalImageTitle" maxlength="140" placeholder="يُنشأ اسم تلقائي عند تركه فارغًا">
         </label>
         <label class="portal-full">الوصف
           <textarea id="portalImageDescription" maxlength="500" placeholder="وصف اختياري للصورة"></textarea>
@@ -738,14 +748,14 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
           <span>إظهار الصورة في البوابة</span>
         </label>
         <div class="portal-full portal-form-actions">
-          <button class="primary" type="submit">رفع الصورة وحفظها</button>
+          <button id="portalUploadAllImagesButton" class="primary" type="submit">رفع جميع الصور</button>
         </div>
       </form>
       <div class="portal-image-toolbar">
         <button class="secondary" type="button" onclick="loadPortalImages()">تحديث الصور</button>
         <span class="meta">الحد الأقصى للصورة الأصلية 10MB. لا تقبل HEIC أو SVG.</span>
       </div>
-      <div id="portalImagesList" class="portal-images-list" aria-live="polite"></div>
+      <div id="portalImagesList" class="portal-images-list" aria-live="polite" aria-label="معرض الصور المحفوظة"></div>
     </section>
 
     <section class="portal-admin-card portal-unavailable-card">
@@ -862,6 +872,23 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
         <p>مدخل سريع لمعاينة بوابة العملاء كما تظهر من البيانات المركزية، للعرض فقط.</p>
       </div>
       <a class="primary" href="resort/preview.html" target="_blank" rel="noopener">فتح المعاينة</a>
+    </section>
+
+    <section class="portal-admin-card portal-feedback-card">
+      <div class="portal-section-heading"><div class="portal-section-icon">07</div><div><h3>ملاحظات العملاء</h3><p>الملاحظات خاصة ولا تظهر للعامة.</p></div><button class="secondary" type="button" onclick="loadPortalFeedback()">تحديث</button></div>
+      <div id="portalFeedbackStatus" class="portal-inline-status" role="status">جاري تحميل الملاحظات...</div>
+      <div id="portalFeedbackList" class="portal-feedback-list"></div>
+    </section>
+
+    <section class="portal-admin-card portal-backup-card">
+      <div class="portal-section-heading"><div class="portal-section-icon">08</div><div><h3>نسخة بيانات البوابة</h3><p>تصدير JSON للبيانات والمسارات دون ملفات الصور.</p></div></div>
+      <button class="primary" type="button" onclick="exportCustomerPortalBackup()">إنشاء نسخة احتياطية JSON</button>
+      <div class="portal-restore-plan">الاستعادة غير مفعلة في هذه المرحلة. قبل تنفيذها يلزم تحقق كامل من الملف، ونسخة أمان تلقائية، ومعاملة خادمية تمنع الاستعادة الجزئية.</div>
+    </section>
+
+    <section class="portal-admin-card portal-activity-card">
+      <div class="portal-section-heading"><div class="portal-section-icon">09</div><div><h3>سجل عمليات البوابة</h3><p>سجل غير قابل للحذف من الواجهة.</p></div><button class="secondary" type="button" onclick="loadPortalActivityLog()">تحديث</button></div>
+      <div id="portalActivityList" class="portal-activity-list"></div>
     </section>
   </div>
 </section>
@@ -1022,7 +1049,7 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
   </section>
   <div id="sendStatus" class="send-status" aria-live="polite"></div>
   <section class="v92-activity">
-    <div class="v92-activity-head"><h4>سجل نشاط الحجز</h4><span class="v92-version-tag">v9.7 RC1</span></div>
+    <div class="v92-activity-head"><h4>سجل نشاط الحجز</h4><span class="v92-version-tag">v9.8.0</span></div>
     <div id="v92ActivityList" class="v92-activity-list"><div class="v92-empty">لا توجد عمليات مسجلة بعد.</div></div>
   </section>
 </div>
@@ -1104,10 +1131,10 @@ const SUPABASE_PUBLISHABLE_KEY='sb_publishable_M3MQwFfxiMMKt_-tq-KAjQ_OQTtg2MD';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 window.supabaseClient=supabaseClient;
 const STATE_ROW_ID='main';
-// v9.7 RC1 — optional Google Drive cloud backup layer over the stable local provider.
-const APP_VERSION='9.7.0';
-const APP_BUILD='20260731.1';
-const APP_RELEASE_DATE='2026-07-31';
+// v9.8.0 — customer portal final release over the stable local provider.
+const APP_VERSION='9.8.0';
+const APP_BUILD='20260801.1';
+const APP_RELEASE_DATE='2026-08-01';
 const BACKUP_DB_NAME='adwaa-backup-vault';
 const BACKUP_STORE_NAME='backups';
 const BACKUP_DIRECTORY_RECORD_ID='__backup_directory__';
@@ -1126,6 +1153,7 @@ let lastSuccessfulReadAt='';
 let lastSuccessfulWriteAt='';
 let lastSyncError='';
 let lastConfirmedRemoteHash='';
+let databaseHealthCheck={connection:false,read:false,write:false,sync:false,checkedAt:'',error:''};
 let protectionSyncCheckSequence=0;
 let googleDriveAccessToken='';
 let googleDriveTokenExpiresAt=0;
@@ -1391,7 +1419,7 @@ async function loadRemoteData(){
   try{
     const {data,error}=await supabaseClient
       .from('app_state')
-      .select('data')
+      .select('data,owner_id')
       .eq('id',STATE_ROW_ID)
       .maybeSingle();
 
@@ -1405,7 +1433,7 @@ async function loadRemoteData(){
       db=normalizeDB(db);
       const {error:insertError}=await supabaseClient
         .from('app_state')
-        .upsert({id:STATE_ROW_ID,data:db,updated_at:new Date().toISOString()});
+        .upsert({id:STATE_ROW_ID,data:db,owner_id:currentUser.id,updated_at:new Date().toISOString()});
       if(insertError) throw insertError;
     }
 
@@ -1416,6 +1444,7 @@ async function loadRemoteData(){
     try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(storageErr){console.warn('تعذر حفظ النسخة المحلية',storageErr)}
     scheduleRenderAll();
     setSyncStatus('متصل ومتزامن بحساب المدير','ok');
+    return true;
   }catch(err){
     console.error(err);
     remoteReady=false;
@@ -1424,6 +1453,7 @@ async function loadRemoteData(){
     scheduleRenderAll();
     const denied=String(err?.message||'').toLowerCase().includes('policy')||String(err?.code||'')==='42501';
     setSyncStatus(denied?'تم رفض الوصول: فعّل سياسة حماية حساب المدير في Supabase.':'تعذر الاتصال بالسحابة؛ يعمل مؤقتًا من هذا الجهاز','error');
+    return false;
   }
 }
 
@@ -1437,7 +1467,7 @@ async function persist(){
   try{
     const {error}=await supabaseClient
       .from('app_state')
-      .upsert({id:STATE_ROW_ID,data:db,updated_at:new Date().toISOString()});
+      .upsert({id:STATE_ROW_ID,data:db,owner_id:currentUser.id,updated_at:new Date().toISOString()});
     if(error) throw error;
     remoteReady=true;
     lastSuccessfulWriteAt=new Date().toISOString();lastSyncError='';
@@ -1554,7 +1584,34 @@ function renderAbout(){
   const auth=document.getElementById('aboutAuthStatus'),sync=document.getElementById('aboutSyncStatus');if(auth)auth.className='about-status '+(currentUser?'ok':'warn');if(sync)sync.className='about-status '+(remoteReady?'ok':'warn');
   renderSystemHealth();renderReleaseInformation();renderBackupManagement();
 }
-function refreshAboutData(){renderAbout();if(typeof loadRemoteData==='function'&&currentUser)loadRemoteData()}
+async function refreshAboutData(){
+  renderAbout();
+  if(typeof loadRemoteData==='function'&&currentUser){
+    const loaded=await loadRemoteData();
+    if(loaded)await runSystemDatabaseHealthCheck();
+  }
+}
+
+async function runSystemDatabaseHealthCheck(){
+  databaseHealthCheck={connection:false,read:false,write:false,sync:false,checkedAt:new Date().toISOString(),error:''};
+  try{
+    if(!currentUser||!supabaseClient)throw new Error('سجّل الدخول بحساب المدير لإجراء الفحص.');
+    const {data:row,error:readError}=await supabaseClient.from('app_state').select('id,data,owner_id,updated_at').eq('id',STATE_ROW_ID).maybeSingle();
+    if(readError)throw readError;
+    databaseHealthCheck.connection=true;databaseHealthCheck.read=true;lastSuccessfulReadAt=new Date().toISOString();
+    if(!row)throw new Error('لم يتم العثور على سجل النظام بعد تهيئته.');
+    const {data:written,error:writeError}=await supabaseClient.from('app_state').update({updated_at:row.updated_at}).eq('id',STATE_ROW_ID).eq('owner_id',currentUser.id).select('id,data,owner_id,updated_at').single();
+    if(writeError)throw writeError;
+    databaseHealthCheck.write=true;lastSuccessfulWriteAt=new Date().toISOString();
+    const remoteHash=await dataStateHash(written.data);
+    databaseHealthCheck.sync=!!written?.data&&written.id===STATE_ROW_ID&&written.owner_id===currentUser.id;
+    if(!databaseHealthCheck.sync)throw new Error('تعذر تأكيد أن القراءة والكتابة تمت على سجل المدير نفسه في Supabase.');
+    remoteReady=true;lastConfirmedRemoteHash=remoteHash;lastSyncError='';setSyncStatus('متصل ومتزامن بحساب المدير','ok');
+  }catch(err){
+    databaseHealthCheck.error=String(err?.message||err||'فشل فحص قاعدة البيانات');lastSyncError=databaseHealthCheck.error;
+  }
+  databaseHealthCheck.checkedAt=new Date().toISOString();renderAbout();openSystemHealthDetails();return databaseHealthCheck.sync;
+}
 
 function healthResult(category,severity,label,message=''){return {category,severity,label,message}}
 function runSystemHealthChecks(){
@@ -1584,11 +1641,11 @@ function runSystemHealthChecks(){
   const invalidTypes=bookings.filter(b=>!['customer','family'].includes(normalizeRecordType(b.recordType))),unknownTypeValues=[...new Set(invalidTypes.map(b=>String(b.recordType||'فارغ')))];
   add('سلامة البيانات',familyErrors.length||invalidTypes.length?'error':'ok',familyErrors.length||invalidTypes.length?'أخطاء في يوم الأهل':'يوم الأهل سليم',`${familyErrors.length} سجل يوم أهل مالي/عمولة غير صالح، ${invalidTypes.length} نوع سجل غير معروف${unknownTypeValues.length?`: ${unknownTypeValues.slice(0,5).join('، ')}`:''}.`);
 
-  add('قاعدة البيانات',remoteReady?'ok':'error',remoteReady?'الاتصال بقاعدة البيانات ناجح':'فشل الاتصال بقاعدة البيانات',remoteReady?'Supabase متصل.':lastSyncError||'النظام يعمل من النسخة المحلية فقط.');
-  add('قاعدة البيانات',lastSuccessfulReadAt?'ok':remoteReady?'warn':'error',lastSuccessfulReadAt?'القراءة ناجحة':'لم تُثبت القراءة بعد',lastSuccessfulReadAt?`آخر قراءة ناجحة: ${formatDateTime(lastSuccessfulReadAt)}`:'لا توجد عملية قراءة ناجحة مسجلة في هذه الجلسة.');
-  add('قاعدة البيانات',lastSuccessfulWriteAt?'ok':remoteReady?'warn':'error',lastSuccessfulWriteAt?'الكتابة ناجحة':'لم تُختبر الكتابة في هذه الجلسة',lastSuccessfulWriteAt?`آخر كتابة ناجحة: ${formatDateTime(lastSuccessfulWriteAt)}`:'لا ينفذ الفحص كتابة تجريبية حفاظًا على البيانات.');
-  const lastSync=[lastSuccessfulReadAt,lastSuccessfulWriteAt].filter(Boolean).sort().pop();const syncAge=lastSync?(Date.now()-new Date(lastSync).getTime())/86400000:Infinity;
-  add('قاعدة البيانات',!lastSync?'error':syncAge>3?'warn':'ok',!lastSync?'لا توجد مزامنة ناجحة':syncAge>3?'آخر مزامنة قديمة':'آخر مزامنة حديثة',lastSync?`آخر مزامنة ناجحة: ${formatDateTime(lastSync)}`:'لم تسجل مزامنة ناجحة في هذه الجلسة.');
+  const checked=!!databaseHealthCheck.checkedAt,healthError=databaseHealthCheck.error||lastSyncError;
+  add('قاعدة البيانات',databaseHealthCheck.connection?'ok':checked?'error':'warn',databaseHealthCheck.connection?'الاتصال ناجح':checked?'فشل الاتصال':'الاتصال لم يُفحص بعد',databaseHealthCheck.connection?'تم الوصول إلى مشروع Supabase بنجاح.':healthError||'اضغط «إعادة الفحص» لإجراء اختبار فعلي.');
+  add('قاعدة البيانات',databaseHealthCheck.read?'ok':checked?'error':'warn',databaseHealthCheck.read?'القراءة ناجحة':checked?'فشلت القراءة':'القراءة لم تُفحص بعد',databaseHealthCheck.read?`آخر قراءة ناجحة: ${formatDateTime(lastSuccessfulReadAt)}`:healthError||'لم تُجرَ قراءة اختبارية بعد.');
+  add('قاعدة البيانات',databaseHealthCheck.write?'ok':checked?'error':'warn',databaseHealthCheck.write?'الكتابة الاختبارية ناجحة':checked?'فشلت الكتابة الاختبارية':'الكتابة لم تُفحص بعد',databaseHealthCheck.write?`آخر كتابة اختبارية ناجحة: ${formatDateTime(lastSuccessfulWriteAt)}`:healthError||'تُختبر الكتابة بتحديث غير متلف للسجل نفسه.');
+  add('قاعدة البيانات',databaseHealthCheck.sync?'ok':checked?'error':'warn',databaseHealthCheck.sync?'المزامنة ناجحة':checked?'فشلت المزامنة':'المزامنة لم تُفحص بعد',databaseHealthCheck.sync?'تم تأكيد القراءة والكتابة على سجل المدير نفسه في Supabase.':healthError||'لم يُتحقق من دورة المزامنة بعد.');
 
   const backups=[...(db.backupHistory||[])].filter(x=>x?.createdAt).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))),latestBackup=backups[0],backupAge=latestBackup?(Date.now()-new Date(latestBackup.createdAt).getTime())/86400000:Infinity;
   add('النسخ الاحتياطية',!latestBackup?'warn':latestBackup.stored===false?'warn':backupAge>7?'warn':'ok',!latestBackup?'لا توجد نسخة احتياطية مسجلة':latestBackup.stored===false?'آخر نسخة لم تُحفظ محليًا':backupAge>7?'النسخة الاحتياطية قديمة':'النسخة الاحتياطية حديثة',latestBackup?`آخر نسخة: ${formatDateTime(latestBackup.createdAt)} — ${latestBackup.type||'يدوية'}`:'أنشئ نقطة استعادة من شاشة حول النظام أو الإعدادات.');
@@ -3275,7 +3332,7 @@ async function commitRestoredDataToSupabase(candidate){
   if(!currentUser)throw new Error('انتهت جلسة الدخول. سجّل الدخول ثم أعد المحاولة.');
   const next=normalizeDB(candidate),expectedHash=await dataStateHash(next);
   try{
-    const {error:writeError}=await supabaseClient.from('app_state').upsert({id:STATE_ROW_ID,data:next,updated_at:new Date().toISOString()});
+    const {error:writeError}=await supabaseClient.from('app_state').upsert({id:STATE_ROW_ID,data:next,owner_id:currentUser.id,updated_at:new Date().toISOString()});
     if(writeError)throw writeError;
     const {data:confirmed,error:readError}=await supabaseClient.from('app_state').select('data').eq('id',STATE_ROW_ID).maybeSingle();
     if(readError)throw readError;
@@ -3604,9 +3661,9 @@ renderSendStatus();
 </div>
 <div class="modal" id="systemHealthModal" aria-label="تفاصيل فحص حالة النظام"><div class="sheet">
   <div class="sheet-head"><h2>تفاصيل فحص حالة النظام</h2><button class="close" type="button" onclick="closeModal('systemHealthModal')">×</button></div>
-  <div class="notice" style="margin-bottom:14px">هذا الفحص للقراءة فقط ولا يضيف أو يعدّل أو يحذف أي بيانات.</div>
+  <div class="notice" style="margin-bottom:14px">ينفذ الفحص قراءة فعلية وكتابة اختبارية غير متلفة على سجل المدير، ثم يتحقق من تطابق المزامنة.</div>
   <div id="systemHealthDetails"></div>
-  <div class="actions"><button class="secondary" type="button" onclick="renderSystemHealth();openSystemHealthDetails()">إعادة الفحص</button><button class="primary" type="button" onclick="closeModal('systemHealthModal')">إغلاق</button></div>
+  <div class="actions"><button class="secondary" type="button" onclick="runSystemDatabaseHealthCheck()">إعادة الفحص</button><button class="primary" type="button" onclick="closeModal('systemHealthModal')">إغلاق</button></div>
 </div></div>
 <script>
 /* RC candidate compatibility patch — payment, family records and safe WhatsApp preview */
@@ -3720,5 +3777,6 @@ const v95RenderAllBase=renderAll;renderAll=function(){v95RenderAllBase();renderT
 document.addEventListener('DOMContentLoaded',()=>{renderHelpIcons();applyHelpVisibility();fillCalendarPickers();renderTodayBoard()});
 </script>
 <script src="portal-admin.js"></script>
+<script src="portal-final-admin.js"></script>
 </body>
 </html>
