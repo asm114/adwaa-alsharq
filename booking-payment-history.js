@@ -12,6 +12,7 @@
   const paymentSum=items=>(items||[]).reduce((sum,item)=>sum+safeNumber(item.amount),0);
   const paymentTypeLabel=value=>({deposit:'عربون',partial:'دفعة إضافية',final:'سداد نهائي',legacy:'دفعة سابقة'}[value]||value||'دفعة');
   const paymentMethodLabel=value=>({transfer:'تحويل بنكي',cash:'نقد',card:'شبكة / بطاقة',other:'أخرى',unknown:'غير محدد'}[value]||value||'غير محدد');
+  const bookingState=()=>typeof db!=='undefined'&&db&&Array.isArray(db.bookings)?db:null;
 
   function normalizePayments(booking){
     const rows=Array.isArray(booking?.payments)?booking.payments:[];
@@ -173,7 +174,8 @@
 
   function loadBookingPayments(){
     const id=document.getElementById('bId')?.value||'';
-    const booking=id?(window.db?.bookings||[]).find(item=>item.id===id):null;
+    const state=bookingState();
+    const booking=id?(state?.bookings||[]).find(item=>item.id===id):null;
     paymentDraft=normalizePayments(booking);
     paymentPanelOpen=false;
     renderPayments();
@@ -197,12 +199,13 @@
         const code=document.getElementById('bCode')?.value||'';
         if(document.getElementById('bPaid'))document.getElementById('bPaid').value=String(paid);
         const result=await originalSave.call(this,event);
-        const booking=(window.db?.bookings||[]).find(item=>item.id===beforeId)||(window.db?.bookings||[]).find(item=>item.code===code);
+        const state=bookingState();
+        const booking=(state?.bookings||[]).find(item=>item.id===beforeId)||(state?.bookings||[]).find(item=>item.code===code);
         if(booking){
           booking.payments=paymentDraft.map((item,index)=>({...item,amount:safeNumber(item.amount),order:index}));
           booking.paid=paymentSum(booking.payments);
-          if(typeof window.addAudit==='function')window.addAudit('تحديث دفعات','حجز',`تم حفظ ${booking.payments.length} دفعة بإجمالي ${money(booking.paid)}`,null,{bookingId:booking.id,payments:booking.payments});
-          if(typeof window.persist==='function')await window.persist();
+          if(typeof addAudit==='function')addAudit('تحديث دفعات','حجز',`تم حفظ ${booking.payments.length} دفعة بإجمالي ${money(booking.paid)}`,null,{bookingId:booking.id,payments:booking.payments});
+          if(typeof persist==='function')await persist();
         }
         return result;
       };
