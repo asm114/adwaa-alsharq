@@ -89,3 +89,6 @@ function initialize(){
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize);else initialize();
 })();
+
+// مسودات الاشتراكات: حجز مبدئي 24 ساعة ثم اعتماد وترحيل للبوابة.
+(()=>{const script=document.createElement('script');script.src='subscription-draft-workflow.js';script.defer=true;document.head.appendChild(script)})();
