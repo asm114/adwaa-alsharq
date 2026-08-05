@@ -98,3 +98,5 @@ document.addEventListener('DOMContentLoaded',()=>{loadPortalFinalSummary();loadP
 
 // سجل دفعات الحجوزات: ملف مستقل للحفاظ على توافق النظام الأساسي.
 (()=>{const script=document.createElement('script');script.src='booking-payment-history.js';script.defer=true;document.head.appendChild(script)})();
+// فرز العملاء والاشتراكات الدورية: ملف مستقل بدون Migration.
+(()=>{const script=document.createElement('script');script.src='customer-subscriptions.js';script.defer=true;document.head.appendChild(script)})();
