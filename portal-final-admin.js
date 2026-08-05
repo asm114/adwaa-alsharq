@@ -95,3 +95,6 @@ async function loadPortalActivityLog(){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{loadPortalFinalSummary();loadPortalFeedback();loadPortalActivityLog()});
+
+// سجل دفعات الحجوزات: ملف مستقل للحفاظ على توافق النظام الأساسي.
+(()=>{const script=document.createElement('script');script.src='booking-payment-history.js';script.defer=true;document.head.appendChild(script)})();
