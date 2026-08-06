@@ -2,13 +2,14 @@
 'use strict';
 if(window.__adwaaSimplifiedUiInstalled)return;
 window.__adwaaSimplifiedUiInstalled=true;
-const SIMPLE_UI_BUILD='20260806.2';
+const SIMPLE_UI_BUILD='20260806.3';
 
-const PRIMARY_LABELS=['الرئيسية','الحجوزات','التقويم','العملاء','المالية'];
+const PRIMARY_LABELS=['الرئيسية','الحجوزات','التقويم','العملاء','المالية','المصاريف'];
+const VIEW_CLASS_MAP={الرئيسية:'home',الحجوزات:'bookings',التقويم:'calendar',العملاء:'customers',المالية:'finance',المصاريف:'finance'};
 const DESCRIPTIONS={
   'بوابة العملاء':'إدارة الصور والأسعار والمحتوى',
   'الإعدادات':'إعدادات النظام والنسخ والحماية',
-  'المصروفات':'إدارة المصروفات والتصنيفات',
+  'المصاريف':'إدارة المصروفات والتصنيفات',
   'التنظيف':'مهام التنظيف والمتابعة',
   'العمولات':'متابعة العمولة والاستلام',
   'الحماية':'فحص النظام وحماية البيانات',
@@ -25,9 +26,12 @@ function navLabel(button){
 function isPrimary(label){return PRIMARY_LABELS.some(item=>label.includes(item))}
 function description(label){const key=Object.keys(DESCRIPTIONS).find(item=>label.includes(item));return key?DESCRIPTIONS[key]:'أداة إضافية من النظام'}
 function iconFrom(button){return button.querySelector('b')?.textContent?.trim()||'•'}
+function displayLabel(label){return label.includes('المصاريف')?'المالية':label}
 
 function addStylesheet(){
-  if(document.querySelector('link[data-simplified-ui]'))return;
+  const old=document.querySelector('link[data-simplified-ui]');
+  if(old&&old.href.includes(SIMPLE_UI_BUILD))return;
+  old?.remove();
   const link=document.createElement('link');link.rel='stylesheet';link.href=`simplified-ui.css?v=${SIMPLE_UI_BUILD}`;link.dataset.simplifiedUi='1';document.head.appendChild(link);
 }
 
@@ -39,6 +43,12 @@ function enhanceHeader(){
   }
 }
 
+function setViewClass(label){
+  [...document.body.classList].filter(name=>name.startsWith('simple-view-')).forEach(name=>document.body.classList.remove(name));
+  const key=Object.keys(VIEW_CLASS_MAP).find(item=>label.includes(item));
+  document.body.classList.add(`simple-view-${key?VIEW_CLASS_MAP[key]:'other'}`);
+}
+
 function createDrawer(extraButtons){
   document.getElementById('simpleMoreOverlay')?.remove();
   const overlay=document.createElement('div');overlay.id='simpleMoreOverlay';overlay.className='simple-more-overlay';
@@ -48,13 +58,12 @@ function createDrawer(extraButtons){
   extraButtons.forEach(original=>{
     const label=navLabel(original);if(!label)return;
     const item=document.createElement('button');item.type='button';item.className='simple-more-item';
-    item.innerHTML=`<span class="simple-more-icon">${iconFrom(original)}</span><span><strong>${label}</strong><small>${description(label)}</small></span>`;
-    item.addEventListener('click',()=>{original.click();closeDrawer()});list.appendChild(item);
+    item.innerHTML=`<span class="simple-more-icon">${iconFrom(original)}</span><span><strong>${displayLabel(label)}</strong><small>${description(label)}</small></span>`;
+    item.addEventListener('click',()=>{original.click();setViewClass(label);closeDrawer()});list.appendChild(item);
   });
   overlay.appendChild(drawer);document.body.appendChild(overlay);
   overlay.addEventListener('click',event=>{if(event.target===overlay)closeDrawer()});
   drawer.querySelector('.simple-more-close').addEventListener('click',closeDrawer);
-  document.addEventListener('keydown',event=>{if(event.key==='Escape')closeDrawer()});
 }
 function openDrawer(){document.getElementById('simpleMoreOverlay')?.classList.add('open')}
 function closeDrawer(){document.getElementById('simpleMoreOverlay')?.classList.remove('open')}
@@ -66,12 +75,23 @@ function simplifyNavigation(){
   const extras=[];
   buttons.forEach(button=>{
     const label=navLabel(button);
-    if(isPrimary(label))button.classList.remove('simple-hidden-nav');
-    else{button.classList.add('simple-hidden-nav');extras.push(button)}
+    if(isPrimary(label)){
+      button.classList.remove('simple-hidden-nav');
+      if(label.includes('المصاريف')){
+        const icon=button.querySelector('b')?.outerHTML||'';
+        button.innerHTML=`${icon}المالية`;
+      }
+      if(button.dataset.simpleViewBound!=='1'){
+        button.dataset.simpleViewBound='1';
+        button.addEventListener('click',()=>setTimeout(()=>setViewClass(displayLabel(label)),0));
+      }
+    }else{button.classList.add('simple-hidden-nav');extras.push(button)}
   });
   let more=nav.querySelector('.simple-more-button');
   if(!more){more=document.createElement('button');more.type='button';more.className='simple-more-button';more.innerHTML='<b>•••</b>المزيد';more.addEventListener('click',openDrawer);nav.appendChild(more)}
   createDrawer(extras);
+  const active=buttons.find(button=>button.classList.contains('active'));
+  setViewClass(active?displayLabel(navLabel(active)):'الرئيسية');
   return true;
 }
 
