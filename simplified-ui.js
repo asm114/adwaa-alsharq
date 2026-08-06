@@ -2,7 +2,7 @@
 'use strict';
 if(window.__adwaaSimplifiedUiInstalled)return;
 window.__adwaaSimplifiedUiInstalled=true;
-const SIMPLE_UI_BUILD='20260806.4';
+const SIMPLE_UI_BUILD='20260806.5';
 
 const PRIMARY_LABELS=['الرئيسية','الحجوزات','التقويم','العملاء','المالية','المصاريف'];
 const VIEW_CLASS_MAP={الرئيسية:'home',الحجوزات:'bookings',التقويم:'calendar',العملاء:'customers',المالية:'finance',المصاريف:'finance'};
@@ -23,7 +23,11 @@ function navLabel(button){
   clone.querySelectorAll('b,svg,img').forEach(el=>el.remove());
   return normalize(clone.textContent)||normalize(button.textContent);
 }
-function isPrimary(label){return PRIMARY_LABELS.some(item=>label.includes(item))}
+function canonicalLabel(label){
+  const value=normalize(label);
+  return PRIMARY_LABELS.find(item=>value===item)||'';
+}
+function isPrimary(label){return Boolean(canonicalLabel(label))}
 function description(label){const key=Object.keys(DESCRIPTIONS).find(item=>label.includes(item));return key?DESCRIPTIONS[key]:'أداة إضافية من النظام'}
 function iconFrom(button){return button.querySelector('b')?.textContent?.trim()||'•'}
 function displayLabel(label){return label.includes('المصاريف')?'المالية':label}
@@ -45,7 +49,8 @@ function enhanceHeader(){
 
 function setViewClass(label){
   [...document.body.classList].filter(name=>name.startsWith('simple-view-')).forEach(name=>document.body.classList.remove(name));
-  const key=Object.keys(VIEW_CLASS_MAP).find(item=>label.includes(item));
+  const exact=canonicalLabel(label)||displayLabel(label);
+  const key=Object.keys(VIEW_CLASS_MAP).find(item=>exact===item);
   const view=key?VIEW_CLASS_MAP[key]:'other';
   document.body.classList.add(`simple-view-${view}`);
   if(view==='home')setTimeout(compactHome,20);
@@ -53,7 +58,7 @@ function setViewClass(label){
 
 function clickNav(label){
   const nav=document.querySelector('nav');if(!nav)return;
-  const button=[...nav.querySelectorAll(':scope > button')].find(item=>navLabel(item).includes(label));
+  const button=[...nav.querySelectorAll(':scope > button')].find(item=>canonicalLabel(navLabel(item))===label||displayLabel(navLabel(item))===label);
   button?.click();
 }
 function addBooking(){
@@ -65,7 +70,7 @@ function addBooking(){
 
 function compactHome(){
   const home=document.querySelector('.view.active');
-  if(!home||document.body.classList.contains('simple-view-home')===false)return false;
+  if(!home||!document.body.classList.contains('simple-view-home'))return false;
   let dashboard=document.getElementById('simpleHomeDashboard');
   if(!dashboard){
     dashboard=document.createElement('section');dashboard.id='simpleHomeDashboard';dashboard.className='simple-home-dashboard';
@@ -83,8 +88,9 @@ function compactHome(){
   stats.forEach(item=>statRoot.appendChild(item));
   [...home.querySelectorAll('.section,article,section')].forEach(item=>{
     if(item===dashboard||dashboard.contains(item))return;
-    const text=normalize(item.querySelector('h2,h3,h4')?.textContent||'');
+    const text=normalize(item.querySelector('h2,h3,h4')?.textContent||item.textContent.slice(0,120));
     if(/التحليلات الشهرية|الإيرادات الشهرية|عدد الحجوزات شهري|نسبة الإشغال|آخر 12 شهر/.test(text))item.classList.add('simple-home-analytics-hidden');
+    if(/لوحة اليوم|دخول اليوم|خروج اليوم/.test(text))item.classList.add('simple-home-mobile-hidden');
   });
   return true;
 }
@@ -115,15 +121,16 @@ function simplifyNavigation(){
   const extras=[];
   buttons.forEach(button=>{
     const label=navLabel(button);
-    if(isPrimary(label)){
+    const exact=canonicalLabel(label);
+    if(exact){
       button.classList.remove('simple-hidden-nav');
-      if(label.includes('المصاريف')){
+      if(exact==='المصاريف'){
         const icon=button.querySelector('b')?.outerHTML||'';
         button.innerHTML=`${icon}المالية`;
       }
       if(button.dataset.simpleViewBound!=='1'){
         button.dataset.simpleViewBound='1';
-        button.addEventListener('click',()=>setTimeout(()=>setViewClass(displayLabel(label)),0));
+        button.addEventListener('click',()=>setTimeout(()=>setViewClass(displayLabel(exact)),0));
       }
     }else{button.classList.add('simple-hidden-nav');extras.push(button)}
   });
@@ -131,7 +138,7 @@ function simplifyNavigation(){
   if(!more){more=document.createElement('button');more.type='button';more.className='simple-more-button';more.innerHTML='<b>•••</b>المزيد';more.addEventListener('click',openDrawer);nav.appendChild(more)}
   createDrawer(extras);
   const active=buttons.find(button=>button.classList.contains('active'));
-  setViewClass(active?displayLabel(navLabel(active)):'الرئيسية');
+  setViewClass(active?displayLabel(canonicalLabel(navLabel(active))||navLabel(active)):'الرئيسية');
   return true;
 }
 
