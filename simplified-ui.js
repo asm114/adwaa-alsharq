@@ -2,6 +2,7 @@
 'use strict';
 if(window.__adwaaSimplifiedUiInstalled)return;
 window.__adwaaSimplifiedUiInstalled=true;
+const SIMPLE_UI_BUILD='20260806.2';
 
 const PRIMARY_LABELS=['الرئيسية','الحجوزات','التقويم','العملاء','المالية'];
 const DESCRIPTIONS={
@@ -27,7 +28,7 @@ function iconFrom(button){return button.querySelector('b')?.textContent?.trim()|
 
 function addStylesheet(){
   if(document.querySelector('link[data-simplified-ui]'))return;
-  const link=document.createElement('link');link.rel='stylesheet';link.href='simplified-ui.css';link.dataset.simplifiedUi='1';document.head.appendChild(link);
+  const link=document.createElement('link');link.rel='stylesheet';link.href=`simplified-ui.css?v=${SIMPLE_UI_BUILD}`;link.dataset.simplifiedUi='1';document.head.appendChild(link);
 }
 
 function enhanceHeader(){
