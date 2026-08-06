@@ -1,0 +1,32 @@
+/* إصلاحات الواجهة المبسطة على الجوال */
+@media (max-width:620px){
+  body.simplified-ui .app{padding-bottom:92px!important}
+  body.simplified-ui nav{
+    display:grid!important;
+    grid-template-columns:repeat(6,minmax(0,1fr))!important;
+    grid-auto-flow:column!important;
+    grid-auto-columns:minmax(0,1fr)!important;
+    align-items:stretch!important;
+    left:6px!important;right:6px!important;bottom:6px!important;
+    width:auto!important;max-width:none!important;
+    min-height:72px!important;height:auto!important;
+    padding:5px 4px calc(5px + env(safe-area-inset-bottom))!important;
+    overflow:hidden!important;white-space:normal!important;
+    border-radius:18px!important;
+  }
+  body.simplified-ui nav>button{
+    display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;
+    width:auto!important;min-width:0!important;max-width:none!important;height:58px!important;
+    margin:0!important;padding:5px 1px!important;font-size:9px!important;line-height:1.15!important;
+    overflow:hidden!important;white-space:nowrap!important;
+  }
+  body.simplified-ui nav>button b{font-size:16px!important;line-height:1!important;margin:0 0 4px!important}
+  body.simplified-ui nav>button.simple-hidden-nav{display:none!important}
+  body.simplified-ui nav>.simple-more-button{display:flex!important;position:static!important}
+  body.simplified-ui.simple-view-home .simple-home-mobile-hidden{display:none!important}
+  body.simplified-ui.simple-view-home .simple-home-analytics-hidden{display:none!important}
+  body.simplified-ui.simple-view-home .simple-home-dashboard{margin-top:2px!important;padding:13px!important}
+  body.simplified-ui.simple-view-home .simple-home-title{margin-bottom:11px!important}
+  body.simplified-ui.simple-view-home .simple-home-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  body.simplified-ui.simple-view-home .simple-home-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
