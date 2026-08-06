@@ -2,7 +2,7 @@
 'use strict';
 if(window.__adwaaSimplifiedUiInstalled)return;
 window.__adwaaSimplifiedUiInstalled=true;
-const SIMPLE_UI_BUILD='20260806.5';
+const SIMPLE_UI_BUILD='20260806.6';
 
 const PRIMARY_LABELS=['الرئيسية','الحجوزات','التقويم','العملاء','المالية','المصاريف'];
 const VIEW_CLASS_MAP={الرئيسية:'home',الحجوزات:'bookings',التقويم:'calendar',العملاء:'customers',المالية:'finance',المصاريف:'finance'};
@@ -33,10 +33,9 @@ function iconFrom(button){return button.querySelector('b')?.textContent?.trim()|
 function displayLabel(label){return label.includes('المصاريف')?'المالية':label}
 
 function addStylesheet(){
-  const old=document.querySelector('link[data-simplified-ui]');
-  if(old&&old.href.includes(SIMPLE_UI_BUILD))return;
-  old?.remove();
-  const link=document.createElement('link');link.rel='stylesheet';link.href=`simplified-ui.css?v=${SIMPLE_UI_BUILD}`;link.dataset.simplifiedUi='1';document.head.appendChild(link);
+  document.querySelectorAll('link[data-simplified-ui]').forEach(link=>link.remove());
+  const main=document.createElement('link');main.rel='stylesheet';main.href=`simplified-ui.css?v=${SIMPLE_UI_BUILD}`;main.dataset.simplifiedUi='1';document.head.appendChild(main);
+  const mobile=document.createElement('link');mobile.rel='stylesheet';mobile.href=`simplified-ui-mobile.css?v=${SIMPLE_UI_BUILD}`;mobile.dataset.simplifiedUi='1';document.head.appendChild(mobile);
 }
 
 function enhanceHeader(){
