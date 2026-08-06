@@ -102,3 +102,5 @@ document.addEventListener('DOMContentLoaded',()=>{loadPortalFinalSummary();loadP
 (()=>{const script=document.createElement('script');script.src='customer-subscriptions.js';script.defer=true;document.head.appendChild(script)})();
 // تشغيل الاشتراك الدوري مباشرة من نوع الحجز.
 (()=>{const script=document.createElement('script');script.src='subscription-booking-type.js';script.defer=true;document.head.appendChild(script)})();
+// تحميل الواجهة المبسطة مباشرة مع كسر التخزين المؤقت.
+(()=>{const link=document.createElement('link');link.rel='stylesheet';link.href='simplified-ui.css?v=20260806-2';document.head.appendChild(link);const script=document.createElement('script');script.src='simplified-ui.js?v=20260806-2';script.defer=true;document.head.appendChild(script)})();
