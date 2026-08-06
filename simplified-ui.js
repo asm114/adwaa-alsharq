@@ -2,7 +2,7 @@
 'use strict';
 if(window.__adwaaSimplifiedUiInstalled)return;
 window.__adwaaSimplifiedUiInstalled=true;
-const SIMPLE_UI_BUILD='20260806.3';
+const SIMPLE_UI_BUILD='20260806.4';
 
 const PRIMARY_LABELS=['الرئيسية','الحجوزات','التقويم','العملاء','المالية','المصاريف'];
 const VIEW_CLASS_MAP={الرئيسية:'home',الحجوزات:'bookings',التقويم:'calendar',العملاء:'customers',المالية:'finance',المصاريف:'finance'};
@@ -39,14 +39,54 @@ function enhanceHeader(){
   const header=document.querySelector('header');if(!header)return;
   const subtitle=header.querySelector('.subtitle');
   if(subtitle&&!document.getElementById('simpleHeaderChip')){
-    const chip=document.createElement('span');chip.id='simpleHeaderChip';chip.className='simple-ui-chip';chip.textContent='واجهة مبسطة';subtitle.insertAdjacentElement('afterend',chip);
+    const chip=document.createElement('span');chip.id='simpleHeaderChip';chip.className='simple-ui-chip';chip.textContent='واجهة يومية';subtitle.insertAdjacentElement('afterend',chip);
   }
 }
 
 function setViewClass(label){
   [...document.body.classList].filter(name=>name.startsWith('simple-view-')).forEach(name=>document.body.classList.remove(name));
   const key=Object.keys(VIEW_CLASS_MAP).find(item=>label.includes(item));
-  document.body.classList.add(`simple-view-${key?VIEW_CLASS_MAP[key]:'other'}`);
+  const view=key?VIEW_CLASS_MAP[key]:'other';
+  document.body.classList.add(`simple-view-${view}`);
+  if(view==='home')setTimeout(compactHome,20);
+}
+
+function clickNav(label){
+  const nav=document.querySelector('nav');if(!nav)return;
+  const button=[...nav.querySelectorAll(':scope > button')].find(item=>navLabel(item).includes(label));
+  button?.click();
+}
+function addBooking(){
+  const primary=document.querySelector('header .icon-btn');
+  if(primary){primary.click();return}
+  const button=[...document.querySelectorAll('button')].find(item=>normalize(item.textContent).includes('حجز جديد'));
+  button?.click();
+}
+
+function compactHome(){
+  const home=document.querySelector('.view.active');
+  if(!home||document.body.classList.contains('simple-view-home')===false)return false;
+  let dashboard=document.getElementById('simpleHomeDashboard');
+  if(!dashboard){
+    dashboard=document.createElement('section');dashboard.id='simpleHomeDashboard';dashboard.className='simple-home-dashboard';
+    dashboard.innerHTML='<div class="simple-home-title"><div><span>ملخص اليوم</span><h2>كل المهم في شاشة واحدة</h2></div><div class="simple-home-date"></div></div><div class="simple-home-stats"></div><div class="simple-home-actions"><button type="button" data-action="booking">＋ إضافة حجز</button><button type="button" data-action="calendar">▦ عرض التقويم</button><button type="button" data-action="customers">♟ العملاء</button><button type="button" data-action="finance">◫ المالية</button></div>';
+    dashboard.querySelector('[data-action="booking"]').addEventListener('click',addBooking);
+    dashboard.querySelector('[data-action="calendar"]').addEventListener('click',()=>clickNav('التقويم'));
+    dashboard.querySelector('[data-action="customers"]').addEventListener('click',()=>clickNav('العملاء'));
+    dashboard.querySelector('[data-action="finance"]').addEventListener('click',()=>{clickNav('المالية');clickNav('المصاريف')});
+    home.prepend(dashboard);
+  }else if(dashboard.parentElement!==home){home.prepend(dashboard)}
+  const date=dashboard.querySelector('.simple-home-date');
+  if(date)date.textContent=new Date().toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'long'});
+  const statRoot=dashboard.querySelector('.simple-home-stats');
+  const stats=[...home.querySelectorAll('.stat')].filter(item=>!statRoot.contains(item)).slice(0,4);
+  stats.forEach(item=>statRoot.appendChild(item));
+  [...home.querySelectorAll('.section,article,section')].forEach(item=>{
+    if(item===dashboard||dashboard.contains(item))return;
+    const text=normalize(item.querySelector('h2,h3,h4')?.textContent||'');
+    if(/التحليلات الشهرية|الإيرادات الشهرية|عدد الحجوزات شهري|نسبة الإشغال|آخر 12 شهر/.test(text))item.classList.add('simple-home-analytics-hidden');
+  });
+  return true;
 }
 
 function createDrawer(extraButtons){
@@ -98,7 +138,7 @@ function simplifyNavigation(){
 function initialize(){
   addStylesheet();document.body.classList.add('simplified-ui');enhanceHeader();
   if(!simplifyNavigation())setTimeout(simplifyNavigation,500);
-  setTimeout(()=>{enhanceHeader();simplifyNavigation()},1400);
+  setTimeout(()=>{enhanceHeader();simplifyNavigation();compactHome()},1400);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize);else initialize();
 })();
