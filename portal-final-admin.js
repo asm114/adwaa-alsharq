@@ -102,8 +102,8 @@ document.addEventListener('DOMContentLoaded',()=>{loadPortalFinalSummary();loadP
 (()=>{const link=document.createElement('link');link.rel='stylesheet';link.href='simplified-ui.css?v=20260806-2';document.head.appendChild(link);const script=document.createElement('script');script.src='simplified-ui.js?v=20260806-2';script.defer=true;document.head.appendChild(script)})();
 (()=>{const link=document.createElement('link');link.rel='stylesheet';link.href='drive-stability-ui.css?v=20260807-1';link.dataset.driveStabilityUi='1';document.head.appendChild(link);const script=document.createElement('script');script.src='drive-stability-ui.js?v=20260807-1';script.defer=true;document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.src='quick-home-backup.js?v=20260807-1';script.defer=true;document.head.appendChild(script)})();
-// تفاصيل ذكية للأرقام في الرئيسية: تعرض السجلات التي كوّنت الرقم ثم تسمح بفتح الحجز مباشرة.
 (()=>{const script=document.createElement('script');script.src='dashboard-drilldown.js?v=20260807-1';script.defer=true;document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.src='home-interactions.js?v=20260807-2';script.defer=true;document.head.appendChild(script)})();
-// أزرار شبيهة بالمتصفح: تحديث الصفحة ورجوع ذكي داخل النظام.
 (()=>{const script=document.createElement('script');script.src='browser-controls.js?v=20260807-1';script.defer=true;document.head.appendChild(script)})();
+// أزرار واضحة داخل شاشة العقد/الفاتورة: رجوع للنظام ومشاركة عند دعم الجهاز.
+(()=>{const script=document.createElement('script');script.src='document-preview-controls.js?v=20260807-1';script.defer=true;document.head.appendChild(script)})();
