@@ -51,10 +51,13 @@ function bookingCompactHTML(b){
   const due=Math.max(0,Number(b.total||0)-Number(b.paid||0));
   const status=esc(b.status||'');
   const payment=Number(b.total||0)>0?(due>0?`متبقي ${amount(due)}`:'مكتمل السداد'):'لم يُحدد المبلغ';
-  return `<button type="button" class="customer-group-booking" onclick="openBooking('${esc(b.id)}')">
-    <span class="customer-group-booking-main"><b>${esc(b.code||'-')}</b><span>${esc(b.date||'-')} • ${esc(b.type||'يومي')}</span></span>
-    <span class="customer-group-booking-side"><span>${status}</span><small>${esc(payment)}</small></span>
-  </button>`;
+  return `<div class="customer-group-booking">
+    <button type="button" class="customer-group-booking-open" onclick="openBooking('${esc(b.id)}')" aria-label="فتح الحجز ${esc(b.code||'')}">
+      <span class="customer-group-booking-main"><b>${esc(b.code||'-')}</b><span>${esc(b.date||'-')} • ${esc(b.type||'يومي')}</span></span>
+      <span class="customer-group-booking-side"><span>${status}</span><small>${esc(payment)}</small></span>
+    </button>
+    <button type="button" class="secondary customer-group-edit" onclick="event.stopPropagation();openBooking('${esc(b.id)}')">✏️ تعديل الحجز</button>
+  </div>`;
 }
 function groupedRenderBookings(){
   const list=document.getElementById('bookingList');
@@ -88,16 +91,18 @@ function installStyles(){
 .customer-booking-group-title b{font-size:16px}.customer-booking-group-title small,.customer-booking-group-stats small{color:var(--muted);font-size:11px}
 .customer-booking-group-stats{text-align:left;white-space:nowrap}.customer-booking-group[open]>summary{border-bottom:1px solid var(--line);background:#faf9ff}
 .customer-booking-group-list{display:grid;gap:0}
-.customer-group-booking{width:100%;border:0;border-bottom:1px solid var(--line);background:#fff;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:right;color:inherit}
-.customer-group-booking:last-child{border-bottom:0}.customer-group-booking-main,.customer-group-booking-side{display:flex;flex-direction:column;gap:4px}
+.customer-group-booking{border-bottom:1px solid var(--line);background:#fff;padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px}
+.customer-group-booking:last-child{border-bottom:0}
+.customer-group-booking-open{width:100%;border:0;background:transparent;padding:2px;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:right;color:inherit}
+.customer-group-booking-main,.customer-group-booking-side{display:flex;flex-direction:column;gap:4px}.customer-group-booking-main{min-width:0}
 .customer-group-booking-main span,.customer-group-booking-side small{font-size:11px;color:var(--muted)}.customer-group-booking-side{text-align:left;white-space:nowrap}
-@media(max-width:620px){.customer-booking-group>summary{padding:12px}.customer-group-booking{padding:11px 12px}.customer-booking-group-title b{font-size:15px}}
+.customer-group-edit{white-space:nowrap;padding:8px 10px;font-size:12px}
+@media(max-width:620px){.customer-booking-group>summary{padding:12px}.customer-group-booking{grid-template-columns:1fr;padding:10px 11px}.customer-group-booking-title b{font-size:15px}.customer-group-edit{width:100%}}
 `;
   document.head.appendChild(style);
 }
 function install(){
   installStyles();
-  // توحيد الجوال في كل مسارات العملاء القديمة والجديدة.
   try{window.normalizePhone=canonicalPhone;window.invalidateCaches?.()}catch(_){ }
   if(typeof window.renderBookings==='function'&&!window.renderBookings.__groupedByCustomer){
     groupedRenderBookings.__groupedByCustomer=true;
