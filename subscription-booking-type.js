@@ -54,5 +54,6 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 })();
 
 (()=>{const script=document.createElement('script');script.src='subscription-draft-workflow.js';script.defer=true;document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.src='subscription-choice-ui.js?v=20260807-1';script.defer=true;document.head.appendChild(script)})();
 // واجهة أضواء الشرق المبسطة — المرحلة الأولى.
 (()=>{const script=document.createElement('script');script.src='simplified-ui.js';script.defer=true;document.head.appendChild(script)})();
