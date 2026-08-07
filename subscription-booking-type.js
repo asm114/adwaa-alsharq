@@ -47,12 +47,12 @@ function launchSubscriptionFromBooking(name,phone){
 }
 function wrapOpenBooking(){
   if(typeof window.openBooking!=='function'||window.openBooking.__subscriptionTypeWrapped)return;
-  const original=window.openBooking;const wrapped=function(...args){const result=original.apply(this,args);setTimeout(addSubscriptionOption,0);return result};wrapped.__subscriptionTypeWrapped=true;window.openBooking=wrapped;
-}
+  const original=window.openBooking;const wrapped=function(...args){const result=original.apply(this,args);setTimeout(addSubscriptionOption,0);return result};wrapped.__subscriptionTypeWrapped=true;window.openBooking=wrapped}
 function initialize(){addSubscriptionOption();wrapOpenBooking();setTimeout(()=>{addSubscriptionOption();wrapOpenBooking()},600)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize);else initialize();
 })();
 
 (()=>{const script=document.createElement('script');script.src='subscription-draft-workflow.js';script.defer=true;document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.src='subscription-calendar-booking-labels.js?v=20260807-1';script.defer=true;script.onerror=()=>console.warn('تعذر تحميل تسميات تقويم الاشتراك');document.head.appendChild(script)})();
 // واجهة أضواء الشرق المبسطة — المرحلة الأولى.
 (()=>{const script=document.createElement('script');script.src='simplified-ui.js';script.defer=true;document.head.appendChild(script)})();
