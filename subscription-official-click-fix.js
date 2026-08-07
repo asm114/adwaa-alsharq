@@ -52,6 +52,23 @@ function unlock(button){
   button.disabled=false;
   delete button.dataset.subscriptionSubmitting;
 }
+function snapshotState(){
+  const db=window.db||{};
+  return{
+    subscriptionsLength:Array.isArray(db.subscriptions)?db.subscriptions.length:0,
+    bookingsLength:Array.isArray(db.bookings)?db.bookings.length:0,
+    draftsLength:Array.isArray(db.subscriptionDrafts)?db.subscriptionDrafts.length:0,
+    seq:db.seq
+  };
+}
+function rollbackState(snapshot){
+  const db=window.db;if(!db)return;
+  if(Array.isArray(db.subscriptions)&&db.subscriptions.length>snapshot.subscriptionsLength)db.subscriptions.splice(snapshot.subscriptionsLength);
+  if(Array.isArray(db.bookings)&&db.bookings.length>snapshot.bookingsLength)db.bookings.splice(snapshot.bookingsLength);
+  if(Array.isArray(db.subscriptionDrafts)&&db.subscriptionDrafts.length>snapshot.draftsLength)db.subscriptionDrafts.splice(snapshot.draftsLength);
+  db.seq=snapshot.seq;
+  window.renderAll?.();window.renderCustomers?.();
+}
 function runOnlyThisHandler(button,event){
   const handler=button.onclick;if(typeof handler!=='function')return;
   event.preventDefault();event.stopImmediatePropagation();
@@ -65,34 +82,33 @@ function runOnlyThisHandler(button,event){
     if(existingDraft(dates,customer.phone)){alert('هذه الأيام محفوظة مسبقًا كحجز مبدئي لنفس العميل.');forceCloseSubscription();return}
   }
 
+  const snapshot=snapshotState();
   button.dataset.subscriptionSubmitting='1';button.disabled=true;
   const cleanup=bridgeCrossMonthSelections();
   let settled=false;
   const finish=(saved)=>{if(settled)return;settled=true;cleanup();unlock(button);if(saved)forceCloseSubscription()};
-  const watchdog=setTimeout(()=>{
-    const saved=button.id==='subConfirm'&&!!existingOfficial(dates,customer.phone);
-    finish(saved);
-  },8000);
   try{
     const result=handler.call(button,event);
     cleanup();
     if(result&&typeof result.then==='function'){
-      result.then(value=>{clearTimeout(watchdog);const saved=value===true||(button.id==='subConfirm'&&!!existingOfficial(dates,customer.phone));finish(saved)}).catch(error=>{
-        clearTimeout(watchdog);
-        const saved=button.id==='subConfirm'&&!!existingOfficial(dates,customer.phone);
-        console.error('تعذر إكمال مزامنة الاشتراك',error);
+      result.then(value=>{
+        const saved=value===true||(button.id==='saveSubscriptionDraft'&&window.db?.subscriptionDrafts?.length>snapshot.draftsLength);
         finish(saved);
-        if(!saved)alert('تعذر حفظ الاشتراك. حاول مرة أخرى.');
+      }).catch(error=>{
+        console.error('فشل حفظ/مزامنة الاشتراك، تم التراجع عن العملية المحلية',error);
+        rollbackState(snapshot);
+        finish(false);
+        alert('لم يكتمل تأكيد الحجز بسبب فشل المزامنة، ولم يتم اعتماد نسخة جديدة. تحقق من الاتصال ثم حاول مرة أخرى.');
       });
     }else{
-      clearTimeout(watchdog);finish(button.id==='subConfirm'&&!!existingOfficial(dates,customer.phone));
+      const saved=button.id==='subConfirm'&&window.db?.subscriptions?.length>snapshot.subscriptionsLength;
+      finish(saved);
     }
   }catch(error){
-    clearTimeout(watchdog);
-    const saved=button.id==='subConfirm'&&!!existingOfficial(dates,customer.phone);
-    console.error('تعذر إكمال حفظ الاشتراك',error);
-    finish(saved);
-    if(!saved)alert('تعذر حفظ الاشتراك. حاول مرة أخرى.');
+    console.error('فشل تأكيد الاشتراك، تم التراجع عن العملية المحلية',error);
+    rollbackState(snapshot);
+    finish(false);
+    alert('لم يكتمل تأكيد الحجز، ولم يتم اعتماد نسخة جديدة. حاول مرة أخرى بعد التحقق من الاتصال.');
   }
 }
 
