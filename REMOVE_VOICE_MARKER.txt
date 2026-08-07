@@ -1,1 +1,0 @@
-Voice commands removed from the user interface as of 2026-08-07.
