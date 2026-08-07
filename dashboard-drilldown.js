@@ -41,7 +41,7 @@ function commissionDue(b){
 }
 
 function metricFor(label){
-  const t=norm(label),now=new Date(),all=bookings(),active=all.filter(b=>!isCancelled(b));
+  const t=norm(label),now=new Date(),all=bookings().filter(b=>b.recordType!=='family'),active=all.filter(b=>!isCancelled(b));
   if(/إجمالي الحجوزات/.test(t))return {title:'إجمالي الحجوزات',rows:all,kind:'booking'};
   if(/حجوزات اليوم/.test(t))return {title:'حجوزات اليوم',rows:active.filter(b=>sameDay(dateOf(b),now)),kind:'booking'};
   if(/حجوزات هذا الأسبوع/.test(t))return {title:'حجوزات هذا الأسبوع',rows:active.filter(b=>inCurrentWeek(dateOf(b),now)),kind:'booking'};
@@ -87,4 +87,7 @@ window.openDashboardDrilldown=function(label){
   [...rows.querySelectorAll('.dash-dd-row')].forEach(btn=>btn.addEventListener('click',()=>openBookingRecord(metric.rows[Number(btn.dataset.i)])));
   root.classList.add('open');return true;
 };
+
+// إبقاء تواجد العائلة داخل التقويم فقط، للعرض دون فتح أو تعديل من التقويم.
+(()=>{const script=document.createElement('script');script.src='family-calendar-only.js?v=20260807-1';script.defer=true;document.head.appendChild(script)})();
 })();
