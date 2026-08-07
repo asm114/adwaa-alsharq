@@ -96,17 +96,12 @@ async function loadPortalActivityLog(){
 
 document.addEventListener('DOMContentLoaded',()=>{loadPortalFinalSummary();loadPortalFeedback();loadPortalActivityLog()});
 
-// سجل دفعات الحجوزات: ملف مستقل للحفاظ على توافق النظام الأساسي.
 (()=>{const script=document.createElement('script');script.src='booking-payment-history.js';script.defer=true;document.head.appendChild(script)})();
-// فرز العملاء والاشتراكات الدورية: ملف مستقل بدون Migration.
 (()=>{const script=document.createElement('script');script.src='customer-subscriptions.js';script.defer=true;document.head.appendChild(script)})();
-// تشغيل الاشتراك الدوري مباشرة من نوع الحجز.
 (()=>{const script=document.createElement('script');script.src='subscription-booking-type.js';script.defer=true;document.head.appendChild(script)})();
-// تحميل الواجهة المبسطة مباشرة مع كسر التخزين المؤقت.
 (()=>{const link=document.createElement('link');link.rel='stylesheet';link.href='simplified-ui.css?v=20260806-2';document.head.appendChild(link);const script=document.createElement('script');script.src='simplified-ui.js?v=20260806-2';script.defer=true;document.head.appendChild(script)})();
-// تبسيط مركز الحماية وتحسين استمرارية Google Drive دون تخزين رموز الدخول الحساسة.
 (()=>{const link=document.createElement('link');link.rel='stylesheet';link.href='drive-stability-ui.css?v=20260807-1';link.dataset.driveStabilityUi='1';document.head.appendChild(link);const script=document.createElement('script');script.src='drive-stability-ui.js?v=20260807-1';script.defer=true;document.head.appendChild(script)})();
-// زر نسخ احتياطي سريع بجانب زر إخفاء المبالغ في الصفحة الرئيسية.
 (()=>{const script=document.createElement('script');script.src='quick-home-backup.js?v=20260807-1';script.defer=true;document.head.appendChild(script)})();
-// إزالة الأوامر الصوتية نهائيًا من الواجهة وتحويل بطاقات الرئيسية إلى اختصارات مباشرة.
-(()=>{const script=document.createElement('script');script.src='home-interactions.js?v=20260807-1';script.defer=true;document.head.appendChild(script)})();
+// تفاصيل ذكية للأرقام في الرئيسية: تعرض السجلات التي كوّنت الرقم ثم تسمح بفتح الحجز مباشرة.
+(()=>{const script=document.createElement('script');script.src='dashboard-drilldown.js?v=20260807-1';script.defer=true;document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.src='home-interactions.js?v=20260807-2';script.defer=true;document.head.appendChild(script)})();
