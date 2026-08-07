@@ -105,3 +105,5 @@ document.addEventListener('DOMContentLoaded',()=>{loadPortalFinalSummary();loadP
 // تفاصيل ذكية للأرقام في الرئيسية: تعرض السجلات التي كوّنت الرقم ثم تسمح بفتح الحجز مباشرة.
 (()=>{const script=document.createElement('script');script.src='dashboard-drilldown.js?v=20260807-1';script.defer=true;document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.src='home-interactions.js?v=20260807-2';script.defer=true;document.head.appendChild(script)})();
+// أزرار شبيهة بالمتصفح: تحديث الصفحة ورجوع ذكي داخل النظام.
+(()=>{const script=document.createElement('script');script.src='browser-controls.js?v=20260807-1';script.defer=true;document.head.appendChild(script)})();
