@@ -49,3 +49,12 @@ function addStyles(){
 function init(){removeVoiceControls();addStyles();bindHomeCards();setTimeout(()=>{removeVoiceControls();bindHomeCards()},800);setTimeout(()=>{removeVoiceControls();bindHomeCards()},1800)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
+
+(()=>{
+  if(document.querySelector('script[data-bookings-pdf-report]'))return;
+  const script=document.createElement('script');
+  script.src='bookings-pdf-report.js?v=20260807-1';
+  script.defer=true;
+  script.dataset.bookingsPdfReport='1';
+  document.head.appendChild(script);
+})();
