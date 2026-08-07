@@ -51,10 +51,10 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 })();
 
 (()=>{
-  if(document.querySelector('script[data-bookings-pdf-report]'))return;
+  if(document.querySelector('script[data-bookings-excel-export]'))return;
   const script=document.createElement('script');
-  script.src='bookings-pdf-report.js?v=20260807-1';
+  script.src='bookings-excel-export.js?v=20260807-1';
   script.defer=true;
-  script.dataset.bookingsPdfReport='1';
+  script.dataset.bookingsExcelExport='1';
   document.head.appendChild(script);
 })();
