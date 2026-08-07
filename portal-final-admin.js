@@ -108,3 +108,5 @@ document.addEventListener('DOMContentLoaded',()=>{loadPortalFinalSummary();loadP
 (()=>{const link=document.createElement('link');link.rel='stylesheet';link.href='drive-stability-ui.css?v=20260807-1';link.dataset.driveStabilityUi='1';document.head.appendChild(link);const script=document.createElement('script');script.src='drive-stability-ui.js?v=20260807-1';script.defer=true;document.head.appendChild(script)})();
 // زر نسخ احتياطي سريع بجانب زر إخفاء المبالغ في الصفحة الرئيسية.
 (()=>{const script=document.createElement('script');script.src='quick-home-backup.js?v=20260807-1';script.defer=true;document.head.appendChild(script)})();
+// إزالة الأوامر الصوتية نهائيًا من الواجهة وتحويل بطاقات الرئيسية إلى اختصارات مباشرة.
+(()=>{const script=document.createElement('script');script.src='home-interactions.js?v=20260807-1';script.defer=true;document.head.appendChild(script)})();
