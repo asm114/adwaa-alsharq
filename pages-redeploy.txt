@@ -1,0 +1,2 @@
+GitHub Pages redeploy trigger — 2026-08-07 05:38 +03:00
+No application logic or data changes.
