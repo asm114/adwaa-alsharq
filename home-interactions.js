@@ -7,33 +7,32 @@ const norm=v=>String(v||'').replace(/\s+/g,' ').trim();
 
 function removeVoiceControls(){
   document.querySelectorAll('.voice,#voiceHint,[onclick*="startVoice"]').forEach(el=>el.remove());
-  try{window.startVoice=()=>{}}catch(_){/* lexical binding, if any, remains unreachable after UI removal */}
+  try{window.startVoice=()=>{}}catch(_){/* no-op */}
 }
-
 function clickNav(label){
   const nav=document.querySelector('nav');if(!nav)return false;
   const btn=[...nav.querySelectorAll('button')].find(b=>norm(b.textContent)===label||norm(b.textContent).includes(label));
   if(btn){btn.click();return true}return false;
 }
-function openFinance(){return clickNav('المالية')||clickNav('المصاريف')}
-function openBookings(){return clickNav('الحجوزات')}
-function openCustomers(){return clickNav('العملاء')}
-function openCalendar(){return clickNav('التقويم')}
-
-function routeFor(text){
+function fallbackRoute(text){
   const t=norm(text);
-  if(/إيرادات|المبالغ|العربون|المتبقي|المحصل|عمولات|مالية/.test(t))return openFinance;
-  if(/عميل|العملاء/.test(t))return openCustomers;
-  if(/اليوم|الأسبوع|الشهر|القادمة|الحجوزات|مكتملة السداد/.test(t))return openBookings;
-  if(/التقويم|تواريخ/.test(t))return openCalendar;
+  if(/إيرادات|المبالغ|العربون|المتبقي|المحصل|عمولات|مالية/.test(t))return ()=>clickNav('المالية')||clickNav('المصاريف');
+  if(/عميل|العملاء/.test(t))return ()=>clickNav('العملاء');
+  if(/اليوم|الأسبوع|الشهر|القادمة|الحجوزات|مكتملة السداد/.test(t))return ()=>clickNav('الحجوزات');
+  if(/التقويم|تواريخ/.test(t))return ()=>clickNav('التقويم');
   return null;
+}
+function runCardAction(card){
+  const text=card.textContent;
+  try{if(typeof window.openDashboardDrilldown==='function'&&window.openDashboardDrilldown(text))return}catch(err){console.warn('تعذر فتح تفاصيل بطاقة الرئيسية',err)}
+  fallbackRoute(text)?.();
 }
 function makeCardActionable(card){
   if(!card||card.dataset.homeActionBound==='1')return;
-  const action=routeFor(card.textContent);if(!action)return;
+  if(!fallbackRoute(card.textContent))return;
   card.dataset.homeActionBound='1';card.classList.add('home-action-card');card.setAttribute('role','button');card.setAttribute('tabindex','0');
-  card.addEventListener('click',event=>{if(event.target.closest('button,a,input,select,textarea'))return;action()});
-  card.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();action()}});
+  card.addEventListener('click',event=>{if(event.target.closest('button,a,input,select,textarea'))return;runCardAction(card)});
+  card.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();runCardAction(card)}});
 }
 function bindHomeCards(){
   if(!document.body.classList.contains('simple-view-home'))return;
