@@ -1,11 +1,11 @@
 (()=>{
 'use strict';
-if(window.__adwaaDocumentPreviewControlsInstalled)return;
-window.__adwaaDocumentPreviewControlsInstalled=true;
+if(window.__adwaaGeneratedDocumentToolbarInstalled)return;
+window.__adwaaGeneratedDocumentToolbarInstalled=true;
 
 function escJs(value){return JSON.stringify(String(value??''));}
 
-function enhanceGeneratedDocument(html,b,type){
+function enhance(html,b,type){
   if(typeof html!=='string'||!html.includes('<body>'))return html;
   const title=type==='invoice'?'فاتورة حجز':'عقد حجز';
   const customer=String(b?.name||'العميل');
@@ -14,11 +14,11 @@ function enhanceGeneratedDocument(html,b,type){
   const shareText=`${title} — ${customer}${b?.code?` — ${b.code}`:''}`;
   const toolbar=`<div id="adwaaDocToolbar" class="actions" style="display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:9999;background:#f7f7f5;padding:10px 12px;border-bottom:1px solid #dfe5e2;direction:rtl">
     <button type="button" onclick="adwaaBackToSystem()" style="background:#fff;color:#0f7866;border:1px solid #9fc8bd">← رجوع للنظام</button>
-    <button type="button" onclick="adwaaShareDocument()" style="background:#5f50d9;color:#fff">مشاركة</button>
+    <button type="button" id="adwaaShareBtn" onclick="adwaaShareDocument()" style="background:#5f50d9;color:#fff">مشاركة</button>
     ${waPhone?`<button type="button" onclick="adwaaSendCustomer()" style="background:#168f5b;color:#fff">إرسال للعميل</button>`:''}
     <button type="button" onclick="window.print()">طباعة / حفظ PDF</button>
   </div>`;
-  const helpers=`<script>
+  const script=`<script>
     const ADWAA_DOC_TITLE=${escJs(title)};
     const ADWAA_DOC_CUSTOMER=${escJs(customer)};
     const ADWAA_DOC_SHARE_TEXT=${escJs(shareText)};
@@ -36,33 +36,28 @@ function enhanceGeneratedDocument(html,b,type){
     }
     function adwaaSendCustomer(){
       if(!ADWAA_DOC_PHONE)return;
-      const text='السلام عليكم، ${title} الخاص بك من منتجع أضواء الشرق. بعد حفظ ملف PDF يمكنك إرفاقه وإرساله هنا.';
+      const text='السلام عليكم، ${title} الخاص بك من منتجع أضواء الشرق. يمكن إرفاق ملف PDF بعد حفظه من زر طباعة / حفظ PDF.';
       location.href='https://wa.me/'+ADWAA_DOC_PHONE+'?text='+encodeURIComponent(text);
     }
   <\/script>`;
-  const printStyle='<style>@media print{#adwaaDocToolbar{display:none!important}}</style>';
+  const printOnlyStyle=`<style>@media print{#adwaaDocToolbar{display:none!important}}</style>`;
   let out=html.replace('<body><div class="actions"><button onclick="window.print()">طباعة / حفظ PDF</button></div>',`<body>${toolbar}`);
   if(out===html)out=html.replace('<body>',`<body>${toolbar}`);
-  out=out.replace('</head>',`${printStyle}</head>`);
-  out=out.replace('</body>',`${helpers}</body>`);
-  return out;
+  return out.replace('</head>',`${printOnlyStyle}</head>`).replace('</body>',`${script}</body>`);
 }
 
-function installWrapper(){
-  if(typeof window.bookingDocumentHTML!=='function')return false;
-  if(window.bookingDocumentHTML.__adwaaDocToolbarWrapped)return true;
+function install(){
+  if(typeof window.bookingDocumentHTML!=='function'||window.bookingDocumentHTML.__adwaaWrapped)return false;
   const original=window.bookingDocumentHTML;
-  const wrapped=function(b,type){return enhanceGeneratedDocument(original.apply(this,arguments),b,type)};
-  wrapped.__adwaaDocToolbarWrapped=true;
+  const wrapped=function(b,type){return enhance(original.apply(this,arguments),b,type)};
+  wrapped.__adwaaWrapped=true;
   wrapped.__adwaaOriginal=original;
   window.bookingDocumentHTML=wrapped;
   return true;
 }
 
-function init(){
-  if(installWrapper())return;
+if(!install()){
   let tries=0;
-  const timer=setInterval(()=>{tries++;if(installWrapper()||tries>=40)clearInterval(timer)},150);
+  const timer=setInterval(()=>{tries++;if(install()||tries>40)clearInterval(timer)},150);
 }
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
