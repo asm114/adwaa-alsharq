@@ -47,7 +47,8 @@ function launchSubscriptionFromBooking(name,phone){
 }
 function wrapOpenBooking(){
   if(typeof window.openBooking!=='function'||window.openBooking.__subscriptionTypeWrapped)return;
-  const original=window.openBooking;const wrapped=function(...args){const result=original.apply(this,args);setTimeout(addSubscriptionOption,0);return result};wrapped.__subscriptionTypeWrapped=true;window.openBooking=wrapped}
+  const original=window.openBooking;const wrapped=function(...args){const result=original.apply(this,args);setTimeout(addSubscriptionOption,0);return result};wrapped.__subscriptionTypeWrapped=true;window.openBooking=wrapped;
+}
 function initialize(){addSubscriptionOption();wrapOpenBooking();setTimeout(()=>{addSubscriptionOption();wrapOpenBooking()},600)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize);else initialize();
 })();
