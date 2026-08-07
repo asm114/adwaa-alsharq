@@ -99,6 +99,7 @@ document.addEventListener('DOMContentLoaded',()=>{loadPortalFinalSummary();loadP
 (()=>{const script=document.createElement('script');script.src='booking-payment-history.js';script.defer=true;document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.src='customer-subscriptions.js';script.defer=true;document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.src='subscription-booking-type.js';script.defer=true;document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.src='subscription-professional-flow.js?v=20260807-1';script.defer=true;document.head.appendChild(script)})();
 (()=>{const link=document.createElement('link');link.rel='stylesheet';link.href='simplified-ui.css?v=20260806-2';document.head.appendChild(link);const script=document.createElement('script');script.src='simplified-ui.js?v=20260806-2';script.defer=true;document.head.appendChild(script)})();
 (()=>{const link=document.createElement('link');link.rel='stylesheet';link.href='drive-stability-ui.css?v=20260807-1';link.dataset.driveStabilityUi='1';document.head.appendChild(link);const script=document.createElement('script');script.src='drive-stability-ui.js?v=20260807-1';script.defer=true;document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.src='quick-home-backup.js?v=20260807-1';script.defer=true;document.head.appendChild(script)})();
