@@ -96,7 +96,8 @@ async function loadPortalActivityLog(){
 
 document.addEventListener('DOMContentLoaded',()=>{loadPortalFinalSummary();loadPortalFeedback();loadPortalActivityLog()});
 
-(()=>{const script=document.createElement('script');script.src='booking-payment-history.js';script.defer=true;document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.src='subscription-state-safety.js?v=20260808-1';script.defer=true;document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.src='booking-payment-history.js?v=20260808-2';script.defer=true;document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.src='customer-subscriptions.js';script.defer=true;document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.src='subscription-booking-type.js';script.defer=true;document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.src='booking-customer-groups.js?v=20260808-1';script.defer=true;script.onerror=()=>console.warn('تعذر تحميل تجميع الحجوزات حسب العميل');document.head.appendChild(script)})();
