@@ -83,7 +83,9 @@
         if(!paymentDraft.length&&safeNumber(document.getElementById('bPaid')?.value)>0)paymentDraft=[{id:paymentId(),amount:safeNumber(document.getElementById('bPaid').value),type:'deposit',method:'unknown',date:todayIso(),note:'دفعة مسجلة من الإدخال السريع',createdAt:new Date().toISOString(),order:0}];
         const paid=paymentSum(paymentDraft),total=safeNumber(document.getElementById('bTotal')?.value);if(total>0&&paid>total){alert('مجموع الدفعات أكبر من إجمالي الحجز. عدّل الدفعات قبل الحفظ.');return}
         const beforeId=document.getElementById('bId')?.value||'',code=document.getElementById('bCode')?.value||'';if(document.getElementById('bPaid'))document.getElementById('bPaid').value=String(paid);
-        const result=await originalSave.call(this,event),state=bookingState(),booking=(state?.bookings||[]).find(item=>item.id===beforeId)||(state?.bookings||[]).find(item=>item.code===code);
+        const result=await originalSave.call(this,event);
+        if(document.getElementById('bookingModal')?.classList.contains('open'))return result;
+        const state=bookingState(),booking=(state?.bookings||[]).find(item=>item.id===beforeId)||(state?.bookings||[]).find(item=>item.code===code);
         if(booking){booking.payments=paymentDraft.map((item,index)=>({...item,amount:safeNumber(item.amount),order:index}));booking.paid=paymentSum(booking.payments);if(typeof addAudit==='function')addAudit('تحديث دفعات','حجز',`تم حفظ ${booking.payments.length} دفعة بإجمالي ${money(booking.paid)}`,null,{bookingId:booking.id,payments:booking.payments});if(typeof persist==='function')await persist()}
         return result;
       };wrapped.__paymentHistoryWrapped=true;window.saveBooking=wrapped;
