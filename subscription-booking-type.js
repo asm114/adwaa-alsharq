@@ -85,5 +85,6 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 (()=>{const script=document.createElement('script');script.async=false;script.src='subscription-revenue-integration.js?v=20260808-1';script.onerror=()=>console.warn('تعذر تحميل ربط إيرادات الاشتراك');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='commission-transfer-workflow.js?v=20260808-1';script.onerror=()=>console.warn('تعذر تحميل سير تحويل العمولة اليدوي');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='operational-reminders-center.js?v=20260808-1';script.onerror=()=>console.warn('تعذر تحميل مركز التنبيهات التشغيلية');document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.async=false;script.src='professional-ui-cleanup.js?v=20260808-1';script.onerror=()=>console.warn('تعذر تحميل تحسينات الواجهة الاحترافية');document.head.appendChild(script)})();
 // واجهة أضواء الشرق المبسطة — المرحلة الأولى.
 (()=>{const script=document.createElement('script');script.src='simplified-ui.js';script.defer=true;document.head.appendChild(script)})();
