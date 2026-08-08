@@ -58,23 +58,76 @@ function recalcCustomer(customer){
 }
 window.subscriptionFinanceForCustomer=recalcCustomer;
 
+function isManagedSubscriptionVisit(booking,managedIds=managedSubscriptionIds()){
+  return !!(booking&&(booking.subscriptionVisit||booking.subscriptionPaymentManaged||(booking.subscriptionId&&managedIds.has(booking.subscriptionId))));
+}
+function financeLineElement(container){
+  if(!container)return null;
+  const all=[container,...container.querySelectorAll('*')].filter(el=>{
+    const text=String(el.textContent||'').replace(/\s+/g,' ').trim();
+    return text.includes('الإجمالي')&&text.includes('المدفوع')&&text.includes('المتبقي');
+  });
+  all.sort((a,b)=>String(a.textContent||'').length-String(b.textContent||'').length);
+  return all[0]||null;
+}
+function smallestContainerForCode(code){
+  const candidates=[...document.querySelectorAll('article,li,.item,.customer-booking,.customer-profile-booking,div')].filter(el=>{
+    const text=String(el.textContent||'');
+    return text.includes(code)&&text.includes('الإجمالي')&&text.includes('المدفوع')&&text.includes('المتبقي');
+  });
+  candidates.sort((a,b)=>String(a.textContent||'').length-String(b.textContent||'').length);
+  return candidates[0]||null;
+}
+function decorateSubscriptionVisitAmounts(){
+  const managedIds=managedSubscriptionIds();
+  for(const booking of (window.db?.bookings||[])){
+    if(!isManagedSubscriptionVisit(booking,managedIds)||!booking.code)continue;
+    const container=smallestContainerForCode(String(booking.code));if(!container)continue;
+    const line=financeLineElement(container);if(!line||line.dataset.subscriptionVisitFinance==='1')continue;
+    line.dataset.subscriptionVisitFinance='1';
+    line.textContent='🎟️ زيارة ضمن الاشتراك الرئيسي • لا يوجد مبلغ مستقل لهذه الزيارة';
+    line.classList.add('subscription-visit-finance-note');
+  }
+}
+function installStyles(){
+  if(document.getElementById('subscriptionCustomerFinanceStyles'))return;
+  const style=document.createElement('style');style.id='subscriptionCustomerFinanceStyles';
+  style.textContent='.subscription-visit-finance-note{color:#315ea8!important;font-weight:800!important}';
+  document.head.appendChild(style);
+}
+function scheduleDecorate(){
+  setTimeout(decorateSubscriptionVisitAmounts,0);
+  setTimeout(decorateSubscriptionVisitAmounts,120);
+}
+function wrapRenderer(name){
+  const current=window[name];
+  if(typeof current!=='function'||current.__subscriptionVisitDisplayWrapped)return;
+  const wrapped=function(...args){const result=current.apply(this,args);scheduleDecorate();return result};
+  wrapped.__subscriptionVisitDisplayWrapped=true;wrapped.__original=current;window[name]=wrapped;
+}
 function install(){
   const current=window.getCustomers;
-  if(typeof current!=='function'||current.__subscriptionFinanceWrapped)return false;
-  const wrapped=function(...args){
-    const rows=current.apply(this,args);
-    return Array.isArray(rows)?rows.map(recalcCustomer):rows;
-  };
-  wrapped.__subscriptionFinanceWrapped=true;
-  wrapped.__originalGetCustomers=current;
-  window.getCustomers=wrapped;
+  if(typeof current==='function'&&!current.__subscriptionFinanceWrapped){
+    const wrapped=function(...args){
+      const rows=current.apply(this,args);
+      return Array.isArray(rows)?rows.map(recalcCustomer):rows;
+    };
+    wrapped.__subscriptionFinanceWrapped=true;
+    wrapped.__originalGetCustomers=current;
+    window.getCustomers=wrapped;
+  }
+  wrapRenderer('renderCustomers');wrapRenderer('openCustomer');wrapRenderer('renderAll');
+  installStyles();
   try{window.invalidateCaches?.()}catch(_){ }
   try{window.renderCustomers?.()}catch(_){ }
+  scheduleDecorate();
   return true;
 }
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(install,0),{once:true});else setTimeout(install,0);
 setTimeout(install,500);
 setTimeout(install,1500);
-window.addEventListener('adwaa-subscription-updated',()=>{try{window.invalidateCaches?.()}catch(_){ }setTimeout(()=>{install();window.renderCustomers?.()},0)});
+const observer=new MutationObserver(()=>scheduleDecorate());
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>observer.observe(document.body,{childList:true,subtree:true}),{once:true});else observer.observe(document.body,{childList:true,subtree:true});
+window.addEventListener('adwaa-subscription-updated',()=>{try{window.invalidateCaches?.()}catch(_){ }setTimeout(()=>{install();window.renderCustomers?.();scheduleDecorate()},0)});
 })();
