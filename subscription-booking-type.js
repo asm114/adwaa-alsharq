@@ -2,6 +2,8 @@
 'use strict';
 if(window.__adwaaSubscriptionBookingTypeInstalled)return;
 window.__adwaaSubscriptionBookingTypeInstalled=true;
+
+// جسر محدود للملفات الإضافية لأن db وcurrentUser معرفان بنطاق global lexical.
 try{
   Object.defineProperty(window,'db',{configurable:true,get:()=>db,set:value=>{db=value}});
   Object.defineProperty(window,'currentUser',{configurable:true,get:()=>currentUser});
@@ -11,6 +13,9 @@ if(typeof renderAll==='function')window.renderAll=renderAll;
 if(typeof renderCustomers==='function')window.renderCustomers=renderCustomers;
 if(typeof normalizeBookingCommission==='function')window.normalizeBookingCommission=normalizeBookingCommission;
 if(typeof loadPortalUnavailablePeriods==='function')window.loadPortalUnavailablePeriods=loadPortalUnavailablePeriods;
+
+// حماية حالة الاشتراكات: normalizeDB الأساسي أقدم من نظام الاشتراكات ولا يحتفظ بهذه الحقول.
+// نغلفه مرة واحدة حتى تبقى الاشتراكات والمسودات ضمن app_state/localStorage والمزامنة.
 try{
   if(typeof normalizeDB==='function'&&!normalizeDB.__subscriptionStatePreserved){
     const baseNormalizeDB=normalizeDB;
@@ -27,9 +32,13 @@ try{
     window.normalizeDB=wrappedNormalizeDB;
   }
 }catch(error){console.warn('تعذر تفعيل حفظ حالة الاشتراكات',error)}
+
 function addSubscriptionOption(){
-  const type=document.getElementById('bType');if(!type)return false;
-  if(![...type.options].some(option=>option.value==='اشتراك دوري')){const option=document.createElement('option');option.value='اشتراك دوري';option.textContent='اشتراك دوري';type.appendChild(option)}
+  const type=document.getElementById('bType');
+  if(!type)return false;
+  if(![...type.options].some(option=>option.value==='اشتراك دوري')){
+    const option=document.createElement('option');option.value='اشتراك دوري';option.textContent='اشتراك دوري';type.appendChild(option);
+  }
   if(type.dataset.subscriptionBookingBound==='1')return true;
   type.dataset.subscriptionBookingBound='1';type.addEventListener('change',handleBookingTypeChange);return true;
 }
@@ -62,6 +71,7 @@ function wrapOpenBooking(){
 function initialize(){addSubscriptionOption();wrapOpenBooking();setTimeout(()=>{addSubscriptionOption();wrapOpenBooking()},600)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize);else initialize();
 })();
+
 (()=>{const script=document.createElement('script');script.async=false;script.src='portal-admin-client.js?v=20260808-1';script.onerror=()=>console.warn('تعذر تحميل جلسة إدارة بوابة العملاء');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='subscription-draft-workflow.js';document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='subscription-editing.js?v=20260807-2';script.onerror=()=>console.warn('تعذر تحميل تعديل الاشتراكات');document.head.appendChild(script)})();
@@ -77,4 +87,5 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 (()=>{const script=document.createElement('script');script.async=false;script.src='operational-reminders-center.js?v=20260808-1';script.onerror=()=>console.warn('تعذر تحميل مركز التنبيهات التشغيلية');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='professional-ui-cleanup.js?v=20260808-1';script.onerror=()=>console.warn('تعذر تحميل تحسينات الواجهة الاحترافية');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='daily-operations-summary.js?v=20260808-1';script.onerror=()=>console.warn('تعذر تحميل ملخص التشغيل اليومي');document.head.appendChild(script)})();
+// واجهة أضواء الشرق المبسطة — المرحلة الأولى.
 (()=>{const script=document.createElement('script');script.src='simplified-ui.js';script.defer=true;document.head.appendChild(script)})();
