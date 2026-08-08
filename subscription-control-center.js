@@ -36,6 +36,13 @@ async function persistAndRefresh(){
  if(typeof window.persist==='function')await window.persist();
  window.renderAll?.();window.renderCustomers?.();window.dispatchEvent(new Event('adwaa-subscription-updated'));
 }
+async function syncSubscriptionDatesFromVisits(subscriptionId){
+ if(!subscriptionId)return;
+ const dates=linkedVisits(subscriptionId).map(v=>v.date).filter(Boolean).sort(),now=new Date().toISOString();
+ const official=officialById(subscriptionId);if(official){official.dates=dates;official.updatedAt=now}
+ const draft=legacyDraftById(subscriptionId);if(draft){draft.dates=[...dates];draft.updatedAt=now}
+ if(official||draft)await persistAndRefresh();
+}
 
 function installStyles(){
  if(document.getElementById('subscriptionControlCenterStyles'))return;
@@ -126,9 +133,10 @@ function wrapOpenBooking(){
 document.addEventListener('submit',event=>{
  if(!activeSubscriptionVisitId)return;
  const form=event.target;if(!form?.querySelector?.('#bTotal')&&!form?.querySelector?.('#bPaid'))return;
- const booking=visitBooking(activeSubscriptionVisitId);if(!booking){activeSubscriptionVisitId='';return}
+ const visitId=activeSubscriptionVisitId,booking=visitBooking(visitId);if(!booking){activeSubscriptionVisitId='';return}
+ const subscriptionId=booking.subscriptionId,expectedDate=String(document.getElementById('bDate')?.value||'');
  const total=document.getElementById('bTotal'),paid=document.getElementById('bPaid');if(total){total.disabled=false;total.value='0'}if(paid){paid.disabled=false;paid.value='0'}
- setTimeout(()=>lockVisitFinance(activeSubscriptionVisitId),0);
+ setTimeout(async()=>{const saved=visitBooking(visitId);if(saved&&saved.subscriptionId===subscriptionId&&(!expectedDate||saved.date===expectedDate))await syncSubscriptionDatesFromVisits(subscriptionId);lockVisitFinance(visitId)},450);
 },true);
 function init(){installStyles();ensureModal();wrapOpenBooking();centralizeOfficialCards();const observer=new MutationObserver(()=>{try{wrapOpenBooking();centralizeOfficialCards()}catch(error){console.warn('تعذر تحديث مركز الاشتراك',error)}});observer.observe(document.body,{childList:true,subtree:true});setInterval(()=>{wrapOpenBooking();centralizeOfficialCards()},2500)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
