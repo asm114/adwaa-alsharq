@@ -14,6 +14,25 @@ if(typeof renderCustomers==='function')window.renderCustomers=renderCustomers;
 if(typeof normalizeBookingCommission==='function')window.normalizeBookingCommission=normalizeBookingCommission;
 if(typeof loadPortalUnavailablePeriods==='function')window.loadPortalUnavailablePeriods=loadPortalUnavailablePeriods;
 
+// حماية حالة الاشتراكات: normalizeDB الأساسي أقدم من نظام الاشتراكات ولا يحتفظ بهذه الحقول.
+// نغلفه مرة واحدة حتى تبقى الاشتراكات والمسودات ضمن app_state/localStorage والمزامنة.
+try{
+  if(typeof normalizeDB==='function'&&!normalizeDB.__subscriptionStatePreserved){
+    const baseNormalizeDB=normalizeDB;
+    const wrappedNormalizeDB=function(value){
+      const source=value&&typeof value==='object'?value:{};
+      const normalized=baseNormalizeDB(source);
+      normalized.subscriptions=Array.isArray(source.subscriptions)?source.subscriptions:[];
+      normalized.subscriptionDrafts=Array.isArray(source.subscriptionDrafts)?source.subscriptionDrafts:[];
+      return normalized;
+    };
+    wrappedNormalizeDB.__subscriptionStatePreserved=true;
+    wrappedNormalizeDB.__baseNormalizeDB=baseNormalizeDB;
+    normalizeDB=wrappedNormalizeDB;
+    window.normalizeDB=wrappedNormalizeDB;
+  }
+}catch(error){console.warn('تعذر تفعيل حفظ حالة الاشتراكات',error)}
+
 function addSubscriptionOption(){
   const type=document.getElementById('bType');
   if(!type)return false;
