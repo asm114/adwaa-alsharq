@@ -16,21 +16,18 @@ function linkedBookings(subscriptionId){
   .filter(booking=>booking?.subscriptionId===subscriptionId&&booking.status!=='ملغي');
 }
 function isConsumedVisit(booking){
- if(!booking)return false;
- if(booking.status==='تم الدخول'||booking.status==='تم الخروج')return true;
- const date=parseDate(booking.date);if(!date)return false;
- return date.getTime()<todayStart().getTime();
+ return booking?.status==='تم الخروج';
 }
 function visitStats(subscription){
  const rows=linkedBookings(subscription.id),total=Math.max(1,Number(subscription.visits||subscription.dates?.length||rows.length||1));
  const used=rows.filter(isConsumedVisit).length;
- const upcoming=rows.filter(row=>!isConsumedVisit(row)).length;
+ const reserved=rows.filter(row=>!isConsumedVisit(row)).length;
  return{
   total,
   used:Math.min(total,used),
-  upcoming:Math.min(Math.max(0,total-used),upcoming),
+  upcoming:Math.min(Math.max(0,total-used),reserved),
   remaining:Math.max(0,total-used),
-  unallocated:Math.max(0,total-rows.length),
+  unallocated:Math.max(0,total-used-reserved),
   linked:rows.length
  };
 }
@@ -89,7 +86,7 @@ function decorateOfficialCards(){
   const visits=visitStats(subscription),finance=financialStats(subscription);
   let grid=card.querySelector('.subscription-derived-grid');
   if(!grid){grid=document.createElement('div');grid.className='subscription-derived-grid';const actions=card.querySelector('.actions');actions?card.insertBefore(grid,actions):card.appendChild(grid)}
-  grid.innerHTML=`<div><small>إجمالي الزيارات</small><b>${visits.total}</b></div><div><small>المستخدمة</small><b>${visits.used}</b></div><div><small>القادمة</small><b>${visits.upcoming}</b></div><div class="${visits.remaining<=2&&visits.remaining>0?'warn':''}"><small>المتبقية للاستخدام</small><b>${visits.remaining}</b></div><div><small>غير المجدولة</small><b>${visits.unallocated}</b></div><div class="${finance.due>0?'warn':''}"><small>الرصيد المالي</small><b>${money(finance.due)}</b></div>`;
+  grid.innerHTML=`<div><small>إجمالي الزيارات</small><b>${visits.total}</b></div><div><small>تمت</small><b>${visits.used}</b></div><div><small>محجوزة</small><b>${visits.upcoming}</b></div><div class="${visits.remaining<=2&&visits.remaining>0?'warn':''}"><small>المتبقية للاستخدام</small><b>${visits.remaining}</b></div><div><small>غير المجدولة</small><b>${visits.unallocated}</b></div><div class="${finance.due>0?'warn':''}"><small>الرصيد المالي</small><b>${money(finance.due)}</b></div>`;
  }
 }
 function bookingIdFromChip(chip){return String(chip.getAttribute('onclick')||'').match(/v95BookingDetails\('([^']+)'\)/)?.[1]||''}
@@ -111,7 +108,7 @@ function enhanceFlexibleLabels(){
 function installStyles(){
  if(document.getElementById('subscriptionFlexibleEnhancementsStyle'))return;
  const style=document.createElement('style');style.id='subscriptionFlexibleEnhancementsStyle';style.textContent=`
- #calendar .calendar-event-chip.subscription-event-chip{background:#6f42c1!important;border-color:#5b34a4!important;color:#fff!important;box-shadow:0 1px 0 rgba(0,0,0,.08)}
+ #calendar .calendar-event-chip.subscription-event-chip{background:#2563eb!important;border-color:#1d4ed8!important;color:#fff!important;box-shadow:0 1px 0 rgba(0,0,0,.08)}
  #calendar .calendar-event-chip.subscription-event-chip::before{content:'🎟️ ';font-size:9px}
  .subscription-derived-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:10px 0}
  .subscription-derived-grid>div{border:1px solid var(--line);border-radius:11px;padding:8px;background:#fff}
