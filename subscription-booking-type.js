@@ -3,7 +3,6 @@
 if(window.__adwaaSubscriptionBookingTypeInstalled)return;
 window.__adwaaSubscriptionBookingTypeInstalled=true;
 
-// جسر محدود للملفات الإضافية لأن db وcurrentUser معرفان بنطاق global lexical.
 try{
   Object.defineProperty(window,'db',{configurable:true,get:()=>db,set:value=>{db=value}});
   Object.defineProperty(window,'currentUser',{configurable:true,get:()=>currentUser});
@@ -14,8 +13,6 @@ if(typeof renderCustomers==='function')window.renderCustomers=renderCustomers;
 if(typeof normalizeBookingCommission==='function')window.normalizeBookingCommission=normalizeBookingCommission;
 if(typeof loadPortalUnavailablePeriods==='function')window.loadPortalUnavailablePeriods=loadPortalUnavailablePeriods;
 
-// حماية حالة الاشتراكات: normalizeDB الأساسي أقدم من نظام الاشتراكات ولا يحتفظ بهذه الحقول.
-// نغلفه مرة واحدة حتى تبقى الاشتراكات والمسودات ضمن app_state/localStorage والمزامنة.
 try{
   if(typeof normalizeDB==='function'&&!normalizeDB.__subscriptionStatePreserved){
     const baseNormalizeDB=normalizeDB;
@@ -84,9 +81,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 (()=>{const script=document.createElement('script');script.async=false;script.src='subscription-transfer-date-preview-fix.js?v=20260808-3';script.onerror=()=>console.warn('تعذر تحميل إصلاح عرض تواريخ الترحيل');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='subscription-revenue-integration.js?v=20260808-1';script.onerror=()=>console.warn('تعذر تحميل ربط إيرادات الاشتراك');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='commission-transfer-workflow.js?v=20260808-1';script.onerror=()=>console.warn('تعذر تحميل سير تحويل العمولة اليدوي');document.head.appendChild(script)})();
-(()=>{const script=document.createElement('script');script.async=false;script.src='operational-reminders-center.js?v=20260808-2';script.onerror=()=>console.warn('تعذر تحميل مركز التنبيهات التشغيلية');document.head.appendChild(script)})();
-(()=>{const script=document.createElement('script');script.async=false;script.src='disable-cleaning-jameel.js?v=20260808-1';script.onerror=()=>console.warn('تعذر تحميل تعطيل التنظيف وبوابة جميل');document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.async=false;script.src='operational-reminders-center.js?v=20260808-3';script.onerror=()=>console.warn('تعذر تحميل مركز التنبيهات التشغيلية');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='professional-ui-cleanup.js?v=20260808-1';script.onerror=()=>console.warn('تعذر تحميل تحسينات الواجهة الاحترافية');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='daily-operations-summary.js?v=20260808-2';script.onerror=()=>console.warn('تعذر تحميل ملخص التشغيل اليومي');document.head.appendChild(script)})();
-// واجهة أضواء الشرق المبسطة — المرحلة الأولى.
 (()=>{const script=document.createElement('script');script.src='simplified-ui.js';script.defer=true;document.head.appendChild(script)})();
