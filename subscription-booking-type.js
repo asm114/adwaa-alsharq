@@ -58,5 +58,6 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 (()=>{const script=document.createElement('script');script.async=false;script.src='subscription-edit-button-fallback.js?v=20260807-1';script.onerror=()=>console.warn('تعذر تحميل زر تعديل الاشتراكات');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='subscription-official-click-fix.js?v=20260807-1';script.onerror=()=>console.warn('تعذر تحميل إصلاح اعتماد الاشتراك');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='subscription-calendar-booking-labels.js?v=20260807-1';script.onerror=()=>console.warn('تعذر تحميل تسميات تقويم الاشتراك');document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.async=false;script.src='subscription-customer-finance.js?v=20260808-1';script.onerror=()=>console.warn('تعذر تحميل ربط مالية الاشتراك بالعميل');document.head.appendChild(script)})();
 // واجهة أضواء الشرق المبسطة — المرحلة الأولى.
 (()=>{const script=document.createElement('script');script.src='simplified-ui.js';script.defer=true;document.head.appendChild(script)})();
