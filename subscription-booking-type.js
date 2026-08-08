@@ -84,4 +84,5 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 (()=>{const script=document.createElement('script');script.async=false;script.src='operational-reminders-center.js?v=20260808-3';script.onerror=()=>console.warn('تعذر تحميل مركز التنبيهات التشغيلية');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='professional-ui-cleanup.js?v=20260808-1';script.onerror=()=>console.warn('تعذر تحميل تحسينات الواجهة الاحترافية');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='daily-operations-summary.js?v=20260808-2';script.onerror=()=>console.warn('تعذر تحميل ملخص التشغيل اليومي');document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.async=false;script.src='home-dashboard-polish.js?v=20260808-1';script.onerror=()=>console.warn('تعذر تحميل تحسينات الصفحة الرئيسية');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.src='simplified-ui.js';script.defer=true;document.head.appendChild(script)})();
