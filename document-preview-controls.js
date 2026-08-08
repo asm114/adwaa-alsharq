@@ -5,6 +5,31 @@ window.__adwaaDocumentPreviewControlsInstalled=true;
 
 function escJs(value){return JSON.stringify(String(value??''));}
 
+function subscriptionVisitDocumentEnhancements(b){
+  if(!(b?.subscriptionVisit||b?.subscriptionId))return{style:'',body:'',script:''};
+  const style=`<style>
+    .adwaa-subscription-doc-note{margin:14px 0;padding:14px 16px;border:1px solid #9db8ff;background:#eef4ff;border-radius:14px;color:#183b82;line-height:1.8;font-weight:800}
+    .adwaa-subscription-doc-note small{display:block;font-weight:500;color:#4e638f;margin-top:4px}
+  </style>`;
+  const body=`<div class="adwaa-subscription-doc-note">🎟️ هذه الزيارة مشمولة ضمن الاشتراك الرئيسي.<small>لا يوجد مبلغ مستقل لهذه الزيارة. قيمة الاشتراك والمدفوع والمتبقي تُدار من سجل الاشتراك الرئيسي.</small></div>`;
+  const script=`<script>
+    (function(){
+      function normalizeSubscriptionDocument(){
+        const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+        const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
+        for(const node of nodes){
+          const raw=String(node.nodeValue||'').trim();
+          if(raw==='يومي')node.nodeValue='زيارة ضمن اشتراك دوري';
+          if(raw==='لم يُحدد المبلغ'||raw==='لم يحدد المبلغ')node.nodeValue='مشمول ضمن الاشتراك الرئيسي';
+          if(/^[٠0](?:[.,٫]?[٠0]+)?\s*(?:ر\.?س|ريال(?:\s+سعودي)?)?$/i.test(raw))node.nodeValue='—';
+        }
+      }
+      if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',normalizeSubscriptionDocument,{once:true});else normalizeSubscriptionDocument();
+    })();
+  <\/script>`;
+  return{style,body,script};
+}
+
 function enhanceGeneratedDocument(html,b,type){
   if(typeof html!=='string'||!html.includes('<body>'))return html;
   const title=type==='invoice'?'فاتورة حجز':'عقد حجز';
@@ -41,10 +66,11 @@ function enhanceGeneratedDocument(html,b,type){
     }
   <\/script>`;
   const printStyle='<style>@media print{#adwaaDocToolbar{display:none!important}}</style>';
-  let out=html.replace('<body><div class="actions"><button onclick="window.print()">طباعة / حفظ PDF</button></div>',`<body>${toolbar}`);
-  if(out===html)out=html.replace('<body>',`<body>${toolbar}`);
-  out=out.replace('</head>',`${printStyle}</head>`);
-  out=out.replace('</body>',`${helpers}</body>`);
+  const subscription=subscriptionVisitDocumentEnhancements(b);
+  let out=html.replace('<body><div class="actions"><button onclick="window.print()">طباعة / حفظ PDF</button></div>',`<body>${toolbar}${subscription.body}`);
+  if(out===html)out=html.replace('<body>',`<body>${toolbar}${subscription.body}`);
+  out=out.replace('</head>',`${printStyle}${subscription.style}</head>`);
+  out=out.replace('</body>',`${helpers}${subscription.script}</body>`);
   return out;
 }
 
