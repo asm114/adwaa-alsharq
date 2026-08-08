@@ -1,0 +1,30 @@
+body.simplified-ui.simple-view-home #amountPrivacyToggle{display:inline-flex!important;align-items:center;justify-content:center;gap:7px;width:auto!important;min-width:150px;padding:0 15px!important;font-size:14px!important;font-weight:900;border-radius:16px}
+body.simplified-ui:not(.simple-view-home) #amountPrivacyToggle{display:none!important}
+body.simplified-ui.simple-view-home #dashboard{padding-bottom:145px}
+body.simplified-ui.simple-view-home #resortStatusCard.home-status-compact{margin:4px 0 10px!important;padding:11px 14px!important;border-radius:16px!important;min-height:0!important}
+body.simplified-ui.simple-view-home #resortStatusCard.home-status-compact .resort-status-icon{font-size:22px!important}
+body.simplified-ui.simple-view-home #resortStatusCard.home-status-compact .resort-status-value{font-size:16px!important}
+body.simplified-ui.simple-view-home .simple-home-dashboard{margin-top:0!important;padding-bottom:18px!important}
+body.simplified-ui.simple-view-home .simple-home-stats{grid-template-columns:repeat(4,minmax(0,1fr))!important;align-items:stretch}
+body.simplified-ui.simple-view-home .simple-home-stats .stat{min-height:102px!important}
+.home-secondary-details{margin-top:12px;border-top:1px solid #ececf3;padding-top:10px}
+.home-secondary-details summary{cursor:pointer;display:inline-flex;align-items:center;gap:7px;color:#6754df;font-weight:900;font-size:13px;padding:8px 10px;border-radius:12px;background:#f4f1ff;list-style:none}
+.home-secondary-details summary::-webkit-details-marker{display:none}
+.home-secondary-details summary:before{content:'＋';font-size:15px}
+.home-secondary-details[open] summary:before{content:'−'}
+.home-secondary-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:10px}
+body.simplified-ui.simple-view-home .home-secondary-stats .stat{min-height:94px!important;margin:0!important;box-shadow:none!important;background:#fbfbfd!important}
+body.simplified-ui.simple-view-home #dashboard>.grid:empty{display:none!important}
+body.simplified-ui.simple-view-home .simple-home-actions{margin-top:10px!important}
+@media(max-width:1100px){
+  body.simplified-ui.simple-view-home .simple-home-stats,.home-secondary-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  body.simplified-ui.simple-view-home #dashboard{padding-bottom:160px}
+}
+@media(max-width:620px){
+  body.simplified-ui.simple-view-home #amountPrivacyToggle{min-width:0!important;width:48px!important;height:48px!important;padding:0!important;font-size:18px!important}
+  body.simplified-ui.simple-view-home #amountPrivacyToggle span{display:none}
+  body.simplified-ui.simple-view-home #dashboard{padding-bottom:175px}
+  body.simplified-ui.simple-view-home .simple-home-stats,.home-secondary-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+  body.simplified-ui.simple-view-home .simple-home-dashboard{padding:12px!important}
+  body.simplified-ui.simple-view-home #resortStatusCard.home-status-compact{margin-inline:0!important}
+}
