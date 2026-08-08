@@ -32,6 +32,17 @@ function subscriptionForBooking(booking){
   if(!booking?.subscriptionId)return null;
   return (window.db?.subscriptions||[]).find(s=>s?.id===booking.subscriptionId)||null;
 }
+function subscriptionFinance(sub){
+  if(typeof window.subscriptionFinancialStats==='function')return window.subscriptionFinancialStats(sub);
+  const total=Math.max(0,Number(sub?.total||0)),paid=Math.max(0,Number(sub?.paid||0));
+  return {total,paid,due:Math.max(0,total-paid)};
+}
+function subscriptionStats(sub){
+  if(typeof window.subscriptionVisitStats==='function')return window.subscriptionVisitStats(sub);
+  const rows=(window.db?.bookings||[]).filter(b=>b?.subscriptionId===sub?.id&&b.status!=='ملغي');
+  const total=Math.max(1,Number(sub?.visits||sub?.dates?.length||rows.length||1));
+  return {total,used:0,upcoming:rows.length,remaining:total,unallocated:Math.max(0,total-rows.length)};
+}
 function bookingFinance(booking){
   const managed=!!(booking?.subscriptionPaymentManaged||booking?.subscriptionVisit||booking?.subscriptionId);
   if(managed){
@@ -81,23 +92,49 @@ function groupMatchesSearch(group,raw){
   if(qp&&canonicalPhone(group.phone).includes(qp))return true;
   return group.rows.some(b=>String(b.code||'').toLowerCase().includes(q)||String(b.date||'').includes(q)||String(b.name||'').toLowerCase().includes(q)||(qp&&canonicalPhone(b.phone).includes(qp)));
 }
-function bookingCompactHTML(b){
-  const f=bookingFinance(b),status=esc(b.status||'');
+function subscriptionCardsHTML(group){
+  const ids=[...new Set(group.rows.map(b=>b?.subscriptionId).filter(Boolean))];
+  return ids.map(id=>{
+    const sub=(window.db?.subscriptions||[]).find(s=>s?.id===id);if(!sub)return'';
+    const f=subscriptionFinance(sub),s=subscriptionStats(sub);
+    return `<div class="customer-subscription-main">
+      <div class="customer-subscription-main-head">
+        <div><b>🎟️ الاشتراك الرئيسي</b><small>${esc(sub.typeLabel||'اشتراك مرن')} • ${s.total} زيارة</small></div>
+        <span class="customer-subscription-status ${f.due>0?'due':'paid'}">${f.due>0?'متبقي مالي':'مكتمل السداد'}</span>
+      </div>
+      <div class="customer-subscription-money"><span>الإجمالي <b>${amount(f.total)}</b></span><span>المدفوع <b>${amount(f.paid)}</b></span><span>المتبقي <b>${amount(f.due)}</b></span></div>
+      <div class="customer-subscription-visits"><span>المستخدمة <b>${s.used}</b></span><span>القادمة <b>${s.upcoming}</b></span><span>المتبقية <b>${s.remaining}</b></span></div>
+      <button type="button" class="primary customer-subscription-manage" onclick="event.stopPropagation();openSubscriptionControlCenter('${esc(id)}')">⚙️ إدارة الاشتراك</button>
+    </div>`;
+  }).join('');
+}
+function bookingCompactHTML(b,index,totalInSubscription){
+  const f=bookingFinance(b),status=esc(b.status||''),managed=f.managed;
   let payment='لم يُحدد المبلغ';
-  if(f.managed){
-    payment=f.known
-      ?`اشتراك ${amount(f.total)} • مدفوع ${amount(f.paid)} • ${f.due>0?`متبقي ${amount(f.due)}`:'مكتمل السداد'}`
-      :(f.total>0?`قيمة الاشتراك ${amount(f.total)}`:'اشتراك دوري');
+  if(managed){
+    payment='زيارة مشمولة ضمن الاشتراك الرئيسي';
   }else if(f.total>0){
     payment=f.due>0?`متبقي ${amount(f.due)}`:'مكتمل السداد';
   }
-  return `<div class="customer-group-booking">
+  const visitTitle=managed&&b.subscriptionId?`زيارة ${index+1} من ${totalInSubscription}`:esc(b.code||'-');
+  return `<div class="customer-group-booking ${managed?'subscription-visit-booking':''}">
     <button type="button" class="customer-group-booking-open" onclick="openBooking('${esc(b.id)}')" aria-label="فتح الحجز ${esc(b.code||'')}">
-      <span class="customer-group-booking-main"><b>${esc(b.code||'-')}</b><span>${esc(b.date||'-')} • ${esc(b.type||'يومي')}</span></span>
+      <span class="customer-group-booking-main"><b>${visitTitle}</b><span>${esc(b.date||'-')} • ${managed?'ضمن اشتراك':esc(b.type||'يومي')} ${managed&&b.code?`• ${esc(b.code)}`:''}</span></span>
       <span class="customer-group-booking-side"><span>${status}</span><small>${esc(payment)}</small></span>
     </button>
-    <button type="button" class="secondary customer-group-edit" onclick="event.stopPropagation();openBooking('${esc(b.id)}')">✏️ تعديل الحجز</button>
+    <button type="button" class="secondary customer-group-edit" onclick="event.stopPropagation();openBooking('${esc(b.id)}')">${managed?'✏️ تعديل الزيارة':'✏️ تعديل الحجز'}</button>
   </div>`;
+}
+function groupRowsHTML(group){
+  const subTotals=new Map();
+  for(const b of group.rows)if(b.subscriptionId)subTotals.set(b.subscriptionId,(subTotals.get(b.subscriptionId)||0)+1);
+  const counters=new Map();
+  return group.rows.map(b=>{
+    if(!b.subscriptionId)return bookingCompactHTML(b,0,0);
+    const index=counters.get(b.subscriptionId)||0;counters.set(b.subscriptionId,index+1);
+    const sub=subscriptionForBooking(b),total=Math.max(Number(sub?.visits||0),subTotals.get(b.subscriptionId)||0);
+    return bookingCompactHTML(b,index,total);
+  }).join('');
 }
 function groupedRenderBookings(){
   const list=document.getElementById('bookingList');
@@ -112,13 +149,14 @@ function groupedRenderBookings(){
   const groups=groupBookings(rows).filter(g=>groupMatchesSearch(g,raw));
   list.innerHTML=groups.map(g=>{
     const finance=groupFinance(g),autoOpen=!!raw||groups.length===1;
-    const financeText=finance.due>0?`متبقي ${amount(finance.due)}`:finance.hasUnknownSubscription?'يوجد اشتراك مرتبط':'لا يوجد متبقي';
+    const hasSubscription=g.rows.some(b=>b.subscriptionId);
+    const financeText=finance.due>0?`متبقي ${amount(finance.due)}`:finance.hasUnknownSubscription?'يوجد اشتراك مرتبط':hasSubscription?'الاشتراك بدون متبقي':'لا يوجد متبقي';
     return `<details class="customer-booking-group" ${autoOpen?'open':''}>
       <summary>
         <span class="customer-booking-group-title"><b>${esc(g.name)}</b><small>${esc(g.phone||'بدون رقم')}</small></span>
         <span class="customer-booking-group-stats"><b>${g.rows.length} ${g.rows.length===1?'حجز':'حجوزات'}</b><small>${esc(financeText)}</small></span>
       </summary>
-      <div class="customer-booking-group-list">${g.rows.map(bookingCompactHTML).join('')}</div>
+      <div class="customer-booking-group-list">${subscriptionCardsHTML(g)}${groupRowsHTML(g)}</div>
     </details>`;
   }).join('')||'<div class="empty">لا توجد نتائج</div>';
 }
@@ -132,13 +170,17 @@ function installStyles(){
 .customer-booking-group-title b{font-size:16px}.customer-booking-group-title small,.customer-booking-group-stats small{color:var(--muted);font-size:11px}
 .customer-booking-group-stats{text-align:left;white-space:nowrap}.customer-booking-group[open]>summary{border-bottom:1px solid var(--line);background:#faf9ff}
 .customer-booking-group-list{display:grid;gap:0}
-.customer-group-booking{border-bottom:1px solid var(--line);background:#fff;padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px}
+.customer-subscription-main{margin:10px 12px;padding:13px;border:2px solid #cfc8ff;border-radius:16px;background:#f7f5ff;display:grid;gap:10px}
+.customer-subscription-main-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.customer-subscription-main-head>div{display:grid;gap:3px}.customer-subscription-main-head small{color:var(--muted)}
+.customer-subscription-status{font-size:11px;font-weight:900;padding:5px 8px;border-radius:999px}.customer-subscription-status.due{background:#fff3d9;color:#7a5900}.customer-subscription-status.paid{background:#e8f6ef;color:#176742}
+.customer-subscription-money,.customer-subscription-visits{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.customer-subscription-money span,.customer-subscription-visits span{background:#fff;border:1px solid var(--line);border-radius:10px;padding:7px;font-size:11px}.customer-subscription-money b,.customer-subscription-visits b{display:block;margin-top:3px;font-size:13px}
+.customer-subscription-manage{width:100%;font-weight:900}.customer-group-booking{border-bottom:1px solid var(--line);background:#fff;padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px}.customer-group-booking.subscription-visit-booking{background:#fcfbff}
 .customer-group-booking:last-child{border-bottom:0}
 .customer-group-booking-open{width:100%;border:0;background:transparent;padding:2px;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:right;color:inherit}
 .customer-group-booking-main,.customer-group-booking-side{display:flex;flex-direction:column;gap:4px}.customer-group-booking-main{min-width:0}
 .customer-group-booking-main span,.customer-group-booking-side small{font-size:11px;color:var(--muted)}.customer-group-booking-side{text-align:left;white-space:normal;max-width:290px}
 .customer-group-edit{white-space:nowrap;padding:8px 10px;font-size:12px}
-@media(max-width:620px){.customer-booking-group>summary{padding:12px}.customer-group-booking{grid-template-columns:1fr;padding:10px 11px}.customer-group-booking-title b{font-size:15px}.customer-group-edit{width:100%}.customer-group-booking-side{max-width:180px}}
+@media(max-width:620px){.customer-booking-group>summary{padding:12px}.customer-group-booking{grid-template-columns:1fr;padding:10px 11px}.customer-group-booking-title b{font-size:15px}.customer-group-edit{width:100%}.customer-group-booking-side{max-width:180px}.customer-subscription-money,.customer-subscription-visits{grid-template-columns:repeat(3,minmax(0,1fr));font-size:10px}.customer-subscription-main{margin:8px}}
 `;
   document.head.appendChild(style);
 }
