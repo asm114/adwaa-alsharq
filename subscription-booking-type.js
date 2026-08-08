@@ -72,6 +72,7 @@ function initialize(){addSubscriptionOption();wrapOpenBooking();setTimeout(()=>{
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize);else initialize();
 })();
 
+(()=>{const script=document.createElement('script');script.async=false;script.src='portal-admin-client.js?v=20260808-1';script.onerror=()=>console.warn('تعذر تحميل جلسة إدارة بوابة العملاء');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='subscription-draft-workflow.js';document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='subscription-editing.js?v=20260807-2';script.onerror=()=>console.warn('تعذر تحميل تعديل الاشتراكات');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='subscription-edit-button-fallback.js?v=20260807-1';script.onerror=()=>console.warn('تعذر تحميل زر تعديل الاشتراكات');document.head.appendChild(script)})();
@@ -80,6 +81,6 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 (()=>{const script=document.createElement('script');script.async=false;script.src='subscription-customer-finance.js?v=20260808-2';script.onerror=()=>console.warn('تعذر تحميل ربط مالية الاشتراك بالعميل');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='subscription-flexible-enhancements.js?v=20260808-3';script.onerror=()=>console.warn('تعذر تحميل تحسينات الاشتراكات المرنة');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='subscription-control-center.js?v=20260808-3';script.onerror=()=>console.warn('تعذر تحميل مركز إدارة الاشتراك');document.head.appendChild(script)})();
-(()=>{const script=document.createElement('script');script.async=false;script.src='subscription-transfer-date-preview-fix.js?v=20260808-2';script.onerror=()=>console.warn('تعذر تحميل إصلاح عرض تواريخ الترحيل');document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.async=false;script.src='subscription-transfer-date-preview-fix.js?v=20260808-3';script.onerror=()=>console.warn('تعذر تحميل إصلاح عرض تواريخ الترحيل');document.head.appendChild(script)})();
 // واجهة أضواء الشرق المبسطة — المرحلة الأولى.
 (()=>{const script=document.createElement('script');script.src='simplified-ui.js';script.defer=true;document.head.appendChild(script)})();
