@@ -13,10 +13,13 @@ function statById(id){return document.getElementById(id)?.closest('.stat')||null
 function updatePrivacyButton(){
   const button=document.getElementById('amountPrivacyToggle');if(!button)return;
   const hidden=document.body.classList.contains('amounts-hidden');
-  button.innerHTML=hidden?'👁️‍🗨️ <span>إظهار المبالغ</span>':'👁️ <span>إخفاء المبالغ</span>';
-  button.setAttribute('aria-label',hidden?'إظهار المبالغ':'إخفاء المبالغ');
-  button.title=hidden?'إظهار المبالغ':'إخفاء المبالغ';
-  button.style.display=isHome()?'inline-flex':'none';
+  const html=hidden?'👁️‍🗨️ <span>إظهار المبالغ</span>':'👁️ <span>إخفاء المبالغ</span>';
+  const label=hidden?'إظهار المبالغ':'إخفاء المبالغ';
+  const display=isHome()?'inline-flex':'none';
+  if(button.innerHTML!==html)button.innerHTML=html;
+  if(button.getAttribute('aria-label')!==label)button.setAttribute('aria-label',label);
+  if(button.title!==label)button.title=label;
+  if(button.style.display!==display)button.style.display=display;
 }
 
 function removeBookingShortcutsOutsideBookings(){
@@ -24,11 +27,11 @@ function removeBookingShortcutsOutsideBookings(){
   if(dashboard){
     dashboard.querySelectorAll('button').forEach(button=>{
       const text=norm(button.textContent);
-      if(/إضافة حجز|حجز جديد/.test(text))button.style.display='none';
+      if(/إضافة حجز|حجز جديد/.test(text)&&button.style.display!=='none')button.style.display='none';
     });
   }
   const headerAdd=[...document.querySelectorAll('header .icon-btn')].find(btn=>btn.id!=='amountPrivacyToggle');
-  if(headerAdd)headerAdd.style.display=document.querySelector('#bookings.view.active')?'inline-flex':'none';
+  if(headerAdd){const display=document.querySelector('#bookings.view.active')?'inline-flex':'none';if(headerAdd.style.display!==display)headerAdd.style.display=display}
 }
 
 function arrangeStats(){
@@ -44,12 +47,12 @@ function arrangeStats(){
   }
   const secondary=details.querySelector('.home-secondary-stats');
   SECONDARY_IDS.forEach(id=>{const stat=statById(id);if(stat&&stat.parentElement!==secondary)secondary.appendChild(stat)});
-  const oldGrid=document.querySelector('#dashboard > .grid');if(oldGrid&&!oldGrid.children.length)oldGrid.style.display='none';
+  const oldGrid=document.querySelector('#dashboard > .grid');if(oldGrid&&!oldGrid.children.length&&oldGrid.style.display!=='none')oldGrid.style.display='none';
 }
 
 function compactStatusCard(){
   const card=document.getElementById('resortStatusCard');if(!card)return;
-  card.classList.add('home-status-compact');
+  if(!card.classList.contains('home-status-compact'))card.classList.add('home-status-compact');
 }
 
 function apply(){
@@ -58,9 +61,9 @@ function apply(){
 }
 
 function initialize(){
-  const link=document.createElement('link');link.rel='stylesheet';link.href='home-dashboard-polish.css?v=20260808-1';link.dataset.homeDashboardPolish='1';document.head.appendChild(link);
+  if(!document.querySelector('link[data-home-dashboard-polish]')){const link=document.createElement('link');link.rel='stylesheet';link.href='home-dashboard-polish.css?v=20260808-1';link.dataset.homeDashboardPolish='1';document.head.appendChild(link)}
   apply();setTimeout(apply,350);setTimeout(apply,1400);
-  new MutationObserver(()=>setTimeout(apply,0)).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
+  new MutationObserver(()=>setTimeout(apply,0)).observe(document.body,{attributes:true,attributeFilter:['class']});
   document.addEventListener('click',()=>setTimeout(apply,30),true);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize,{once:true});else initialize();
