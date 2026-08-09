@@ -1,0 +1,26 @@
+#expenseModal.open{
+  position:fixed!important;
+  inset:0!important;
+  width:100%!important;
+  height:var(--expense-viewport-height,100dvh)!important;
+  min-height:0!important;
+  overflow:hidden!important;
+  align-items:flex-end!important;
+  overscroll-behavior:none;
+}
+#expenseModal .sheet{
+  width:100%!important;
+  max-height:calc(var(--expense-viewport-height,100dvh) - max(8px,env(safe-area-inset-top)))!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  padding-bottom:calc(18px + env(safe-area-inset-bottom))!important;
+}
+body.expense-modal-active{overflow:hidden!important}
+@media(max-width:620px){
+  #expenseModal .sheet{border-radius:22px 22px 0 0!important;padding-inline:14px!important}
+  #expenseModal input,#expenseModal select,#expenseModal textarea{font-size:16px!important}
+  #expenseModal .form-grid{grid-template-columns:1fr!important;gap:10px!important}
+  #expenseModal .form-grid>.full{grid-column:1!important}
+  #expenseModal #eAmount{font-variant-numeric:tabular-nums}
+}
