@@ -7,12 +7,26 @@ const TABLE='customer_portal_unavailable_periods';
 const MAP_KEY='portalUnavailablePeriodIds';
 let syncing=false;
 let readyScheduled=false;
+let portalVerified=false;
 
 const state=()=>window.db;
-const client=()=>window.supabaseClient;
+const client=()=>window.portalAdminClient||window.supabaseClient;
 const userId=()=>window.currentUser?.id||null;
 const activeBooking=booking=>booking&&booking.status!=='ملغي'&&booking.date;
 
+async function ensurePortalClientReady(){
+  if(window.portalAdminClient&&typeof window.verifyPortalAdminSession==='function'){
+    try{
+      const ok=await window.verifyPortalAdminSession();
+      portalVerified=ok===true;
+      return portalVerified;
+    }catch(error){
+      console.warn('تعذر التحقق من جلسة مدير بوابة العملاء',error);
+      return false;
+    }
+  }
+  return !!window.supabaseClient;
+}
 function addDays(iso,days){
   const date=new Date(`${iso}T12:00:00`);
   date.setDate(date.getDate()+days);
@@ -91,6 +105,7 @@ async function syncBooking(booking,previousMap=null,{persistState=true}={}){
 }
 async function reconcileAll(){
   if(syncing||!state()?.bookings||!client())return;
+  if(!(portalVerified||await ensurePortalClientReady()))return;
   syncing=true;
   try{
     let changed=false;
@@ -111,7 +126,7 @@ function wrapSaveBooking(){
     const result=await original.apply(this,args);
     const currentBookings=state()?.bookings||[];
     const saved=editingId?currentBookings.find(item=>item.id===editingId):currentBookings.find(item=>!beforeIds.has(item.id));
-    if(saved){
+    if(saved&&await ensurePortalClientReady()){
       if(Object.keys(previousMap).length&&!Object.keys(mappingOf(saved)).length)saved[MAP_KEY]=previousMap;
       await syncBooking(saved,previousMap);
     }
@@ -130,7 +145,7 @@ function wrapDeleteBooking(){
     const previousMap=previous?mappingOf(previous):{};
     const result=await original.apply(this,args);
     const stillExists=(state()?.bookings||[]).some(item=>item.id===id);
-    if(previous&&!stillExists){
+    if(previous&&!stillExists&&await ensurePortalClientReady()){
       for(const periodId of Object.values(previousMap)){
         try{await deleteOwnedPeriod(periodId)}catch(error){console.warn('تعذر تحرير تاريخ حجز محذوف من بوابة العملاء',error)}
       }
@@ -141,11 +156,11 @@ function wrapDeleteBooking(){
   wrapped.__base=original;
   window.deleteBooking=wrapped;
 }
-function install(){
+async function install(){
   wrapSaveBooking();wrapDeleteBooking();
-  const ready=!!client()&&Array.isArray(state()?.bookings)&&typeof window.saveBooking==='function'&&typeof window.deleteBooking==='function';
-  if(!ready){setTimeout(install,500);return}
-  if(!readyScheduled){readyScheduled=true;setTimeout(reconcileAll,800)}
+  const ready=Array.isArray(state()?.bookings)&&typeof window.saveBooking==='function'&&typeof window.deleteBooking==='function'&&await ensurePortalClientReady();
+  if(!ready){setTimeout(install,700);return}
+  if(!readyScheduled){readyScheduled=true;setTimeout(reconcileAll,400)}
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(install,400),{once:true});else setTimeout(install,400);
 window.addEventListener('focus',()=>setTimeout(reconcileAll,250));
