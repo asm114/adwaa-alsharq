@@ -6,6 +6,7 @@ window.__adwaaPortalBookingAutoSyncInstalled=true;
 const TABLE='customer_portal_unavailable_periods';
 const MAP_KEY='portalUnavailablePeriodIds';
 let syncing=false;
+let readyScheduled=false;
 
 const state=()=>window.db;
 const client=()=>window.supabaseClient;
@@ -142,8 +143,9 @@ function wrapDeleteBooking(){
 }
 function install(){
   wrapSaveBooking();wrapDeleteBooking();
-  if(client())setTimeout(reconcileAll,800);
-  else setTimeout(install,500);
+  const ready=!!client()&&Array.isArray(state()?.bookings)&&typeof window.saveBooking==='function'&&typeof window.deleteBooking==='function';
+  if(!ready){setTimeout(install,500);return}
+  if(!readyScheduled){readyScheduled=true;setTimeout(reconcileAll,800)}
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(install,400),{once:true});else setTimeout(install,400);
 window.addEventListener('focus',()=>setTimeout(reconcileAll,250));
