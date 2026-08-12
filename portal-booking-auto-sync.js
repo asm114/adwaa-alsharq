@@ -35,15 +35,21 @@ function report(message,type=''){
   }catch(_){}
   if(type==='error')console.warn(message);
 }
-async function resolveAdminClient(){
-  const candidate=window.supabaseClient;
-  if(!candidate)return null;
+async function resolvePortalAdminClient(){
+  const client=window.portalAdminClient;
+  if(!client)return null;
   try{
-    const {data,error}=await candidate.auth.getSession();
+    if(typeof window.verifyPortalAdminSession==='function'){
+      const ok=await window.verifyPortalAdminSession();
+      if(ok===true)return client;
+      return null;
+    }
+    const {data,error}=await client.auth.getSession();
     if(error||!data?.session?.user)return null;
-    return candidate;
+    const {data:isAdmin,error:adminError}=await client.rpc('is_resort_admin');
+    return !adminError&&isAdmin===true?client:null;
   }catch(error){
-    console.warn('تعذر التحقق من جلسة النظام الأساسية',error);
+    console.warn('تعذر التحقق من جلسة مدير بوابة العملاء',error);
     return null;
   }
 }
@@ -72,9 +78,10 @@ async function reconcileAll(reason='auto'){
   if(syncing||!Array.isArray(state()?.bookings))return false;
   syncing=true;
   try{
-    const client=await resolveAdminClient();
+    const client=await resolvePortalAdminClient();
     if(!client){
-      report('تعذر مزامنة الحجوزات مع بوابة العملاء: جلسة النظام الأساسية غير متاحة. أعد تسجيل الدخول ثم حاول مرة أخرى.','error');
+      const detail=String(window.portalAdminAuthState?.error||'جلسة مدير البوابة غير متاحة');
+      report(`تعذر مزامنة بوابة العملاء: ${detail}. سجّل خروج ثم دخول مرة واحدة لإعادة ربط جلسة البوابة.`,'error');
       return false;
     }
     let periods=await loadPeriods(client);
@@ -142,7 +149,7 @@ function bindDirectEvents(){
 }
 function initialize(){
   bindDirectEvents();
-  schedule('فحص أولي',1000);
+  schedule('فحص أولي',1200);
 }
 window.syncPortalAvailabilityFromBookings=()=>reconcileAll('مزامنة مباشرة');
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize,{once:true});else initialize();
