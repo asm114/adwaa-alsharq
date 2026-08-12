@@ -3,8 +3,8 @@
 if(window.__adwaaPortalTodayHighlightInstalled)return;
 window.__adwaaPortalTodayHighlightInstalled=true;
 
-const AVAILABILITY_SUPABASE_URL='https://pgdvlklpyrvmwzitsmbw.supabase.co';
-const AVAILABILITY_SUPABASE_KEY='sb_publishable_BFTIR_8VK2qQuKnl2c-jDA_cMnWz0E-';
+const AVAILABILITY_SUPABASE_URL='https://ztqqdjryvecscidxxbfe.supabase.co';
+const AVAILABILITY_SUPABASE_KEY='sb_publishable_M3MQwFfxiMMKt_-tq-KAjQ_OQTtg2MD';
 const AVAILABILITY_TABLE='customer_portal_unavailable_periods';
 let availabilityClient=null;
 let refreshingAvailability=false;
@@ -53,7 +53,7 @@ async function refreshAvailability(){
     if(typeof renderCalendar==='function')renderCalendar();
     markToday();
   }catch(error){
-    console.warn('تعذر تحميل توفر الحجوزات من مشروع النظام الأساسي.',error);
+    console.warn('تعذر تحميل توفر الحجوزات من مشروع بوابة العملاء.',error);
     markToday();
   }finally{
     refreshingAvailability=false;
