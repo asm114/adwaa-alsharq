@@ -5,8 +5,10 @@ window.__adwaaPortalBookingAutoSyncInstalled=true;
 
 const TABLE='customer_portal_unavailable_periods';
 const MAP_KEY='portalUnavailablePeriodIds';
+const DELETE_JOURNAL_KEY='adwaaPortalPendingDeletesV1';
 let syncing=false;
 let syncTimer=0;
+const pendingEdits=new Map();
 
 const state=()=>window.db;
 const activeBooking=booking=>booking&&booking.status!=='ملغي'&&booking.date;
@@ -34,6 +36,23 @@ function report(message,type=''){
     if(typeof window.portalUnavailableStatus==='function')window.portalUnavailableStatus(message,type);
   }catch(_){}
   if(type==='error')console.warn(message);
+}
+function readDeleteJournal(){
+  try{
+    const value=JSON.parse(localStorage.getItem(DELETE_JOURNAL_KEY)||'[]');
+    return Array.isArray(value)?value:[];
+  }catch(_){return []}
+}
+function writeDeleteJournal(items){
+  try{localStorage.setItem(DELETE_JOURNAL_KEY,JSON.stringify(items))}catch(_){}
+}
+function rememberDeletedBooking(booking){
+  if(!booking?.id)return;
+  const map=mappingOf(booking);
+  if(!Object.keys(map).length)return;
+  const journal=readDeleteJournal().filter(item=>item?.bookingId!==booking.id);
+  journal.push({bookingId:booking.id,map,createdAt:new Date().toISOString()});
+  writeDeleteJournal(journal.slice(-50));
 }
 async function resolvePortalAdminClient(){
   const client=window.portalAdminClient;
@@ -74,6 +93,40 @@ async function deletePeriod(client,id){
 async function saveMappingState(){
   if(typeof window.persist==='function')await window.persist();
 }
+async function flushPendingDeletes(client){
+  const journal=readDeleteJournal();
+  if(!journal.length)return 0;
+  const remaining=[];
+  let cleaned=0;
+  for(const entry of journal){
+    const stillExists=(state()?.bookings||[]).some(booking=>booking.id===entry.bookingId);
+    if(stillExists){
+      remaining.push(entry);
+      continue;
+    }
+    try{
+      for(const id of [...new Set(Object.values(entry.map||{}).filter(Boolean))])await deletePeriod(client,id);
+      cleaned++;
+    }catch(error){
+      console.warn('تعذر تحرير أيام حجز محذوف من بوابة العملاء',error);
+      remaining.push(entry);
+    }
+  }
+  writeDeleteJournal(remaining);
+  return cleaned;
+}
+function restoreEditMapping(){
+  let restored=false;
+  for(const [bookingId,oldMap] of pendingEdits){
+    const booking=(state()?.bookings||[]).find(item=>item.id===bookingId);
+    if(booking&&Object.keys(oldMap).length&&!Object.keys(mappingOf(booking)).length){
+      booking[MAP_KEY]={...oldMap};
+      restored=true;
+    }
+    pendingEdits.delete(bookingId);
+  }
+  return restored;
+}
 async function reconcileAll(reason='auto'){
   if(syncing||!Array.isArray(state()?.bookings))return false;
   syncing=true;
@@ -84,8 +137,11 @@ async function reconcileAll(reason='auto'){
       report(`تعذر مزامنة بوابة العملاء: ${detail}. سجّل خروج ثم دخول مرة واحدة لإعادة ربط جلسة البوابة.`,'error');
       return false;
     }
+
+    const restored=restoreEditMapping();
+    const deletedCount=await flushPendingDeletes(client);
     let periods=await loadPeriods(client);
-    let stateChanged=false;
+    let stateChanged=restored;
 
     for(const booking of state().bookings){
       const desired=new Set(occupiedDates(booking));
@@ -122,7 +178,8 @@ async function reconcileAll(reason='auto'){
     }
 
     if(stateChanged)await saveMappingState();
-    report(`تمت مزامنة توفر بوابة العملاء من الحجوزات (${reason}).`,'success');
+    const deletionText=deletedCount?`، وتم تحرير ${deletedCount} حجز محذوف`:'';
+    report(`تمت مزامنة توفر بوابة العملاء (${reason})${deletionText}.`,'success');
     return true;
   }catch(error){
     console.error('فشل مزامنة توفر بوابة العملاء',error);
@@ -136,12 +193,28 @@ function schedule(reason,delay=700){
   clearTimeout(syncTimer);
   syncTimer=setTimeout(()=>reconcileAll(reason),delay);
 }
+function captureEditBeforeSave(){
+  const bookingId=String(document.getElementById('bId')?.value||'').trim();
+  if(!bookingId)return;
+  const booking=(state()?.bookings||[]).find(item=>item.id===bookingId);
+  if(booking)pendingEdits.set(bookingId,mappingOf(booking));
+}
+function captureDeleteBeforeAction(){
+  const bookingId=String(document.getElementById('bId')?.value||'').trim();
+  if(!bookingId)return;
+  const booking=(state()?.bookings||[]).find(item=>item.id===bookingId);
+  if(booking)rememberDeletedBooking(booking);
+}
 function bindDirectEvents(){
   document.addEventListener('submit',event=>{
-    if(event.target?.closest?.('#bookingModal'))schedule('حفظ أو تعديل حجز',900);
+    if(!event.target?.closest?.('#bookingModal'))return;
+    captureEditBeforeSave();
+    schedule('حفظ أو تعديل حجز',1000);
   },true);
   document.addEventListener('click',event=>{
-    if(event.target?.closest?.('#deleteBookingBtn'))schedule('حذف حجز',900);
+    if(!event.target?.closest?.('#deleteBookingBtn'))return;
+    captureDeleteBeforeAction();
+    schedule('حذف حجز',1100);
   },true);
   window.addEventListener('adwaa-subscription-updated',()=>schedule('تحديث اشتراك',500));
   window.addEventListener('focus',()=>schedule('عودة للنظام',300));
