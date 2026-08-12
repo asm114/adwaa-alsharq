@@ -6,38 +6,18 @@ window.__adwaaPortalBookingAutoSyncInstalled=true;
 const TABLE='customer_portal_unavailable_periods';
 const MAP_KEY='portalUnavailablePeriodIds';
 let syncing=false;
-let readyScheduled=false;
-let portalVerified=false;
+let syncTimer=0;
 
 const state=()=>window.db;
-const client=()=>window.portalAdminClient||window.supabaseClient;
-const userId=()=>window.currentUser?.id||null;
 const activeBooking=booking=>booking&&booking.status!=='ملغي'&&booking.date;
 
-async function ensurePortalClientReady(){
-  if(window.portalAdminClient&&typeof window.verifyPortalAdminSession==='function'){
-    try{
-      const ok=await window.verifyPortalAdminSession();
-      portalVerified=ok===true;
-      return portalVerified;
-    }catch(error){
-      console.warn('تعذر التحقق من جلسة مدير بوابة العملاء',error);
-      return false;
-    }
-  }
-  return !!window.supabaseClient;
-}
 function addDays(iso,days){
   const date=new Date(`${iso}T12:00:00`);
   date.setDate(date.getDate()+days);
-  const year=date.getFullYear(),month=String(date.getMonth()+1).padStart(2,'0'),day=String(date.getDate()).padStart(2,'0');
-  return `${year}-${month}-${day}`;
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
 }
 function occupiedDates(booking){
   if(!activeBooking(booking))return [];
-  try{
-    if(typeof window.bookingOccupiedDates==='function')return [...new Set(window.bookingOccupiedDates(booking).filter(Boolean))];
-  }catch(error){console.warn('تعذر استخدام حساب أيام الحجز الأساسي',error)}
   const days=booking.type==='مبيت'?Math.max(1,Number(booking.stayDays||1)):1;
   return Array.from({length:days},(_,index)=>addDays(booking.date,index));
 }
@@ -46,123 +26,126 @@ function mappingOf(booking){
   return value&&typeof value==='object'&&!Array.isArray(value)?{...value}:{};
 }
 function sameMap(a,b){
-  const aKeys=Object.keys(a).sort(),bKeys=Object.keys(b).sort();
-  return aKeys.length===bKeys.length&&aKeys.every((key,index)=>key===bKeys[index]&&a[key]===b[key]);
+  const ak=Object.keys(a).sort(),bk=Object.keys(b).sort();
+  return ak.length===bk.length&&ak.every((key,index)=>key===bk[index]&&a[key]===b[key]);
 }
-async function findCoveringPeriod(date){
-  const supabase=client();if(!supabase)return null;
-  const {data,error}=await supabase.from(TABLE).select('id,start_date,end_date').lte('start_date',date).gte('end_date',date).order('start_date',{ascending:true}).limit(1);
+function report(message,type=''){
+  try{
+    if(typeof window.portalUnavailableStatus==='function')window.portalUnavailableStatus(message,type);
+  }catch(_){}
+  if(type==='error')console.warn(message);
+}
+async function resolveAdminClient(){
+  const candidates=[window.supabaseClient,window.portalAdminClient].filter(Boolean);
+  for(const candidate of candidates){
+    try{
+      const {data:sessionData,error:sessionError}=await candidate.auth.getSession();
+      if(sessionError||!sessionData?.session?.user)continue;
+      const {data:isAdmin,error:adminError}=await candidate.rpc('is_resort_admin');
+      if(!adminError&&isAdmin===true)return candidate;
+    }catch(error){
+      console.warn('تعذر التحقق من عميل إدارة بوابة العملاء',error);
+    }
+  }
+  return null;
+}
+async function loadPeriods(client){
+  const {data,error}=await client.from(TABLE).select('id,start_date,end_date').order('start_date',{ascending:true});
   if(error)throw error;
-  return Array.isArray(data)&&data.length?data[0]:null;
+  return Array.isArray(data)?data:[];
 }
-async function createOwnedPeriod(date){
-  const supabase=client();if(!supabase)return null;
-  const {data,error}=await supabase.from(TABLE).insert({start_date:date,end_date:date,updated_by:userId()}).select('id').single();
+function periodCovering(periods,date){
+  return periods.find(period=>date>=period.start_date&&date<=period.end_date)||null;
+}
+async function createPeriod(client,date){
+  const {data,error}=await client.from(TABLE).insert({start_date:date,end_date:date}).select('id,start_date,end_date').single();
   if(error)throw error;
-  return data?.id||null;
+  return data||null;
 }
-async function deleteOwnedPeriod(id){
-  if(!id||!client())return false;
-  const {error}=await client().from(TABLE).delete().eq('id',id);
+async function deletePeriod(client,id){
+  if(!id)return;
+  const {error}=await client.from(TABLE).delete().eq('id',id);
   if(error)throw error;
-  return true;
 }
-async function saveState(){
+async function saveMappingState(){
   if(typeof window.persist==='function')await window.persist();
 }
-async function syncBooking(booking,previousMap=null,{persistState=true}={}){
-  if(!booking||!client())return false;
-  const desired=new Set(occupiedDates(booking));
-  const oldMap=previousMap?{...previousMap}:mappingOf(booking);
-  const nextMap={...oldMap};
-  let changed=false;
-
-  for(const [date,id] of Object.entries(oldMap)){
-    if(desired.has(date))continue;
-    try{await deleteOwnedPeriod(id);delete nextMap[date];changed=true}
-    catch(error){console.warn(`تعذر تحرير تاريخ ${date} من بوابة العملاء`,error)}
-  }
-
-  for(const date of desired){
-    if(nextMap[date])continue;
-    try{
-      const existing=await findCoveringPeriod(date);
-      if(existing)continue;
-      const id=await createOwnedPeriod(date);
-      if(id){nextMap[date]=id;changed=true}
-    }catch(error){
-      const message=String(error?.message||'');
-      if(/overlap|conflict|duplicate/i.test(message))continue;
-      console.warn(`تعذر مزامنة تاريخ الحجز ${date} مع بوابة العملاء`,error);
-    }
-  }
-
-  if(!sameMap(mappingOf(booking),nextMap)){
-    booking[MAP_KEY]=nextMap;changed=true;
-  }
-  if(changed&&persistState)await saveState();
-  return changed;
-}
-async function reconcileAll(){
-  if(syncing||!state()?.bookings||!client())return;
-  if(!(portalVerified||await ensurePortalClientReady()))return;
+async function reconcileAll(reason='auto'){
+  if(syncing||!Array.isArray(state()?.bookings))return false;
   syncing=true;
   try{
-    let changed=false;
+    const client=await resolveAdminClient();
+    if(!client){
+      report('تعذر مزامنة الحجوزات مع بوابة العملاء: جلسة المدير غير معتمدة. أعد تسجيل الدخول للنظام ثم حاول مرة أخرى.','error');
+      return false;
+    }
+    let periods=await loadPeriods(client);
+    let stateChanged=false;
+
     for(const booking of state().bookings){
-      if(await syncBooking(booking,null,{persistState:false}))changed=true;
-    }
-    if(changed)await saveState();
-  }finally{syncing=false}
-}
-function wrapSaveBooking(){
-  if(typeof window.saveBooking!=='function'||window.saveBooking.__portalAutoSyncWrapped)return;
-  const original=window.saveBooking;
-  const wrapped=async function(...args){
-    const beforeIds=new Set((state()?.bookings||[]).map(item=>item.id));
-    const editingId=String(document.getElementById('bId')?.value||'');
-    const previous=editingId?(state()?.bookings||[]).find(item=>item.id===editingId):null;
-    const previousMap=previous?mappingOf(previous):{};
-    const result=await original.apply(this,args);
-    const currentBookings=state()?.bookings||[];
-    const saved=editingId?currentBookings.find(item=>item.id===editingId):currentBookings.find(item=>!beforeIds.has(item.id));
-    if(saved&&await ensurePortalClientReady()){
-      if(Object.keys(previousMap).length&&!Object.keys(mappingOf(saved)).length)saved[MAP_KEY]=previousMap;
-      await syncBooking(saved,previousMap);
-    }
-    return result;
-  };
-  wrapped.__portalAutoSyncWrapped=true;
-  wrapped.__base=original;
-  window.saveBooking=wrapped;
-}
-function wrapDeleteBooking(){
-  if(typeof window.deleteBooking!=='function'||window.deleteBooking.__portalAutoSyncWrapped)return;
-  const original=window.deleteBooking;
-  const wrapped=async function(...args){
-    const id=String(document.getElementById('bId')?.value||'');
-    const previous=(state()?.bookings||[]).find(item=>item.id===id);
-    const previousMap=previous?mappingOf(previous):{};
-    const result=await original.apply(this,args);
-    const stillExists=(state()?.bookings||[]).some(item=>item.id===id);
-    if(previous&&!stillExists&&await ensurePortalClientReady()){
-      for(const periodId of Object.values(previousMap)){
-        try{await deleteOwnedPeriod(periodId)}catch(error){console.warn('تعذر تحرير تاريخ حجز محذوف من بوابة العملاء',error)}
+      const desired=new Set(occupiedDates(booking));
+      const oldMap=mappingOf(booking);
+      const nextMap={...oldMap};
+
+      for(const [date,id] of Object.entries(oldMap)){
+        if(desired.has(date))continue;
+        try{
+          await deletePeriod(client,id);
+          periods=periods.filter(period=>period.id!==id);
+          delete nextMap[date];
+        }catch(error){
+          console.warn(`تعذر تحرير ${date} من بوابة العملاء`,error);
+        }
+      }
+
+      for(const date of desired){
+        if(nextMap[date])continue;
+        if(periodCovering(periods,date))continue;
+        try{
+          const created=await createPeriod(client,date);
+          if(created){periods.push(created);nextMap[date]=created.id}
+        }catch(error){
+          const message=String(error?.message||'');
+          if(!/overlap|conflict|duplicate/i.test(message))console.warn(`تعذر إغلاق ${date} في بوابة العملاء`,error);
+        }
+      }
+
+      if(!sameMap(oldMap,nextMap)){
+        booking[MAP_KEY]=nextMap;
+        stateChanged=true;
       }
     }
-    return result;
-  };
-  wrapped.__portalAutoSyncWrapped=true;
-  wrapped.__base=original;
-  window.deleteBooking=wrapped;
+
+    if(stateChanged)await saveMappingState();
+    report(`تمت مزامنة توفر بوابة العملاء من الحجوزات (${reason}).`,'success');
+    return true;
+  }catch(error){
+    console.error('فشل مزامنة توفر بوابة العملاء',error);
+    report(`فشلت مزامنة بوابة العملاء: ${String(error?.message||'خطأ غير معروف')}`,'error');
+    return false;
+  }finally{
+    syncing=false;
+  }
 }
-async function install(){
-  wrapSaveBooking();wrapDeleteBooking();
-  const ready=Array.isArray(state()?.bookings)&&typeof window.saveBooking==='function'&&typeof window.deleteBooking==='function'&&await ensurePortalClientReady();
-  if(!ready){setTimeout(install,700);return}
-  if(!readyScheduled){readyScheduled=true;setTimeout(reconcileAll,400)}
+function schedule(reason,delay=700){
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(()=>reconcileAll(reason),delay);
 }
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(install,400),{once:true});else setTimeout(install,400);
-window.addEventListener('focus',()=>setTimeout(reconcileAll,250));
-window.addEventListener('adwaa-subscription-updated',()=>setTimeout(reconcileAll,250));
+function bindDirectEvents(){
+  document.addEventListener('submit',event=>{
+    if(event.target?.closest?.('#bookingModal'))schedule('حفظ أو تعديل حجز',900);
+  },true);
+  document.addEventListener('click',event=>{
+    if(event.target?.closest?.('#deleteBookingBtn'))schedule('حذف حجز',900);
+  },true);
+  window.addEventListener('adwaa-subscription-updated',()=>schedule('تحديث اشتراك',500));
+  window.addEventListener('focus',()=>schedule('عودة للنظام',300));
+  window.addEventListener('online',()=>schedule('عودة الاتصال',300));
+}
+function initialize(){
+  bindDirectEvents();
+  schedule('فحص أولي',1000);
+}
+window.syncPortalAvailabilityFromBookings=()=>reconcileAll('مزامنة مباشرة');
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize,{once:true});else initialize();
 })();
