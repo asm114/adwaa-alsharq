@@ -36,18 +36,16 @@ function report(message,type=''){
   if(type==='error')console.warn(message);
 }
 async function resolveAdminClient(){
-  const candidates=[window.supabaseClient,window.portalAdminClient].filter(Boolean);
-  for(const candidate of candidates){
-    try{
-      const {data:sessionData,error:sessionError}=await candidate.auth.getSession();
-      if(sessionError||!sessionData?.session?.user)continue;
-      const {data:isAdmin,error:adminError}=await candidate.rpc('is_resort_admin');
-      if(!adminError&&isAdmin===true)return candidate;
-    }catch(error){
-      console.warn('تعذر التحقق من عميل إدارة بوابة العملاء',error);
-    }
+  const candidate=window.supabaseClient;
+  if(!candidate)return null;
+  try{
+    const {data,error}=await candidate.auth.getSession();
+    if(error||!data?.session?.user)return null;
+    return candidate;
+  }catch(error){
+    console.warn('تعذر التحقق من جلسة النظام الأساسية',error);
+    return null;
   }
-  return null;
 }
 async function loadPeriods(client){
   const {data,error}=await client.from(TABLE).select('id,start_date,end_date').order('start_date',{ascending:true});
@@ -76,7 +74,7 @@ async function reconcileAll(reason='auto'){
   try{
     const client=await resolveAdminClient();
     if(!client){
-      report('تعذر مزامنة الحجوزات مع بوابة العملاء: جلسة المدير غير معتمدة. أعد تسجيل الدخول للنظام ثم حاول مرة أخرى.','error');
+      report('تعذر مزامنة الحجوزات مع بوابة العملاء: جلسة النظام الأساسية غير متاحة. أعد تسجيل الدخول ثم حاول مرة أخرى.','error');
       return false;
     }
     let periods=await loadPeriods(client);
@@ -106,7 +104,7 @@ async function reconcileAll(reason='auto'){
           if(created){periods.push(created);nextMap[date]=created.id}
         }catch(error){
           const message=String(error?.message||'');
-          if(!/overlap|conflict|duplicate/i.test(message))console.warn(`تعذر إغلاق ${date} في بوابة العملاء`,error);
+          if(!/overlap|conflict|duplicate/i.test(message))throw error;
         }
       }
 
