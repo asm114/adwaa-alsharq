@@ -49,7 +49,9 @@ function commissionStatus(row){
   if(snap.status==='earned')return 'earned';
   return 'not_earned';
 }
-function commissionAmount(row){return Math.max(0,Number(row?.commissionSnapshot?.amount||0))}
+function commissionAmount(row){return Math.max(0,Number(typeof window.managerCommissionAmount==='function'?window.managerCommissionAmount(row):row?.commissionSnapshot?.amount||0))}
+function subscriptionCommissionStatus(row){return typeof window.subscriptionCommissionStatus==='function'?window.subscriptionCommissionStatus(row):(row?.commissionSnapshot?.status||'not_earned')}
+function subscriptionCommissionAmount(row){return Math.max(0,Number(typeof window.subscriptionCommissionAmount==='function'?window.subscriptionCommissionAmount(row):row?.commissionSnapshot?.amount||0))}
 function periodValue(){return document.getElementById('financePeriod')?.value||'all'}
 function dateMatch(value,period=periodValue()){
   if(period==='all')return true;
@@ -61,6 +63,7 @@ function dateMatch(value,period=periodValue()){
 }
 function isSubscriptionVisit(row){return !!(row?.subscriptionPaymentManaged||row?.subscriptionId)}
 function periodBookings(){return bookings().filter(row=>row.status!=='ملغي'&&row.recordType!=='family'&&!isSubscriptionVisit(row)&&dateMatch(row.date))}
+function periodSubscriptions(){return subscriptions().filter(row=>row?.paymentManaged===true&&!/ملغي|cancel/i.test(String(row?.status||''))&&dateMatch(row.createdAt||row.updatedAt))}
 function subscriptionPayments(){
   const rows=[];
   subscriptions().filter(s=>s?.paymentManaged===true&&s?.status!=='ملغي').forEach(sub=>{
@@ -82,29 +85,46 @@ function bookingRow(row,extra=''){
   const due=Math.max(0,Number(row.total||0)-Number(row.paid||0));
   return `<div class="item"><div><h4>${esc(row.name||'بدون اسم')} <span class="small">#${esc(row.code||'')}</span></h4><div class="meta">${esc(row.date||'')} • ${esc(row.type||'')}<br>الإجمالي ${esc(money(row.total))} • المدفوع ${esc(money(row.paid))} • المتبقي ${esc(money(due))}${extra?`<br>${extra}`:''}</div></div></div>`;
 }
+function subscriptionRow(row,extra=''){
+  const due=Math.max(0,Number(row.total||0)-Number(row.paid||0));
+  return `<div class="item"><div><h4>${esc(row.name||row.customerName||'اشتراك دوري')} <span class="small">اشتراك رئيسي</span></h4><div class="meta">${esc(String(row.createdAt||row.updatedAt||'').slice(0,10))} • ${Number(row.visits||row.dates?.length||0)} زيارة<br>الإجمالي ${esc(money(row.total))} • المدفوع ${esc(money(row.paid))} • المتبقي ${esc(money(due))}${extra?`<br>${extra}`:''}</div></div></div>`;
+}
 function expenseRow(row){return `<div class="item"><div><h4>${esc(row.title||row.cat||'مصروف')}</h4><div class="meta">${esc(row.date||'')} • ${esc(row.cat||'غير مصنف')} • ${esc(row.paymentMethod||'طريقة غير محددة')}${row.notes?`<br>${esc(row.notes)}`:''}</div></div><b>${esc(money(row.amount))}</b></div>`}
 function subscriptionPaymentRow(row){return `<div class="item"><div><h4>${esc(row.name)} <span class="small">اشتراك دوري</span></h4><div class="meta">${esc(String(row.date||'').slice(0,10))}<br>دفعة اشتراك رئيسي — لا تتكرر على الزيارات</div></div><b>${esc(money(row.amount))}</b></div>`}
 function showRevenue(){openDetails('تفاصيل الإيرادات',detailList([...periodBookings().filter(r=>Number(r.paid||0)>0).map(r=>bookingRow(r)),...subscriptionPayments().map(subscriptionPaymentRow)]))}
 function showDue(){
   const ordinary=periodBookings().filter(r=>Number(r.total||0)>Number(r.paid||0)).map(r=>bookingRow(r,'⚠️ يوجد مبلغ لم يُستلم بعد'));
-  const subs=subscriptions().filter(s=>s?.paymentManaged===true&&s?.status!=='ملغي'&&Number(s.total||0)>Number(s.paid||0)).map(s=>`<div class="item"><div><h4>${esc(s.customerName||s.name||'اشتراك دوري')}</h4><div class="meta">اشتراك دوري رئيسي<br>الإجمالي ${esc(money(s.total))} • المدفوع ${esc(money(s.paid))} • المتبقي ${esc(money(Number(s.total||0)-Number(s.paid||0)))}</div></div></div>`);
+  const subs=periodSubscriptions().filter(s=>Number(s.total||0)>Number(s.paid||0)).map(s=>subscriptionRow(s,'⚠️ يوجد مبلغ لم يُستلم بعد'));
   openDetails('المبالغ المتبقية',detailList([...ordinary,...subs]));
 }
 function showExpenses(){openDetails('تفاصيل المصروفات',detailList(expenses().filter(r=>dateMatch(r.date)).map(expenseRow),'لا توجد مصروفات في الفترة المحددة'))}
 function showCommission(mode){
-  const rows=bookings().filter(r=>r.status!=='ملغي'&&r.recordType!=='family'&&!isSubscriptionVisit(r)&&dateMatch(r.date));
-  if(mode==='received'){openDetails('العمولات المستلمة',detailList(rows.filter(r=>commissionStatus(r)==='received').map(r=>bookingRow(r,`✅ تم تأكيد استلام العمولة • ${esc(money(commissionAmount(r)))}`)),'لا توجد عمولات مستلمة في الفترة المحددة'));return}
-  const earned=rows.filter(r=>commissionStatus(r)==='earned').map(r=>bookingRow(r,`🟠 مستحقة ولم تؤكد تحويلها لحسابك • قيمة العمولة ${esc(money(commissionAmount(r)))}`));
-  const waiting=rows.filter(r=>commissionStatus(r)==='not_earned'&&Number(r.total||0)>0&&Number(r.paid||0)<Number(r.total||0)).map(r=>bookingRow(r,'🟡 لم تستحق بعد — العميل دفع عربون/جزئي ولم يكتمل السداد'));
+  const rows=periodBookings(),subs=periodSubscriptions();
+  if(mode==='received'){
+    const ordinary=rows.filter(r=>commissionStatus(r)==='received').map(r=>bookingRow(r,`✅ تم تأكيد استلام العمولة • ${esc(money(commissionAmount(r)))}`));
+    const packages=subs.filter(r=>subscriptionCommissionStatus(r)==='received').map(r=>subscriptionRow(r,`✅ تم تأكيد استلام عمولة الاشتراك • ${esc(money(subscriptionCommissionAmount(r)))}`));
+    openDetails('العمولات المستلمة',detailList([...ordinary,...packages],'لا توجد عمولات مستلمة في الفترة المحددة'));return;
+  }
+  const earned=[
+    ...rows.filter(r=>commissionStatus(r)==='earned').map(r=>bookingRow(r,`🟠 مستحقة ولم تؤكد تحويلها لحسابك • قيمة العمولة ${esc(money(commissionAmount(r)))}`)),
+    ...subs.filter(r=>subscriptionCommissionStatus(r)==='earned').map(r=>subscriptionRow(r,`🟠 عمولة الاشتراك مستحقة مرة واحدة بعد اكتمال السداد • ${esc(money(subscriptionCommissionAmount(r)))}`))
+  ];
+  const waiting=[
+    ...rows.filter(r=>commissionStatus(r)==='not_earned'&&Number(r.total||0)>0&&Number(r.paid||0)<Number(r.total||0)).map(r=>bookingRow(r,'🟡 لم تستحق بعد — العميل دفع عربون/جزئي ولم يكتمل السداد')),
+    ...subs.filter(r=>subscriptionCommissionStatus(r)==='not_earned'&&Number(r.total||0)>0&&Number(r.paid||0)<Number(r.total||0)).map(r=>subscriptionRow(r,'🟡 عمولة الاشتراك تنتظر اكتمال سداد قيمة الباقة'))
+  ];
   openDetails('متابعة عمولات المدير',`${detailList(earned,'لا توجد عمولات مستحقة الآن')}${waiting.length?`<div class="notice" style="margin-top:14px"><b>بانتظار اكتمال السداد</b></div>${detailList(waiting)}`:''}`);
 }
 function showProfit(){
-  const ordinaryRevenue=periodBookings().reduce((s,r)=>s+Number(r.paid||0),0),subRevenue=subscriptionPayments().reduce((s,r)=>s+r.amount,0),cost=expenses().filter(r=>dateMatch(r.date)).reduce((s,r)=>s+Number(r.amount||0),0),received=bookings().filter(r=>dateMatch(r.date)&&commissionStatus(r)==='received').reduce((s,r)=>s+commissionAmount(r),0),revenue=ordinaryRevenue+subRevenue;
+  const ordinaryRevenue=periodBookings().reduce((sum,row)=>sum+Number(row.paid||0),0),subRevenue=subscriptionPayments().reduce((sum,row)=>sum+row.amount,0),cost=expenses().filter(row=>dateMatch(row.date)).reduce((sum,row)=>sum+Number(row.amount||0),0);
+  const ordinaryReceived=periodBookings().filter(row=>commissionStatus(row)==='received').reduce((sum,row)=>sum+commissionAmount(row),0);
+  const subscriptionReceived=periodSubscriptions().filter(row=>subscriptionCommissionStatus(row)==='received').reduce((sum,row)=>sum+subscriptionCommissionAmount(row),0);
+  const received=ordinaryReceived+subscriptionReceived,revenue=ordinaryRevenue+subRevenue;
   openDetails('تفاصيل صافي الربح',`<div class="notice"><b>المحصل:</b> ${esc(money(revenue))}<br><b>المصروفات:</b> ${esc(money(cost))}<br><b>العمولات المستلمة:</b> ${esc(money(received))}<br><b>الصافي التقريبي:</b> ${esc(money(revenue-cost-received))}</div>`);
 }
 function makeClickable(id,handler,title){
   const el=document.getElementById(id);if(!el||el.dataset.professionalClickable)return;
-  const card=el.closest('.finance-card,.stat')||el;card.classList.add('professional-clickable');card.tabIndex=0;card.setAttribute('role','button');card.setAttribute('aria-label',title);el.dataset.professionalClickable='1';card.addEventListener('click',handler);card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();handler()}});
+  const card=el.closest('.finance-card,.stat')||el;card.classList.add('professional-clickable');card.tabIndex=0;card.setAttribute('role','button');card.setAttribute('aria-label',title);el.dataset.professionalClickable='1';card.addEventListener('click',handler);card.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();handler()}});
 }
 function enhanceFinance(){
   makeClickable('finRevenue',showRevenue,'فتح تفاصيل الإيرادات');makeClickable('finExpenses',showExpenses,'فتح تفاصيل المصروفات');makeClickable('finProfit',showProfit,'فتح تفاصيل صافي الربح');makeClickable('finDue',showDue,'فتح تفاصيل المبالغ المتبقية');makeClickable('finCommissionOutstanding',()=>showCommission('outstanding'),'فتح متابعة عمولات المدير');makeClickable('finCommissionReceived',()=>showCommission('received'),'فتح تفاصيل العمولات المستلمة');makeClickable('commissionTotal',()=>showCommission('outstanding'),'فتح متابعة عمولات المدير');
@@ -116,18 +136,11 @@ function sortCustomerCards(){
   const score=card=>{const heading=norm(card.querySelector('h4')?.textContent||''),matches=bookings().filter(b=>heading.includes(norm(b.name))&&b.status!=='ملغي'),future=matches.map(b=>String(b.date||'')).filter(d=>d&&new Date(`${d}T00:00:00`)>=start).sort();return future.length?new Date(`${future[0]}T00:00:00`).getTime():Number.MAX_SAFE_INTEGER};
   [...root.children].sort((a,b)=>score(a)-score(b)).forEach(node=>root.appendChild(node));
 }
-function refreshView(){
-  scopeAddBooking();cleanVoiceUi();clarifyBookingActions();
-  if(activeViewId()==='expenses'){setFinanceAllPeriods();enhanceFinance()}
-  if(activeViewId()==='customers')sortCustomerCards();
-}
+function refreshView(){scopeAddBooking();cleanVoiceUi();clarifyBookingActions();if(activeViewId()==='expenses'){setFinanceAllPeriods();enhanceFinance()}if(activeViewId()==='customers')sortCustomerCards()}
 function initialize(){
   if(!document.querySelector('link[data-professional-ui-stable]')){const style=document.createElement('link');style.rel='stylesheet';style.href='professional-ui-cleanup.css?v=20260813-1';style.dataset.professionalUiStable='1';document.head.appendChild(style)}
-  refreshView();
-  setTimeout(refreshView,500);
-  document.addEventListener('click',event=>{
-    if(event.target?.closest?.('nav button,.simple-more-item,#bookingModal button'))setTimeout(refreshView,40);
-  },true);
+  refreshView();setTimeout(refreshView,500);
+  document.addEventListener('click',event=>{if(event.target?.closest?.('nav button,.simple-more-item,#bookingModal button'))setTimeout(refreshView,40)},true);
   document.addEventListener('change',event=>{if(event.target?.id==='financePeriod')setTimeout(refreshView,0)},true);
   window.addEventListener('adwaa-subscription-updated',()=>setTimeout(refreshView,0));
 }
