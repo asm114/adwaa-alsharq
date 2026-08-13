@@ -93,6 +93,8 @@ function installCompletedStatusStyle(){
       button[onclick*="transferOfficialSubscriptionToPortal"],
       button[onclick*="transferSubscriptionDraftToPortal"],
       button[onclick*="subscriptionControlTransfer"]{display:none!important}
+      .portal-auto-owned-badge{display:inline-flex;margin-top:7px;padding:4px 8px;border-radius:999px;background:#e8eefb;color:#315ea8;font-size:11px;font-weight:900}
+      .portal-unavailable-actions button[data-auto-owned="1"]{opacity:.55;cursor:not-allowed}
     `;
     document.head.appendChild(style);
   }
@@ -109,10 +111,86 @@ function installAutomaticPortalPolicy(){
   window.subscriptionControlTransfer=automaticPortalSync;
 }
 
+function portalOwnedPeriodIds(){
+  const ids=new Set();
+  for(const booking of (window.db?.bookings||[])){
+    const map=booking?.portalUnavailablePeriodIds;
+    if(!map||typeof map!=='object'||Array.isArray(map))continue;
+    Object.values(map).filter(Boolean).forEach(id=>ids.add(String(id)));
+  }
+  return ids;
+}
+function isOwnedPortalPeriod(id){return !!id&&portalOwnedPeriodIds().has(String(id))}
+function guardPortalUnavailableList(){
+  const root=document.getElementById('portalUnavailableList');if(!root)return;
+  const owned=portalOwnedPeriodIds();
+  for(const id of owned){
+    const buttons=[...root.querySelectorAll('button')].filter(button=>(button.getAttribute('onclick')||'').includes(String(id)));
+    if(!buttons.length)continue;
+    const article=buttons[0].closest('.portal-unavailable-item');
+    if(article&&!article.querySelector('.portal-auto-owned-badge')){
+      const badge=document.createElement('div');badge.className='portal-auto-owned-badge';badge.textContent='🔗 تلقائي من حجز الإدارة';
+      article.querySelector('h4')?.insertAdjacentElement('afterend',badge);
+    }
+    buttons.forEach(button=>{
+      button.dataset.autoOwned='1';
+      button.disabled=true;
+      button.title='هذا اليوم مرتبط بحجز. عدّل أو احذف الحجز من نظام الإدارة.';
+    });
+  }
+}
+function wrapPortalAction(name){
+  const current=window[name];
+  if(typeof current!=='function'||current.__portalOwnershipGuard)return false;
+  const wrapped=function(id,...args){
+    if(isOwnedPortalPeriod(id)){
+      alert('هذا التاريخ مرتبط تلقائيًا بحجز في نظام الإدارة. عدّل أو احذف الحجز من قسم الحجوزات، وسيتم تحديث بوابة العملاء تلقائيًا.');
+      return false;
+    }
+    return current.call(this,id,...args);
+  };
+  wrapped.__portalOwnershipGuard=true;wrapped.__base=current;
+  try{globalThis[name]=wrapped}catch(_){}
+  return true;
+}
+function wrapPortalUnavailableSave(){
+  const current=window.savePortalUnavailablePeriod;
+  if(typeof current!=='function'||current.__portalOwnershipGuard)return false;
+  const wrapped=function(...args){
+    const id=String(document.getElementById('portalUnavailableId')?.value||'').trim();
+    if(id&&isOwnedPortalPeriod(id)){
+      alert('لا يمكن تعديل فترة أنشأها حجز تلقائيًا. عدّل الحجز نفسه من قسم الحجوزات.');
+      return false;
+    }
+    return current.apply(this,args);
+  };
+  wrapped.__portalOwnershipGuard=true;wrapped.__base=current;
+  try{savePortalUnavailablePeriod=wrapped}catch(_){}
+  window.savePortalUnavailablePeriod=wrapped;
+  return true;
+}
+function wrapPortalUnavailableRender(){
+  const current=window.renderPortalUnavailablePeriods;
+  if(typeof current!=='function'||current.__portalOwnershipGuard)return false;
+  const wrapped=function(...args){const result=current.apply(this,args);queueMicrotask(guardPortalUnavailableList);return result};
+  wrapped.__portalOwnershipGuard=true;wrapped.__base=current;
+  try{renderPortalUnavailablePeriods=wrapped}catch(_){}
+  window.renderPortalUnavailablePeriods=wrapped;
+  return true;
+}
+function installPortalOwnershipGuard(){
+  wrapPortalAction('editPortalUnavailablePeriod');
+  wrapPortalAction('deletePortalUnavailablePeriod');
+  wrapPortalUnavailableSave();
+  wrapPortalUnavailableRender();
+  guardPortalUnavailableList();
+}
+
 function install(){
   installCommissionPolicy();
   installCompletedStatusStyle();
   installAutomaticPortalPolicy();
+  installPortalOwnershipGuard();
 }
 
 install();
