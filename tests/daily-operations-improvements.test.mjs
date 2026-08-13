@@ -7,8 +7,10 @@ const read=path=>readFile(new URL(path,root),'utf8');
 
 test('إدارة بوابة العملاء تُوجَّه إلى مشروع البوابة فقط',async()=>{
   const js=await read('portal-admin-client.js');
-  assert.match(js,/name\.startsWith\('customer_portal_'\)\?portalAdminClient\.from\(table\):coreFrom\(table\)/);
+  assert.match(js,/name\.startsWith\('customer_portal_'\)\?portalTableBuilder\(table\):coreFrom\(table\)/);
   assert.match(js,/name\.startsWith\('customer-portal-'\)\?portalAdminClient\.storage\.from\(bucket\):coreStorageFrom\(bucket\)/);
+  assert.match(js,/portalAuditPayload/);
+  assert.match(js,/\['updated_by','admin_id','created_by'\]/);
   assert.match(js,/queueMicrotask\(refreshPortalAdminViews\)/);
 });
 
