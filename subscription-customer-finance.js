@@ -37,14 +37,12 @@ function recalcCustomer(customer){
   const managedIds=managedSubscriptionIds();
   let totalValue=0,totalPaid=0;
 
-  // الحجوزات العادية والاشتراكات القديمة تبقى على حسابها الأصلي.
   for(const b of bookings){
     const centrallyManaged=!!(b?.subscriptionPaymentManaged||(b?.subscriptionId&&managedIds.has(b.subscriptionId)));
     if(centrallyManaged)continue;
     totalValue+=num(b?.total);totalPaid+=num(b?.paid);
   }
 
-  // الاشتراك الحديث يُحسب مرة واحدة فقط مهما كان عدد الزيارات.
   const subscriptions=managedSubscriptionsFor(customer);
   for(const s of subscriptions){totalValue+=num(s.total);totalPaid+=num(s.paid)}
 
@@ -96,14 +94,14 @@ function installStyles(){
   document.head.appendChild(style);
 }
 function scheduleDecorate(){
-  setTimeout(decorateSubscriptionVisitAmounts,0);
+  queueMicrotask(decorateSubscriptionVisitAmounts);
   setTimeout(decorateSubscriptionVisitAmounts,120);
 }
 function wrapRenderer(name){
   const current=window[name];
-  if(typeof current!=='function'||current.__subscriptionVisitDisplayWrapped)return;
+  if(typeof current!=='function'||current.__subscriptionVisitDisplayWrapped)return false;
   const wrapped=function(...args){const result=current.apply(this,args);scheduleDecorate();return result};
-  wrapped.__subscriptionVisitDisplayWrapped=true;wrapped.__original=current;window[name]=wrapped;
+  wrapped.__subscriptionVisitDisplayWrapped=true;wrapped.__original=current;window[name]=wrapped;return true;
 }
 function install(){
   const current=window.getCustomers;
@@ -119,15 +117,18 @@ function install(){
   wrapRenderer('renderCustomers');wrapRenderer('openCustomer');wrapRenderer('renderAll');
   installStyles();
   try{window.invalidateCaches?.()}catch(_){ }
-  try{window.renderCustomers?.()}catch(_){ }
   scheduleDecorate();
   return true;
 }
 
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(install,0),{once:true});else setTimeout(install,0);
-setTimeout(install,500);
-setTimeout(install,1500);
-const observer=new MutationObserver(()=>scheduleDecorate());
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>observer.observe(document.body,{childList:true,subtree:true}),{once:true});else observer.observe(document.body,{childList:true,subtree:true});
-window.addEventListener('adwaa-subscription-updated',()=>{try{window.invalidateCaches?.()}catch(_){ }setTimeout(()=>{install();window.renderCustomers?.();scheduleDecorate()},0)});
+function initialize(){
+  install();
+  try{window.renderCustomers?.()}catch(_){ }
+  setTimeout(()=>{install();scheduleDecorate()},600);
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize,{once:true});else initialize();
+window.addEventListener('adwaa-subscription-updated',()=>{
+  try{window.invalidateCaches?.()}catch(_){ }
+  queueMicrotask(()=>{install();try{window.renderCustomers?.()}catch(_){ }scheduleDecorate()});
+});
 })();
