@@ -1,0 +1,46 @@
+name: Daily stability checks
+
+on:
+  push:
+    branches:
+      - main
+      - 'refactor/**'
+      - 'fix/**'
+  pull_request:
+
+jobs:
+  stability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: JavaScript syntax checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            portal-admin-client.js
+            portal-booking-sync-stable.js
+            portal-final-admin.js
+            booking-payment-history.js
+            subscription-booking-type.js
+            subscription-customer-finance.js
+            subscription-flexible-enhancements.js
+            commission-transfer-workflow.js
+            daily-operations-policy.js
+            sw.js
+            resort/portal-today-highlight.js
+          )
+          for file in "${files[@]}"; do
+            node --check "$file"
+          done
+
+      - name: Stability tests
+        run: node --test tests/*.test.mjs
