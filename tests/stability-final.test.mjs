@@ -5,14 +5,18 @@ import test from 'node:test';
 const root=new URL('../',import.meta.url);
 const read=path=>readFile(new URL(path,root),'utf8');
 
-test('مزامنة بوابة العملاء لا تعتمد على مؤقت حذف أو سجل تنظيف محلي',async()=>{
+test('مزامنة بوابة العملاء تنتظر نجاح حفظ نظام الإدارة ولا تستخدم سجل تنظيف محلي',async()=>{
   const js=await read('portal-booking-sync-stable.js');
-  assert.match(js,/queueMicrotask\(\(\)=>reconcileAll\(reason\)\)/);
-  assert.doesNotMatch(js,/setTimeout\s*\(/);
+  assert.match(js,/coreWriteSucceeded/);
+  assert.match(js,/__portalStableSyncWrapped/);
+  assert.match(js,/await save\.apply\(this,args\)/);
+  assert.match(js,/await remove\.apply\(this,args\)/);
+  assert.match(js,/if\(!coreWriteSucceeded\(writeBefore\)\)/);
+  assert.doesNotMatch(js,/document\.addEventListener\('submit'/);
+  assert.doesNotMatch(js,/document\.addEventListener\('click'/);
   assert.doesNotMatch(js,/setItem\(['"]adwaaPortalPendingDeletesV1/);
   assert.doesNotMatch(js,/getItem\(['"]adwaaPortalPendingDeletesV1/);
-  assert.match(js,/pendingDeletes\.set\(booking\.id,mappingOf\(booking\)\)/);
-  assert.match(js,/if\(stillExists\)\{pendingDeletes\.delete\(bookingId\);continue\}/);
+  assert.match(js,/pendingDeletes\.set\(beforeBooking\.id,mappingOf\(beforeBooking\)\)/);
   assert.match(js,/adwaa-portal-admin-ready/);
 });
 
@@ -49,15 +53,19 @@ test('Service Worker يستخدم كاش الإصدار الحالي ويحدث 
   assert.doesNotMatch(sw,/adwaa-v9\.6-rc1/);
 });
 
-test('لودرات الثبات تستخدم أرقام كاش محدثة',async()=>{
+test('لودرات التدقيق النهائي تستخدم أرقام كاش محدثة وبترتيب عمولة الاشتراك الصحيح',async()=>{
   const finalAdmin=await read('portal-final-admin.js');
   const subscription=await read('subscription-booking-type.js');
   const portalHtml=await read('resort/index.html');
   assert.match(finalAdmin,/booking-payment-history\.js\?v=20260813-1/);
-  assert.match(finalAdmin,/subscription-booking-type\.js\?v=20260813-3/);
-  assert.match(finalAdmin,/portal-booking-sync-stable\.js\?v=20260813-2/);
+  assert.match(finalAdmin,/subscription-booking-type\.js\?v=20260813-4/);
+  assert.match(finalAdmin,/portal-booking-sync-stable\.js\?v=20260813-3/);
   assert.match(subscription,/portal-admin-client\.js\?v=20260813-2/);
-  assert.match(subscription,/commission-transfer-workflow\.js\?v=20260813-1/);
-  assert.match(subscription,/daily-operations-policy\.js\?v=20260813-1/);
+  assert.match(subscription,/subscription-commission-core\.js\?v=20260813-1/);
+  assert.match(subscription,/subscription-revenue-integration\.js\?v=20260813-2/);
+  assert.match(subscription,/commission-transfer-workflow\.js\?v=20260813-2/);
+  assert.match(subscription,/professional-ui-stable\.js\?v=20260813-2/);
+  assert.match(subscription,/daily-operations-policy\.js\?v=20260813-2/);
+  assert.ok(subscription.indexOf('subscription-commission-core.js')<subscription.indexOf('commission-transfer-workflow.js'));
   assert.match(portalHtml,/portal-today-highlight\.js\?v=20260813-2/);
 });
