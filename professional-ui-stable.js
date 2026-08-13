@@ -38,6 +38,9 @@ function setFinanceAllPeriods(){
   if(!select.dataset.defaultAllApplied){select.dataset.defaultAllApplied='1';select.value='all';select.dispatchEvent(new Event('change',{bubbles:true}))}
 }
 function commissionStatus(row){
+  if(typeof window.commissionStatus==='function'){
+    try{return window.commissionStatus(row)}catch(error){console.warn('تعذر قراءة حالة العمولة المركزية',error)}
+  }
   if(row?.recordType==='family')return 'no_commission';
   const snap=row?.commissionSnapshot||{};
   if(row?.commissionReceivedBeforeSystem||['received_before_system','legacy_received','received_pre_system'].includes(String(snap.status||'')))return 'received_before_system';
