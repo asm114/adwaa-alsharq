@@ -15,9 +15,7 @@ function linkedBookings(subscriptionId){
  return (Array.isArray(window.db?.bookings)?window.db.bookings:[])
   .filter(booking=>booking?.subscriptionId===subscriptionId&&booking.status!=='ملغي');
 }
-function isConsumedVisit(booking){
- return booking?.status==='تم الخروج';
-}
+function isConsumedVisit(booking){return booking?.status==='تم الخروج'}
 function visitStats(subscription){
  const rows=linkedBookings(subscription.id),total=Math.max(1,Number(subscription.visits||subscription.dates?.length||rows.length||1));
  const used=rows.filter(isConsumedVisit).length;
@@ -122,7 +120,25 @@ function refresh(){
  if(refreshing)return;refreshing=true;
  try{installStyles();enhanceFlexibleLabels();decorateOfficialCards();decorateCalendar();renderAlerts()}catch(error){console.warn('تعذر تحديث تحسينات الاشتراكات المرنة',error)}finally{refreshing=false}
 }
-function init(){refresh();setTimeout(refresh,500);setTimeout(refresh,1500);setInterval(refresh,5000)}
-window.addEventListener('adwaa-subscription-updated',()=>setTimeout(refresh,0));
+function wrapRenderer(name){
+ const current=window[name];
+ if(typeof current!=='function'||current.__subscriptionFlexibleRefreshWrapped)return false;
+ const wrapped=function(...args){
+  const result=current.apply(this,args);
+  queueMicrotask(refresh);
+  return result;
+ };
+ wrapped.__subscriptionFlexibleRefreshWrapped=true;wrapped.__base=current;window[name]=wrapped;
+ return true;
+}
+function installEventDrivenRefresh(){
+ ['renderAll','renderCustomers','renderCalendar','openSubscriptionModal','openSubscriptionControlCenter'].forEach(wrapRenderer);
+}
+function init(){
+ installEventDrivenRefresh();
+ refresh();
+ setTimeout(()=>{installEventDrivenRefresh();refresh()},600);
+}
+window.addEventListener('adwaa-subscription-updated',()=>queueMicrotask(refresh));
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
