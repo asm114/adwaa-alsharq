@@ -96,7 +96,7 @@ async function loadPortalActivityLog(){
 
 document.addEventListener('DOMContentLoaded',()=>{loadPortalFinalSummary();loadPortalFeedback();loadPortalActivityLog()});
 
-(()=>{const script=document.createElement('script');script.src='booking-payment-history.js?v=20260813-1';script.defer=true;document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.src='booking-payment-history.js?v=20260813-2';script.defer=true;document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.src='customer-subscriptions.js';script.defer=true;document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.src='subscription-booking-type.js?v=20260813-4';script.defer=true;document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.src='booking-customer-groups.js?v=20260808-3';script.defer=true;script.onerror=()=>console.warn('تعذر تحميل تجميع الحجوزات حسب العميل');document.head.appendChild(script)})();
@@ -107,4 +107,4 @@ document.addEventListener('DOMContentLoaded',()=>{loadPortalFinalSummary();loadP
 (()=>{const script=document.createElement('script');script.src='home-interactions.js?v=20260807-2';script.defer=true;document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.src='browser-controls.js?v=20260807-1';script.defer=true;document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.src='document-preview-controls.js?v=20260808-1';script.defer=true;document.head.appendChild(script)})();
-(()=>{const script=document.createElement('script');script.src='portal-booking-sync-stable.js?v=20260813-3';script.defer=true;script.onerror=()=>console.warn('تعذر تحميل المزامنة المستقرة مع بوابة العملاء');document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.src='portal-booking-sync-stable.js?v=20260813-4';script.defer=true;script.onerror=()=>console.warn('تعذر تحميل المزامنة المستقرة مع بوابة العملاء');document.head.appendChild(script)})();
