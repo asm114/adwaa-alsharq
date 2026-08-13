@@ -14,6 +14,16 @@ test('إدارة بوابة العملاء تُوجَّه إلى مشروع ال
   assert.match(js,/queueMicrotask\(refreshPortalAdminViews\)/);
 });
 
+test('العربون له خانة مباشرة مستقلة ويُحفظ كأول دفعة',async()=>{
+  const js=await read('booking-payment-history.js');
+  assert.match(js,/bookingDepositAmount/);
+  assert.match(js,/bookingDepositMethod/);
+  assert.match(js,/type:'deposit'/);
+  assert.match(js,/عربون الحجز/);
+  assert.match(js,/العربون يُسجل من الخانة الأساسية أعلاه/);
+  assert.doesNotMatch(js,/<option value="deposit">عربون<\/option>/);
+});
+
 test('حفظ سجل الدفعات يتم داخل حفظ الحجز الأساسي دون persist ثانٍ',async()=>{
   const js=await read('booking-payment-history.js');
   assert.match(js,/__paymentHistorySaveBridge/);
