@@ -161,11 +161,12 @@ function bindDirectEvents(){
     schedule('حذف حجز');
   },true);
   window.addEventListener('adwaa-subscription-updated',()=>schedule('تحديث اشتراك'));
+  window.addEventListener('adwaa-portal-admin-ready',()=>schedule('جلسة بوابة العملاء جاهزة'));
 }
 function initialize(){
   try{localStorage.removeItem('adwaaPortalPendingDeletesV1')}catch(_){}
   bindDirectEvents();
-  schedule('فحص أولي');
+  if(window.portalAdminAuthState?.ready===true)schedule('فحص أولي');
 }
 window.syncPortalAvailabilityFromBookings=()=>reconcileAll('مزامنة مباشرة');
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize,{once:true});else initialize();
