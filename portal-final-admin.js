@@ -96,9 +96,9 @@ async function loadPortalActivityLog(){
 
 document.addEventListener('DOMContentLoaded',()=>{loadPortalFinalSummary();loadPortalFeedback();loadPortalActivityLog()});
 
-(()=>{const script=document.createElement('script');script.src='booking-payment-history.js';script.defer=true;document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.src='booking-payment-history.js?v=20260813-1';script.defer=true;document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.src='customer-subscriptions.js';script.defer=true;document.head.appendChild(script)})();
-(()=>{const script=document.createElement('script');script.src='subscription-booking-type.js?v=20260813-2';script.defer=true;document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.src='subscription-booking-type.js?v=20260813-3';script.defer=true;document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.src='booking-customer-groups.js?v=20260808-3';script.defer=true;script.onerror=()=>console.warn('تعذر تحميل تجميع الحجوزات حسب العميل');document.head.appendChild(script)})();
 (()=>{const link=document.createElement('link');link.rel='stylesheet';link.href='simplified-ui.css?v=20260806-2';document.head.appendChild(link);const script=document.createElement('script');script.src='simplified-ui.js?v=20260806-2';script.defer=true;document.head.appendChild(script)})();
 (()=>{const link=document.createElement('link');link.rel='stylesheet';link.href='drive-stability-ui.css?v=20260813-1';link.dataset.driveStabilityUi='1';document.head.appendChild(link);const script=document.createElement('script');script.src='drive-manual-ui.js?v=20260813-1';script.defer=true;document.head.appendChild(script)})();
