@@ -6,7 +6,7 @@ window.__adwaaPortalBookingSyncStableInstalled=true;
 const TABLE='customer_portal_unavailable_periods';
 const MAP_KEY='portalUnavailablePeriodIds';
 let syncing=false;
-let syncTimer=0;
+let rerunRequested=false;
 const pendingEdits=new Map();
 const pendingDeletes=new Map();
 
@@ -88,7 +88,8 @@ async function flushCapturedDeletes(client){
   return cleaned;
 }
 async function reconcileAll(reason='auto'){
-  if(syncing||!Array.isArray(state()?.bookings))return false;
+  if(!Array.isArray(state()?.bookings))return false;
+  if(syncing){rerunRequested=true;return false}
   syncing=true;
   try{
     const client=await resolvePortalAdminClient();
@@ -136,9 +137,12 @@ async function reconcileAll(reason='auto'){
     console.error('فشل مزامنة توفر بوابة العملاء',error);
     report(`فشلت مزامنة بوابة العملاء: ${String(error?.message||'خطأ غير معروف')}`,'error');
     return false;
-  }finally{syncing=false}
+  }finally{
+    syncing=false;
+    if(rerunRequested){rerunRequested=false;queueMicrotask(()=>reconcileAll('تحديث متزامن'))}
+  }
 }
-function schedule(reason,delay=500){clearTimeout(syncTimer);syncTimer=setTimeout(()=>reconcileAll(reason),delay)}
+function schedule(reason){queueMicrotask(()=>reconcileAll(reason))}
 function currentBooking(){
   const bookingId=String(document.getElementById('bId')?.value||'').trim();
   return bookingId?(state()?.bookings||[]).find(item=>item.id===bookingId)||null:null;
@@ -149,19 +153,19 @@ function bindDirectEvents(){
   document.addEventListener('submit',event=>{
     if(!event.target?.closest?.('#bookingModal'))return;
     captureEditBeforeSave();
-    schedule('حفظ أو تعديل حجز',800);
+    schedule('حفظ أو تعديل حجز');
   },true);
   document.addEventListener('click',event=>{
     if(!event.target?.closest?.('#deleteBookingBtn'))return;
     captureDeleteBeforeAction();
-    schedule('حذف حجز',900);
+    schedule('حذف حجز');
   },true);
-  window.addEventListener('adwaa-subscription-updated',()=>schedule('تحديث اشتراك',400));
+  window.addEventListener('adwaa-subscription-updated',()=>schedule('تحديث اشتراك'));
 }
 function initialize(){
   try{localStorage.removeItem('adwaaPortalPendingDeletesV1')}catch(_){}
   bindDirectEvents();
-  schedule('فحص أولي',900);
+  schedule('فحص أولي');
 }
 window.syncPortalAvailabilityFromBookings=()=>reconcileAll('مزامنة مباشرة');
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize,{once:true});else initialize();
