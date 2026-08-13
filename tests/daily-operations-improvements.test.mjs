@@ -37,13 +37,43 @@ test('مالية العميل للاشتراكات لا تراقب DOM بالك�
   assert.match(js,/adwaa-subscription-updated/);
 });
 
-test('العمولة لا تستحق إلا بعد اكتمال المبلغ الإجمالي',async()=>{
+test('العمولة العادية لا تستحق إلا بعد اكتمال المبلغ الإجمالي',async()=>{
   const policy=await read('daily-operations-policy.js');
   const workflow=await read('commission-transfer-workflow.js');
   assert.match(policy,/total>0&&paid>=total/);
   assert.match(policy,/status==='earned'&&!fullyPaidCommissionBooking\(booking\)\?'not_earned':status/);
-  assert.match(workflow,/statusOf\(b\)==='earned'&&fullyPaid\(b\)/);
+  assert.match(workflow,/bookingStatus\(row\)==='earned'&&bookingFullyPaid\(row\)/);
   assert.match(workflow,/عمولة مستحقة بعد اكتمال السداد/);
+});
+
+test('عمولة الاشتراك تُحسب مرة واحدة على الباقة بعد اكتمال السداد',async()=>{
+  const core=await read('subscription-commission-core.js');
+  const workflow=await read('commission-transfer-workflow.js');
+  const revenue=await read('subscription-revenue-integration.js');
+  assert.match(core,/num\(sub\.paid\)>=num\(sub\.total\)/);
+  assert.match(core,/days=visits\(sub\)/);
+  assert.match(core,/status:'earned'/);
+  assert.match(workflow,/subscriptionStatus\(row\)==='earned'&&subscriptionFullyPaid\(row\)/);
+  assert.match(revenue,/subscriptionCommissionStatus/);
+  assert.match(revenue,/totalCommissionByStatus/);
+});
+
+test('الأيام التي أنشأها الحجز تلقائيًا لا يمكن تعديلها يدويًا من إدارة البوابة',async()=>{
+  const policy=await read('daily-operations-policy.js');
+  assert.match(policy,/portalOwnedPeriodIds/);
+  assert.match(policy,/portalUnavailablePeriodIds/);
+  assert.match(policy,/تلقائي من حجز الإدارة/);
+  assert.match(policy,/button\.disabled=true/);
+  assert.match(policy,/wrapPortalAction\('deletePortalUnavailablePeriod'\)/);
+  assert.match(policy,/wrapPortalUnavailableSave/);
+});
+
+test('تفاصيل المالية تعتمد حالة العمولة المركزية وتشمل عمولة الاشتراك',async()=>{
+  const ui=await read('professional-ui-stable.js');
+  assert.match(ui,/window\.commissionStatus\(row\)/);
+  assert.match(ui,/window\.subscriptionCommissionStatus/);
+  assert.match(ui,/subscriptionCommissionAmount/);
+  assert.match(ui,/عمولة الاشتراك مستحقة مرة واحدة بعد اكتمال السداد/);
 });
 
 test('الترحيل اليدوي للبوابة مخفي ومعطل لصالح المزامنة التلقائية',async()=>{
