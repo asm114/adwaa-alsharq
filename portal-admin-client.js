@@ -19,6 +19,12 @@ const portalAdminClient=window.supabase.createClient(
 window.portalAdminClient=portalAdminClient;
 window.portalAdminAuthState={ready:false,error:''};
 
+function setPortalAdminReady(){
+  const wasReady=window.portalAdminAuthState?.ready===true;
+  window.portalAdminAuthState={ready:true,error:''};
+  if(!wasReady)window.dispatchEvent(new CustomEvent('adwaa-portal-admin-ready'));
+}
+
 async function verifyPortalAdmin(){
   const {data:sessionData,error:sessionError}=await portalAdminClient.auth.getSession();
   if(sessionError||!sessionData?.session?.user){
@@ -30,7 +36,7 @@ async function verifyPortalAdmin(){
     window.portalAdminAuthState={ready:false,error:adminError?.message||'الحساب ليس مديرًا نشطًا للبوابة'};
     return false;
   }
-  window.portalAdminAuthState={ready:true,error:''};
+  setPortalAdminReady();
   return true;
 }
 
@@ -70,7 +76,10 @@ if(typeof originalLogin==='function'&&!window.__adwaaPortalLoginWrapped){
 }
 
 window.supabaseClient?.auth?.onAuthStateChange?.((event)=>{
-  if(event==='SIGNED_OUT')portalAdminClient.auth.signOut().catch(()=>{});
+  if(event==='SIGNED_OUT'){
+    window.portalAdminAuthState={ready:false,error:'تم تسجيل الخروج'};
+    portalAdminClient.auth.signOut().catch(()=>{});
+  }
 });
 
 verifyPortalAdmin().catch(()=>{});
