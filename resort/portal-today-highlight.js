@@ -3,12 +3,6 @@
 if(window.__adwaaPortalTodayHighlightInstalled)return;
 window.__adwaaPortalTodayHighlightInstalled=true;
 
-const AVAILABILITY_SUPABASE_URL='https://ztqqdjryvecscidxxbfe.supabase.co';
-const AVAILABILITY_SUPABASE_KEY='sb_publishable_M3MQwFfxiMMKt_-tq-KAjQ_OQTtg2MD';
-const AVAILABILITY_TABLE='customer_portal_unavailable_periods';
-let availabilityClient=null;
-let refreshingAvailability=false;
-
 function localIso(date=new Date()){
   return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
 }
@@ -35,40 +29,12 @@ function markToday(){
     if(!current.includes('اليوم'))today.setAttribute('aria-label',`اليوم، ${current}`);
   }
 }
-async function refreshAvailability(){
-  if(refreshingAvailability||!window.supabase?.createClient)return;
-  refreshingAvailability=true;
-  try{
-    availabilityClient=availabilityClient||window.supabase.createClient(
-      AVAILABILITY_SUPABASE_URL,
-      AVAILABILITY_SUPABASE_KEY,
-      {auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}}
-    );
-    const {data,error}=await availabilityClient
-      .from(AVAILABILITY_TABLE)
-      .select('id,start_date,end_date')
-      .order('start_date',{ascending:true});
-    if(error)throw error;
-    if(typeof unavailablePeriods!=='undefined')unavailablePeriods=Array.isArray(data)?data:[];
-    if(typeof renderCalendar==='function')renderCalendar();
-    markToday();
-  }catch(error){
-    console.warn('تعذر تحميل توفر الحجوزات من مشروع بوابة العملاء.',error);
-    markToday();
-  }finally{
-    refreshingAvailability=false;
-  }
-}
 function initialize(){
-  const grid=document.getElementById('calendarGrid');
-  if(!grid){setTimeout(initialize,200);return}
+  const grid=document.getElementById('calendarGrid');if(!grid)return;
   markToday();
-  refreshAvailability();
   new MutationObserver(()=>requestAnimationFrame(markToday)).observe(grid,{childList:true});
-  document.getElementById('prevMonthButton')?.addEventListener('click',()=>setTimeout(markToday,0));
-  document.getElementById('nextMonthButton')?.addEventListener('click',()=>setTimeout(markToday,0));
-  window.addEventListener('focus',()=>refreshAvailability());
-  window.addEventListener('pageshow',()=>refreshAvailability());
+  document.getElementById('prevMonthButton')?.addEventListener('click',()=>requestAnimationFrame(markToday));
+  document.getElementById('nextMonthButton')?.addEventListener('click',()=>requestAnimationFrame(markToday));
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize,{once:true});else initialize();
 })();
