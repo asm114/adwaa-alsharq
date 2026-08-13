@@ -12,6 +12,9 @@ test('مزامنة بوابة العملاء تنتظر نجاح حفظ نظام
   assert.match(js,/await save\.apply\(this,args\)/);
   assert.match(js,/await remove\.apply\(this,args\)/);
   assert.match(js,/if\(!coreWriteSucceeded\(writeBefore\)\)/);
+  assert.match(js,/async function saveMappingState\(\)[\s\S]*?return coreWriteSucceeded\(before\)/);
+  assert.match(js,/if\(stateChanged&&\!\(await saveMappingState\(\)\)\)/);
+  assert.match(js,/بقيت الخريطة محفوظة على هذا الجهاز/);
   assert.doesNotMatch(js,/document\.addEventListener\('submit'/);
   assert.doesNotMatch(js,/document\.addEventListener\('click'/);
   assert.doesNotMatch(js,/setItem\(['"]adwaaPortalPendingDeletesV1/);
