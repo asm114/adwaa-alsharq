@@ -30,14 +30,17 @@ function paymentRows(sub){
   const history=Array.isArray(sub?.paymentHistory)?sub.paymentHistory:[];
   const rows=history.map(row=>({subscription:sub,amount:num(row?.amount),date:row?.date||row?.createdAt||sub?.createdAt||sub?.updatedAt||'',method:row?.method||'غير محدد'})).filter(row=>row.amount>0);
   const recorded=rows.reduce((sum,row)=>sum+row.amount,0),paid=num(sub?.paid);
-  if(paid>recorded){
-    rows.push({subscription:sub,amount:paid-recorded,date:sub?.updatedAt||sub?.createdAt||'',method:'غير محدد',fallback:true});
-  }
+  if(paid>recorded)rows.push({subscription:sub,amount:paid-recorded,date:sub?.updatedAt||sub?.createdAt||'',method:'غير محدد',fallback:true});
   return rows;
 }
 function allSubscriptionPayments(){return managedSubscriptions().flatMap(paymentRows)}
 function subscriptionPaidTotal(){return managedSubscriptions().reduce((sum,row)=>sum+num(row.paid),0)}
 function subscriptionTotalValue(){return managedSubscriptions().reduce((sum,row)=>sum+num(row.total),0)}
+function ordinaryCommissionStatus(row){return typeof window.commissionStatus==='function'?window.commissionStatus(row):(row?.commissionSnapshot?.status||'not_earned')}
+function ordinaryCommissionAmount(row){return typeof window.managerCommissionAmount==='function'?num(window.managerCommissionAmount(row)):num(row?.commissionSnapshot?.amount)}
+function subscriptionCommissionStatus(row){return typeof window.subscriptionCommissionStatus==='function'?window.subscriptionCommissionStatus(row):(row?.commissionSnapshot?.status||'not_earned')}
+function subscriptionCommissionAmount(row){return typeof window.subscriptionCommissionAmount==='function'?num(window.subscriptionCommissionAmount(row)):num(row?.commissionSnapshot?.amount)}
+function ordinaryCommissionRows(){return ordinaryActiveBookings()}
 function todayIso(){
   if(typeof window.isoToday==='function')return window.isoToday();
   return normDate(new Date());
@@ -47,6 +50,11 @@ function ordinaryTotalValue(rows=ordinaryActiveBookings()){return rows.reduce((s
 function paymentTotalForDate(predicate){return allSubscriptionPayments().filter(row=>predicate(normDate(row.date))).reduce((sum,row)=>sum+row.amount,0)}
 function ordinaryRevenueForDate(rows,predicate){return rows.filter(row=>predicate(normDate(row.date))).reduce((sum,row)=>sum+num(row.paid),0)}
 function setMoney(id,value){const el=document.getElementById(id);if(el)el.textContent=money(value)}
+function totalCommissionByStatus(status,period='all'){
+  const ordinary=ordinaryCommissionRows().filter(row=>periodMatch(row.date,period)&&ordinaryCommissionStatus(row)===status).reduce((sum,row)=>sum+ordinaryCommissionAmount(row),0);
+  const subscription=managedSubscriptions().filter(row=>periodMatch(row.createdAt||row.updatedAt,period)&&subscriptionCommissionStatus(row)===status).reduce((sum,row)=>sum+subscriptionCommissionAmount(row),0);
+  return ordinary+subscription;
+}
 
 function refreshDashboardFinance(){
   const rows=ordinaryActiveBookings(),today=todayIso(),month=today.slice(0,7);
@@ -59,9 +67,11 @@ function refreshDashboardFinance(){
   setMoney('sPaid',paid);
   setMoney('sDue',Math.max(0,total-paid));
   setMoney('sPending',Math.max(0,total-paid));
+  setMoney('sCommission',totalCommissionByStatus('earned','all'));
 }
 
 function periodMatch(value,period){
+  if(period==='all')return true;
   if(typeof window.financeDateMatch==='function'){
     try{return !!window.financeDateMatch(normDate(value),period)}catch(_){ }
   }
@@ -81,12 +91,12 @@ function refreshFinanceView(){
   setMoney('finRevenue',revenue);
 
   const expenses=(Array.isArray(data()?.expenses)?data().expenses:[]).filter(row=>periodMatch(row.date,period)).reduce((sum,row)=>sum+num(row.amount),0);
-  const commissionReceived=bookings().filter(row=>periodMatch(row.date,period)).reduce((sum,row)=>{
-    const status=String(row?.commissionStatus??row?.commission?.status??row?.commissionSnapshot?.status??'');
-    if(!/مستلمة|received/i.test(status)&&row?.commissionSnapshot?.received!==true&&row?.commission?.received!==true)return sum;
-    return sum+num(row?.commissionSnapshot?.amount??row?.commission?.amount??row?.commissionAmount);
-  },0);
+  const commissionOutstanding=totalCommissionByStatus('earned',period);
+  const commissionReceived=totalCommissionByStatus('received',period);
   const profit=revenue-expenses-commissionReceived;
+  setMoney('finCommissionOutstanding',commissionOutstanding);
+  setMoney('finCommissionReceived',commissionReceived);
+  setMoney('commissionTotal',commissionOutstanding);
   const profitEl=document.getElementById('finProfit');
   if(profitEl){profitEl.textContent=money(profit);profitEl.className='amount '+(profit>=0?'finance-positive':'finance-negative')}
 }
@@ -98,12 +108,7 @@ function wrap(name,after){
   wrapped.__subscriptionRevenueWrapped=true;wrapped.__original=current;window[name]=wrapped;return true;
 }
 function refresh(){refreshDashboardFinance();refreshFinanceView()}
-function install(){
-  wrap('renderDashboard',refreshDashboardFinance);
-  wrap('renderExpenses',refreshFinanceView);
-  wrap('renderAll',refresh);
-  refresh();
-}
+function install(){wrap('renderDashboard',refreshDashboardFinance);wrap('renderExpenses',refreshFinanceView);wrap('renderAll',refresh);refresh()}
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(install,0),{once:true});else setTimeout(install,0);
 setTimeout(install,500);setTimeout(install,1500);
