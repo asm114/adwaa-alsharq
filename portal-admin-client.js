@@ -19,13 +19,37 @@ const portalAdminClient=window.supabase.createClient(
 window.portalAdminClient=portalAdminClient;
 window.portalAdminAuthState={ready:false,error:'',userId:''};
 
+function portalAuditPayload(value){
+  const userId=window.portalAdminAuthState?.userId||null;
+  const rewrite=row=>{
+    if(!row||typeof row!=='object'||Array.isArray(row))return row;
+    const copy={...row};
+    for(const key of ['updated_by','admin_id','created_by'])if(Object.prototype.hasOwnProperty.call(copy,key))copy[key]=userId;
+    return copy;
+  };
+  return Array.isArray(value)?value.map(rewrite):rewrite(value);
+}
+
+function portalTableBuilder(table){
+  const builder=portalAdminClient.from(table);
+  return new Proxy(builder,{
+    get(target,property,receiver){
+      if(['insert','upsert','update'].includes(property)){
+        return (values,...args)=>target[property].call(target,portalAuditPayload(values),...args);
+      }
+      const value=Reflect.get(target,property,receiver);
+      return typeof value==='function'?value.bind(target):value;
+    }
+  });
+}
+
 function installPortalDataRouter(){
   const core=window.supabaseClient;
   if(!core||core.__adwaaPortalDataRouterInstalled)return;
   const coreFrom=core.from.bind(core);
   core.from=function(table){
     const name=String(table||'');
-    return name.startsWith('customer_portal_')?portalAdminClient.from(table):coreFrom(table);
+    return name.startsWith('customer_portal_')?portalTableBuilder(table):coreFrom(table);
   };
   if(core.storage?.from){
     const coreStorageFrom=core.storage.from.bind(core.storage);
