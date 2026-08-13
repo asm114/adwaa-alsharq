@@ -60,7 +60,7 @@ test('واجهة simplified-ui تحمل من نقطة واحدة فقط',async()
   assert.doesNotMatch(subscription,/simplified-ui\.js/);
 });
 
-test('علامة اليوم لا تنشئ اتصال Supabase إضافيًا',async()=>{
+test('تقويم بوابة العملاء يحافظ على علامة اليوم ويضيف تحسينات الجوال دون اتصال Supabase إضافي',async()=>{
   const js=await read('resort/portal-today-highlight.js');
   assert.doesNotMatch(js,/createClient\s*\(/);
   assert.doesNotMatch(js,/AVAILABILITY_SUPABASE/);
@@ -68,6 +68,11 @@ test('علامة اليوم لا تنشئ اتصال Supabase إضافيًا',as
   assert.doesNotMatch(js,/addEventListener\(['"]pageshow/);
   assert.match(js,/MutationObserver/);
   assert.match(js,/portal-today/);
+  assert.match(js,/headerAvailabilityButton/);
+  assert.match(js,/اختر التوفر/);
+  assert.match(js,/calendar-weekday/);
+  assert.match(js,/weekday:'long'/);
+  assert.match(js,/floating-whatsapp-compact/);
 });
 
 test('Service Worker يستخدم كاش الإصدار الحالي ويحدث fallback عند نجاح فتح التطبيق',async()=>{
@@ -92,5 +97,5 @@ test('لودرات التدقيق النهائي تستخدم أرقام كاش 
   assert.match(subscription,/professional-ui-stable\.js\?v=20260813-2/);
   assert.match(subscription,/daily-operations-policy\.js\?v=20260813-2/);
   assert.ok(subscription.indexOf('subscription-commission-core.js')<subscription.indexOf('commission-transfer-workflow.js'));
-  assert.match(portalHtml,/portal-today-highlight\.js\?v=20260813-2/);
+  assert.match(portalHtml,/portal-today-highlight\.js\?v=20260813-3/);
 });
