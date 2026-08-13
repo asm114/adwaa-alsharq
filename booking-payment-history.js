@@ -76,18 +76,32 @@
 
   function loadBookingPayments(){const id=document.getElementById('bId')?.value||'',state=bookingState(),booking=id?(state?.bookings||[]).find(item=>item.id===id):null;paymentDraft=normalizePayments(booking);paymentPanelOpen=false;renderPayments()}
 
+  function normalizedDraftPayments(){return paymentDraft.map((item,index)=>({...item,amount:safeNumber(item.amount),order:index})).filter(item=>item.amount>0)}
+
+  function installPaymentSaveBridge(){
+    const current=window.normalizeBookingCommission;
+    if(typeof current!=='function'||current.__paymentHistorySaveBridge)return false;
+    const wrapped=function(raw,settings){
+      const booking=current.call(this,raw,settings);
+      const modal=document.getElementById('bookingModal');
+      if(!booking||!modal?.classList.contains('open')||booking.recordType==='family')return booking;
+      const formId=String(document.getElementById('bId')?.value||''),formCode=String(document.getElementById('bCode')?.value||'');
+      if(formId&&String(booking.id||'')!==formId)return booking;
+      if(formCode&&String(booking.code||'')!==formCode)return booking;
+      const payments=normalizedDraftPayments();
+      booking.payments=payments;
+      booking.paid=paymentSum(payments);
+      return booking;
+    };
+    wrapped.__paymentHistorySaveBridge=true;wrapped.__base=current;
+    try{normalizeBookingCommission=wrapped}catch(_){}
+    window.normalizeBookingCommission=wrapped;
+    return true;
+  }
+
   function installWrappers(){
     if(typeof window.openBooking==='function'&&!window.openBooking.__paymentHistoryWrapped){const originalOpen=window.openBooking,wrapped=function(...args){const result=originalOpen.apply(this,args);setTimeout(loadBookingPayments,0);return result};wrapped.__paymentHistoryWrapped=true;window.openBooking=wrapped}
-    if(typeof window.saveBooking==='function'&&!window.saveBooking.__paymentHistoryWrapped){
-      const originalSave=window.saveBooking,wrapped=async function(event){
-        if(!paymentDraft.length&&safeNumber(document.getElementById('bPaid')?.value)>0)paymentDraft=[{id:paymentId(),amount:safeNumber(document.getElementById('bPaid').value),type:'deposit',method:'unknown',date:todayIso(),note:'دفعة مسجلة من الإدخال السريع',createdAt:new Date().toISOString(),order:0}];
-        const paid=paymentSum(paymentDraft),total=safeNumber(document.getElementById('bTotal')?.value);if(total>0&&paid>total){alert('مجموع الدفعات أكبر من إجمالي الحجز. عدّل الدفعات قبل الحفظ.');return}
-        const beforeId=document.getElementById('bId')?.value||'',code=document.getElementById('bCode')?.value||'';if(document.getElementById('bPaid'))document.getElementById('bPaid').value=String(paid);
-        const result=await originalSave.call(this,event),state=bookingState(),booking=(state?.bookings||[]).find(item=>item.id===beforeId)||(state?.bookings||[]).find(item=>item.code===code);
-        if(booking){booking.payments=paymentDraft.map((item,index)=>({...item,amount:safeNumber(item.amount),order:index}));booking.paid=paymentSum(booking.payments);if(typeof addAudit==='function')addAudit('تحديث دفعات','حجز',`تم حفظ ${booking.payments.length} دفعة بإجمالي ${money(booking.paid)}`,null,{bookingId:booking.id,payments:booking.payments});if(typeof persist==='function')await persist()}
-        return result;
-      };wrapped.__paymentHistoryWrapped=true;window.saveBooking=wrapped;
-    }
+    installPaymentSaveBridge();
   }
 
   function initialize(){if(injectUi())renderPayments();installWrappers();setTimeout(()=>{if(injectUi())renderPayments();installWrappers()},500)}
