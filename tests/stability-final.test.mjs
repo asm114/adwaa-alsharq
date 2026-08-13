@@ -13,6 +13,14 @@ test('مزامنة بوابة العملاء لا تعتمد على مؤقت ح�
   assert.doesNotMatch(js,/getItem\(['"]adwaaPortalPendingDeletesV1/);
   assert.match(js,/pendingDeletes\.set\(booking\.id,mappingOf\(booking\)\)/);
   assert.match(js,/if\(stillExists\)\{pendingDeletes\.delete\(bookingId\);continue\}/);
+  assert.match(js,/adwaa-portal-admin-ready/);
+});
+
+test('جلسة مدير البوابة تعلن الجاهزية عند الانتقال للحالة الصحيحة فقط',async()=>{
+  const js=await read('portal-admin-client.js');
+  assert.match(js,/const wasReady=window\.portalAdminAuthState\?\.ready===true/);
+  assert.match(js,/if\(!wasReady\)window\.dispatchEvent\(new CustomEvent\('adwaa-portal-admin-ready'\)\)/);
+  assert.match(js,/verifyPortalAdmin\(\)\.catch/);
 });
 
 test('واجهة simplified-ui تحمل من نقطة واحدة فقط',async()=>{
@@ -43,8 +51,10 @@ test('Service Worker يستخدم كاش الإصدار الحالي ويحدث 
 
 test('لودرات الثبات تستخدم أرقام كاش محدثة',async()=>{
   const finalAdmin=await read('portal-final-admin.js');
+  const subscription=await read('subscription-booking-type.js');
   const portalHtml=await read('resort/index.html');
   assert.match(finalAdmin,/subscription-booking-type\.js\?v=20260813-2/);
   assert.match(finalAdmin,/portal-booking-sync-stable\.js\?v=20260813-2/);
+  assert.match(subscription,/portal-admin-client\.js\?v=20260813-1/);
   assert.match(portalHtml,/portal-today-highlight\.js\?v=20260813-2/);
 });
