@@ -81,7 +81,7 @@ function bookingRow(row,extra=''){
 }
 function expenseRow(row){return `<div class="item"><div><h4>${esc(row.title||row.cat||'مصروف')}</h4><div class="meta">${esc(row.date||'')} • ${esc(row.cat||'غير مصنف')} • ${esc(row.paymentMethod||'طريقة غير محددة')}${row.notes?`<br>${esc(row.notes)}`:''}</div></div><b>${esc(money(row.amount))}</b></div>`}
 function subscriptionPaymentRow(row){return `<div class="item"><div><h4>${esc(row.name)} <span class="small">اشتراك دوري</span></h4><div class="meta">${esc(String(row.date||'').slice(0,10))}<br>دفعة اشتراك رئيسي — لا تتكرر على الزيارات</div></div><b>${esc(money(row.amount))}</b></div>`}
-function showRevenue(){openDetails('تفاصيل الإيرادات',detailList([...periodBookings().filter(r=>Number(r.paid||0)>0).map(bookingRow),...subscriptionPayments().map(subscriptionPaymentRow)]))}
+function showRevenue(){openDetails('تفاصيل الإيرادات',detailList([...periodBookings().filter(r=>Number(r.paid||0)>0).map(r=>bookingRow(r)),...subscriptionPayments().map(subscriptionPaymentRow)]))}
 function showDue(){
   const ordinary=periodBookings().filter(r=>Number(r.total||0)>Number(r.paid||0)).map(r=>bookingRow(r,'⚠️ يوجد مبلغ لم يُستلم بعد'));
   const subs=subscriptions().filter(s=>s?.paymentManaged===true&&s?.status!=='ملغي'&&Number(s.total||0)>Number(s.paid||0)).map(s=>`<div class="item"><div><h4>${esc(s.customerName||s.name||'اشتراك دوري')}</h4><div class="meta">اشتراك دوري رئيسي<br>الإجمالي ${esc(money(s.total))} • المدفوع ${esc(money(s.paid))} • المتبقي ${esc(money(Number(s.total||0)-Number(s.paid||0)))}</div></div></div>`);
