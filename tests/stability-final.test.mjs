@@ -9,10 +9,11 @@ test('مزامنة بوابة العملاء تنتظر نجاح حفظ نظام
   const js=await read('portal-booking-sync-stable.js');
   assert.match(js,/coreWriteSucceeded/);
   assert.match(js,/__portalStableSyncWrapped/);
-  assert.match(js,/await save\.apply\(this,args\)/);
-  assert.match(js,/await remove\.apply\(this,args\)/);
+  assert.match(js,/save\.apply\(this,args\)/);
+  assert.match(js,/remove\.apply\(this,args\)/);
   assert.match(js,/if\(!coreWriteSucceeded\(writeBefore\)\)/);
-  assert.match(js,/async function saveMappingState\(\)[\s\S]*?return coreWriteSucceeded\(before\)/);
+  assert.match(js,/async function saveMappingState\(\)/);
+  assert.match(js,/const ok=coreWriteSucceeded\(before\)/);
   assert.match(js,/if\(stateChanged&&\!\(await saveMappingState\(\)\)\)/);
   assert.match(js,/بقيت الخريطة محفوظة على هذا الجهاز/);
   assert.doesNotMatch(js,/document\.addEventListener\('submit'/);
@@ -21,6 +22,27 @@ test('مزامنة بوابة العملاء تنتظر نجاح حفظ نظام
   assert.doesNotMatch(js,/getItem\(['"]adwaaPortalPendingDeletesV1/);
   assert.match(js,/pendingDeletes\.set\(beforeBooking\.id,mappingOf\(beforeBooking\)\)/);
   assert.match(js,/adwaa-portal-admin-ready/);
+});
+
+test('حفظ الحجز محمي من الضغط المكرر ويعرض حالة الحفظ',async()=>{
+  const js=await read('portal-booking-sync-stable.js');
+  assert.match(js,/let bookingSaveInFlight=false/);
+  assert.match(js,/if\(bookingSaveInFlight\)/);
+  assert.match(js,/جاري حفظ الحجز\.\.\./);
+  assert.match(js,/button\.disabled=!!busy/);
+  assert.match(js,/aria-busy/);
+  assert.match(js,/showBookingToast\('تم حفظ الحجز ✓'/);
+  assert.match(js,/reopenFailedBooking\(savedBooking\)/);
+  assert.match(js,/دون إنشاء حجز مكرر/);
+  assert.match(js,/syncPortalInBackground/);
+});
+
+test('فشل مزامنة الحجز لا يعرض نافذة منبثقة مربكة أثناء مسار الحفظ',async()=>{
+  const js=await read('portal-booking-sync-stable.js');
+  assert.match(js,/CORE_SYNC_ALERT='تعذر مزامنة آخر تعديل'/);
+  assert.match(js,/withCapturedCoreSyncAlert/);
+  assert.match(js,/if\(text\.includes\(CORE_SYNC_ALERT\)\)/);
+  assert.match(js,/بوابة العملاء لم تتزامن بعد/);
 });
 
 test('جلسة مدير البوابة تعلن الجاهزية عند الانتقال للحالة الصحيحة فقط',async()=>{
@@ -60,9 +82,9 @@ test('لودرات التدقيق النهائي تستخدم أرقام كاش 
   const finalAdmin=await read('portal-final-admin.js');
   const subscription=await read('subscription-booking-type.js');
   const portalHtml=await read('resort/index.html');
-  assert.match(finalAdmin,/booking-payment-history\.js\?v=20260813-1/);
+  assert.match(finalAdmin,/booking-payment-history\.js\?v=20260813-2/);
   assert.match(finalAdmin,/subscription-booking-type\.js\?v=20260813-4/);
-  assert.match(finalAdmin,/portal-booking-sync-stable\.js\?v=20260813-3/);
+  assert.match(finalAdmin,/portal-booking-sync-stable\.js\?v=20260813-4/);
   assert.match(subscription,/portal-admin-client\.js\?v=20260813-2/);
   assert.match(subscription,/subscription-commission-core\.js\?v=20260813-1/);
   assert.match(subscription,/subscription-revenue-integration\.js\?v=20260813-2/);
