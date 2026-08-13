@@ -23,6 +23,15 @@ const reminderKey=booking=>`ops:remaining_payment:${booking.id}`;
 
 function bookingById(id){return bookings().find(row=>row?.id===id)||null}
 function currentBooking(){const id=String(document.getElementById('bId')?.value||'').trim();return id?bookingById(id):null}
+function formRemaining(booking){
+  if(!booking)return 0;
+  const currentId=String(document.getElementById('bId')?.value||'').trim();
+  if(currentId===String(booking.id||'')){
+    const total=document.getElementById('bTotal'),paid=document.getElementById('bPaid');
+    if(total&&paid)return Math.max(0,safeNumber(total.value)-safeNumber(paid.value));
+  }
+  return remaining(booking);
+}
 function existingReminder(booking){const key=reminderKey(booking);return notifications().find(item=>item?.reminderKey===key&&!item.resolvedAt)||null}
 function snoozed(item){return !!(item?.snoozedUntil&&new Date(item.snoozedUntil).getTime()>Date.now())}
 function resolveReminder(item){if(!item)return;item.read=true;item.resolvedAt=nowIso();item.snoozedUntil=''}
@@ -37,7 +46,7 @@ async function saveState(){
   try{if(typeof window.persist==='function')await window.persist();else localStorage.setItem('adwaaDB',JSON.stringify(state()))}catch(error){console.warn('تعذر حفظ تنبيه باقي المبلغ',error)}
   try{window.renderNotifications?.()}catch(_){}
 }
-function escapeText(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]))}
+function escapeText(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#039;'}[char]))}
 
 function installStyles(){
   if(document.getElementById('remainingPaymentFlowStyles'))return;
@@ -62,7 +71,7 @@ function ensureQuickAction(){
 }
 function refreshQuickAction(){
   const card=ensureQuickAction();if(!card)return;
-  const booking=currentBooking(),due=remaining(booking),visible=!!booking&&active(booking)&&due>0;
+  const booking=currentBooking(),due=formRemaining(booking),visible=!!booking&&active(booking)&&due>0;
   card.classList.toggle('show',visible);
   const label=document.getElementById('remainingPaymentQuickAmount');if(label)label.textContent=visible?`المتبقي: ${money(due)}`:'المتبقي: 0 ر.س';
 }
@@ -90,11 +99,11 @@ function methodButtons(booking,item){
   document.getElementById('remainingPaymentBack')?.addEventListener('click',()=>openReceiveModal(booking,!!item,item));
 }
 function openReceiveModal(booking,fromReminder=false,item=null){
-  if(!booking||remaining(booking)<=0)return;
+  const due=fromReminder?remaining(booking):formRemaining(booking);if(!booking||due<=0)return;
   const modal=ensureModal(),title=document.getElementById('remainingPaymentTitle'),body=document.getElementById('remainingPaymentBody'),actions=document.getElementById('remainingPaymentActions');
   modal._reminderItem=item||null;modal._bookingId=booking.id;reminderOpen=true;
   title.textContent=fromReminder?'متابعة باقي المبلغ':'استلام باقي المبلغ';
-  body.innerHTML=`<b>${escapeText(booking.name||'العميل')}</b> — #${escapeText(booking.code||'')}<br>المتبقي: <b>${escapeText(money(remaining(booking)))}</b><br>${fromReminder?'<b>هل تم استلام باقي المبلغ؟</b>':'اختر طريقة استلام المبلغ الكامل.'}`;
+  body.innerHTML=`<b>${escapeText(booking.name||'العميل')}</b> — #${escapeText(booking.code||'')}<br>المتبقي: <b>${escapeText(money(due))}</b><br>${fromReminder?'<b>هل تم استلام باقي المبلغ؟</b>':'اختر طريقة استلام المبلغ الكامل.'}`;
   if(fromReminder){
     actions.innerHTML='<button class="primary" id="remainingPaymentYes" type="button">نعم، سجل الاستلام</button><button class="secondary" id="remainingPaymentLater" type="button">لا، ذكرني لاحقًا</button>';
     document.getElementById('remainingPaymentYes').onclick=()=>methodButtons(booking,item);
@@ -114,8 +123,9 @@ function waitForPaymentControls(bookingId,attempt=0){
   });
 }
 async function fillAndSubmitRemainingPayment(bookingId,method='transfer'){
-  const booking=bookingById(bookingId),due=remaining(booking);if(!booking||due<=0)return false;
+  const booking=bookingById(bookingId);if(!booking||remaining(booking)<=0)return false;
   const ready=await waitForPaymentControls(bookingId);if(!ready){alert('تعذر فتح أدوات الدفع لهذا الحجز. افتح الحجز وحاول مرة أخرى.');return false}
+  const due=formRemaining(booking);if(due<=0){refreshQuickAction();return false}
   const amount=document.getElementById('paymentAmount'),type=document.getElementById('paymentType'),paymentMethod=document.getElementById('paymentMethod'),date=document.getElementById('paymentDate'),note=document.getElementById('paymentNote');
   amount.value=String(due);type.value='final';paymentMethod.value=method;if(date)date.value=todayIso();if(note)note.value='سداد باقي المبلغ';
   document.getElementById('paymentSaveButton').click();
@@ -159,6 +169,7 @@ function wrapOpenBooking(){
 function install(){
   installStyles();ensureQuickAction();wrapOpenBooking();refreshQuickAction();scan();scheduleBoundary();
   document.getElementById('bTotal')?.addEventListener('input',refreshQuickAction);
+  document.getElementById('bookingDepositAmount')?.addEventListener('input',()=>setTimeout(refreshQuickAction,0));
   document.getElementById('bookingPaymentAddToggle')?.addEventListener('click',()=>setTimeout(refreshQuickAction,0));
   window.addEventListener('focus',()=>{refreshQuickAction();scan()});
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){refreshQuickAction();scan()}});
