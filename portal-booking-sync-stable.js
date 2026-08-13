@@ -36,9 +36,7 @@ function report(message,type=''){
   if(type==='error')console.warn(message);
 }
 function coreWriteState(){
-  try{
-    return{known:true,ready:remoteReady===true,stamp:String(lastSuccessfulWriteAt||'')};
-  }catch(_){return{known:false,ready:true,stamp:''}}
+  try{return{known:true,ready:remoteReady===true,stamp:String(lastSuccessfulWriteAt||'')}}catch(_){return{known:false,ready:true,stamp:''}}
 }
 function coreWriteSucceeded(before){
   const after=coreWriteState();
@@ -56,10 +54,7 @@ async function resolvePortalAdminClient(){
     if(error||!data?.session?.user)return null;
     const {data:isAdmin,error:adminError}=await client.rpc('is_resort_admin');
     return !adminError&&isAdmin===true?client:null;
-  }catch(error){
-    console.warn('تعذر التحقق من جلسة مدير بوابة العملاء',error);
-    return null;
-  }
+  }catch(error){console.warn('تعذر التحقق من جلسة مدير بوابة العملاء',error);return null}
 }
 async function loadPeriods(client){
   const {data,error}=await client.from(TABLE).select('id,start_date,end_date').order('start_date',{ascending:true});
@@ -77,7 +72,12 @@ async function deletePeriod(client,id){
   const {error}=await client.from(TABLE).delete().eq('id',id);
   if(error)throw error;
 }
-async function saveMappingState(){if(typeof window.persist==='function')await window.persist()}
+async function saveMappingState(){
+  if(typeof window.persist!=='function')return true;
+  const before=coreWriteState();
+  await window.persist();
+  return coreWriteSucceeded(before);
+}
 
 function restoreEditMappings(){
   let restored=false;
@@ -146,7 +146,9 @@ async function reconcileAll(reason='auto'){
       if(!sameMap(oldMap,nextMap)){booking[MAP_KEY]=nextMap;stateChanged=true}
     }
 
-    if(stateChanged)await saveMappingState();
+    if(stateChanged&&!(await saveMappingState())){
+      throw new Error('تم تحديث توفر البوابة، لكن تعذر تثبيت خريطة الربط في Supabase. بقيت الخريطة محفوظة على هذا الجهاز وستدخل مع أول حفظ ناجح لاحقًا.');
+    }
     report(`تمت مزامنة توفر بوابة العملاء (${reason})${deletedCount?`، وتحرير ${deletedCount} حجز محذوف`:''}.`,'success');
     return true;
   }catch(error){
