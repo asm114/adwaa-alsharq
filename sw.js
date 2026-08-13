@@ -1,6 +1,13 @@
-const CACHE='adwaa-v9.6-rc1';
+const CACHE='adwaa-v9.8-stability-20260813';
 const FALLBACK='./index.html';
 const ASSETS=['./index.html','./manifest.json'];
+
+function isAppShellRequest(request){
+  const requestUrl=new URL(request.url);
+  const scopeUrl=new URL(self.registration.scope);
+  const fallbackUrl=new URL(FALLBACK,self.registration.scope);
+  return requestUrl.origin===scopeUrl.origin&&(requestUrl.pathname===scopeUrl.pathname||requestUrl.pathname===fallbackUrl.pathname);
+}
 
 self.addEventListener('install',event=>{
   self.skipWaiting();
@@ -20,8 +27,14 @@ self.addEventListener('fetch',event=>{
   if(event.request.mode==='navigate'){
     event.respondWith(
       fetch(event.request,{cache:'no-store'})
-        .then(response=>response)
-        .catch(()=>caches.match(FALLBACK).then(response=>response||caches.match('./')))
+        .then(async response=>{
+          if(response.ok&&isAppShellRequest(event.request)){
+            const cache=await caches.open(CACHE);
+            await cache.put(FALLBACK,response.clone());
+          }
+          return response;
+        })
+        .catch(()=>caches.match(event.request).then(response=>response||caches.match(FALLBACK)))
     );
     return;
   }
