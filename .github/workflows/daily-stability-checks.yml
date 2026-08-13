@@ -33,7 +33,10 @@ jobs:
             subscription-booking-type.js
             subscription-customer-finance.js
             subscription-flexible-enhancements.js
+            subscription-commission-core.js
+            subscription-revenue-integration.js
             commission-transfer-workflow.js
+            professional-ui-stable.js
             daily-operations-policy.js
             sw.js
             resort/portal-today-highlight.js
