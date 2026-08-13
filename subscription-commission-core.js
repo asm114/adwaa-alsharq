@@ -38,13 +38,12 @@ function amount(sub){
 }
 function snapshotFor(sub){
   const existing=sub?.commissionSnapshot&&typeof sub.commissionSnapshot==='object'?{...sub.commissionSnapshot}:null;
-  if(existing&&['received','received_before_system'].includes(String(existing.status||'')))return existing;
-  if(!commissionEnabled()){
-    if(existing?.status==='no_commission')return existing;
-    return{method:method(),rate:0,days:visits(sub),bookingTotal:num(sub.total),amount:0,earnedAt:'',received:false,receivedAt:null,status:'no_commission',reason:'العمولة معطلة في الإعدادات'};
-  }
-  if(!fullyPaid(sub))return existing?.status==='earned'?null:existing;
-  if(existing?.status==='earned'||existing?.status==='no_commission')return existing;
+  const existingStatus=String(existing?.status||'');
+  if(existing&&['received','received_before_system'].includes(existingStatus))return existing;
+  if(existingStatus==='earned')return fullyPaid(sub)?existing:null;
+  if(existingStatus==='no_commission')return existing;
+  if(!commissionEnabled())return{method:method(),rate:0,days:visits(sub),bookingTotal:num(sub.total),amount:0,earnedAt:'',received:false,receivedAt:null,status:'no_commission',reason:'العمولة معطلة في الإعدادات'};
+  if(!fullyPaid(sub))return existing;
   return{method:method(),rate:rate(),days:visits(sub),bookingTotal:num(sub.total),amount:calculate(sub),earnedAt:nowIso(),received:false,receivedAt:null,status:'earned',remindCommissionAt:null,lastCommissionPromptAt:null};
 }
 function same(a,b){try{return JSON.stringify(a??null)===JSON.stringify(b??null)}catch(_){return a===b}}
