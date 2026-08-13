@@ -30,6 +30,7 @@ jobs:
             portal-booking-sync-stable.js
             portal-final-admin.js
             booking-payment-history.js
+            remaining-payment-flow.js
             subscription-booking-type.js
             subscription-customer-finance.js
             subscription-flexible-enhancements.js
