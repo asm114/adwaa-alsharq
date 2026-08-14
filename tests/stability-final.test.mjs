@@ -45,11 +45,17 @@ test('فشل مزامنة الحجز لا يعرض نافذة منبثقة مر�
   assert.match(js,/بوابة العملاء لم تتزامن بعد/);
 });
 
-test('جلسة مدير البوابة تعلن الجاهزية عند الانتقال للحالة الصحيحة فقط',async()=>{
+test('جلسة مدير البوابة تعلن الجاهزية وتفحص توافق التواريخ بعد الحفظ',async()=>{
   const js=await read('portal-admin-client.js');
   assert.match(js,/const wasReady=window\.portalAdminAuthState\?\.ready===true/);
   assert.match(js,/if\(!wasReady\)\s*\{[\s\S]*?window\.dispatchEvent\(new CustomEvent\('adwaa-portal-admin-ready'\)\)/);
   assert.match(js,/verifyPortalAdmin\(\)\.catch/);
+  assert.match(js,/verifyPortalCalendarConsistency/);
+  assert.match(js,/verifyCalendarConsistency/);
+  assert.match(js,/event\.target\?\.id==='bookingForm'/);
+  assert.match(js,/portalCalendarConsistency/);
+  assert.match(js,/unexplainedSingleDays/);
+  assert.doesNotMatch(js,/unexplained[\s\S]*\.delete\(/);
 });
 
 test('واجهة simplified-ui تحمل من نقطة واحدة فقط',async()=>{
@@ -60,7 +66,7 @@ test('واجهة simplified-ui تحمل من نقطة واحدة فقط',async()
   assert.doesNotMatch(subscription,/simplified-ui\.js/);
 });
 
-test('تقويم بوابة العملاء يحافظ على علامة اليوم ويضيف تحسينات الجوال دون اتصال Supabase إضافي',async()=>{
+test('تقويم بوابة العملاء على الجوال يستخدم شبكة أسبوعية من 7 أعمدة دون اتصال Supabase إضافي',async()=>{
   const js=await read('resort/portal-today-highlight.js');
   assert.doesNotMatch(js,/createClient\s*\(/);
   assert.doesNotMatch(js,/AVAILABILITY_SUPABASE/);
@@ -70,8 +76,8 @@ test('تقويم بوابة العملاء يحافظ على علامة اليو
   assert.match(js,/portal-today/);
   assert.match(js,/headerAvailabilityButton/);
   assert.match(js,/اختر التوفر/);
-  assert.match(js,/calendar-weekday/);
-  assert.match(js,/weekday:'long'/);
+  assert.match(js,/grid-template-columns:repeat\(7,minmax\(0,1fr\)\)/);
+  assert.match(js,/\.weekdays\{display:grid!important/);
   assert.match(js,/floating-whatsapp-compact/);
 });
 
@@ -90,12 +96,12 @@ test('لودرات التدقيق النهائي تستخدم أرقام كاش 
   assert.match(finalAdmin,/booking-payment-history\.js\?v=20260813-2/);
   assert.match(finalAdmin,/subscription-booking-type\.js\?v=20260813-4/);
   assert.match(finalAdmin,/portal-booking-sync-stable\.js\?v=20260813-4/);
-  assert.match(subscription,/portal-admin-client\.js\?v=20260813-2/);
+  assert.match(subscription,/portal-admin-client\.js\?v=20260814-1/);
   assert.match(subscription,/subscription-commission-core\.js\?v=20260813-1/);
   assert.match(subscription,/subscription-revenue-integration\.js\?v=20260813-2/);
   assert.match(subscription,/commission-transfer-workflow\.js\?v=20260813-2/);
   assert.match(subscription,/professional-ui-stable\.js\?v=20260813-2/);
   assert.match(subscription,/daily-operations-policy\.js\?v=20260813-2/);
   assert.ok(subscription.indexOf('subscription-commission-core.js')<subscription.indexOf('commission-transfer-workflow.js'));
-  assert.match(portalHtml,/portal-today-highlight\.js\?v=20260813-3/);
+  assert.match(portalHtml,/portal-today-highlight\.js\?v=20260814-1/);
 });
