@@ -145,3 +145,52 @@ window.supabaseClient?.auth?.onAuthStateChange?.((event)=>{
 
 verifyPortalAdmin().catch(()=>{});
 })();
+
+(()=>{
+'use strict';
+if(window.__adwaaPortalCalendarConsistencyInstalled)return;
+window.__adwaaPortalCalendarConsistencyInstalled=true;
+const TABLE='customer_portal_unavailable_periods';
+const MAP_KEY='portalUnavailablePeriodIds';
+let checking=false;
+const state=()=>window.db;
+const activeBooking=booking=>booking&&booking.status!=='ملغي'&&booking.date;
+function addDays(iso,days){const d=new Date(`${iso}T12:00:00`);d.setDate(d.getDate()+days);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function occupiedDates(booking){if(!activeBooking(booking))return[];const days=booking.type==='مبيت'?Math.max(1,Number(booking.stayDays||1)):1;return Array.from({length:days},(_,i)=>addDays(booking.date,i))}
+function mappingOf(booking){const value=booking?.[MAP_KEY];return value&&typeof value==='object'&&!Array.isArray(value)?{...value}:{}}
+function covering(periods,date){return periods.find(period=>date>=period.start_date&&date<=period.end_date)||null}
+function report(message,type=''){try{window.portalUnavailableStatus?.(message,type)}catch(_){}if(type==='error')console.warn(message)}
+async function verifyCalendarConsistency(reason='فحص تلقائي'){
+  if(checking||!Array.isArray(state()?.bookings))return false;
+  checking=true;
+  try{
+    if(!(await window.verifyPortalAdminSession?.()))return false;
+    let {data:periods,error}=await window.portalAdminClient.from(TABLE).select('id,start_date,end_date').order('start_date',{ascending:true});
+    if(error)throw error;periods=Array.isArray(periods)?periods:[];
+    let repaired=0;
+    for(const booking of state().bookings){
+      for(const date of occupiedDates(booking)){
+        if(covering(periods,date))continue;
+        const {data:created,error:createError}=await window.portalAdminClient.from(TABLE).insert({start_date:date,end_date:date}).select('id,start_date,end_date').single();
+        if(createError)throw createError;
+        if(created){periods.push(created);const map=mappingOf(booking);map[date]=created.id;booking[MAP_KEY]=map;repaired++}
+      }
+    }
+    if(repaired&&typeof window.persist==='function')await window.persist();
+    const desired=new Set(state().bookings.flatMap(occupiedDates));
+    const missing=[...desired].filter(date=>!covering(periods,date));
+    const ownedIds=new Set(state().bookings.flatMap(booking=>Object.values(mappingOf(booking))).filter(Boolean));
+    const unexplained=periods.filter(period=>period.start_date===period.end_date&&!desired.has(period.start_date)&&!ownedIds.has(period.id));
+    window.portalCalendarConsistency={ok:missing.length===0,missingDates:missing,unexplainedSingleDays:unexplained.map(period=>period.start_date),checkedAt:new Date().toISOString()};
+    if(missing.length){report(`تقويم العملاء غير متوافق: ${missing.length} تاريخ حجز ما زال ظاهرًا متاحًا.`,'error');return false}
+    if(repaired)report(`تم إصلاح توافق تقويم العملاء وإغلاق ${repaired} تاريخ كان ناقصًا.`,'success');
+    if(unexplained.length)console.info(`يوجد ${unexplained.length} تاريخ مفرد مغلق غير مملوك لحجز حالي؛ تُرك دون حذف لحماية الإغلاقات اليدوية.`);
+    return true;
+  }catch(error){console.error('فشل فحص توافق تقويم العملاء',error);report(`تعذر فحص توافق تقويم العملاء: ${String(error?.message||'خطأ غير معروف')}`,'error');return false}
+  finally{checking=false}
+}
+window.verifyPortalCalendarConsistency=verifyCalendarConsistency;
+window.addEventListener('adwaa-portal-admin-ready',()=>setTimeout(()=>verifyCalendarConsistency('جلسة البوابة'),1200));
+document.addEventListener('submit',event=>{if(event.target?.id==='bookingForm')setTimeout(()=>verifyCalendarConsistency('بعد حفظ الحجز'),3800)});
+window.addEventListener('adwaa-subscription-updated',()=>setTimeout(()=>verifyCalendarConsistency('بعد تحديث الاشتراك'),1800));
+})();
