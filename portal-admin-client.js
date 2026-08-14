@@ -152,39 +152,109 @@ if(window.__adwaaPortalCalendarConsistencyInstalled)return;
 window.__adwaaPortalCalendarConsistencyInstalled=true;
 const TABLE='customer_portal_unavailable_periods';
 const MAP_KEY='portalUnavailablePeriodIds';
+const SOURCE_BOOKING='booking';
+const SOURCE_LEGACY='legacy';
 let checking=false;
 const state=()=>window.db;
-const activeBooking=booking=>booking&&booking.status!=='ملغي'&&booking.date;
+const activeBooking=booking=>booking&&booking.status!=='ملغي'&&booking.date&&booking.id;
+const bookingId=booking=>String(booking?.id||'');
 function addDays(iso,days){const d=new Date(`${iso}T12:00:00`);d.setDate(d.getDate()+days);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function occupiedDates(booking){if(!activeBooking(booking))return[];const days=booking.type==='مبيت'?Math.max(1,Number(booking.stayDays||1)):1;return Array.from({length:days},(_,i)=>addDays(booking.date,i))}
 function mappingOf(booking){const value=booking?.[MAP_KEY];return value&&typeof value==='object'&&!Array.isArray(value)?{...value}:{}}
+function sameMap(a,b){const ak=Object.keys(a).sort(),bk=Object.keys(b).sort();return ak.length===bk.length&&ak.every((key,index)=>key===bk[index]&&a[key]===b[key])}
 function covering(periods,date){return periods.find(period=>date>=period.start_date&&date<=period.end_date)||null}
+function exactDay(period,date){return period?.start_date===date&&period?.end_date===date}
 function report(message,type=''){try{window.portalUnavailableStatus?.(message,type)}catch(_){}if(type==='error')console.warn(message)}
+async function loadPeriods(){
+  const {data,error}=await window.portalAdminClient.from(TABLE).select('id,start_date,end_date,source_type,booking_id').order('start_date',{ascending:true});
+  if(error)throw error;
+  return Array.isArray(data)?data:[];
+}
+async function createBookingPeriod(date,id){
+  const {data,error}=await window.portalAdminClient.from(TABLE).insert({start_date:date,end_date:date,source_type:SOURCE_BOOKING,booking_id:id}).select('id,start_date,end_date,source_type,booking_id').single();
+  if(error)throw error;
+  return data||null;
+}
+async function adoptLegacyPeriod(period,id){
+  const {data,error}=await window.portalAdminClient.from(TABLE).update({source_type:SOURCE_BOOKING,booking_id:id}).eq('id',period.id).eq('source_type',SOURCE_LEGACY).select('id,start_date,end_date,source_type,booking_id').maybeSingle();
+  if(error)throw error;
+  return data||period;
+}
+async function deleteOwnedPeriod(period){
+  const {error}=await window.portalAdminClient.from(TABLE).delete().eq('id',period.id).eq('source_type',SOURCE_BOOKING);
+  if(error)throw error;
+}
+async function persistMappings(){
+  if(typeof window.persist!=='function')return;
+  await window.persist();
+}
 async function verifyCalendarConsistency(reason='فحص تلقائي'){
   if(checking||!Array.isArray(state()?.bookings))return false;
   checking=true;
   try{
     if(!(await window.verifyPortalAdminSession?.()))return false;
-    let {data:periods,error}=await window.portalAdminClient.from(TABLE).select('id,start_date,end_date').order('start_date',{ascending:true});
-    if(error)throw error;periods=Array.isArray(periods)?periods:[];
-    let repaired=0;
-    for(const booking of state().bookings){
-      for(const date of occupiedDates(booking)){
-        if(covering(periods,date))continue;
-        const {data:created,error:createError}=await window.portalAdminClient.from(TABLE).insert({start_date:date,end_date:date}).select('id,start_date,end_date').single();
-        if(createError)throw createError;
-        if(created){periods.push(created);const map=mappingOf(booking);map[date]=created.id;booking[MAP_KEY]=map;repaired++}
-      }
+    const bookings=state().bookings.filter(activeBooking);
+    const desiredByBooking=new Map(bookings.map(booking=>[bookingId(booking),new Set(occupiedDates(booking))]));
+    let periods=await loadPeriods();
+    let cleaned=0,created=0,adopted=0,stateChanged=false;
+
+    for(const period of [...periods]){
+      if(period.source_type!==SOURCE_BOOKING)continue;
+      const desired=desiredByBooking.get(String(period.booking_id||''));
+      if(desired&&exactDay(period,period.start_date)&&desired.has(period.start_date))continue;
+      await deleteOwnedPeriod(period);
+      periods=periods.filter(item=>item.id!==period.id);
+      cleaned++;
     }
-    if(repaired&&typeof window.persist==='function')await window.persist();
-    const desired=new Set(state().bookings.flatMap(occupiedDates));
+
+    const ownershipConflicts=[];
+    const manualCoveredBookingDates=[];
+    for(const booking of bookings){
+      const id=bookingId(booking);
+      const oldMap=mappingOf(booking);
+      const nextMap={};
+      for(const date of occupiedDates(booking)){
+        let period=covering(periods,date);
+        if(!period){
+          period=await createBookingPeriod(date,id);
+          if(period){periods.push(period);created++}
+        }else if(period.source_type===SOURCE_LEGACY&&exactDay(period,date)){
+          period=await adoptLegacyPeriod(period,id);
+          const index=periods.findIndex(item=>item.id===period.id);
+          if(index>=0)periods[index]=period;
+          adopted++;
+        }
+        if(period?.source_type===SOURCE_BOOKING&&String(period.booking_id||'')===id){
+          nextMap[date]=period.id;
+        }else if(period?.source_type===SOURCE_BOOKING){
+          ownershipConflicts.push(date);
+        }else if(period){
+          manualCoveredBookingDates.push(date);
+        }
+      }
+      if(!sameMap(oldMap,nextMap)){booking[MAP_KEY]=nextMap;stateChanged=true}
+    }
+
+    if(stateChanged)await persistMappings();
+    const desired=new Set(bookings.flatMap(occupiedDates));
     const missing=[...desired].filter(date=>!covering(periods,date));
-    const ownedIds=new Set(state().bookings.flatMap(booking=>Object.values(mappingOf(booking))).filter(Boolean));
-    const unexplained=periods.filter(period=>period.start_date===period.end_date&&!desired.has(period.start_date)&&!ownedIds.has(period.id));
-    window.portalCalendarConsistency={ok:missing.length===0,missingDates:missing,unexplainedSingleDays:unexplained.map(period=>period.start_date),checkedAt:new Date().toISOString()};
-    if(missing.length){report(`تقويم العملاء غير متوافق: ${missing.length} تاريخ حجز ما زال ظاهرًا متاحًا.`,'error');return false}
-    if(repaired)report(`تم إصلاح توافق تقويم العملاء وإغلاق ${repaired} تاريخ كان ناقصًا.`,'success');
-    if(unexplained.length)console.info(`يوجد ${unexplained.length} تاريخ مفرد مغلق غير مملوك لحجز حالي؛ تُرك دون حذف لحماية الإغلاقات اليدوية.`);
+    const unexplained=periods.filter(period=>period.source_type===SOURCE_LEGACY&&period.start_date===period.end_date&&!desired.has(period.start_date));
+    window.portalCalendarConsistency={
+      ok:missing.length===0&&ownershipConflicts.length===0,
+      missingDates:missing,
+      unexplainedSingleDays:unexplained.map(period=>period.start_date),
+      legacyUnownedSingleDays:unexplained.map(period=>period.start_date),
+      manualCoveredBookingDates:[...new Set(manualCoveredBookingDates)],
+      ownershipConflicts:[...new Set(ownershipConflicts)],
+      createdBookingClosures:created,
+      adoptedLegacyClosures:adopted,
+      cleanedBookingClosures:cleaned,
+      checkedAt:new Date().toISOString(),
+      reason
+    };
+    if(missing.length||ownershipConflicts.length){report(`تقويم العملاء غير متوافق: ${missing.length+ownershipConflicts.length} تاريخ يحتاج مراجعة.`,'error');return false}
+    if(created||adopted||cleaned)report(`تم تصحيح ربط تقويم العملاء: إضافة ${created}، اعتماد ${adopted}، تحرير ${cleaned}.`,'success');
+    if(unexplained.length)console.info(`يوجد ${unexplained.length} تاريخ قديم غير مملوك لحجز حالي؛ تُرك دون حذف حتى تتم مراجعته بأمان.`);
     return true;
   }catch(error){console.error('فشل فحص توافق تقويم العملاء',error);report(`تعذر فحص توافق تقويم العملاء: ${String(error?.message||'خطأ غير معروف')}`,'error');return false}
   finally{checking=false}
@@ -192,5 +262,6 @@ async function verifyCalendarConsistency(reason='فحص تلقائي'){
 window.verifyPortalCalendarConsistency=verifyCalendarConsistency;
 window.addEventListener('adwaa-portal-admin-ready',()=>setTimeout(()=>verifyCalendarConsistency('جلسة البوابة'),1200));
 document.addEventListener('submit',event=>{if(event.target?.id==='bookingForm')setTimeout(()=>verifyCalendarConsistency('بعد حفظ الحجز'),3800)});
+document.addEventListener('click',event=>{if(event.target?.closest?.('#deleteBookingBtn'))setTimeout(()=>verifyCalendarConsistency('بعد حذف الحجز'),3800)});
 window.addEventListener('adwaa-subscription-updated',()=>setTimeout(()=>verifyCalendarConsistency('بعد تحديث الاشتراك'),1800));
 })();
