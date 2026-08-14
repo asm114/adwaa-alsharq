@@ -45,7 +45,7 @@ test('فشل مزامنة الحجز لا يعرض نافذة منبثقة مر�
   assert.match(js,/بوابة العملاء لم تتزامن بعد/);
 });
 
-test('جلسة مدير البوابة تعلن الجاهزية وتفحص توافق التواريخ بعد الحفظ',async()=>{
+test('جلسة مدير البوابة تعلن الجاهزية وتفحص توافق التواريخ مع ملكية مصدر الإغلاق',async()=>{
   const js=await read('portal-admin-client.js');
   assert.match(js,/const wasReady=window\.portalAdminAuthState\?\.ready===true/);
   assert.match(js,/if\(!wasReady\)\s*\{[\s\S]*?window\.dispatchEvent\(new CustomEvent\('adwaa-portal-admin-ready'\)\)/);
@@ -53,8 +53,15 @@ test('جلسة مدير البوابة تعلن الجاهزية وتفحص تو
   assert.match(js,/verifyPortalCalendarConsistency/);
   assert.match(js,/verifyCalendarConsistency/);
   assert.match(js,/event\.target\?\.id==='bookingForm'/);
+  assert.match(js,/deleteBookingBtn/);
   assert.match(js,/portalCalendarConsistency/);
   assert.match(js,/unexplainedSingleDays/);
+  assert.match(js,/source_type,booking_id/);
+  assert.match(js,/SOURCE_BOOKING='booking'/);
+  assert.match(js,/SOURCE_LEGACY='legacy'/);
+  assert.match(js,/adoptLegacyPeriod/);
+  assert.match(js,/deleteOwnedPeriod/);
+  assert.match(js,/\.eq\('source_type',SOURCE_BOOKING\)/);
   assert.doesNotMatch(js,/unexplained[\s\S]*\.delete\(/);
 });
 
@@ -96,7 +103,7 @@ test('لودرات التدقيق النهائي تستخدم أرقام كاش 
   assert.match(finalAdmin,/booking-payment-history\.js\?v=20260813-2/);
   assert.match(finalAdmin,/subscription-booking-type\.js\?v=20260813-4/);
   assert.match(finalAdmin,/portal-booking-sync-stable\.js\?v=20260813-4/);
-  assert.match(subscription,/portal-admin-client\.js\?v=20260814-1/);
+  assert.match(subscription,/portal-admin-client\.js\?v=20260814-2/);
   assert.match(subscription,/subscription-commission-core\.js\?v=20260813-1/);
   assert.match(subscription,/subscription-revenue-integration\.js\?v=20260813-2/);
   assert.match(subscription,/commission-transfer-workflow\.js\?v=20260813-2/);
