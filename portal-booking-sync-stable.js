@@ -5,6 +5,7 @@ window.__adwaaPortalBookingSyncStableInstalled=true;
 
 const TABLE='customer_portal_unavailable_periods';
 const MAP_KEY='portalUnavailablePeriodIds';
+const SOURCE_BOOKING='booking';
 const CORE_SYNC_ALERT='تعذر مزامنة آخر تعديل';
 let syncing=false;
 let rerunRequested=false;
@@ -120,19 +121,24 @@ async function resolvePortalAdminClient(){
   }catch(error){console.warn('تعذر التحقق من جلسة مدير بوابة العملاء',error);return null}
 }
 async function loadPeriods(client){
-  const {data,error}=await client.from(TABLE).select('id,start_date,end_date').order('start_date',{ascending:true});
+  const {data,error}=await client.from(TABLE).select('id,start_date,end_date,source_type,booking_id').order('start_date',{ascending:true});
   if(error)throw error;
   return Array.isArray(data)?data:[];
 }
 function periodCovering(periods,date){return periods.find(period=>date>=period.start_date&&date<=period.end_date)||null}
-async function createPeriod(client,date){
-  const {data,error}=await client.from(TABLE).insert({start_date:date,end_date:date}).select('id,start_date,end_date').single();
+async function createPeriod(client,date,bookingId){
+  const owner=String(bookingId||'').trim();
+  if(!owner)throw new Error('تعذر إنشاء إغلاق الحجز بدون معرف ملكية.');
+  const {data,error}=await client.from(TABLE).insert({start_date:date,end_date:date,source_type:SOURCE_BOOKING,booking_id:owner}).select('id,start_date,end_date,source_type,booking_id').single();
   if(error)throw error;
   return data||null;
 }
-async function deletePeriod(client,id){
+async function deletePeriod(client,id,bookingId){
   if(!id)return;
-  const {error}=await client.from(TABLE).delete().eq('id',id);
+  let query=client.from(TABLE).delete().eq('id',id).eq('source_type',SOURCE_BOOKING);
+  const owner=String(bookingId||'').trim();
+  if(owner)query=query.eq('booking_id',owner);
+  const {error}=await query;
   if(error)throw error;
 }
 async function saveMappingState(){
@@ -158,7 +164,7 @@ async function flushCapturedDeletes(client){
   for(const [bookingId,map] of [...pendingDeletes]){
     const stillExists=(state()?.bookings||[]).some(booking=>booking.id===bookingId);
     if(stillExists){pendingDeletes.delete(bookingId);continue}
-    for(const id of [...new Set(Object.values(map||{}).filter(Boolean))])await deletePeriod(client,id);
+    for(const id of [...new Set(Object.values(map||{}).filter(Boolean))])await deletePeriod(client,id,bookingId);
     pendingDeletes.delete(bookingId);
     cleaned++;
   }
@@ -192,7 +198,7 @@ async function reconcileAll(reason='auto'){
 
       for(const [date,id] of Object.entries(oldMap)){
         if(desired.has(date))continue;
-        await deletePeriod(client,id);
+        await deletePeriod(client,id,booking.id);
         periods=periods.filter(period=>period.id!==id);
         delete nextMap[date];
       }
@@ -200,7 +206,7 @@ async function reconcileAll(reason='auto'){
       for(const date of desired){
         if(nextMap[date]||periodCovering(periods,date))continue;
         try{
-          const created=await createPeriod(client,date);
+          const created=await createPeriod(client,date,booking.id);
           if(created){periods.push(created);nextMap[date]=created.id}
         }catch(error){
           const message=String(error?.message||'');
