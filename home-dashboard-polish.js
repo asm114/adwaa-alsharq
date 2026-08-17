@@ -10,6 +10,17 @@ const norm=value=>String(value||'').replace(/\s+/g,' ').trim();
 function isHome(){return document.body.classList.contains('simple-view-home')||document.querySelector('#dashboard.view.active')}
 function statById(id){return document.getElementById(id)?.closest('.stat')||null}
 
+function removeLocalAssistantFeature(){
+  document.getElementById('localAssistantCard')?.remove();
+  window.runLocalAssistant=undefined;
+  window.parseAssistantDate=undefined;
+  window.initRCCandidateUI=function(){
+    const duplicate=[...document.querySelectorAll('nav button[data-view="cleaning"]')];
+    if(duplicate.length>1){duplicate[0].innerHTML='<b>🧹</b>التنظيف وجميل';duplicate.slice(1).forEach(item=>item.remove())}
+    document.getElementById('localAssistantCard')?.remove();
+  };
+}
+
 function updatePrivacyButton(){
   const button=document.getElementById('amountPrivacyToggle');if(!button)return;
   const hidden=document.body.classList.contains('amounts-hidden');
@@ -56,6 +67,7 @@ function compactStatusCard(){
 }
 
 function apply(){
+  removeLocalAssistantFeature();
   updatePrivacyButton();removeBookingShortcutsOutsideBookings();
   if(isHome()){arrangeStats();compactStatusCard()}
 }
@@ -70,6 +82,7 @@ function addStyles(){
 }
 
 function initialize(){
+  removeLocalAssistantFeature();
   addStyles();
   apply();setTimeout(apply,350);setTimeout(apply,1400);
   new MutationObserver(()=>setTimeout(apply,0)).observe(document.body,{attributes:true,attributeFilter:['class']});
