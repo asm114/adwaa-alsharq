@@ -2,7 +2,9 @@
 'use strict';
 
 function isHighDemandPortalDay(date){
-  return date instanceof Date&&(date.getDay()===4||date.getDay()===5);
+  if(!date||typeof date.getDay!=='function')return false;
+  const day=date.getDay();
+  return day===4||day===5;
 }
 
 try{
