@@ -60,8 +60,17 @@ function apply(){
   if(isHome()){arrangeStats();compactStatusCard()}
 }
 
+function addStyles(){
+  if(!document.querySelector('link[data-home-dashboard-polish]')){
+    const link=document.createElement('link');link.rel='stylesheet';link.href='home-dashboard-polish.css?v=20260808-1';link.dataset.homeDashboardPolish='1';document.head.appendChild(link);
+  }
+  if(!document.querySelector('link[data-app-experience-pro]')){
+    const link=document.createElement('link');link.rel='stylesheet';link.href='app-experience-pro.css?v=20260817-1';link.dataset.appExperiencePro='1';document.head.appendChild(link);
+  }
+}
+
 function initialize(){
-  if(!document.querySelector('link[data-home-dashboard-polish]')){const link=document.createElement('link');link.rel='stylesheet';link.href='home-dashboard-polish.css?v=20260808-1';link.dataset.homeDashboardPolish='1';document.head.appendChild(link)}
+  addStyles();
   apply();setTimeout(apply,350);setTimeout(apply,1400);
   new MutationObserver(()=>setTimeout(apply,0)).observe(document.body,{attributes:true,attributeFilter:['class']});
   document.addEventListener('click',()=>setTimeout(apply,30),true);
