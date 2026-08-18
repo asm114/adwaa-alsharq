@@ -954,13 +954,33 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 </nav>
 </div>
 
-<div class="modal" id="bookingModal"><div class="sheet">
+<style>
+/* Booking form phase one: scoped structure and accessibility only. */
+#bookingModal .booking-form-section{grid-column:1/-1;min-width:0;margin:0;padding:14px;border:1px solid var(--line);border-radius:16px;background:#fff}
+#bookingModal .booking-form-section>legend{padding:0 8px;color:#0a4439;font-size:14px;font-weight:800}
+#bookingModal .booking-section-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;min-width:0}
+#bookingModal .booking-section-grid>*{min-width:0}
+#bookingModal .booking-section-grid>.full,#bookingModal .booking-section-grid>.photo-center,#bookingModal .booking-section-grid>.v92-send-center{grid-column:1/-1}
+#bookingModal .booking-required{display:inline-flex;margin-inline-start:6px;padding:2px 7px;border:1px solid #c89231;border-radius:999px;background:#fff;color:#9a6a16;font-size:12px;font-weight:800;line-height:1.4}
+#bookingModal input[readonly],#bookingModal textarea[readonly],#bookingModal select[disabled]{border-color:#61706b!important;background:#f4f6f5!important;color:#61706b!important;box-shadow:none!important;cursor:default}
+#bookingModal .booking-photo-control{min-width:0}
+#bookingModal .booking-photo-control .label{margin-bottom:5px}
+#bookingModal .booking-photo-control select,#bookingModal .booking-photo-control input{max-width:none!important}
+@media(max-width:620px){
+  #bookingModal .booking-form-section{padding:12px}
+  #bookingModal .booking-section-grid{grid-template-columns:minmax(0,1fr);gap:12px}
+  #bookingModal .booking-section-grid>*{grid-column:1/-1}
+  #bookingModal .photo-toolbar{align-items:stretch}
+  #bookingModal .photo-toolbar>*{width:100%;max-width:none!important}
+}
+</style>
+<div class="modal" id="bookingModal" role="dialog" aria-modal="true" aria-labelledby="bookingModalTitle"><div class="sheet">
 <div class="sheet-head">
   <div class="v92-booking-head">
     <h2 id="bookingModalTitle">إضافة حجز</h2>
     <div class="v92-booking-tools">
-      <button class="secondary" type="button" onclick="backToBookingDetails()">↩ رجوع للحجز</button>
-      <button class="secondary" type="button" onclick="refreshBookingData()">⟳ تحديث البيانات</button>
+      <button class="secondary" type="button" onclick="closeBookingAndReturn()">↩ رجوع بدون حفظ</button>
+      <button class="secondary" type="button" onclick="refreshBookingData()">⟳ تحديث من المصدر</button>
       <button class="close" type="button" onclick="closeBookingAndReturn()" aria-label="إغلاق والعودة للنظام">×</button>
     </div>
   </div>
@@ -970,29 +990,32 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <div id="voiceHint" class="meta" style="margin:8px 0 12px">مثال: محمد العتيبي يوم 25 يوليو عربون 200 الإجمالي 700 مبيت</div>
 <form id="bookingForm" class="form-grid" onsubmit="saveBooking(event)">
 <input type="hidden" id="bId">
-<div><label class="label">نوع السجل</label><select id="bRecordType" onchange="updateRecordTypeUI()"><option value="customer">حجز عميل</option><option value="family">تواجد العائلة</option></select></div>
-<div class="field-wrap"><label class="label">اسم العميل</label><input id="bName" required autocomplete="off" autocapitalize="words" oninput="scheduleCustomerSuggestions()"><div id="customerSuggestions" class="suggestions" style="display:none"></div></div>
-<div><label class="label">رقم الجوال</label><input id="bPhone" inputmode="tel" autocomplete="tel"></div>
-<div><label class="label">تاريخ الحجز</label><input id="bDate" type="date" required onchange="updateStayFields();checkSelectedDate()"><div id="dateHint" class="meta" style="margin-top:5px"></div></div>
-<div><label class="label">نوع الحجز</label><select id="bType" onchange="updateStayFields()"><option>يومي</option><option>مبيت</option></select></div>
-<div id="stayDaysWrap" style="display:none">
-  <label class="label">عدد أيام المبيت</label>
-  <input id="bStayDays" type="number" min="1" max="30" value="1" oninput="updateStayFields()">
-  <div id="stayDateHint" class="meta" style="margin-top:5px"></div>
-</div>
-<div><label class="label help-inline">العربون/المدفوع <span data-help="depositReceipt"></span></label><input id="bPaid" type="number" min="0" value="0"></div>
-<div><label class="label">المبلغ الإجمالي</label><input id="bTotal" type="number" min="0" value="0"></div>
-<div><label class="label help-inline">الحالة <span data-help="confirmBooking"></span><span data-help="cancelBooking"></span></label><select id="bStatus"><option>مؤكد</option><option>غير مؤكد</option><option>تم الدخول</option><option>تم الخروج</option><option>ملغي</option></select></div>
-<div><label class="label">رقم الحجز</label><input id="bCode" readonly></div>
-<div class="full"><label class="label">ملاحظات</label><textarea id="bNotes"></textarea></div>
+<fieldset class="booking-form-section"><legend>بيانات العميل</legend><div class="booking-section-grid">
+<div><label class="label" for="bRecordType">نوع السجل</label><select id="bRecordType" onchange="updateRecordTypeUI()"><option value="customer">حجز عميل</option><option value="family">تواجد العائلة</option></select></div>
+<div class="field-wrap"><label class="label" for="bName">اسم العميل <span class="booking-required" aria-hidden="true">مطلوب</span></label><input id="bName" required autocomplete="off" autocapitalize="words" oninput="scheduleCustomerSuggestions()"><div id="customerSuggestions" class="suggestions" style="display:none"></div></div>
+<div><label class="label" for="bPhone">رقم الجوال</label><input id="bPhone" inputmode="tel" autocomplete="tel"></div>
+</div></fieldset>
+<fieldset class="booking-form-section"><legend>تفاصيل الحجز/الإقامة</legend><div class="booking-section-grid">
+<div><label class="label" for="bDate">تاريخ الحجز <span class="booking-required" aria-hidden="true">مطلوب</span></label><input id="bDate" type="date" required onchange="updateStayFields();checkSelectedDate()"><div id="dateHint" class="meta" style="margin-top:5px"></div></div>
+<div><label class="label" for="bType">نوع الحجز</label><select id="bType" onchange="updateStayFields()"><option>يومي</option><option>مبيت</option></select></div>
+<div id="stayDaysWrap" style="display:none"><label class="label" for="bStayDays">عدد أيام المبيت</label><input id="bStayDays" type="number" min="1" max="30" value="1" oninput="updateStayFields()"><div id="stayDateHint" class="meta" style="margin-top:5px"></div></div>
+<div><label class="label help-inline" for="bStatus">الحالة <span data-help="confirmBooking"></span><span data-help="cancelBooking"></span></label><select id="bStatus"><option>مؤكد</option><option>غير مؤكد</option><option>تم الدخول</option><option>تم الخروج</option><option>ملغي</option></select></div>
+<div><label class="label" for="bCode">رقم الحجز</label><input id="bCode" readonly></div>
+</div></fieldset>
+<fieldset class="booking-form-section"><legend>الدفع</legend><div class="booking-section-grid">
+<div><label class="label help-inline" for="bPaid">العربون/المدفوع <span data-help="depositReceipt"></span></label><input id="bPaid" type="number" min="0" value="0"></div>
+<div><label class="label" for="bTotal">المبلغ الإجمالي</label><input id="bTotal" type="number" min="0" value="0"></div>
+</div></fieldset>
+<fieldset class="booking-form-section"><legend>الملاحظات والصور</legend><div class="booking-section-grid">
+<div class="full"><label class="label" for="bNotes">ملاحظات</label><textarea id="bNotes"></textarea></div>
 <div class="photo-center">
   <div class="section-head" style="margin:0">
     <div><h3>📷 صور الحجز</h3><div class="meta">صور قبل دخول العميل وبعد المغادرة لحفظ حالة المنتجع</div></div>
     <span id="bookingPhotoCount" class="photo-count">0 صورة</span>
   </div>
   <div class="photo-toolbar">
-    <select id="photoType" style="max-width:180px"><option value="before">قبل الدخول</option><option value="after">بعد المغادرة</option></select>
-    <input id="photoUploaderName" placeholder="اسم من رفع الصورة" style="max-width:210px">
+    <div class="booking-photo-control"><label class="label" for="photoType">مرحلة الصورة</label><select id="photoType"><option value="before">قبل الدخول</option><option value="after">بعد المغادرة</option></select></div>
+    <div class="booking-photo-control"><label class="label" for="photoUploaderName">اسم رافع الصورة</label><input id="photoUploaderName" placeholder="اسم من رفع الصورة"></div>
     <input id="photoInput" type="file" accept="image/*" multiple capture="environment" style="display:none" onchange="handleBookingPhotos(event)">
     <button class="secondary" type="button" onclick="document.getElementById('photoInput').click()">📷 إضافة صور</button>
     <button id="togglePhotosBtn" class="secondary" type="button" onclick="toggleBookingPhotos()">عرض الصور</button>
@@ -1000,17 +1023,19 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
   <div class="photo-warning">يتم تصغير الصور تلقائيًا لتسهيل الحفظ والمزامنة. الحد الأقصى 12 صورة لكل حجز.</div>
   <div id="bookingPhotoGrid" class="photo-grid"></div>
 </div>
+</div></fieldset>
 
 <div class="full actions">
 <button class="primary" type="submit">حفظ الحجز</button>
 <span class="help-action"><button class="danger" id="deleteBookingBtn" type="button" onclick="deleteBooking()" style="display:none">حذف</button><span id="deleteBookingHelp" data-help="deleteBooking" style="display:none"></span></span>
 </div>
+<fieldset class="booking-form-section"><legend>الإرسال</legend><div class="booking-section-grid">
 <div class="send-center v92-send-center" id="v92SendCenter">
   <div class="v92-send-head">
     <div><h3>📲 مركز الإرسال اليدوي</h3><div class="meta">إنشاء المستندات وإرسال الرسائل مع حفظ تاريخ ووقت كل عملية.</div></div>
     <div class="v92-send-toolbar">
-      <button class="secondary" type="button" onclick="backToBookingDetails()">↩ رجوع للحجز</button>
-      <button class="secondary" type="button" onclick="refreshBookingData()">⟳ تحديث البيانات</button>
+      <button class="secondary" type="button" onclick="closeBookingAndReturn()">↩ رجوع بدون حفظ</button>
+      <button class="secondary" type="button" onclick="refreshBookingData()">⟳ تحديث من المصدر</button>
       <button class="danger" type="button" onclick="closeBookingAndReturn()">إغلاق والعودة للنظام</button>
     </div>
   </div>
@@ -1054,6 +1079,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
     <div id="v92ActivityList" class="v92-activity-list"><div class="v92-empty">لا توجد عمليات مسجلة بعد.</div></div>
   </section>
 </div>
+</div></fieldset>
 </form></div></div>
 
 <div id="helpPopover" class="help-popover" role="dialog" aria-modal="true" aria-labelledby="helpPopoverTitle" onclick="if(event.target===this)closeHelp()">

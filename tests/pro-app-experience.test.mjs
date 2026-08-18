@@ -67,3 +67,27 @@ test('legacy enhancements do not reintroduce forbidden header actions',()=>{
   assert.match(browserControls,/button\.hidden=hide;button\.inert=hide/);
   assert.doesNotMatch(professionalCss,/header \.icon-btn/);
 });
+
+test('booking modal actions name their real behavior and preserve the existing save path',()=>{
+  const modal=index.slice(index.indexOf('id="bookingModal"'),index.indexOf('id="helpPopover"'));
+  assert.match(modal,/onsubmit="saveBooking\(event\)"/);
+  assert.match(modal,/type="submit">حفظ الحجز<\/button>/);
+  assert.match(modal,/onclick="closeBookingAndReturn\(\)">↩ رجوع بدون حفظ<\/button>/);
+  assert.match(modal,/onclick="refreshBookingData\(\)">⟳ تحديث من المصدر<\/button>/);
+  assert.doesNotMatch(modal,/onclick="backToBookingDetails\(\)"/);
+  assert.doesNotMatch(modal,/حفظ التعديلات/);
+  assert.doesNotMatch(professional,/button\.textContent='حفظ التعديلات'/);
+});
+
+test('booking modal has semantic sections, connected labels, required cues, and scoped readonly styling',()=>{
+  const modal=index.slice(index.indexOf('id="bookingModal"'),index.indexOf('id="helpPopover"'));
+  for(const heading of ['بيانات العميل','تفاصيل الحجز/الإقامة','الدفع','الملاحظات والصور','الإرسال']){
+    assert.match(modal,new RegExp(`<legend>${heading}<\\/legend>`));
+  }
+  for(const id of ['bRecordType','bName','bPhone','bDate','bType','bStayDays','bStatus','bCode','bPaid','bTotal','bNotes','photoType','photoUploaderName']){
+    assert.match(modal,new RegExp(`<label[^>]+for="${id}"`));
+  }
+  assert.equal((modal.match(/class="booking-required"/g)||[]).length,2);
+  assert.match(index,/#bookingModal input\[readonly\]/);
+  assert.match(modal,/role="dialog" aria-modal="true" aria-labelledby="bookingModalTitle"/);
+});

@@ -28,7 +28,7 @@ function scopeAddBooking(){
 function clarifyBookingActions(){
   document.querySelectorAll('#bookingModal button').forEach(button=>{
     const text=norm(button.textContent);
-    if(text==='تحديث البيانات'||text==='تحديث')button.textContent='حفظ التعديلات';
+    if(text==='تحديث البيانات'||text==='تحديث'||text==='حفظ التعديلات')button.textContent='تحديث من المصدر';
     if(text==='رجوع للحجز')button.textContent='رجوع بدون حفظ';
   });
 }
