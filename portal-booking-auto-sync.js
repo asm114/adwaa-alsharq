@@ -217,6 +217,7 @@ function bindDirectEvents(){
     schedule('حذف حجز',1100);
   },true);
   window.addEventListener('adwaa-subscription-updated',()=>schedule('تحديث اشتراك',500));
+  window.addEventListener('adwaa-portal-admin-ready',()=>schedule('جاهزية جلسة بوابة العملاء',250));
   window.addEventListener('focus',()=>schedule('عودة للنظام',300));
   window.addEventListener('online',()=>schedule('عودة الاتصال',300));
 }
