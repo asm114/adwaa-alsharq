@@ -1,3 +1,4 @@
+// Refresh environment routing assets without changing the established cache contract.
 const CACHE='adwaa-staging-app-state-20260818';
 const FALLBACK='./index.html';
 const ASSETS=['./index.html','./manifest.json','./supabase-config.staging.js'];
