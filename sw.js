@@ -1,6 +1,6 @@
-const CACHE='adwaa-v9.8-stability-20260813';
+const CACHE='adwaa-staging-app-state-20260818';
 const FALLBACK='./index.html';
-const ASSETS=['./index.html','./manifest.json'];
+const ASSETS=['./index.html','./manifest.json','./supabase-config.staging.js'];
 
 function isAppShellRequest(request){
   const requestUrl=new URL(request.url);

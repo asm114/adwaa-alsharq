@@ -439,13 +439,15 @@ test('تقوية الميزات النهائية تنظف الرفع الفاش�
   assert.doesNotMatch(admin,/upload_token_hash/);
 });
 
-test('فحص النظام يدعم app_state القديم في Production دون owner_id أو تعطيل RLS',async()=>{
-  const html=await read('index.html');
+test('فحص النظام يدعم app_state في Staging دون owner_id أو تعطيل RLS',async()=>{
+  const [html,config]=await Promise.all([read('index.html'),read('supabase-config.staging.js')]);
   const legacyWrites=html.match(/\.upsert\(\{id:STATE_ROW_ID,data:(?:db|next),updated_at:/g)||[];
   assert.equal(legacyWrites.length,3);
   assert.match(html,/async function runSystemDatabaseHealthCheck\(\)/);
-  assert.match(html,/SUPABASE_URL='https:\/\/pgdvlklpyrvmwzitsmbw\.supabase\.co'/);
-  assert.match(html,/SUPABASE_PUBLISHABLE_KEY='sb_publishable_BFTIR_8VK2qQuKnl2c-jDA_cMnWz0E-'/);
+  assert.match(html,/window\.ADWAA_SUPABASE_CONFIG/);
+  assert.match(config,/STAGING_PROJECT_REF='ztqqdjryvecscidxxbfe'/);
+  assert.match(config,/PRODUCTION_PROJECT_REF='pgdvlklpyrvmwzitsmbw'/);
+  assert.match(config,/projectRef===PRODUCTION_PROJECT_REF/);
   assert.match(html,/\.select\('data'\)/);
   assert.match(html,/\.select\('id,data,updated_at'\)/);
   assert.match(html,/\.update\(\{updated_at:row\.updated_at\}\)\.eq\('id',STATE_ROW_ID\)/);

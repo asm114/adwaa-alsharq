@@ -1206,11 +1206,11 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <div class="meta" style="margin-bottom:12px">اختر الحالة الحالية، وستظهر مباشرة على جميع الأجهزة.</div>
 <div id="resortStatusOptions" class="status-options"></div>
 </div></div>
+<script src="supabase-config.staging.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
-const SUPABASE_URL='https://pgdvlklpyrvmwzitsmbw.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY='sb_publishable_BFTIR_8VK2qQuKnl2c-jDA_cMnWz0E-';
+const {url:SUPABASE_URL,publishableKey:SUPABASE_PUBLISHABLE_KEY,projectRef:SUPABASE_PROJECT_REF,environment:APP_ENVIRONMENT}=window.ADWAA_SUPABASE_CONFIG;
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 window.supabaseClient=supabaseClient;
 const STATE_ROW_ID='main';

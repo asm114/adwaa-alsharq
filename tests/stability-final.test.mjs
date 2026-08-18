@@ -90,7 +90,8 @@ test('تقويم بوابة العملاء على الجوال يستخدم شب
 
 test('Service Worker يستخدم كاش الإصدار الحالي ويحدث fallback عند نجاح فتح التطبيق',async()=>{
   const sw=await read('sw.js');
-  assert.match(sw,/adwaa-v9\.8-stability-20260813/);
+  assert.match(sw,/adwaa-staging-app-state-20260818/);
+  assert.match(sw,/supabase-config\.staging\.js/);
   assert.match(sw,/isAppShellRequest/);
   assert.match(sw,/cache\.put\(FALLBACK,response\.clone\(\)\)/);
   assert.doesNotMatch(sw,/adwaa-v9\.6-rc1/);

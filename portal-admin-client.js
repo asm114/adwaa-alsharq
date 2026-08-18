@@ -1,10 +1,15 @@
 (()=>{
 'use strict';
 if(window.__adwaaPortalAdminClientInstalled)return;
+const portalSupabaseConfig=window.ADWAA_SUPABASE_CONFIG;
+if(!portalSupabaseConfig||portalSupabaseConfig.environment!=='staging'){
+  throw new Error('تم منع عميل بوابة الإدارة من العمل دون إعداد Staging المعتمد.');
+}
+window.__adwaaValidateStagingSupabaseConfig?.(portalSupabaseConfig);
 window.__adwaaPortalAdminClientInstalled=true;
 
-const PORTAL_SUPABASE_URL='https://ztqqdjryvecscidxxbfe.supabase.co';
-const PORTAL_SUPABASE_PUBLISHABLE_KEY='sb_publishable_M3MQwFfxiMMKt_-tq-KAjQ_OQTtg2MD';
+const PORTAL_SUPABASE_URL=portalSupabaseConfig.url;
+const PORTAL_SUPABASE_PUBLISHABLE_KEY=portalSupabaseConfig.publishableKey;
 
 if(!window.supabase?.createClient){
   console.warn('تعذر تهيئة عميل بوابة العملاء: مكتبة Supabase غير متاحة.');
