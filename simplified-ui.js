@@ -40,10 +40,8 @@ function addStylesheet(){
 
 function enhanceHeader(){
   const header=document.querySelector('header');if(!header)return;
-  const subtitle=header.querySelector('.subtitle');
-  if(subtitle&&!document.getElementById('simpleHeaderChip')){
-    const chip=document.createElement('span');chip.id='simpleHeaderChip';chip.className='simple-ui-chip';chip.textContent='واجهة يومية';subtitle.insertAdjacentElement('afterend',chip);
-  }
+  const date=document.getElementById('headerTodayDate');
+  if(date)date.textContent=new Date().toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 }
 
 function setViewClass(label){
@@ -52,6 +50,8 @@ function setViewClass(label){
   const key=Object.keys(VIEW_CLASS_MAP).find(item=>exact===item);
   const view=key?VIEW_CLASS_MAP[key]:'other';
   document.body.classList.add(`simple-view-${view}`);
+  document.querySelectorAll('nav>button').forEach(button=>button.removeAttribute('aria-current'));
+  document.querySelector('nav>button.active')?.setAttribute('aria-current','page');
   if(view==='home')setTimeout(compactHome,20);
 }
 
@@ -61,8 +61,7 @@ function clickNav(label){
   button?.click();
 }
 function addBooking(){
-  const primary=document.querySelector('header .icon-btn');
-  if(primary){primary.click();return}
+  if(typeof window.openBooking==='function'){window.openBooking();return}
   const button=[...document.querySelectorAll('button')].find(item=>normalize(item.textContent).includes('حجز جديد'));
   button?.click();
 }
@@ -70,27 +69,7 @@ function addBooking(){
 function compactHome(){
   const home=document.querySelector('.view.active');
   if(!home||!document.body.classList.contains('simple-view-home'))return false;
-  let dashboard=document.getElementById('simpleHomeDashboard');
-  if(!dashboard){
-    dashboard=document.createElement('section');dashboard.id='simpleHomeDashboard';dashboard.className='simple-home-dashboard';
-    dashboard.innerHTML='<div class="simple-home-title"><div><span>ملخص اليوم</span><h2>كل المهم في شاشة واحدة</h2></div><div class="simple-home-date"></div></div><div class="simple-home-stats"></div><div class="simple-home-actions"><button type="button" data-action="booking">＋ إضافة حجز</button><button type="button" data-action="calendar">▦ عرض التقويم</button><button type="button" data-action="customers">♟ العملاء</button><button type="button" data-action="finance">◫ المالية</button></div>';
-    dashboard.querySelector('[data-action="booking"]').addEventListener('click',addBooking);
-    dashboard.querySelector('[data-action="calendar"]').addEventListener('click',()=>clickNav('التقويم'));
-    dashboard.querySelector('[data-action="customers"]').addEventListener('click',()=>clickNav('العملاء'));
-    dashboard.querySelector('[data-action="finance"]').addEventListener('click',()=>{clickNav('المالية');clickNav('المصاريف')});
-    home.prepend(dashboard);
-  }else if(dashboard.parentElement!==home){home.prepend(dashboard)}
-  const date=dashboard.querySelector('.simple-home-date');
-  if(date)date.textContent=new Date().toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'long'});
-  const statRoot=dashboard.querySelector('.simple-home-stats');
-  const stats=[...home.querySelectorAll('.stat')].filter(item=>!statRoot.contains(item)).slice(0,4);
-  stats.forEach(item=>statRoot.appendChild(item));
-  [...home.querySelectorAll('.section,article,section')].forEach(item=>{
-    if(item===dashboard||dashboard.contains(item))return;
-    const text=normalize(item.querySelector('h2,h3,h4')?.textContent||item.textContent.slice(0,120));
-    if(/التحليلات الشهرية|الإيرادات الشهرية|عدد الحجوزات شهري|نسبة الإشغال|آخر 12 شهر/.test(text))item.classList.add('simple-home-analytics-hidden');
-    if(/لوحة اليوم|دخول اليوم|خروج اليوم/.test(text))item.classList.add('simple-home-mobile-hidden');
-  });
+  document.getElementById('headerTodayDate')&&(document.getElementById('headerTodayDate').textContent=new Date().toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'long',year:'numeric'}));
   return true;
 }
 
@@ -106,12 +85,13 @@ function createDrawer(extraButtons){
     item.innerHTML=`<span class="simple-more-icon">${iconFrom(original)}</span><span><strong>${displayLabel(label)}</strong><small>${description(label)}</small></span>`;
     item.addEventListener('click',()=>{original.click();setViewClass(label);closeDrawer()});list.appendChild(item);
   });
+  overlay.setAttribute('aria-hidden','true');drawer.inert=true;
   overlay.appendChild(drawer);document.body.appendChild(overlay);
   overlay.addEventListener('click',event=>{if(event.target===overlay)closeDrawer()});
   drawer.querySelector('.simple-more-close').addEventListener('click',closeDrawer);
 }
-function openDrawer(){document.getElementById('simpleMoreOverlay')?.classList.add('open')}
-function closeDrawer(){document.getElementById('simpleMoreOverlay')?.classList.remove('open')}
+function openDrawer(){const overlay=document.getElementById('simpleMoreOverlay');if(!overlay)return;overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');const drawer=overlay.querySelector('.simple-more-drawer');if(drawer)drawer.inert=false;drawer?.querySelector('button')?.focus()}
+function closeDrawer(){const overlay=document.getElementById('simpleMoreOverlay');if(!overlay)return;overlay.classList.remove('open');overlay.setAttribute('aria-hidden','true');const drawer=overlay.querySelector('.simple-more-drawer');if(drawer)drawer.inert=true;overlay.closest('body')?.querySelector('.simple-more-button')?.focus()}
 
 function simplifyNavigation(){
   const nav=document.querySelector('nav');if(!nav)return false;

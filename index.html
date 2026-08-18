@@ -232,6 +232,14 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
 </style>
 </head>
 <body>
+<!--
+THESIS: الرئيسية مركز قيادة يومي يقدّم ما يحتاج قرارًا الآن، ويرفض شبكة المؤشرات بوصفها نقطة البداية.
+OWN-WORLD: أخضر منتجع عميق، أبيض هادئ، وذهبي محدود للهوية؛ أسطح واضحة وأيقونات خطية موحّدة.
+STORY: يثبت المدير حالة المنتجع، ينهي مهام اليوم، يراجع الحجز القادم، ثم ينتقل للتنبيهات والاختصارات والأرقام.
+FIRST VIEWPORT: على الهاتف تظهر حالة المنتجع ثم «ماذا عندي اليوم؟» قبل أي مؤشر تاريخي، مع إجراءات كبيرة قابلة للمس.
+FORM: مركز عمليات خطي Mobile First وفق المواصفات المعتمدة؛ user-pinned-home-command-center.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+-->
 <div id="launchSplash" class="launch-splash" aria-label="جاري تشغيل النظام">
   <div class="launch-brand">
     <div class="launch-mark">أ</div>
@@ -258,84 +266,77 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
   </form>
 </section>
 <div class="app auth-locked" id="appRoot">
-<header>
-  <div>
-    <div class="eyebrow">منتجع أضواء الشرق</div>
-    <h1 class="title" id="pageTitle">لوحة إدارة المنتجع</h1>
-    <div class="subtitle" id="pageSub">متابعة الحجوزات والمبالغ من مكان واحد</div>
+<header class="app-header">
+  <div class="app-header-copy">
+    <h1 class="title" id="pageTitle">أضواء الشرق</h1>
+    <div class="subtitle" id="headerTodayDate">تاريخ اليوم</div>
+    <div id="pageSub" hidden>مركز القيادة اليومي</div>
   </div>
   <div class="header-actions">
+    <button id="headerAlertsButton" class="icon-btn header-alerts-btn" type="button" onclick="focusDashboardAlerts()" aria-label="فتح التنبيهات المهمة" title="التنبيهات المهمة">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+      <span id="headerAlertCount" class="header-alert-count" hidden>0</span>
+    </button>
     <button id="amountPrivacyToggle" class="icon-btn privacy-btn" type="button" onclick="toggleAmountPrivacy()" aria-pressed="false" aria-label="إخفاء المبالغ" title="إخفاء المبالغ">👁️</button>
-    <button class="icon-btn" onclick="openBooking()" aria-label="إضافة حجز">+</button>
   </div>
 </header>
 <div id="amountPrivacyStatus" class="privacy-status" role="status" aria-live="polite"></div>
 
 <main>
 <section id="dashboard" class="view active">
-  <div id="resortStatusCard" class="resort-status-card ready">
-    <div class="resort-status-main"><div id="resortStatusIcon" class="resort-status-icon">🟢</div><div><div class="resort-status-label">حالة المنتجع الآن</div><div id="resortStatusText" class="resort-status-value">جاهز للاستقبال</div><div id="resortStatusUpdated" class="meta"></div></div></div>
-    <button class="secondary" onclick="openResortStatus()">تغيير الحالة</button>
-  </div>
-  <div class="grid">
-    <div class="stat"><div class="k">إجمالي الحجوزات</div><div class="v" id="sTotal">0</div></div>
-    <div class="stat"><div class="k">حجوزات اليوم</div><div class="v" id="sToday">0</div></div>
-    <div class="stat"><div class="k">حجوزات هذا الأسبوع</div><div class="v" id="sWeek">0</div></div>
-    <div class="stat"><div class="k">حجوزات هذا الشهر</div><div class="v" id="sMonth">0</div></div>
-    <div class="stat"><div class="k">إيرادات اليوم</div><div class="v money" id="sRevenueToday">0 ر.س</div></div>
-    <div class="stat"><div class="k">إيرادات هذا الشهر</div><div class="v money" id="sRevenueMonth">0 ر.س</div></div>
-    <div class="stat"><div class="k">العربون والمبالغ المعلقة</div><div class="v money" id="sPending">0 ر.س</div></div>
-    <div class="stat"><div class="k">عمولات المدير المستحقة</div><div class="v money" id="sCommission">0 ر.س</div></div>
-    <div class="stat"><div class="k">الحجوزات القادمة</div><div class="v" id="sUpcoming">0</div></div>
-    <div class="stat"><div class="k">إجمالي المحصل</div><div class="v money" id="sPaid">0 ر.س</div></div>
-    <div class="stat"><div class="k">إجمالي المتبقي</div><div class="v money" id="sDue">0 ر.س</div></div>
-    <div class="stat"><div class="k">حجوزات مكتملة السداد</div><div class="v" id="sFullyPaid">0</div></div>
-  </div>
-  <div class="section today-board" id="todayBoard">
-    <div class="section-head"><div><h3>☀️ لوحة اليوم</h3><div class="meta" id="todayBoardDate">الدخول والخروج والمهام العاجلة</div></div><button class="secondary small" type="button" onclick="renderTodayBoard()">⟳ تحديث</button></div>
-    <div id="todayQuickStats" class="today-quick-stats"></div>
-    <div id="todayBoardContent" class="today-board-content"><div class="empty">جارٍ تحميل بيانات اليوم…</div></div>
-    <div id="todayNextBooking" class="today-next"></div>
-  </div>
-  <div class="hero">
-    <div><small>أقرب عميل</small><h2 id="nextBooking">لا يوجد حجز قادم</h2><div id="nextMeta"></div><button class="soft-btn" onclick="openBooking()">إضافة حجز</button></div>
-    <div style="font-size:44px">◷</div>
-  </div>
-  <div class="section">
-    <div class="section-head"><div><h3>أقرب الحجوزات</h3><div class="meta">الحجوزات القادمة حسب التاريخ</div></div><button class="link" onclick="switchView('bookings')">عرض الجميع ←</button></div>
-    <div id="nearList" class="list"></div>
-  </div>
-  <div class="section">
-    <div class="section-head">
-      <div><h3>🏆 أفضل العملاء</h3><div class="meta">مرتبون حسب عدد الحجوزات ثم إجمالي المبالغ المدفوعة</div></div>
-      <button class="link" onclick="switchView('customers')">صفحة العملاء ←</button>
-    </div>
-    <div id="topCustomersList" class="top-customers-list"></div>
-  </div>
-  <div class="section">
-    <div class="section-head">
-      <div><h3>🔔 مركز التنبيهات</h3><div class="meta">تنبيهات تلقائية حسب الحجوزات والمدفوعات</div></div>
-    </div>
-    <div id="alertsList" class="alerts-list"></div>
-  </div>
-  <div class="section">
-    <div class="section-head">
-      <div><h3>📊 التحليلات الشهرية</h3><div class="meta">آخر 12 شهرًا: الإيرادات والحجوزات ونسبة الإشغال</div></div>
-    </div>
-    <div class="analytics-grid">
-      <div class="chart-card">
-        <div class="chart-title">الإيرادات الشهرية</div>
-        <div id="revenueChart" class="chart-wrap"></div>
+  <div id="homeCommandCenter" class="home-command-center">
+    <section id="resortStatusCard" class="resort-status-card ready home-status" aria-live="polite">
+      <div class="resort-status-main"><span id="resortStatusIcon" class="resort-status-icon" aria-hidden="true"></span><div><div class="resort-status-label">حالة المنتجع الآن</div><div id="resortStatusText" class="resort-status-value">جاهز للاستقبال</div><div id="resortStatusUpdated" class="meta"></div></div></div>
+      <button class="secondary" type="button" onclick="openResortStatus()">تحديث الحالة</button>
+    </section>
+
+    <section id="todayBoard" class="home-section home-today">
+      <div class="home-section-head"><div><h2>ماذا عندي اليوم؟</h2><p id="todayBoardDate">الدخول والخروج والمهام التي تحتاج إجراءً</p></div></div>
+      <div id="todayBoardContent" class="today-action-list"><div class="home-empty">جارٍ تحميل مهام اليوم…</div></div>
+    </section>
+
+    <section id="nextBookingSection" class="home-section home-next-booking">
+      <div class="home-section-head"><div><h2>الحجز القادم</h2><p>المعلومة التالية التي تحتاجها للاستعداد</p></div></div>
+      <div id="nextBookingCard" class="next-booking-card"><div class="home-empty">جارٍ تحميل الحجز القادم…</div></div>
+    </section>
+
+    <section id="dashboardAlerts" class="home-section home-important-alerts" tabindex="-1">
+      <div class="home-section-head"><div><h2>التنبيهات المهمة</h2><p>يظهر هنا ما يحتاج قرارًا أو متابعة فقط</p></div></div>
+      <div id="alertsList" class="alerts-list action-alerts"></div>
+    </section>
+
+    <section class="home-section home-quick-actions">
+      <div class="home-section-head"><div><h2>إجراءات سريعة</h2><p>أكثر الأدوات استخدامًا في التشغيل اليومي</p></div></div>
+      <div class="quick-action-grid">
+        <button type="button" onclick="openBooking()"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>إضافة حجز</span></button>
+        <button type="button" onclick="switchView('calendarView')"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 6h16v14H4zM8 3v6M16 3v6M4 10h16"/></svg><span>التقويم</span></button>
+        <button type="button" onclick="switchView('customers')"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M17 11l2 2 3-4"/></svg><span>العملاء</span></button>
+        <button type="button" onclick="switchView('expenses')"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg><span>المالية</span></button>
       </div>
-      <div class="chart-card">
-        <div class="chart-title">عدد الحجوزات شهريًا</div>
-        <div id="bookingsChart" class="chart-wrap"></div>
+    </section>
+
+    <section class="home-section home-metrics">
+      <div class="home-section-head"><div><h2>ملخص الأرقام</h2><p>نظرة مختصرة بعد إنهاء العمل اليومي</p></div></div>
+      <div class="home-metrics-grid">
+        <div class="stat"><div class="k">حجوزات الشهر</div><div class="v" id="sMonth">0</div></div>
+        <div class="stat"><div class="k">الحجوزات القادمة</div><div class="v" id="sUpcoming">0</div></div>
+        <div class="stat"><div class="k">إجمالي المتبقي</div><div class="v money" id="sDue">0 ر.س</div></div>
+        <div class="stat"><div class="k">إيراد الشهر</div><div class="v money" id="sRevenueMonth">0 ر.س</div></div>
       </div>
-      <div class="chart-card">
-        <div class="chart-title">نسبة الإشغال الشهرية</div>
-        <div id="occupancyChart" class="chart-wrap"></div>
-      </div>
-    </div>
+      <details class="home-secondary-details">
+        <summary>تفاصيل إضافية</summary>
+        <div class="home-secondary-stats">
+          <div class="stat"><div class="k">إجمالي الحجوزات</div><div class="v" id="sTotal">0</div></div>
+          <div class="stat"><div class="k">حجوزات اليوم</div><div class="v" id="sToday">0</div></div>
+          <div class="stat"><div class="k">حجوزات الأسبوع</div><div class="v" id="sWeek">0</div></div>
+          <div class="stat"><div class="k">إيرادات اليوم</div><div class="v money" id="sRevenueToday">0 ر.س</div></div>
+          <div class="stat"><div class="k">المبالغ المعلقة</div><div class="v money" id="sPending">0 ر.س</div></div>
+          <div class="stat"><div class="k">العمولات المستحقة</div><div class="v money" id="sCommission">0 ر.س</div></div>
+          <div class="stat"><div class="k">إجمالي المحصل</div><div class="v money" id="sPaid">0 ر.س</div></div>
+          <div class="stat"><div class="k">مكتملة السداد</div><div class="v" id="sFullyPaid">0</div></div>
+        </div>
+      </details>
+    </section>
   </div>
 </section>
 
@@ -1538,11 +1539,25 @@ function bookingDaysRemainingLabel(booking,compact=false){
 }
 function upcoming(){return db.bookings.filter(b=>b.recordType!=='family'&&b.status!=='ملغي'&&b.status!=='تم الخروج'&&daysUntil(b.date)>=0).sort((a,b)=>a.date.localeCompare(b.date))}
 function statusClass(s){return s==='مؤكد'?'confirmed':s==='غير مؤكد'?'pending':s==='تم الدخول'?'entered':'cancelled'}
-const RESORT_STATUSES={ready:{label:'جاهز للاستقبال',icon:'🟢',className:'ready'},occupied:{label:'يوجد عميل',icon:'🔴',className:'occupied'},cleaning:{label:'تحت التنظيف',icon:'🧹',className:'cleaning'},maintenance:{label:'تحت الصيانة',icon:'🔧',className:'maintenance'},closed:{label:'مغلق',icon:'⛔',className:'closed'}};
-function renderResortStatus(){const key=db.settings?.resortStatus||'ready',st=RESORT_STATUSES[key]||RESORT_STATUSES.ready,card=document.getElementById('resortStatusCard');if(!card)return;card.className='resort-status-card '+st.className;document.getElementById('resortStatusIcon').textContent=st.icon;document.getElementById('resortStatusText').textContent=st.label;const u=db.settings?.resortStatusUpdated;document.getElementById('resortStatusUpdated').textContent=u?'آخر تحديث: '+new Date(u).toLocaleString('ar-SA'):'';}
-function openResortStatus(){const current=db.settings?.resortStatus||'ready';document.getElementById('resortStatusOptions').innerHTML=Object.entries(RESORT_STATUSES).map(([key,st])=>`<button class="status-option ${key===current?'active':''}" onclick="setResortStatus('${key}')"><span style="font-size:24px">${st.icon}</span><br>${st.label}</button>`).join('');document.getElementById('resortStatusModal').classList.add('open');}
+const RESORT_STATUSES={ready:{label:'جاهز للاستقبال',className:'ready'},occupied:{label:'يوجد ضيف',className:'occupied'},cleaning:{label:'تحت التنظيف',className:'cleaning'},maintenance:{label:'تحت الصيانة',className:'maintenance'},closed:{label:'مغلق',className:'closed'}};
+function renderResortStatus(){
+  const key=db.settings?.resortStatus||'ready',st=RESORT_STATUSES[key]||RESORT_STATUSES.ready,card=document.getElementById('resortStatusCard');
+  if(!card)return;
+  const updatedAt=db.settings?.resortStatusUpdated?new Date(db.settings.resortStatusUpdated):null;
+  const ageMs=updatedAt&&!Number.isNaN(updatedAt.getTime())?Date.now()-updatedAt.getTime():Infinity;
+  const stale=ageMs>24*60*60*1000;
+  card.className=`resort-status-card home-status ${st.className}${stale?' stale':''}`;
+  document.getElementById('resortStatusIcon').className=`resort-status-icon status-${stale?'stale':key}`;
+  document.getElementById('resortStatusText').textContent=stale?'تحتاج تأكيد الحالة':st.label;
+  const updated=document.getElementById('resortStatusUpdated');
+  if(!updatedAt||Number.isNaN(updatedAt.getTime()))updated.textContent='لم تُحدّث الحالة بعد';
+  else if(ageMs<60*60*1000)updated.textContent=`آخر تحديث قبل ${Math.max(1,Math.round(ageMs/60000))} دقيقة`;
+  else if(ageMs<24*60*60*1000)updated.textContent=`آخر تحديث قبل ${Math.max(1,Math.round(ageMs/3600000))} ساعة`;
+  else updated.textContent=`آخر تحديث ${updatedAt.toLocaleString('ar-SA')}`;
+}
+function openResortStatus(){const current=db.settings?.resortStatus||'ready';document.getElementById('resortStatusOptions').innerHTML=Object.entries(RESORT_STATUSES).filter(([key])=>key!=='closed').map(([key,st])=>`<button class="status-option ${key===current?'active':''}" onclick="setResortStatus('${key}')"><span class="status-choice-dot status-${key}" aria-hidden="true"></span><span>${st.label}</span></button>`).join('');document.getElementById('resortStatusModal').classList.add('open');}
 async function setResortStatus(key){if(!RESORT_STATUSES[key])return;const before=db.settings.resortStatus||'ready';db.settings.resortStatus=key;db.settings.resortStatusUpdated=new Date().toISOString();addAudit('تعديل','حالة المنتجع',`${RESORT_STATUSES[before]?.label||before} ← ${RESORT_STATUSES[key]?.label||key}`,{status:before},{status:key});closeModal('resortStatusModal');await persist();}
-function switchView(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));const target=document.getElementById(id);if(!target)return;target.classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));(btn||document.querySelector(`nav button[data-view="${id}"]`))?.classList.add('active');const t={dashboard:['لوحة إدارة المنتجع','متابعة الحجوزات والمبالغ من مكان واحد'],bookings:['إدارة الحجوزات','إضافة وتعديل ومتابعة جميع الحجوزات'],customers:['سجل العملاء','عدد الزيارات والمدفوعات وآخر حجز'],calendarView:['تقويم الحجوزات','عرض الأيام المحجوزة ومنع التداخل'],cleaning:['مركز التنظيف','متابعة مهام التنظيف بعد مغادرة العملاء'],expenses:['المصاريف والدخل','متابعة المصروفات وصافي الدخل'],dataProtection:['مركز حماية البيانات','النسخ المحلية والسحابية وفحص السلامة وخطة التعافي'],customerPortalAdmin:['إدارة بوابة العملاء','الصور والأسعار وروابط التواصل والبيانات المتغيرة'],about:['حول النظام','معلومات الإصدار والحماية وحالة البيانات'],settings:['الإعدادات','النسخ الاحتياطي وبيانات واتساب']}[id]||['نظام أضواء الشرق',''];pageTitle.textContent=t[0];pageSub.textContent=t[1];window.scrollTo(0,0);renderCurrentView(id)}
+function switchView(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));const target=document.getElementById(id);if(!target)return;target.classList.add('active');document.querySelectorAll('nav button').forEach(x=>{x.classList.remove('active');x.removeAttribute('aria-current')});const activeButton=btn||document.querySelector(`nav button[data-view="${id}"]`);activeButton?.classList.add('active');activeButton?.setAttribute('aria-current','page');const t={dashboard:['أضواء الشرق','مركز القيادة اليومي'],bookings:['إدارة الحجوزات','إضافة وتعديل ومتابعة جميع الحجوزات'],customers:['سجل العملاء','عدد الزيارات والمدفوعات وآخر حجز'],calendarView:['تقويم الحجوزات','عرض الأيام المحجوزة ومنع التداخل'],cleaning:['مركز التنظيف','متابعة مهام التنظيف بعد مغادرة العملاء'],expenses:['المصاريف والدخل','متابعة المصروفات وصافي الدخل'],dataProtection:['مركز حماية البيانات','النسخ المحلية والسحابية وفحص السلامة وخطة التعافي'],customerPortalAdmin:['إدارة بوابة العملاء','الصور والأسعار وروابط التواصل والبيانات المتغيرة'],about:['حول النظام','معلومات الإصدار والحماية وحالة البيانات'],settings:['الإعدادات','النسخ الاحتياطي وبيانات واتساب']}[id]||['نظام أضواء الشرق',''];pageTitle.textContent=t[0];pageSub.textContent=t[1];window.scrollTo(0,0);renderCurrentView(id)}
 function renderCurrentView(id){if(id==='dashboard')renderDashboard();else if(id==='bookings')renderBookings();else if(id==='customers')renderCustomers();else if(id==='calendarView')renderCalendar();else if(id==='cleaning')renderCleaning();else if(id==='expenses')renderExpenses();else if(id==='dataProtection')renderDataProtectionCenter();else if(id==='customerPortalAdmin'){}else if(id==='about')renderAbout();else if(id==='settings'){const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay'),enabledEl=document.getElementById('commissionEnabled'),methodEl=document.getElementById('commissionMethod'),rateEl=document.getElementById('commissionRate');if(waEl)waEl.value=db.settings.waNumber||'';if(dailyEl)dailyEl.value=db.settings.welcomeMsgDaily||DEFAULT_WELCOME_DAILY;if(stayEl)stayEl.value=db.settings.welcomeMsgStay||DEFAULT_WELCOME_STAY;if(enabledEl)enabledEl.checked=db.settings.commissionEnabled!==false;if(methodEl)methodEl.value=db.settings.commissionMethod||'per_day';if(rateEl)rateEl.value=Number(db.settings.commissionRate??100);renderBackupHistory();renderAuditLog()}}
 function renderAll(){renderDashboard();renderBookings();renderCustomers();renderCleaning();renderExpenses();renderCalendar();renderResortStatus();renderAbout();const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay'),calMode=document.getElementById('calendarMode');if(waEl)waEl.value=db.settings.waNumber||'';if(dailyEl)dailyEl.value=db.settings.welcomeMsgDaily||DEFAULT_WELCOME_DAILY;if(stayEl)stayEl.value=db.settings.welcomeMsgStay||DEFAULT_WELCOME_STAY;if(calMode)calMode.value=db.settings.calendarMode||'both';renderSendStatus()}
 
@@ -1694,74 +1709,35 @@ function renderTopCustomers(){
   }).join('')||'<div class="empty">لا توجد بيانات عملاء حتى الآن</div>';
 }
 
+function homeAlertIcon(kind){
+  const paths={contract:'M6 3h9l3 3v15H6zM14 3v4h4M9 12h6M9 16h6',payment:'M4 7h16v11H4zM4 10h16M8 15h3',movement:'M5 12h14M14 7l5 5-5 5',cleaning:'M4 18h16M7 18l2-12h6l2 12M10 10h4',commission:'M12 3v18M17 7.5c0-2-2-3-5-3s-5 1-5 3 2 3 5 3 5 1 5 3-2 3-5 3-5-1-5-3'};
+  return `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="${paths[kind]||paths.movement}"/></svg>`;
+}
 function renderAlerts(){
-  if(typeof alertsList==='undefined')return;
-
-  const active=db.bookings.filter(b=>b.status!=='ملغي'&&b.recordType!=='family');
-  const today=isoToday();
-  const tomorrowDate=new Date(today+'T00:00:00');
-  tomorrowDate.setDate(tomorrowDate.getDate()+1);
-  const tomorrow=tomorrowDate.toISOString().slice(0,10);
-
-  const weekEndDate=new Date(today+'T00:00:00');
-  weekEndDate.setDate(weekEndDate.getDate()+7);
-  const weekEnd=weekEndDate.toISOString().slice(0,10);
-
-  const tomorrowBookings=active.filter(b=>b.date===tomorrow);
-  const unpaid=active.filter(b=>Math.max(0,Number(b.total||0)-Number(b.paid||0))>0);
-  const nextWeek=active.filter(b=>b.date>today&&b.date<=weekEnd);
-  const repeatCustomers=getCustomers().filter(c=>c.bookings.length>=3);
-  const alerts=[];
-
-  if(tomorrowBookings.length){
-    alerts.push({
-      type:'danger',
-      icon:'📅',
-      title:`يوجد ${tomorrowBookings.length} حجز ${tomorrowBookings.length===1?'غدًا':'غدًا'}`,
-      text:tomorrowBookings.map(b=>b.name).join('، ')
-    });
-  }
-
-  if(unpaid.length){
-    const totalDue=unpaid.reduce((s,b)=>s+Math.max(0,Number(b.total||0)-Number(b.paid||0)),0);
-    alerts.push({
-      type:'warning',
-      icon:'💰',
-      title:`${unpaid.length} حجز غير مكتمل السداد`,
-      text:`إجمالي المبالغ المتبقية: ${money(totalDue)}`
-    });
-  }
-
-  if(!nextWeek.length){
-    alerts.push({
-      type:'info',
-      icon:'📭',
-      title:'لا توجد حجوزات خلال الأيام السبعة القادمة',
-      text:'يمكن متابعة التسويق أو تقديم عرض للفترة القادمة.'
-    });
-  }else{
-    alerts.push({
-      type:'success',
-      icon:'✅',
-      title:`لديك ${nextWeek.length} حجز خلال الأيام السبعة القادمة`,
-      text:'راجع بيانات العملاء ومواعيد الدخول قبل موعد كل حجز.'
-    });
-  }
-
-  if(repeatCustomers.length){
-    alerts.push({
-      type:'success',
-      icon:'⭐',
-      title:`${repeatCustomers.length} عميل متكرر`,
-      text:'هؤلاء العملاء لديهم 3 حجوزات أو أكثر وقد يستحقون عرضًا خاصًا.'
-    });
-  }
-
-  alertsList.innerHTML=alerts.map(a=>`
-    <div class="alert-card ${a.type}">
-      <div class="alert-icon">${a.icon}</div>
-      <div><h4>${escapeHtml(a.title)}</h4><p>${escapeHtml(a.text)}</p></div>
-    </div>`).join('')||'<div class="empty">لا توجد تنبيهات حاليًا</div>';
+  const root=document.getElementById('alertsList');if(!root)return;
+  const active=(db.bookings||[]).filter(b=>b.status!=='ملغي'&&b.recordType!=='family');
+  const today=isoToday(),alerts=[];
+  const contractPending=active.filter(b=>b.date>=today&&!b.manualMessages?.contract);
+  const unpaid=active.filter(b=>getRemainingAmount(b)>0);
+  const movement=active.filter(b=>(b.date===today&&!['تم الدخول','تم الخروج'].includes(b.status))||(bookingExitDate(b)===today&&b.status!=='تم الخروج'));
+  const cleaning=(db.cleaningTasks||[]).filter(t=>!['approved','done','ملغي'].includes(t.status));
+  const reports=cleaning.filter(t=>t.status==='pending_approval');
+  const commissionBookings=active.filter(b=>commissionStatus(b)==='earned');
+  const commissionSubscriptions=(db.subscriptions||[]).filter(s=>typeof window.subscriptionCommissionStatus==='function'&&window.subscriptionCommissionStatus(s)==='earned');
+  if(contractPending.length)alerts.push({kind:'contract',title:`${contractPending.length} عقد بانتظار الإرسال`,text:`ابدأ بالحجز الأقرب: ${contractPending[0].name||'بدون اسم'}`,action:'فتح الحجز',onclick:`openBooking('${contractPending[0].id}')`});
+  if(unpaid.length)alerts.push({kind:'payment',title:`${unpaid.length} حجز عليه مبلغ متبقٍ`,text:`إجمالي يحتاج متابعة: ${money(unpaid.reduce((sum,b)=>sum+getRemainingAmount(b),0))}`,action:'متابعة المبالغ',onclick:"switchView('expenses')"});
+  if(movement.length)alerts.push({kind:'movement',title:`${movement.length} حركة دخول أو خروج اليوم`,text:'تحتاج تحديث حالة الحجز عند اكتمال الحركة.',action:'فتح الحجوزات',onclick:"switchView('bookings')"});
+  if(reports.length)alerts.push({kind:'cleaning',title:`${reports.length} تقرير تنظيف بانتظار اعتمادك`,text:'راجع صور العامل واعتمد المهمة أو أعدها.',action:'مراجعة التقرير',onclick:"switchView('cleaning')"});
+  else if(cleaning.length)alerts.push({kind:'cleaning',title:`${cleaning.length} مهمة تنظيف قيد المتابعة`,text:'تحتاج متابعة حتى اكتمال التنظيف واعتماده.',action:'فتح التنظيف',onclick:"switchView('cleaning')"});
+  const commissionCount=commissionBookings.length+commissionSubscriptions.length;
+  if(commissionCount)alerts.push({kind:'commission',title:`${commissionCount} عمولة مستحقة`,text:'استحقت بعد اكتمال السداد وتحتاج تأكيد التحويل.',action:'فتح المالية',onclick:"switchView('expenses')"});
+  root.innerHTML=alerts.map(a=>`<article class="action-alert"><span class="action-alert-icon">${homeAlertIcon(a.kind)}</span><div><h3>${escapeHtml(a.title)}</h3><p>${escapeHtml(a.text)}</p></div><button type="button" onclick="${a.onclick}">${escapeHtml(a.action)}</button></article>`).join('')||'<div class="home-empty home-empty-success"><b>لا توجد تنبيهات تحتاج إجراءً</b><span>كل المهام المهمة تحت السيطرة الآن.</span></div>';
+  const count=document.getElementById('headerAlertCount');if(count){count.textContent=String(alerts.length);count.hidden=!alerts.length}
+}
+function focusDashboardAlerts(){
+  const dashboard=document.getElementById('dashboard');
+  if(!dashboard?.classList.contains('active'))switchView('dashboard');
+  setTimeout(()=>{const target=document.getElementById('dashboardAlerts');target?.scrollIntoView({behavior:'smooth',block:'start'});target?.focus({preventScroll:true})},40);
 }
 
 function getLast12MonthsData(){
@@ -1875,19 +1851,15 @@ function renderDashboard(){
   sDue.textContent=money(Math.max(0,total-paid));
   sFullyPaid.textContent=fullyPaid.length;
 
-  const n=ups[0];
-  nextBooking.textContent=n?n.name:'لا يوجد حجز قادم';
-  if(n){
-    const left=Math.max(0,daysUntil(n.date));
+  const headerDate=document.getElementById('headerTodayDate');
+  if(headerDate)headerDate.textContent=new Date().toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const n=ups[0],nextCard=document.getElementById('nextBookingCard');
+  if(nextCard&&n){
+    const payment=getPaymentStatus(n),times=bookingTimes(n),left=Math.max(0,daysUntil(n.date));
     const leftText=left===0?'الحجز اليوم':left===1?'متبقي يوم واحد':`متبقي ${left} أيام`;
-    nextMeta.textContent=`${n.date} • ${leftText} • ${n.type}`;
-  }else{
-    nextMeta.textContent='';
-  }
-  nearList.innerHTML=ups.slice(0,5).map(itemHTML).join('')||'<div class="empty">لا توجد حجوزات قادمة</div>';
-  renderTopCustomers();
+    nextCard.innerHTML=`<div class="next-booking-main"><div><span class="next-booking-code">#${escapeHtml(n.code||'')}</span><h3>${escapeHtml(n.name||'بدون اسم')}</h3><p>${escapeHtml(n.date)} · ${escapeHtml(n.type||'يومي')} · دخول ${escapeHtml(times.entry)}</p></div><span class="payment-state ${payment.remaining>0?'due':'paid'}">${escapeHtml(payment.label)}</span></div><div class="next-booking-meta"><span>${escapeHtml(leftText)}</span>${payment.remaining>0?`<span class="money">متبقٍ ${money(payment.remaining)}</span>`:'<span>مكتمل السداد</span>'}</div><button class="home-primary-action" type="button" onclick="openBooking('${n.id}')">فتح الحجز</button>`;
+  }else if(nextCard)nextCard.innerHTML='<div class="home-empty"><b>لا يوجد حجز قادم</b><span>يمكنك إضافة حجز جديد من الإجراءات السريعة.</span></div>';
   renderAlerts();
-  renderAnalytics();
 }
 function itemHTML(b){
   const payment=getPaymentStatus(b),family=b.recordType==='family';
@@ -3772,6 +3744,23 @@ function jumpCalendarDate(){const m=Number(document.getElementById('calendarMont
 function changeCalendarViewMode(){calendarViewMode=document.getElementById('calendarViewMode')?.value||'month';renderCalendar()}
 const v95OriginalRenderCalendar=renderCalendar;
 renderCalendar=function(){fillCalendarPickers();if(calendarViewMode==='month'){document.getElementById('calendar')?.classList.remove('v95-week');v95OriginalRenderCalendar();document.querySelectorAll('#calendar .day.selectable').forEach(day=>{const onclick=day.getAttribute('onclick')||'',id=onclick.match(/openBooking\('([^']+)'\)/)?.[1];if(!id)return;const iso=[...day.querySelectorAll('.calendar-date-primary')][0];const b=db.bookings.find(x=>x.id===id);if(b){day.querySelectorAll('.dot,.meta[style]').forEach(x=>x.remove());day.insertAdjacentHTML('beforeend',v95CalendarEvent(b))}});return}const cal=document.getElementById('calendar');cal.classList.add('v95-week');const start=new Date(calDate);start.setDate(start.getDate()-start.getDay());const names=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];let html=names.map(n=>`<div class="day calendar-weekday">${n}</div>`).join('');for(let i=0;i<7;i++){const d=new Date(start);d.setDate(start.getDate()+i);const iso=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,events=getSaudiCalendarEvents(d),bs=db.bookings.filter(b=>bookingOccupiedDates(b).includes(iso));html+=`<div class="day selectable ${iso===isoToday()?'today':''}" onclick="openBooking(null,'${iso}')">${formatCalendarDay(d,db.settings.calendarMode||'both')}${events.map(e=>`<span class="calendar-event">${escapeHtml(e)}</span>`).join('')}${bs.map(v95CalendarEvent).join('')}${bs.length?'':'<span class="dot" style="color:var(--muted)">متاح</span>'}</div>`}cal.innerHTML=html;calTitle.textContent=`الأسبوع من ${start.toLocaleDateString('ar-SA')} إلى ${new Date(start.getFullYear(),start.getMonth(),start.getDate()+6).toLocaleDateString('ar-SA')}`;renderCalendarSummary(calDate.getFullYear(),calDate.getMonth(),new Date(calDate.getFullYear(),calDate.getMonth()+1,0).getDate())};
+renderTodayBoard=function(){
+  const root=document.getElementById('todayBoardContent');if(!root)return;
+  try{
+    const today=isoToday(),active=(db.bookings||[]).filter(b=>b.recordType!=='family'&&b.status!=='ملغي');
+    const entries=active.filter(b=>b.date===today&&!['تم الدخول','تم الخروج'].includes(b.status));
+    const exits=active.filter(b=>bookingExitDate(b)===today&&b.status!=='تم الخروج');
+    const cleaning=(db.cleaningTasks||[]).filter(t=>!['approved','done','ملغي'].includes(t.status));
+    const unpaid=active.filter(b=>getRemainingAmount(b)>0);
+    const actions=[];
+    if(entries.length)actions.push({kind:'movement',title:'دخول اليوم',value:entries.length,text:entries.map(b=>b.name||'بدون اسم').slice(0,2).join('، '),action:'فتح أول حجز',onclick:`openBooking('${entries[0].id}')`});
+    if(exits.length)actions.push({kind:'movement',title:'خروج اليوم',value:exits.length,text:exits.map(b=>b.name||'بدون اسم').slice(0,2).join('، '),action:'فتح أول حجز',onclick:`openBooking('${exits[0].id}')`});
+    if(cleaning.length)actions.push({kind:'cleaning',title:'تنظيف مطلوب',value:cleaning.length,text:cleaning.some(t=>t.status==='pending_approval')?'يوجد تقرير عامل بانتظار الاعتماد':'توجد مهمة تنظيف لم تكتمل',action:'فتح التنظيف',onclick:"switchView('cleaning')"});
+    if(unpaid.length)actions.push({kind:'payment',title:'مبلغ يحتاج إجراء',value:money(unpaid.reduce((sum,b)=>sum+getRemainingAmount(b),0)),text:`على ${unpaid.length} حجز`,action:'فتح المالية',onclick:"switchView('expenses')",money:true});
+    document.getElementById('todayBoardDate').textContent=new Date().toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'long'});
+    root.innerHTML=actions.map(item=>`<article class="today-action-card"><span class="today-action-icon">${homeAlertIcon(item.kind)}</span><div><span class="today-action-label">${escapeHtml(item.title)}</span><strong class="${item.money?'money':''}">${escapeHtml(item.value)}</strong><p>${escapeHtml(item.text)}</p></div><button type="button" onclick="${item.onclick}">${escapeHtml(item.action)}</button></article>`).join('')||'<div class="home-empty home-empty-success"><b>لا توجد إجراءات عاجلة الآن</b><span>أعمال اليوم مكتملة ولا يوجد ما يحتاج تدخلك.</span></div>';
+  }catch(err){root.innerHTML=`<div class="home-empty home-empty-error"><b>تعذر عرض إجراءات اليوم</b><span>${escapeHtml(err.message||'حدّث الصفحة وحاول مرة أخرى.')}</span></div>`}
+};
 const v95RenderDashboardBase=renderDashboard;renderDashboard=function(){v95RenderDashboardBase();renderTodayBoard()};
 const v95RenderAllBase=renderAll;renderAll=function(){v95RenderAllBase();renderTodayBoard()};
 document.addEventListener('DOMContentLoaded',()=>{renderHelpIcons();applyHelpVisibility();fillCalendarPickers();renderTodayBoard()});

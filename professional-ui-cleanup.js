@@ -21,7 +21,7 @@ function cleanVoiceUi(){
   });
 }
 function scopeAddBooking(){
-  const headerButton=document.querySelector('header .icon-btn');
+  const headerButton=document.getElementById('headerAddBooking');
   if(headerButton){const visible=inBookings();if(headerButton.style.display!==(visible?'':'none'))headerButton.style.display=visible?'':'none'}
   document.querySelectorAll('[data-action="booking"]').forEach(el=>el.remove());
 }

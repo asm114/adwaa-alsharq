@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-17T09:24:10.4321330Z",
+  "title": "Design System: أضواء الشرق",
+  "extensions": {
+    "colorMeta": {
+      "primary": {"role":"primary","displayName":"أخضر أضواء الشرق","canonical":"#0F5B4C","tonalRamp":["#062B24","#0A4439","#0F5B4C","#2F7668","#5B968A","#92BBB2","#C7DDD8","#EEF6F3"]},
+      "gold-text": {"role":"tertiary","displayName":"ذهبي مقروء","canonical":"#9A6A16","tonalRamp":["#302005","#563908","#79510E","#9A6A16","#BC8B3C","#D7AF70","#EAD2A4","#F8EDD7"]},
+      "canvas": {"role":"neutral","displayName":"ضباب هادئ","canonical":"#F4F6F5","tonalRamp":["#16231F","#33433D","#53645E","#75857F","#9CA9A4","#C5CECA","#E1E6E4","#F4F6F5"]}
+    },
+    "typographyMeta": {
+      "title": {"displayName":"عنوان تشغيلي","purpose":"أسماء الشاشات والأقسام."},
+      "body": {"displayName":"نص واضح","purpose":"تفاصيل الحجز والإجراء."},
+      "label": {"displayName":"وسم قوي","purpose":"الحالات والأرقام المختصرة."}
+    },
+    "shadows": [
+      {"name":"ambient-card","value":"0 8px 24px rgba(10,68,57,.055)","purpose":"فصل هادئ للبطاقات عن الخلفية."}
+    ],
+    "motion": [
+      {"name":"state-fast","value":"160ms ease","purpose":"تغيرات الضغط والتركيز فقط مع احترام تقليل الحركة."}
+    ],
+    "breakpoints": [
+      {"name":"phone","value":"620px"},
+      {"name":"desktop-grid","value":"900px"}
+    ]
+  },
+  "components": [
+    {"name":"Primary Button","kind":"button","refersTo":"button-primary","description":"إجراء واحد واضح داخل كل سياق.","html":"<button class=\"ds-btn-primary\">فتح الحجز</button>","css":".ds-btn-primary{min-height:44px;padding:12px 16px;border:0;border-radius:12px;background:#0F5B4C;color:#fff;font:800 14px system-ui;transition:background .16s ease}.ds-btn-primary:hover{background:#0A4439}.ds-btn-primary:focus-visible{outline:3px solid rgba(15,91,76,.25);outline-offset:2px}"},
+    {"name":"Secondary Button","kind":"button","description":"إجراء ثانوي بلا منافسة للفعل الأساسي.","html":"<button class=\"ds-btn-secondary\">تحديث الحالة</button>","css":".ds-btn-secondary{min-height:44px;padding:11px 16px;border:1px solid #D7E3DF;border-radius:12px;background:#fff;color:#0F5B4C;font:800 14px system-ui}.ds-btn-secondary:hover{border-color:#92BBB2}.ds-btn-secondary:focus-visible{outline:3px solid rgba(15,91,76,.2);outline-offset:2px}"},
+    {"name":"Command Card","kind":"card","refersTo":"card","description":"حاوية بيضاء لمجموعة قرار واحدة.","html":"<section class=\"ds-card\"><h2>الحجز القادم</h2><p>المعلومة التالية التي تحتاجها للاستعداد</p></section>","css":".ds-card{padding:16px;border:1px solid #D7E3DF;border-radius:16px;background:#fff;color:#16231F;box-shadow:0 8px 24px rgba(10,68,57,.055);font-family:system-ui}.ds-card h2{margin:0;font-size:18px}.ds-card p{margin:5px 0 0;color:#61706B;font-size:13px}"},
+    {"name":"Status Chip","kind":"chip","description":"إشارة حالة قصيرة بذهب مقروء.","html":"<span class=\"ds-status\">تحتاج تأكيد الحالة</span>","css":".ds-status{display:inline-flex;min-height:32px;align-items:center;padding:6px 10px;border-radius:999px;background:#FFF5DE;color:#9A6A16;font:800 12px system-ui}"},
+    {"name":"Bottom Navigation","kind":"nav","description":"تنقل الهاتف مع حالة صفحة صريحة.","html":"<nav class=\"ds-nav\"><button aria-current=\"page\">الرئيسية</button><button>الحجوزات</button></nav>","css":".ds-nav{display:flex;gap:4px;padding:6px;border:1px solid #D7E3DF;border-radius:16px;background:#fff}.ds-nav button{min-height:48px;flex:1;border:0;border-radius:12px;background:transparent;color:#61706B;font:700 12px system-ui}.ds-nav button[aria-current=page]{background:#EAF4F0;color:#0F5B4C}.ds-nav button:focus-visible{outline:3px solid rgba(15,91,76,.2);outline-offset:1px}"}
+  ],
+  "narrative": {
+    "northStar": "مركز القيادة الهادئ",
+    "overview": "واجهة عربية RTL فاخرة بضبط النفس، تقدّم الإجراء اليومي قبل الأرقام. تعتمد التباين الواضح، المساحات الهادئة، والذهبي كإشارة محدودة لا كلون نص أساسي.",
+    "keyCharacteristics": ["Mobile First بترتيب تشغيلي ثابت","بطاقة واحدة لكل قرار","أخضر عميق وذهبي محدود","لا تكرار للمعلومة أو الإجراء"],
+    "rules": [
+      {"name":"The One Identity Rule","body":"لا تُدخل البنفسجي أو طبقة ألوان منافسة.","section":"colors"},
+      {"name":"The Accessible Gold Rule","body":"النص الذهبي يستخدم الدرجة الأغمق المخصصة.","section":"colors"},
+      {"name":"The Quiet Surface Rule","body":"الظل يساعد على الفصل ولا ينافس المحتوى.","section":"elevation"}
+    ],
+    "dos": ["رتّب العمل اليومي قبل المؤشرات.","اعرض الحالة القديمة بصيغة تحتاج تأكيدًا.","استخدم أهداف لمس لا تقل عن 44px."],
+    "donts": ["لا تكرر الحجز أو زر الإضافة.","لا تعيد النسخ الاحتياطي أو التحليلات للرئيسية.","لا تخفِ لوحة اليوم على الجوال."]
+  }
+}

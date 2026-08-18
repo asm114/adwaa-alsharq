@@ -7,6 +7,10 @@ const norm=v=>String(v||'').replace(/\s+/g,' ').trim();
 const state={stack:[],lastView:null,navigatingBack:false};
 
 function activeView(){return document.querySelector('.view.active')?.id||''}
+function syncButtonVisibility(){
+  const hide=activeView()==='dashboard';
+  ['appBackBtn','appRefreshBtn'].forEach(id=>{const button=document.getElementById(id);if(button){button.hidden=hide;button.inert=hide}});
+}
 function closeTopLayer(){
   const drill=document.getElementById('dashboardDrilldown');
   if(drill?.classList.contains('open')){drill.classList.remove('open');return true}
@@ -53,6 +57,7 @@ function watchNavigation(){
     const current=activeView();if(!current||current===state.lastView)return;
     if(!state.navigatingBack&&state.lastView)state.stack.push(state.lastView);
     state.lastView=current;
+    syncButtonVisibility();
   });
   document.querySelectorAll('.view').forEach(v=>observer.observe(v,{attributes:true,attributeFilter:['class']}));
 }
@@ -62,10 +67,11 @@ function installButtons(){
   const refresh=document.createElement('button');refresh.id='appRefreshBtn';refresh.type='button';refresh.className='privacy-btn app-browser-btn';refresh.innerHTML='↻';refresh.title='تحديث الصفحة';refresh.setAttribute('aria-label','تحديث الصفحة');refresh.addEventListener('click',refreshPage);
   const plus=actions.querySelector('.icon-btn');
   if(plus?.nextSibling){actions.insertBefore(refresh,plus.nextSibling);actions.insertBefore(back,refresh.nextSibling)}else{actions.prepend(back);actions.prepend(refresh)}
+  syncButtonVisibility();
   return true;
 }
 function addStyles(){if(document.getElementById('browserControlsStyle'))return;const s=document.createElement('style');s.id='browserControlsStyle';s.textContent=`
-.app-browser-btn{display:inline-flex;align-items:center;justify-content:center;font-size:25px;font-weight:900;line-height:1;color:#5d50cf!important;border-color:#ded9fb!important;background:#fff!important}.app-browser-btn:active{transform:scale(.96)}#appRefreshBtn.working{opacity:.55;animation:adwaaSpin .65s linear infinite}@keyframes adwaaSpin{to{transform:rotate(360deg)}}@media(max-width:620px){.header-actions{gap:7px!important}.app-browser-btn{width:48px!important;height:48px!important;font-size:23px!important}}
+.app-browser-btn{display:inline-flex;align-items:center;justify-content:center;font-size:25px;font-weight:900;line-height:1;color:#0f5b4c!important;border-color:#d7e3df!important;background:#fff!important}.app-browser-btn[hidden]{display:none!important}.app-browser-btn:active{transform:scale(.96)}#appRefreshBtn.working{opacity:.55;animation:adwaaSpin .65s linear infinite}@keyframes adwaaSpin{to{transform:rotate(360deg)}}@media(max-width:620px){.header-actions{gap:7px!important}.app-browser-btn{width:48px!important;height:48px!important;font-size:23px!important}}
 `;document.head.appendChild(s)}
 function init(){addStyles();if(!installButtons()){const mo=new MutationObserver(()=>{if(installButtons())mo.disconnect()});mo.observe(document.documentElement,{childList:true,subtree:true})}watchNavigation()}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
