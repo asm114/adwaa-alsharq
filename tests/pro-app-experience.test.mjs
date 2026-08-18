@@ -71,7 +71,7 @@ test('legacy enhancements do not reintroduce forbidden header actions',()=>{
 test('booking modal actions name their real behavior and preserve the existing save path',()=>{
   const modal=index.slice(index.indexOf('id="bookingModal"'),index.indexOf('id="helpPopover"'));
   assert.match(modal,/onsubmit="saveBooking\(event\)"/);
-  assert.match(modal,/type="submit">حفظ الحجز<\/button>/);
+  assert.match(modal,/type="submit" form="bookingForm">حفظ الحجز<\/button>/);
   assert.match(modal,/onclick="closeBookingAndReturn\(\)">↩ رجوع بدون حفظ<\/button>/);
   assert.match(modal,/onclick="refreshBookingData\(\)">⟳ تحديث من المصدر<\/button>/);
   assert.doesNotMatch(modal,/onclick="backToBookingDetails\(\)"/);
@@ -90,4 +90,18 @@ test('booking modal has semantic sections, connected labels, required cues, and 
   assert.equal((modal.match(/class="booking-required"/g)||[]).length,2);
   assert.match(index,/#bookingModal input\[readonly\]/);
   assert.match(modal,/role="dialog" aria-modal="true" aria-labelledby="bookingModalTitle"/);
+});
+
+test('booking modal keeps its header and real save action outside the scrolling content',()=>{
+  const modal=index.slice(index.indexOf('id="bookingModal"'),index.indexOf('id="helpPopover"'));
+  const scrollStart=modal.indexOf('class="booking-modal-scroll"');
+  const footerStart=modal.indexOf('class="booking-modal-actions"');
+  assert.ok(scrollStart>0&&footerStart>scrollStart);
+  assert.match(modal,/class="booking-modal-actions"[\s\S]*type="submit" form="bookingForm">حفظ الحجز/);
+  assert.match(index,/#bookingModal \.sheet\{display:grid;grid-template-rows:auto minmax\(0,1fr\) auto/);
+  assert.match(index,/#bookingModal \.booking-modal-scroll\{[^}]*overflow-y:auto/);
+  assert.match(index,/#bookingModal \.booking-modal-actions\{position:sticky;bottom:0/);
+  assert.match(index,/#bookingModal \.help-icon\{[^}]*width:44px!important;[^}]*height:44px!important/);
+  const buttonLabels=[...modal.matchAll(/<button\b[^>]*>([^<]*)<\/button>/g)].map(match=>match[1].trim()).filter(Boolean);
+  assert.deepEqual(buttonLabels.filter(label=>label.startsWith('حفظ')),['حفظ الحجز']);
 });
