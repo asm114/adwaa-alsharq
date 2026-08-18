@@ -26,7 +26,7 @@ test('جسر بوابة العملاء لا يعيد توجيه createClient إ�
 
 test('لوحة الإدارة تحمل إصلاح ربط قاعدة بوابة العملاء بعد عميل البوابة',async()=>{
   const subscription=await read('subscription-booking-type.js');
-  assert.match(subscription,/portal-admin-client\.js\?v=20260814-2[\s\S]*portal-dedicated-backend-compat\.js\?v=20260819-2/);
+  assert.match(subscription,/portal-admin-client\.js\?v=20260814-2[\s\S]*portal-dedicated-backend-compat\.js\?v=20260819-3/);
 });
 
 test('إصلاح الإدارة يستخدم قاعدة البوابة المخصصة ولا يغيّر core Supabase',async()=>{
@@ -35,5 +35,13 @@ test('إصلاح الإدارة يستخدم قاعدة البوابة المخ�
   assert.match(compat,/window\.portalAdminClient=dedicatedClient/);
   assert.match(compat,/name\.startsWith\('customer_portal_'\)\?portalTableBuilder\(table\):currentFrom\(table\)/);
   assert.match(compat,/name\.startsWith\('customer-portal-'\)\?dedicatedClient\.storage\.from\(bucket\):currentStorageFrom\(bucket\)/);
+  assert.match(compat,/storageKey:PORTAL_AUTH_STORAGE_KEY/);
+  assert.match(compat,/signOut\(\{scope:'local'\}\)/);
   assert.doesNotMatch(compat,/window\.supabaseClient\s*=/);
+});
+
+test('جلسة بوابة العملاء لا تشارك مفتاح جلسة الإدارة ولا تنفذ تسجيل خروج شامل',async()=>{
+  const compat=await read('portal-dedicated-backend-compat.js');
+  assert.match(compat,/PORTAL_AUTH_STORAGE_KEY=`adwaa-portal-auth-\$\{PORTAL_PROJECT_REF\}`/);
+  assert.doesNotMatch(compat,/dedicatedClient\.auth\.signOut\(\s*\)/);
 });
