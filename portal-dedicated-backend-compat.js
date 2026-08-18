@@ -6,6 +6,7 @@ window.__adwaaDedicatedPortalBackendInstalled=true;
 const PORTAL_PROJECT_REF='ztqqdjryvecscidxxbfe';
 const PORTAL_SUPABASE_URL=`https://${PORTAL_PROJECT_REF}.supabase.co`;
 const PORTAL_SUPABASE_PUBLISHABLE_KEY='sb_publishable_M3MQwFfxiMMKt_-tq-KAjQ_OQTtg2MD';
+const PORTAL_AUTH_STORAGE_KEY=`adwaa-portal-auth-${PORTAL_PROJECT_REF}`;
 
 function makeCredentialSaveNonBlocking(){
   const original=window.saveManagerCredentialPreference;
@@ -30,7 +31,7 @@ function install(){
   const dedicatedClient=window.supabase.createClient(
     PORTAL_SUPABASE_URL,
     PORTAL_SUPABASE_PUBLISHABLE_KEY,
-    {auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}}
+    {auth:{storageKey:PORTAL_AUTH_STORAGE_KEY,persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}}
   );
   window.portalAdminClient=dedicatedClient;
   window.portalAdminAuthState={ready:false,error:'',userId:''};
@@ -90,7 +91,7 @@ function install(){
     const {error}=await dedicatedClient.auth.signInWithPassword({email,password});
     if(error){window.portalAdminAuthState={ready:false,error:error.message||'تعذر تسجيل دخول مدير البوابة',userId:''};return false}
     const valid=await verify();
-    if(!valid){try{await dedicatedClient.auth.signOut()}catch(_){}}
+    if(!valid){try{await dedicatedClient.auth.signOut({scope:'local'})}catch(_){}}
     return valid;
   }
   window.verifyPortalAdminSession=verify;
@@ -115,7 +116,7 @@ function install(){
   window.supabaseClient?.auth?.onAuthStateChange?.(event=>{
     if(event==='SIGNED_OUT'){
       window.portalAdminAuthState={ready:false,error:'تم تسجيل الخروج',userId:''};
-      dedicatedClient.auth.signOut().catch(()=>{});
+      dedicatedClient.auth.signOut({scope:'local'}).catch(()=>{});
     }
   });
   verify().catch(()=>{});
