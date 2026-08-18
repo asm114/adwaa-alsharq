@@ -1117,10 +1117,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
   <section class="v92-messages">
     <h4>الرسائل</h4>
     <div class="v92-message-grid">
-      <div class="v92-message-item"><button class="secondary" type="button" data-v92-action="welcome-send" onclick="sendManualWhatsApp('welcome')">🌹 رسالة الترحيب</button><span id="v92WelcomeSent" class="v92-status none">🔴 لم يتم</span></div>
-      <div class="v92-message-item"><button class="secondary" type="button" data-v92-action="reminder-send" onclick="sendManualWhatsApp('reminder')">⏰ تذكير موعد الحجز</button><span id="v92ReminderSent" class="v92-status none">🔴 لم يتم</span></div>
       <div class="v92-message-item"><button class="secondary" type="button" data-v92-action="due-send" onclick="sendManualWhatsApp('due')">💰 تذكير بالمبلغ المتبقي</button><span id="v92DueSent" class="v92-status none">🔴 لم يتم</span></div>
-      <div class="v92-message-item"><button class="secondary" type="button" data-v92-action="thanks-send" onclick="sendManualWhatsApp('thanks')">🙏 رسالة الشكر</button><span id="v92ThanksSent" class="v92-status none">🔴 لم يتم</span></div>
     </div>
   </section>
   <div id="sendStatus" class="send-status" aria-live="polite"></div>
@@ -1795,19 +1792,26 @@ function homeAlertIcon(kind){
   const paths={contract:'M6 3h9l3 3v15H6zM14 3v4h4M9 12h6M9 16h6',payment:'M4 7h16v11H4zM4 10h16M8 15h3',movement:'M5 12h14M14 7l5 5-5 5',cleaning:'M4 18h16M7 18l2-12h6l2 12M10 10h4',commission:'M12 3v18M17 7.5c0-2-2-3-5-3s-5 1-5 3 2 3 5 3 5 1 5 3-2 3-5 3-5-1-5-3'};
   return `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="${paths[kind]||paths.movement}"/></svg>`;
 }
+function hasReachedBookingExitTime(booking,now=new Date()){
+  const exitDate=bookingExitDate(booking),hour=booking.type==='مبيت'?8:3;
+  const exitAt=new Date(`${exitDate}T${String(hour).padStart(2,'0')}:00:00`);
+  return !Number.isNaN(exitAt.getTime())&&now>=exitAt;
+}
+function openContractSendCenter(id){
+  openBooking(id);
+  setTimeout(()=>{document.getElementById('v92SendCenter')?.scrollIntoView({block:'start',behavior:'smooth'});document.querySelector('[data-v92-action="contract-create"]')?.focus({preventScroll:true});},80);
+}
 function renderAlerts(){
   const root=document.getElementById('alertsList');if(!root)return;
   const active=(db.bookings||[]).filter(b=>b.status!=='ملغي'&&b.recordType!=='family');
-  const today=isoToday(),alerts=[];
+  const today=isoToday(),now=new Date(),alerts=[];
   const contractPending=active.filter(b=>b.date>=today&&!b.manualMessages?.contract);
-  const unpaid=active.filter(b=>getRemainingAmount(b)>0);
-  const movement=active.filter(b=>(b.date===today&&!['تم الدخول','تم الخروج'].includes(b.status))||(bookingExitDate(b)===today&&b.status!=='تم الخروج'));
+  const movement=active.filter(b=>(b.date===today&&!['تم الدخول','تم الخروج'].includes(b.status)&&now>=new Date(`${today}T15:30:00`))||(bookingExitDate(b)===today&&b.status!=='تم الخروج'&&hasReachedBookingExitTime(b,now)));
   const cleaning=(db.cleaningTasks||[]).filter(t=>!['approved','done','ملغي'].includes(t.status));
   const reports=cleaning.filter(t=>t.status==='pending_approval');
   const commissionBookings=active.filter(b=>commissionStatus(b)==='earned');
   const commissionSubscriptions=(db.subscriptions||[]).filter(s=>typeof window.subscriptionCommissionStatus==='function'&&window.subscriptionCommissionStatus(s)==='earned');
-  if(contractPending.length)alerts.push({kind:'contract',title:`${contractPending.length} عقد بانتظار الإرسال`,text:`ابدأ بالحجز الأقرب: ${contractPending[0].name||'بدون اسم'}`,action:'فتح الحجز',onclick:`openBooking('${contractPending[0].id}')`});
-  if(unpaid.length)alerts.push({kind:'payment',title:`${unpaid.length} حجز عليه مبلغ متبقٍ`,text:`إجمالي يحتاج متابعة: ${money(unpaid.reduce((sum,b)=>sum+getRemainingAmount(b),0))}`,action:'متابعة المبالغ',onclick:"switchView('expenses')"});
+  if(contractPending.length)alerts.push({kind:'contract',title:'إرسال العقد للعميل',text:`أنشئ العقد ثم أرسله يدويًا للحجز الأقرب: ${contractPending[0].code||'-'}`,action:'فتح مركز الإرسال',onclick:`openContractSendCenter('${contractPending[0].id}')`});
   if(movement.length)alerts.push({kind:'movement',title:`${movement.length} حركة دخول أو خروج اليوم`,text:'تحتاج تحديث حالة الحجز عند اكتمال الحركة.',action:'فتح الحجوزات',onclick:"switchView('bookings')"});
   if(reports.length)alerts.push({kind:'cleaning',title:`${reports.length} تقرير تنظيف بانتظار اعتمادك`,text:'راجع صور العامل واعتمد المهمة أو أعدها.',action:'مراجعة التقرير',onclick:"switchView('cleaning')"});
   else if(cleaning.length)alerts.push({kind:'cleaning',title:`${cleaning.length} مهمة تنظيف قيد المتابعة`,text:'تحتاج متابعة حتى اكتمال التنظيف واعتماده.',action:'فتح التنظيف',onclick:"switchView('cleaning')"});
@@ -1986,6 +1990,13 @@ function getPaymentStatus(booking){
   if(!(Number(booking?.total||0)>0))return {code:'unset',label:'لم يُحدد المبلغ',remaining:0};
   if(isFullyPaid(booking))return {code:'paid',label:'مكتمل السداد',remaining:0};
   const remaining=getRemainingAmount(booking);return {code:'due',label:`متبقي مبلغ: ${money(remaining)}`,remaining};
+}
+function canSendRemainingReminder(booking,now=new Date()){
+  if(!booking||booking.status!=='تم الدخول'||getRemainingAmount(booking)<=0)return false;
+  const entryDate=String(booking.date||''),entryAt=new Date(`${entryDate}T22:00:00`),nextDay=new Date(`${entryDate}T00:00:00`);
+  if(Number.isNaN(entryAt.getTime())||Number.isNaN(nextDay.getTime()))return false;
+  nextDay.setDate(nextDay.getDate()+1);const secondAt=new Date(`${nextDay.getFullYear()}-${String(nextDay.getMonth()+1).padStart(2,'0')}-${String(nextDay.getDate()).padStart(2,'0')}T00:00:00`),today=isoToday();
+  return (today===entryDate&&now>=entryAt)||(today===`${nextDay.getFullYear()}-${String(nextDay.getMonth()+1).padStart(2,'0')}-${String(nextDay.getDate()).padStart(2,'0')}`&&now>=secondAt);
 }
 function commissionEligibility(booking){return !!booking&&normalizeRecordType(booking.recordType)!=='family'&&booking.status!=='ملغي'&&Number(booking.total||0)>0&&Number(booking.paid||0)>=Number(booking.total||0)}
 function calculateCommissionAmount(method,rate,days,total){
@@ -2306,7 +2317,7 @@ function manualMessageText(type,b){
     invoice:`مرحبًا ${b.name}\nمرفق لكم فاتورة حجز منتجع أضواء الشرق بصيغة PDF.\n${base}\nالإجمالي: ${money(b.total)}\nالمدفوع: ${money(b.paid)}\nحالة السداد: ${payment.label}`,
     welcome:welcomeMessageText(b),
     reminder:`مرحبًا ${b.name}\nنذكركم بموعد حجزكم في منتجع أضواء الشرق.\n${base}\nوقت الدخول الساعة 3:30 عصرًا. نتشرف بخدمتكم.`,
-    due:`مرحبًا ${b.name}\nنود تذكيركم بأن المبلغ المتبقي على الحجز هو ${money(due)}.\n${base}\nشاكرين تعاونكم.`,
+    due:`مرحبًا ضيفنا،\nالمبلغ المتبقي للحجز #${b.code||'-'} هو ${money(due)}.\nشاكرين تعاونكم.`,
     thanks:`شكرًا لاختياركم منتجع أضواء الشرق يا ${b.name} 🌿\nسعدنا باستضافتكم، ونتطلع لخدمتكم مرة أخرى.\nرقم الحجز: ${b.code||'-'}`
   };
   return messages[type]||'';
@@ -3597,13 +3608,14 @@ function renderSendStatus(){
   v92SetStatus('v92ContractSent',cSent?'done':!saved||!hasPhone||!cCreated?'none':'wait',cSent?'تم الإرسال':!saved||!hasPhone?'لم يتم':!cCreated?'أنشئ PDF أولًا':'بانتظار الإرسال',cSent);
   v92SetStatus('v92InvoiceCreated',iCreated?'done':saved?'wait':'none',iCreated?'تم الإنشاء':saved?'بانتظار الإنشاء':'لم يتم',iCreated);
   v92SetStatus('v92InvoiceSent',iSent?'done':!saved||!hasPhone||!iCreated?'none':'wait',iSent?'تم الإرسال':!saved||!hasPhone?'لم يتم':!iCreated?'أنشئ PDF أولًا':'بانتظار الإرسال',iSent);
-  [['welcome','v92WelcomeSent'],['reminder','v92ReminderSent'],['due','v92DueSent'],['thanks','v92ThanksSent']].forEach(([key,id])=>{
-    const at=ops[key]?.sentAt;v92SetStatus(id,at?'done':saved&&hasPhone?'wait':'none',at?'تم التنفيذ':saved&&hasPhone?'بانتظار':'لم يتم',at);
+  const dueReady=saved&&hasPhone&&canSendRemainingReminder(booking)&&!ops.due?.sentAt;
+  [['due','v92DueSent']].forEach(([key,id])=>{
+    const at=ops[key]?.sentAt;v92SetStatus(id,at?'done':dueReady?'wait':'none',at?'تم التنفيذ':dueReady?'بانتظار شروط التذكير':'غير متاح حاليًا',at);
   });
   v92SetDisabled('[data-v92-action$="-create"]',!saved);
   v92SetDisabled('[data-v92-action="contract-send"]',!saved||!hasPhone||!cCreated);
   v92SetDisabled('[data-v92-action="invoice-send"]',!saved||!hasPhone||!iCreated);
-  v92SetDisabled('[data-v92-action="welcome-send"],[data-v92-action="reminder-send"],[data-v92-action="due-send"],[data-v92-action="thanks-send"]',!saved||!hasPhone);
+  v92SetDisabled('[data-v92-action="due-send"]',!saved||!hasPhone||!canSendRemainingReminder(booking));
   const summary=document.getElementById('sendStatus');if(summary)summary.innerHTML=saved?'':'<span class="send-chip">احفظ الحجز أولًا</span>';
   renderV92Activity(booking);
 }
@@ -3776,6 +3788,7 @@ sendManualWhatsApp=function(type){
   const booking=getBookingFromForm();if(!booking.name||!booking.date){alert('أدخل اسم العميل وتاريخ الحجز أولًا.');return;}
   const phone=normalizeSaudiPhone(booking.phone);if(!phone){alert('رقم واتساب غير صالح. استخدم رقم جوال سعودي يبدأ بـ05 أو 5 أو 9665 أو +9665.');return;}
   if((type==='contract'||type==='invoice')&&!saved.manualOperations?.[type]?.createdAt){alert(`أنشئ ${type==='contract'?'العقد':'الفاتورة'} بصيغة PDF أولًا.`);return;}
+  if(type==='due'&&(!canSendRemainingReminder(saved)||saved.manualOperations?.due?.sentAt)){alert('تذكير المبلغ المتبقي متاح مرة واحدة بعد دخول العميل وفي وقت التذكير المعتمد.');return;}
   showWhatsAppPreview(type,booking,phone,buildWhatsAppMessage(type,booking));
 };
 const rcOpenWhatsApp=openV92WhatsAppFromFallback;
@@ -3830,15 +3843,14 @@ renderTodayBoard=function(){
   const root=document.getElementById('todayBoardContent');if(!root)return;
   try{
     const today=isoToday(),active=(db.bookings||[]).filter(b=>b.recordType!=='family'&&b.status!=='ملغي');
-    const entries=active.filter(b=>b.date===today&&!['تم الدخول','تم الخروج'].includes(b.status));
-    const exits=active.filter(b=>bookingExitDate(b)===today&&b.status!=='تم الخروج');
+    const now=new Date();
+    const entries=active.filter(b=>b.date===today&&!['تم الدخول','تم الخروج'].includes(b.status)&&now>=new Date(`${today}T15:30:00`));
+    const exits=active.filter(b=>bookingExitDate(b)===today&&b.status!=='تم الخروج'&&hasReachedBookingExitTime(b,now));
     const cleaning=(db.cleaningTasks||[]).filter(t=>!['approved','done','ملغي'].includes(t.status));
-    const unpaid=active.filter(b=>getRemainingAmount(b)>0);
     const actions=[];
     if(entries.length)actions.push({kind:'movement',title:'دخول اليوم',value:entries.length,text:entries.map(b=>b.name||'بدون اسم').slice(0,2).join('، '),action:'فتح أول حجز',onclick:`openBooking('${entries[0].id}')`});
     if(exits.length)actions.push({kind:'movement',title:'خروج اليوم',value:exits.length,text:exits.map(b=>b.name||'بدون اسم').slice(0,2).join('، '),action:'فتح أول حجز',onclick:`openBooking('${exits[0].id}')`});
     if(cleaning.length)actions.push({kind:'cleaning',title:'تنظيف مطلوب',value:cleaning.length,text:cleaning.some(t=>t.status==='pending_approval')?'يوجد تقرير عامل بانتظار الاعتماد':'توجد مهمة تنظيف لم تكتمل',action:'فتح التنظيف',onclick:"switchView('cleaning')"});
-    if(unpaid.length)actions.push({kind:'payment',title:'مبلغ يحتاج إجراء',value:money(unpaid.reduce((sum,b)=>sum+getRemainingAmount(b),0)),text:`على ${unpaid.length} حجز`,action:'فتح المالية',onclick:"switchView('expenses')",money:true});
     document.getElementById('todayBoardDate').textContent=new Date().toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'long'});
     root.innerHTML=actions.map(item=>`<article class="today-action-card"><span class="today-action-icon">${homeAlertIcon(item.kind)}</span><div><span class="today-action-label">${escapeHtml(item.title)}</span><strong class="${item.money?'money':''}">${escapeHtml(item.value)}</strong><p>${escapeHtml(item.text)}</p></div><button type="button" onclick="${item.onclick}">${escapeHtml(item.action)}</button></article>`).join('')||'<div class="home-empty home-empty-success"><b>لا توجد إجراءات عاجلة الآن</b><span>أعمال اليوم مكتملة ولا يوجد ما يحتاج تدخلك.</span></div>';
   }catch(err){root.innerHTML=`<div class="home-empty home-empty-error"><b>تعذر عرض إجراءات اليوم</b><span>${escapeHtml(err.message||'حدّث الصفحة وحاول مرة أخرى.')}</span></div>`}

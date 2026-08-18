@@ -150,7 +150,7 @@ if(window.supabaseClient){
 }
 
 (()=>{const script=document.createElement('script');script.src='booking-payment-history.js?v=20260813-2';script.defer=true;document.head.appendChild(script)})();
-(()=>{const script=document.createElement('script');script.src='remaining-payment-flow.js?v=20260813-1';script.defer=true;script.onerror=()=>console.warn('تعذر تحميل استلام باقي المبلغ');document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.src='remaining-payment-flow.js?v=20260818-2';script.defer=true;script.onerror=()=>console.warn('تعذر تحميل استلام باقي المبلغ');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.src='customer-subscriptions.js';script.defer=true;document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.src='subscription-booking-type.js?v=20260813-4';script.defer=true;document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.src='booking-customer-groups.js?v=20260808-3';script.defer=true;script.onerror=()=>console.warn('تعذر تحميل تجميع الحجوزات حسب العميل');document.head.appendChild(script)})();

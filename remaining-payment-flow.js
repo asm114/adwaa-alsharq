@@ -3,8 +3,8 @@
 if(window.__adwaaRemainingPaymentFlowInstalled)return;
 window.__adwaaRemainingPaymentFlowInstalled=true;
 
-const REMINDER_HOUR=2;
-const SNOOZE_MINUTES=30;
+const FIRST_REMINDER_HOUR=22;
+const SECOND_REMINDER_HOUR=0;
 let reminderOpen=false;
 let boundaryTimer=0;
 let retryTimer=0;
@@ -19,7 +19,7 @@ const isoDate=date=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(
 const todayIso=()=>isoDate(new Date());
 const money=value=>typeof window.money==='function'?window.money(value):`${safeNumber(value).toLocaleString('ar-SA')} ر.س`;
 const nowIso=()=>new Date().toISOString();
-const reminderKey=booking=>`ops:remaining_payment:${booking.id}`;
+const reminderKey=(booking,stage)=>`ops:remaining_payment:${booking.id}:${stage}`;
 
 function bookingById(id){return bookings().find(row=>row?.id===id)||null}
 function currentBooking(){const id=String(document.getElementById('bId')?.value||'').trim();return id?bookingById(id):null}
@@ -32,14 +32,12 @@ function formRemaining(booking){
   }
   return remaining(booking);
 }
-function existingReminder(booking){const key=reminderKey(booking);return notifications().find(item=>item?.reminderKey===key&&!item.resolvedAt)||null}
-function snoozed(item){return !!(item?.snoozedUntil&&new Date(item.snoozedUntil).getTime()>Date.now())}
+function existingReminder(booking,stage){const key=reminderKey(booking,stage);return notifications().find(item=>item?.reminderKey===key&&!item.resolvedAt)||null}
 function resolveReminder(item){if(!item)return;item.read=true;item.resolvedAt=nowIso();item.snoozedUntil=''}
-function snoozeReminder(item,minutes=SNOOZE_MINUTES){if(!item)return;item.read=false;item.snoozedUntil=new Date(Date.now()+minutes*60000).toISOString()}
-function addReminder(booking){
-  const existing=existingReminder(booking);if(existing)return existing;
+function addReminder(booking,stage){
+  const existing=existingReminder(booking,stage);if(existing)return existing;
   const due=remaining(booking);
-  const item={id:crypto.randomUUID(),type:'operational',message:`هل تم استلام باقي المبلغ من ${booking.name||'العميل'}؟ المتبقي ${money(due)}.`,bookingId:booking.id,createdAt:nowIso(),read:false,reminderKey:reminderKey(booking),operationalType:'remaining_payment',snoozedUntil:'',resolvedAt:''};
+  const item={id:crypto.randomUUID(),type:'operational',message:`مبلغ متبقٍ للحجز #${booking.code||''}: ${money(due)}.`,bookingId:booking.id,createdAt:nowIso(),read:false,reminderKey:reminderKey(booking,stage),operationalType:'remaining_payment',reminderStage:stage,promptedAt:'',snoozedUntil:'',resolvedAt:''};
   notifications().unshift(item);if(notifications().length>100)notifications().length=100;return item;
 }
 async function saveState(){
@@ -83,7 +81,6 @@ function ensureModal(){
 }
 function closeModal(snooze=false){
   const modal=document.getElementById('remainingPaymentModal'),item=modal?._reminderItem;
-  if(snooze&&item){snoozeReminder(item);saveState()}
   modal?.classList.remove('open');if(modal){modal._reminderItem=null;modal._bookingId=''}reminderOpen=false;
 }
 function methodButtons(booking,item){
@@ -91,7 +88,6 @@ function methodButtons(booking,item){
   actions.innerHTML='<div class="remaining-payment-methods"><button class="primary" data-method="transfer" type="button">تحويل بنكي</button><button class="secondary" data-method="cash" type="button">نقد</button><button class="secondary" data-method="card" type="button">شبكة / بطاقة</button><button class="secondary" data-method="other" type="button">أخرى</button></div><button class="secondary" id="remainingPaymentBack" type="button">رجوع</button>';
   actions.querySelectorAll('[data-method]').forEach(button=>button.addEventListener('click',async()=>{
     const method=button.dataset.method||'transfer';
-    if(item)snoozeReminder(item,10);
     closeModal(false);
     await fillAndSubmitRemainingPayment(booking.id,method);
     setTimeout(scan,2500);
@@ -142,24 +138,33 @@ function resolveObsolete(){
     const booking=bookingById(item.bookingId);if(!booking||!active(booking)||remaining(booking)<=0)resolveReminder(item);
   });
 }
+function atLocalDate(date,hour){return new Date(`${date}T${String(hour).padStart(2,'0')}:00:00`)}
+function nextDate(date){const value=new Date(`${date}T00:00:00`);if(Number.isNaN(value.getTime()))return '';value.setDate(value.getDate()+1);return isoDate(value)}
+function reminderStage(booking,now=new Date()){
+  if(!active(booking)||booking.status!=='تم الدخول'||remaining(booking)<=0)return '';
+  const entryDate=String(booking.date||'');if(!entryDate)return '';
+  const firstAt=atLocalDate(entryDate,FIRST_REMINDER_HOUR),secondDate=nextDate(entryDate),secondAt=secondDate?atLocalDate(secondDate,SECOND_REMINDER_HOUR):null,today=isoDate(now);
+  if(secondAt&&today===secondDate&&now>=secondAt)return 'second';
+  if(today===entryDate&&now>=firstAt)return 'first';
+  return '';
+}
 function dueBookings(){
-  const now=new Date(),today=isoDate(now),boundary=new Date(now.getFullYear(),now.getMonth(),now.getDate(),REMINDER_HOUR,0,0,0);
-  if(now<boundary)return[];
-  return bookings().filter(booking=>active(booking)&&booking.date===today&&remaining(booking)>0);
+  const now=new Date();
+  return bookings().map(booking=>({booking,stage:reminderStage(booking,now)})).filter(row=>row.stage);
 }
 async function scan(){
   if(!state())return;
   const before=notifications().map(item=>`${item.id}:${item.resolvedAt||''}:${item.snoozedUntil||''}`).join('|');
   resolveObsolete();
-  const candidates=dueBookings().map(booking=>({booking,item:addReminder(booking)})).filter(row=>!snoozed(row.item));
+  const candidates=dueBookings().map(({booking,stage})=>({booking,item:addReminder(booking,stage)})).filter(row=>!row.item.promptedAt);
   const after=notifications().map(item=>`${item.id}:${item.resolvedAt||''}:${item.snoozedUntil||''}`).join('|');if(before!==after)await saveState();
   if(reminderOpen||!candidates.length)return;
   const anotherModal=[...document.querySelectorAll('.modal.open')].find(el=>el.id!=='remainingPaymentModal');
   if(anotherModal){clearTimeout(retryTimer);retryTimer=setTimeout(scan,5*60000);return}
-  const {booking,item}=candidates[0];openReceiveModal(booking,true,item);
+  const {booking,item}=candidates[0];item.promptedAt=nowIso();await saveState();openReceiveModal(booking,true,item);
 }
 function scheduleBoundary(){
-  clearTimeout(boundaryTimer);const now=new Date(),next=new Date(now.getFullYear(),now.getMonth(),now.getDate(),REMINDER_HOUR,0,0,0);if(now>=next)next.setDate(next.getDate()+1);
+  clearTimeout(boundaryTimer);const now=new Date(),today=isoDate(now),firstAt=atLocalDate(today,FIRST_REMINDER_HOUR),tomorrow=nextDate(today),secondAt=atLocalDate(tomorrow,SECOND_REMINDER_HOUR),next=now<firstAt?firstAt:secondAt;
   boundaryTimer=setTimeout(()=>{scan();scheduleBoundary()},Math.max(1000,next.getTime()-now.getTime()+250));
 }
 function wrapOpenBooking(){
