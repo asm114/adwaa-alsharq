@@ -70,7 +70,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 })();
 
 (()=>{const script=document.createElement('script');script.async=false;script.src='portal-admin-client.js?v=20260814-2';script.onerror=()=>console.warn('تعذر تحميل جلسة إدارة بوابة العملاء');document.head.appendChild(script)})();
-(()=>{const script=document.createElement('script');script.async=false;script.src='portal-dedicated-backend-compat.js?v=20260819-1';script.onerror=()=>console.warn('تعذر تحميل ربط بوابة العملاء المخصصة');document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.async=false;script.src='portal-dedicated-backend-compat.js?v=20260819-2';script.onerror=()=>console.warn('تعذر تحميل ربط بوابة العملاء المخصصة');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='subscription-draft-workflow.js';document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='subscription-editing.js?v=20260807-2';script.onerror=()=>console.warn('تعذر تحميل تعديل الاشتراكات');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='subscription-edit-button-fallback.js?v=20260807-1';script.onerror=()=>console.warn('تعذر تحميل زر تعديل الاشتراكات');document.head.appendChild(script)})();
