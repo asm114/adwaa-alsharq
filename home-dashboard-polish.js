@@ -51,7 +51,7 @@ function addStyles(){
     const link=document.createElement('link');link.rel='stylesheet';link.href='app-experience-pro.css?v=20260817-2';link.dataset.appExperiencePro='1';document.head.appendChild(link);
   }
   if(!document.querySelector('link[data-home-dashboard-polish]')){
-    const link=document.createElement('link');link.rel='stylesheet';link.href='home-dashboard-polish.css?v=20260817-2';link.dataset.homeDashboardPolish='1';document.head.appendChild(link);
+    const link=document.createElement('link');link.rel='stylesheet';link.href='home-dashboard-polish.css?v=20260818-1';link.dataset.homeDashboardPolish='1';document.head.appendChild(link);
   }
 }
 
