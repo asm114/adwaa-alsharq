@@ -7,8 +7,26 @@ const PORTAL_PROJECT_REF='ztqqdjryvecscidxxbfe';
 const PORTAL_SUPABASE_URL=`https://${PORTAL_PROJECT_REF}.supabase.co`;
 const PORTAL_SUPABASE_PUBLISHABLE_KEY='sb_publishable_M3MQwFfxiMMKt_-tq-KAjQ_OQTtg2MD';
 
+function makeCredentialSaveNonBlocking(){
+  const original=window.saveManagerCredentialPreference;
+  if(typeof original!=='function'||original.__adwaaNonBlocking)return;
+  const wrapped=async function(email,password){
+    try{
+      const task=Promise.resolve(original(email,password));
+      task.catch(err=>console.warn('تعذر حفظ بيانات الدخول في مدير كلمات المرور.',err));
+      await Promise.race([task,new Promise(resolve=>setTimeout(resolve,60))]);
+    }catch(err){
+      console.warn('تعذر حفظ تفضيل بيانات الدخول.',err);
+    }
+  };
+  wrapped.__adwaaNonBlocking=true;
+  wrapped.__original=original;
+  window.saveManagerCredentialPreference=wrapped;
+}
+
 function install(){
   if(!window.supabase?.createClient)return false;
+  makeCredentialSaveNonBlocking();
   const dedicatedClient=window.supabase.createClient(
     PORTAL_SUPABASE_URL,
     PORTAL_SUPABASE_PUBLISHABLE_KEY,
