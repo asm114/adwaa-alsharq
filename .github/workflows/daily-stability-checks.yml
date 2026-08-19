@@ -39,6 +39,9 @@ jobs:
             commission-transfer-workflow.js
             professional-ui-stable.js
             daily-operations-policy.js
+            operational-reminders-center.js
+            worker-check-admin.js
+            worker-check-public.js
             sw.js
             resort/portal-today-highlight.js
           )
