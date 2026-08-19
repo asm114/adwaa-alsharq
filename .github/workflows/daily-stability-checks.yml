@@ -41,6 +41,7 @@ jobs:
             daily-operations-policy.js
             operational-reminders-center.js
             document-preview-controls.js
+            contract-one-button-share.js
             worker-check-admin.js
             worker-check-public.js
             worker-check-legacy-cleanup.js
