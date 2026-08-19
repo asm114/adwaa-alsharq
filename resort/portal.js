@@ -1,5 +1,7 @@
-const SUPABASE_URL='https://ztqqdjryvecscidxxbfe.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY='sb_publishable_M3MQwFfxiMMKt_-tq-KAjQ_OQTtg2MD';
+const portalSupabaseConfig=window.ADWAA_PORTAL_SUPABASE_CONFIG||null;
+if(!portalSupabaseConfig?.url||!portalSupabaseConfig?.publishableKey||!portalSupabaseConfig?.projectRef)throw new Error('تم منع بوابة العميل من الاتصال لأن إعداد Backend الخاص بالعميل غير مكتمل.');
+const SUPABASE_URL=portalSupabaseConfig.url;
+const SUPABASE_PUBLISHABLE_KEY=portalSupabaseConfig.publishableKey;
 const portalClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 let unavailablePeriods=[];
 let portalPricing=null;
