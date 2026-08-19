@@ -3,6 +3,30 @@
 if(window.__adwaaHeaderAlertsPopupInstalled)return;
 window.__adwaaHeaderAlertsPopupInstalled=true;
 
+function currentAlertCards(){
+  return [...document.querySelectorAll('#alertsList .action-alert')].filter(card=>!card.hidden&&card.isConnected);
+}
+
+function syncHeaderAlertCount(){
+  const badge=document.getElementById('headerAlertCount');
+  if(!badge)return;
+  const count=currentAlertCards().length;
+  const text=String(count);
+  if(badge.textContent!==text)badge.textContent=text;
+  const hidden=count===0;
+  if(badge.hidden!==hidden)badge.hidden=hidden;
+}
+
+function installAlertCountSync(){
+  const root=document.getElementById('alertsList');
+  if(!root){setTimeout(installAlertCountSync,120);return}
+  if(root.__adwaaHeaderAlertCountObserver){syncHeaderAlertCount();return}
+  const observer=new MutationObserver(()=>queueMicrotask(syncHeaderAlertCount));
+  observer.observe(root,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','class','style']});
+  root.__adwaaHeaderAlertCountObserver=observer;
+  syncHeaderAlertCount();
+}
+
 function ensureModal(){
   let modal=document.getElementById('headerAlertsModal');
   if(modal)return modal;
@@ -23,11 +47,8 @@ function ensureModal(){
   return modal;
 }
 
-function currentAlertCards(){
-  return [...document.querySelectorAll('#alertsList .action-alert')].filter(card=>!card.hidden);
-}
-
 function openHeaderAlertsPopup(){
+  syncHeaderAlertCount();
   const modal=ensureModal();
   const list=modal.querySelector('#headerAlertsModalList');
   const meta=modal.querySelector('#headerAlertsModalMeta');
@@ -47,4 +68,6 @@ function openHeaderAlertsPopup(){
 
 window.focusDashboardAlerts=openHeaderAlertsPopup;
 window.openHeaderAlertsPopup=openHeaderAlertsPopup;
+window.syncHeaderAlertCount=syncHeaderAlertCount;
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installAlertCountSync,{once:true});else installAlertCountSync();
 })();
