@@ -7,7 +7,7 @@ const read=path=>readFile(new URL(path,root),'utf8');
 
 test('حذف تشييك العامل متاح للمدير ويحذف السجل ووسائطه',async()=>{
   const js=await read('worker-check-delete.js');
-  assert.match(js,/data-worker-check-delete/);
+  assert.match(js,/dataset\.workerCheckDelete/);
   assert.match(js,/حذف تشييك العامل نهائيًا/);
   assert.match(js,/\.from\(TABLE\)\.delete\(\)\.eq\('id',row\.id\)/);
   assert.match(js,/storage\.from\(BUCKET\)\.remove\(paths\)/);
