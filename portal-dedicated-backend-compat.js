@@ -1,12 +1,20 @@
 (()=>{
 'use strict';
 if(window.__adwaaDedicatedPortalBackendInstalled)return;
+
+const portalConfig=window.ADWAA_PORTAL_SUPABASE_CONFIG||null;
+const commercialConfig=window.ADWAA_COMMERCIAL_CONFIG||null;
+if(!portalConfig?.projectRef||!portalConfig?.url||!portalConfig?.publishableKey){
+  console.error('تم منع تهيئة Backend بوابة العملاء لأن إعداد النسخة التجارية غير مكتمل.');
+  return;
+}
 window.__adwaaDedicatedPortalBackendInstalled=true;
 
-const PORTAL_PROJECT_REF='ztqqdjryvecscidxxbfe';
-const PORTAL_SUPABASE_URL=`https://${PORTAL_PROJECT_REF}.supabase.co`;
-const PORTAL_SUPABASE_PUBLISHABLE_KEY='sb_publishable_M3MQwFfxiMMKt_-tq-KAjQ_OQTtg2MD';
-const PORTAL_AUTH_STORAGE_KEY=`adwaa-portal-auth-${PORTAL_PROJECT_REF}`;
+const PORTAL_PROJECT_REF=portalConfig.projectRef;
+const PORTAL_SUPABASE_URL=portalConfig.url;
+const PORTAL_SUPABASE_PUBLISHABLE_KEY=portalConfig.publishableKey;
+const AUTH_NAMESPACE=String(commercialConfig?.namespace?.auth||commercialConfig?.deploymentId||'commercial').replace(/[^a-zA-Z0-9_-]/g,'-');
+const PORTAL_AUTH_STORAGE_KEY=`${AUTH_NAMESPACE}-portal-auth-${PORTAL_PROJECT_REF}`;
 
 function makeCredentialSaveNonBlocking(){
   const original=window.saveManagerCredentialPreference;
