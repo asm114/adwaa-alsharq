@@ -17,23 +17,30 @@ function currentForm(){
   return currentBooking();
 }
 
-function contractCard(){
-  return document.querySelector('[data-v92-action="contract-create"]')?.closest('.v92-operation-card')||null;
+function recipientInfo(form=currentForm(),booking=currentBooking()){
+  const name=String(form?.name||booking?.name||'العميل').trim()||'العميل';
+  const phone=String(form?.phone||booking?.phone||'').trim();
+  return{name,phone};
 }
 
-function targetText(form){
-  const name=String(form?.name||'العميل').trim()||'العميل';
-  const phone=String(form?.phone||'').trim();
+function contractCard(){
+  return document.querySelector('[data-v92-action="contract-create"]')?.closest('.v92-operation-card')
+    ||document.querySelector('[data-v92-action="contract-share-file"]')?.closest('.v92-operation-card')
+    ||null;
+}
+
+function targetText(form,booking){
+  const {name,phone}=recipientInfo(form,booking);
   return phone?`أرسل إلى: ${name} — ${phone}`:`أرسل إلى: ${name} — لا يوجد رقم جوال`;
 }
 
-function buildStaticContractFile(html,form){
+function buildStaticContractFile(html,form,booking){
   const parser=new DOMParser();
   const doc=parser.parseFromString(String(html||''),'text/html');
   doc.querySelector('#adwaaDocToolbar')?.remove();
   doc.querySelectorAll('script').forEach(node=>node.remove());
-  const bookingCode=String(form?.code||currentBooking()?.code||'').trim();
-  const customer=String(form?.name||'العميل').trim()||'العميل';
+  const bookingCode=String(form?.code||booking?.code||'').trim();
+  const customer=recipientInfo(form,booking).name;
   const fileName=`عقد-${bookingCode||customer}.html`.replace(/[\\/:*?"<>|]+/g,'-');
   const source='<!doctype html>\n'+doc.documentElement.outerHTML;
   return new File([source],fileName,{type:'text/html;charset=utf-8',lastModified:Date.now()});
@@ -48,18 +55,19 @@ function downloadFile(file){
 async function shareContract(){
   const booking=currentBooking(),form=currentForm();
   if(!booking){alert('احفظ الحجز أولًا قبل مشاركة العقد.');return}
-  if(!form?.name||!form?.date){alert('أدخل اسم العميل وتاريخ الحجز أولًا.');return}
-  const phone=String(form?.phone||booking?.phone||'').trim();
+  const {name,phone}=recipientInfo(form,booking);
+  const bookingDate=String(form?.date||booking?.date||'').trim();
+  if(!name||!bookingDate){alert('أدخل اسم العميل وتاريخ الحجز أولًا.');return}
   if(!digits(phone)){alert('أضف رقم جوال العميل أولًا حتى يظهر لك المستلم الصحيح.');return}
   if(typeof window.bookingDocumentHTML!=='function'){alert('تعذر تجهيز ملف العقد الآن. حدّث الصفحة وحاول مرة أخرى.');return}
 
   const button=document.querySelector('[data-v92-action="contract-share-file"]');
   if(button){button.disabled=true;button.textContent='جاري تجهيز العقد…'}
   try{
-    const html=window.bookingDocumentHTML(form,'contract');
-    const file=buildStaticContractFile(html,form);
+    const documentData={...(booking||{}),...(form||{}),name,phone,date:bookingDate};
+    const html=window.bookingDocumentHTML(documentData,'contract');
+    const file=buildStaticContractFile(html,documentData,booking);
     if(typeof window.v92RecordOperation==='function')await window.v92RecordOperation('contract','created');
-    const name=String(form?.name||booking?.name||'العميل').trim()||'العميل';
     const shareText=`عقد ${name} — رقم العميل ${phone}`;
     if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
       await navigator.share({title:`عقد ${name}`,text:shareText,files:[file]});
@@ -95,15 +103,30 @@ function refresh(){
     target.style.cssText='margin-top:8px;font-weight:800;color:#0d4c3f';
     row.insertAdjacentElement('afterend',target);
   }
-  const booking=currentBooking(),form=currentForm();
-  target.innerHTML=esc(targetText(form));
-  button.disabled=!booking||!digits(form?.phone||booking?.phone||'');
+  const booking=currentBooking(),form=currentForm(),recipient=recipientInfo(form,booking);
+  target.innerHTML=esc(targetText(form,booking));
+  button.disabled=!booking||!digits(recipient.phone);
   button.textContent='📎 مشاركة ملف العقد';
 }
 
+function installOpenBookingRefresh(){
+  const original=window.openBooking;
+  if(typeof original!=='function'||original.__adwaaContractRecipientRefresh)return;
+  const wrapped=function(){
+    const result=original.apply(this,arguments);
+    [0,80,250,700].forEach(delay=>setTimeout(refresh,delay));
+    return result;
+  };
+  wrapped.__adwaaContractRecipientRefresh=true;
+  wrapped.__original=original;
+  window.openBooking=wrapped;
+}
+
 function start(){
+  installOpenBookingRefresh();
   refresh();
   document.addEventListener('input',event=>{if(event.target?.id==='bName'||event.target?.id==='bPhone')refresh()});
+  document.addEventListener('change',event=>{if(event.target?.id==='bName'||event.target?.id==='bPhone')refresh()});
   window.addEventListener('focus',refresh);
   window.addEventListener('adwaa-subscription-updated',refresh);
   new MutationObserver(()=>queueMicrotask(refresh)).observe(document.body,{subtree:true,childList:true});
