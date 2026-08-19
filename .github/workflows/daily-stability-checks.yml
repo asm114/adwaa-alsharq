@@ -40,6 +40,7 @@ jobs:
             professional-ui-stable.js
             daily-operations-policy.js
             operational-reminders-center.js
+            document-preview-controls.js
             worker-check-admin.js
             worker-check-public.js
             worker-check-legacy-cleanup.js
