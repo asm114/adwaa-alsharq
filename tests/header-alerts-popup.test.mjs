@@ -14,7 +14,16 @@ test('جرس التنبيهات يفتح قائمة واضحة بدل النزو
   assert.doesNotMatch(popup,/scrollIntoView/);
 });
 
-test('إصلاح الواجهة يحمل نافذة التنبيهات العلوية',async()=>{
+test('رقم الجرس يطابق التنبيهات الظاهرة فعليًا بعد تنظيف البطاقات القديمة',async()=>{
+  const popup=await read('header-alerts-popup.js');
+  assert.match(popup,/function syncHeaderAlertCount\(\)/);
+  assert.match(popup,/currentAlertCards\(\)\.length/);
+  assert.match(popup,/new MutationObserver\(\(\)=>queueMicrotask\(syncHeaderAlertCount\)\)/);
+  assert.match(popup,/observer\.observe\(root,\{childList:true,subtree:true,attributes:true/);
+  assert.match(popup,/window\.syncHeaderAlertCount=syncHeaderAlertCount/);
+});
+
+test('إصلاح الواجهة يحمل نسخة محدثة من نافذة التنبيهات العلوية',async()=>{
   const cleanup=await read('worker-check-legacy-cleanup.js');
-  assert.match(cleanup,/header-alerts-popup\.js\?v=20260819-1/);
+  assert.match(cleanup,/header-alerts-popup\.js\?v=20260819-2/);
 });
