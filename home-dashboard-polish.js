@@ -16,10 +16,10 @@ function removeLegacyCleaningUi(){
   if(cleaningView){cleaningView.hidden=true;cleaningView.classList.remove('active')}
   const roots=[document.getElementById('dashboard'),document.getElementById('simpleHomeDashboard')].filter(Boolean);
   roots.forEach(root=>{
-    root.querySelectorAll('button,h2,h3,h4,.k,.meta,p').forEach(node=>{
+    root.querySelectorAll('.today-action-card,.today-action-label,button,h2,h3,h4,.k,.meta,p').forEach(node=>{
       const text=norm(node.textContent);
       if(!/تنظيف مطلوب|مهمة تنظيف|فتح التنظيف|التنظيف وجميل/.test(text))return;
-      const card=node.closest('.action-alert,.stat,.item,.card,.section');
+      const card=node.matches?.('.today-action-card')?node:node.closest('.today-action-card,.action-alert,.stat,.item,.card,.section');
       if(card&&card!==root)card.remove();
     });
   });
