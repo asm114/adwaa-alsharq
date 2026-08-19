@@ -13,14 +13,27 @@ test('حذف تشييك العامل يمسح الوسائط ويترك علام
   assert.match(js,/status:'reviewed'/);
   assert.match(js,/issue_types:\[\],photo_paths:\[\],voice_path:''/);
   assert.match(js,/shared_at:row\.shared_at\|\|now/);
+  assert.match(js,/workerCheckDismissedAt/);
+  assert.match(js,/await persistDismissal\(bookingId,now\)/);
   assert.match(js,/لن يعود التنبيه لهذا الحجز/);
   assert.match(js,/isDeletedMarker/);
   assert.match(js,/window\.location\.reload\(\)/);
 });
 
-test('واجهة الحذف تُحمّل بنسخة محدثة مع تشييك العامل',async()=>{
+test('واجهة الحذف وتحكم التنبيه القديم تُحمّلان بنسخ محدثة',async()=>{
   const cleanup=await read('worker-check-legacy-cleanup.js');
-  assert.match(cleanup,/worker-check-delete\.js\?v=20260819-2/);
+  assert.match(cleanup,/worker-check-delete\.js\?v=20260819-3/);
+  assert.match(cleanup,/worker-check-stale-alert-fix\.js\?v=20260819-1/);
+});
+
+test('تنبيه المشاركة القديم يمكن إنهاؤه نهائيًا من نفس البطاقة',async()=>{
+  const fix=await read('worker-check-stale-alert-fix.js');
+  assert.match(fix,/workerCheckDismissedAt/);
+  assert.match(fix,/data-worker-check-dismiss/);
+  assert.match(fix,/تم التعامل/);
+  assert.match(fix,/await persistDismissal\(booking\)/);
+  assert.match(fix,/card\?\.remove\(\)/);
+  assert.match(fix,/MutationObserver/);
 });
 
 test('قاعدة البوابة تسمح بالحذف للمدير فقط',async()=>{
