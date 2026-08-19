@@ -52,11 +52,28 @@ test('Commercial property-info migration is schema-only and customer neutral',as
   assert.doesNotMatch(sql,/insert\s+into\s+public\.customer_portal_resort_info/i);
 });
 
+test('Commercial images migration is customer neutral and does not expose Storage listing',async()=>{
+  const sql=await read('supabase/commercial/portal/migrations/20260820003000_portal_images_storage.sql');
+  assertCustomerNeutral(sql,'Portal images');
+  assert.match(sql,/create table if not exists public\.customer_portal_images/i);
+  assert.match(sql,/['"]customer-portal-images['"]/i);
+  assert.match(sql,/public\s*=\s*excluded\.public/i);
+  assert.match(sql,/category text not null default 'general'/i);
+  assert.match(sql,/char_length\(category\) between 1 and 80/i);
+  assert.match(sql,/public reads visible customer portal images/i);
+  assert.match(sql,/admins upload customer portal image files/i);
+  assert.match(sql,/bucket_id = 'customer-portal-images'[\s\S]*public\.is_resort_admin\(\)/i);
+  assert.match(sql,/drop policy if exists "public reads customer portal image files"[\s\S]*on storage\.objects/i);
+  assert.doesNotMatch(sql,/create policy "public reads customer portal image files"/i);
+  assert.doesNotMatch(sql,/insert\s+into\s+public\.customer_portal_images/i);
+});
+
 test('Commercial migration documentation explicitly excludes legacy Staging migrations from customer install',async()=>{
   const doc=await read('supabase/commercial/README.md');
   assert.match(doc,/20260818135222_staging_app_state\.sql/);
   assert.match(doc,/20260818141102_optimize_app_state_rls\.sql/);
   assert.match(doc,/20260731090000_customer_portal_resort_info\.sql/);
+  assert.match(doc,/20260820003000_portal_images_storage\.sql/);
   assert.match(doc,/لا تدخل في Commercial Install/);
   assert.match(doc,/يمنع حفظ Service Role Key/);
 });
