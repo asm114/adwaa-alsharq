@@ -34,13 +34,15 @@ function enhanceGeneratedDocument(html,b,type){
   if(typeof html!=='string'||!html.includes('<body>'))return html;
   const title=type==='invoice'?'فاتورة حجز':'عقد حجز';
   const customer=String(b?.name||'العميل');
+  const bookingCode=String(b?.code||'').trim();
   const phone=String(b?.phone||'').replace(/\D/g,'');
   const waPhone=phone.startsWith('0')?`966${phone.slice(1)}`:phone;
-  const shareText=`${title} — ${customer}${b?.code?` — ${b.code}`:''}`;
+  const shareText=`${title} — ${customer}${bookingCode?` — ${bookingCode}`:''}`;
+  const fileName=`${type==='invoice'?'فاتورة':'عقد'}-${bookingCode||customer||'حجز'}.html`.replace(/[\\/:*?"<>|]+/g,'-');
   const toolbar=`<div id="adwaaDocToolbar" class="actions" style="display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:0;z-index:9999;background:#f7f7f5;padding:10px 12px;border-bottom:1px solid #dfe5e2;direction:rtl">
     <button type="button" onclick="adwaaBackToSystem()" style="background:#fff;color:#0f7866;border:1px solid #9fc8bd">← رجوع للنظام</button>
-    <button type="button" onclick="adwaaShareDocument()" style="background:#5f50d9;color:#fff">مشاركة</button>
-    ${waPhone?`<button type="button" onclick="adwaaSendCustomer()" style="background:#168f5b;color:#fff">إرسال للعميل</button>`:''}
+    <button type="button" onclick="adwaaShareDocument()" style="background:#5f50d9;color:#fff">مشاركة الملف</button>
+    ${waPhone?`<button type="button" onclick="adwaaSendCustomer()" style="background:#168f5b;color:#fff">فتح واتساب العميل</button>`:''}
     <button type="button" onclick="window.print()">طباعة / حفظ PDF</button>
   </div>`;
   const helpers=`<script>
@@ -48,20 +50,48 @@ function enhanceGeneratedDocument(html,b,type){
     const ADWAA_DOC_CUSTOMER=${escJs(customer)};
     const ADWAA_DOC_SHARE_TEXT=${escJs(shareText)};
     const ADWAA_DOC_PHONE=${escJs(waPhone)};
+    const ADWAA_DOC_FILE_NAME=${escJs(fileName)};
     function adwaaBackToSystem(){
       try{if(window.opener&&!window.opener.closed){window.close();return;}}catch(e){}
       if(history.length>1){history.back();return;}
       location.href='./';
     }
+    function adwaaBuildDocumentFile(){
+      const clone=document.documentElement.cloneNode(true);
+      clone.querySelector('#adwaaDocToolbar')?.remove();
+      clone.querySelectorAll('script').forEach(node=>node.remove());
+      let baseHref='';
+      try{baseHref=window.opener?.location?.href||'';}catch(_){}
+      if(!baseHref&&document.baseURI&&!String(document.baseURI).startsWith('about:'))baseHref=document.baseURI;
+      if(baseHref){
+        const head=clone.querySelector('head');
+        if(head){const base=document.createElement('base');base.href=baseHref;head.prepend(base);}
+      }
+      const source='<!doctype html>\n'+clone.outerHTML;
+      return new File([source],ADWAA_DOC_FILE_NAME,{type:'text/html;charset=utf-8',lastModified:Date.now()});
+    }
+    function adwaaDownloadDocumentFile(file){
+      const url=URL.createObjectURL(file),link=document.createElement('a');
+      link.href=url;link.download=file.name;document.body.appendChild(link);link.click();link.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1500);
+    }
     async function adwaaShareDocument(){
+      const file=adwaaBuildDocumentFile();
       try{
-        if(navigator.share){await navigator.share({title:ADWAA_DOC_SHARE_TEXT,text:ADWAA_DOC_SHARE_TEXT});return;}
-        alert('المشاركة المباشرة غير مدعومة هنا. استخدم طباعة / حفظ PDF ثم شارك الملف من الجهاز.');
-      }catch(e){if(e&&e.name!=='AbortError')alert('تعذرت المشاركة. احفظ PDF ثم شاركه من الجهاز.');}
+        if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+          await navigator.share({title:ADWAA_DOC_SHARE_TEXT,text:ADWAA_DOC_SHARE_TEXT,files:[file]});return;
+        }
+        adwaaDownloadDocumentFile(file);
+        alert('جهازك لا يدعم إرفاق ملف العقد مباشرة من المتصفح. تم تنزيل نفس ملف العقد؛ شاركه من الملفات، أو استخدم طباعة / حفظ PDF إذا تريده بصيغة PDF.');
+      }catch(e){
+        if(e&&e.name==='AbortError')return;
+        try{adwaaDownloadDocumentFile(file)}catch(_){}
+        alert('تعذرت المشاركة المباشرة. تم تجهيز ملف العقد للتنزيل والمشاركة من الجهاز.');
+      }
     }
     function adwaaSendCustomer(){
       if(!ADWAA_DOC_PHONE)return;
-      const text='السلام عليكم، ${title} الخاص بك من منتجع أضواء الشرق. بعد حفظ ملف PDF يمكنك إرفاقه وإرساله هنا.';
+      const text='السلام عليكم، ${title} الخاص بك من منتجع أضواء الشرق. سأرسل لك ملف العقد/الفاتورة كمرفق.';
       location.href='https://wa.me/'+ADWAA_DOC_PHONE+'?text='+encodeURIComponent(text);
     }
   <\/script>`;
