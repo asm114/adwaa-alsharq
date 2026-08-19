@@ -80,4 +80,4 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 })();
 
 (()=>{const script=document.createElement('script');script.async=false;script.src='worker-check-admin.js?v=20260819-2';script.onerror=()=>console.warn('تعذر تحميل تشييك العامل');document.head.appendChild(script)})();
-(()=>{const script=document.createElement('script');script.async=false;script.src='worker-check-legacy-cleanup.js?v=20260819-1';script.onerror=()=>console.warn('تعذر تنظيف واجهات التنظيف القديمة');document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.async=false;script.src='worker-check-legacy-cleanup.js?v=20260819-2';script.onerror=()=>console.warn('تعذر تنظيف واجهات التنظيف القديمة');document.head.appendChild(script)})();
