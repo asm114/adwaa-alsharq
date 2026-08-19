@@ -2,6 +2,11 @@
 'use strict';
 if(window.__adwaaPortalAdminClientInstalled)return;
 const portalSupabaseConfig=window.ADWAA_SUPABASE_CONFIG;
+if(portalSupabaseConfig?.runtimeEnvironment==='production'){
+  window.__adwaaPortalAdminClientInstalled=true;
+  window.__adwaaLegacyPortalAdminDisabled=true;
+  return;
+}
 if(!portalSupabaseConfig||portalSupabaseConfig.environment!=='staging'){
   throw new Error('تم منع عميل بوابة الإدارة من العمل دون إعداد Staging المعتمد.');
 }
