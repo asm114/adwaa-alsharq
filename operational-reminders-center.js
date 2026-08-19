@@ -40,7 +40,7 @@ async function setBookingStatus(booking,status,item){
 }
 function ensureModal(){if(document.getElementById('operationalReminderModal'))return;const modal=document.createElement('div');modal.id='operationalReminderModal';modal.className='modal';modal.innerHTML=`<div class="sheet" style="max-width:560px;margin:auto"><div class="sheet-head"><h2 id="operationalReminderTitle">تنبيه تشغيلي</h2><button class="close" id="operationalReminderClose" type="button">×</button></div><div id="operationalReminderBody" class="notice" style="line-height:1.9"></div><div class="actions" id="operationalReminderActions"></div></div>`;document.body.appendChild(modal);document.getElementById('operationalReminderClose').addEventListener('click',()=>closePrompt(true))}
 function closePrompt(snooze=false){const modal=document.getElementById('operationalReminderModal'),item=modal?._reminderItem;if(snooze&&item){snoozeReminder(item,DEFAULT_SNOOZE_MINUTES);saveAndRender()}if(modal){modal.classList.remove('open');modal._reminderItem=null}promptOpen=false}
-function escapeText(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#039;'}[char]))}
+function escapeText(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]))}
 function showPrompt(item,booking){
   if(promptOpen||!item||!booking||snoozed(item))return;
   ensureModal();const modal=document.getElementById('operationalReminderModal'),title=document.getElementById('operationalReminderTitle'),body=document.getElementById('operationalReminderBody'),actions=document.getElementById('operationalReminderActions');modal._reminderItem=item;promptOpen=true;
