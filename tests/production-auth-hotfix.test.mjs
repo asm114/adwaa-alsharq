@@ -10,7 +10,7 @@ test('Production يعطل عميل بوابة الإدارة القديم قبل
     read('supabase-config.staging.js'),
     read('portal-admin-client.js')
   ]);
-  assert.match(config,/if\(runtimeEnvironment==='production'\)[\s\S]*window\.__adwaaPortalAdminClientInstalled=true/);
+  assert.match(config,/if\(commercialConfig\.runtimeEnvironment==='production'\)[\s\S]*window\.__adwaaPortalAdminClientInstalled=true/);
   assert.match(config,/window\.__adwaaLegacyPortalAdminDisabled=true/);
   assert.match(legacy,/if\(portalSupabaseConfig\?\.runtimeEnvironment==='production'\)[\s\S]*return;/);
   assert.ok(
