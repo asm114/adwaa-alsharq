@@ -88,13 +88,16 @@ test('تقويم بوابة العملاء على الجوال يستخدم شب
   assert.match(js,/floating-whatsapp-compact/);
 });
 
-test('Service Worker يستخدم كاش الإصدار الحالي ويحدث fallback عند نجاح فتح التطبيق',async()=>{
+test('Service Worker يعزل كاش النسخة ويحدث fallback عند نجاح فتح التطبيق',async()=>{
   const sw=await read('sw.js');
-  assert.match(sw,/adwaa-staging-app-state-20260818/);
+  assert.match(sw,/CACHE_PREFIX=`commercial-\$\{SCOPE_KEY\}-`/);
+  assert.match(sw,/self\.registration\.scope/);
   assert.match(sw,/supabase-config\.staging\.js/);
+  assert.match(sw,/commercial-branding\.js/);
   assert.match(sw,/isAppShellRequest/);
   assert.match(sw,/cache\.put\(FALLBACK,response\.clone\(\)\)/);
-  assert.doesNotMatch(sw,/adwaa-v9\.6-rc1/);
+  assert.match(sw,/key\.startsWith\(CACHE_PREFIX\)&&key!==CACHE/);
+  assert.doesNotMatch(sw,/adwaa-staging-app-state-20260818|adwaa-v9\.6-rc1/);
 });
 
 test('لودرات التدقيق النهائي تستخدم أرقام كاش محدثة وبترتيب عمولة الاشتراك الصحيح',async()=>{

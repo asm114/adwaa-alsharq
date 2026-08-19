@@ -1,8 +1,9 @@
 (()=>{
 'use strict';
-const PORTAL_PROJECT_REF='ztqqdjryvecscidxxbfe';
-const SUPABASE_URL=`https://${PORTAL_PROJECT_REF}.supabase.co`;
-const SUPABASE_PUBLISHABLE_KEY='sb_publishable_M3MQwFfxiMMKt_-tq-KAjQ_OQTtg2MD';
+const portalConfig=window.ADWAA_PORTAL_SUPABASE_CONFIG;
+if(!portalConfig?.url||!portalConfig?.publishableKey||!portalConfig?.projectRef)throw new Error('تم منع تشييك العامل لأن إعداد Backend الخاص بالعميل غير مكتمل.');
+const SUPABASE_URL=portalConfig.url;
+const SUPABASE_PUBLISHABLE_KEY=portalConfig.publishableKey;
 const BUCKET='customer-portal-worker-checks';
 const MAX_PHOTOS=6;
 const MAX_RECORD_SECONDS=60;

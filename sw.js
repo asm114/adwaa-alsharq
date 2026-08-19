@@ -1,7 +1,11 @@
-// Refresh environment routing assets without changing the established cache contract.
-const CACHE='adwaa-staging-app-state-20260818';
+// Commercial template service worker. Cache ownership is derived from the deployment scope
+// so two customer installations on the same origin cannot delete each other's caches.
+const SCOPE_PATH=new URL(self.registration.scope).pathname;
+const SCOPE_KEY=(SCOPE_PATH.replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'').toLowerCase()||'root');
+const CACHE_PREFIX=`commercial-${SCOPE_KEY}-`;
+const CACHE=`${CACHE_PREFIX}20260819-1`;
 const FALLBACK='./index.html';
-const ASSETS=['./index.html','./manifest.json','./supabase-config.staging.js'];
+const ASSETS=['./index.html','./manifest.json','./supabase-config.staging.js','./commercial-branding.js'];
 
 function isAppShellRequest(request){
   const requestUrl=new URL(request.url);
@@ -18,7 +22,7 @@ self.addEventListener('install',event=>{
 self.addEventListener('activate',event=>{
   event.waitUntil(
     caches.keys()
-      .then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key))))
+      .then(keys=>Promise.all(keys.filter(key=>key.startsWith(CACHE_PREFIX)&&key!==CACHE).map(key=>caches.delete(key))))
       .then(()=>self.clients.claim())
   );
 });

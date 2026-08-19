@@ -60,7 +60,9 @@ test('إعداد النسخة التجارية يرفض Core Project غير ال
     .replace('CHANGE_ME_AUTH_NAMESPACE','customer-alpha-auth')
     .replace('CHANGE_ME_CACHE_NAMESPACE','customer-alpha-cache')
     .replace('CHANGE_ME_BRAND_NAME','Customer Alpha')
+    .replace('CHANGE_ME_BUSINESS_TYPE','Resort')
     .replace('CHANGE_ME_LOCATION','Customer Location')
+    .replace('CHANGE_ME_BRAND_DESCRIPTION','Customer Alpha commercial installation')
     .replace('CHANGE_ME_CORE_PROJECT_REF','clientcore12345')
     .replace('CHANGE_ME_CORE_PUBLISHABLE_KEY','sb_publishable_test_core')
     .replace('CHANGE_ME_PORTAL_PROJECT_REF','clientportal12345')
@@ -70,6 +72,7 @@ test('إعداد النسخة التجارية يرفض Core Project غير ال
   assert.equal(context.window.ADWAA_SUPABASE_CONFIG.environment,'production');
   assert.equal(context.window.ADWAA_SUPABASE_CONFIG.projectRef,'clientcore12345');
   assert.equal(context.window.ADWAA_PORTAL_SUPABASE_CONFIG.projectRef,'clientportal12345');
+  assert.equal(context.window.ADWAA_COMMERCIAL_CONFIG.brand.displayName,'Resort Customer Alpha');
   assert.throws(()=>context.window.__adwaaValidateStagingSupabaseConfig({
     environment:'production',
     url:'https://othercore12345.supabase.co',

@@ -26,6 +26,8 @@ jobs:
         run: |
           set -euo pipefail
           files=(
+            supabase-config.staging.js
+            commercial-branding.js
             portal-admin-client.js
             portal-booking-sync-stable.js
             portal-final-admin.js
