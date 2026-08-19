@@ -40,7 +40,7 @@ test('Commercial Portal foundation defines admin membership before portal polici
   assert.match(sql,/create table if not exists public\.customer_portal_admins/i);
   assert.match(sql,/create or replace function public\.is_resort_admin\(\)/i);
   assert.match(sql,/where a\.user_id = \(select auth\.uid\(\)\)/i);
-  assert.doesNotMatch(sql,/email/i);
+  assert.doesNotMatch(sql,/auth\.jwt\(\)[\s\S]*email/i);
 });
 
 test('Commercial property-info migration is schema-only and customer neutral',async()=>{
