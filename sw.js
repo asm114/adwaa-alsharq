@@ -39,10 +39,11 @@ self.addEventListener('fetch',event=>{
     );
     return;
   }
+  const sameOrigin=new URL(event.request.url).origin===self.location.origin;
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request,sameOrigin?{cache:'no-store'}:{})
       .then(response=>{
-        if(response.ok&&new URL(event.request.url).origin===self.location.origin){
+        if(response.ok&&sameOrigin){
           const copy=response.clone();
           caches.open(CACHE).then(cache=>cache.put(event.request,copy));
         }
