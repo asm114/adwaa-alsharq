@@ -3,6 +3,8 @@
 if(window.__adwaaHeaderAlertsPopupInstalled)return;
 window.__adwaaHeaderAlertsPopupInstalled=true;
 
+const CONTRACT_ALERT_POLICY_START=Date.parse('2026-08-19T09:11:00.000Z');
+
 function currentAlertCards(){
   return [...document.querySelectorAll('#alertsList .action-alert')].filter(card=>!card.hidden&&card.isConnected);
 }
@@ -27,12 +29,53 @@ function installAlertCountSync(){
   syncHeaderAlertCount();
 }
 
+function riyadhToday(){
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Riyadh',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const get=type=>parts.find(part=>part.type===type)?.value||'';
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+function contractAlertCandidates(){
+  const today=riyadhToday();
+  return (window.db?.bookings||[])
+    .filter(booking=>{
+      if(!booking||booking.recordType==='family'||booking.status==='ملغي'||booking.manualMessages?.contract)return false;
+      const createdAt=Date.parse(String(booking.createdAt||''));
+      if(!Number.isFinite(createdAt)||createdAt<CONTRACT_ALERT_POLICY_START)return false;
+      return String(booking.date||'')>=today;
+    })
+    .sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
+}
+
+function rewriteContractAlert(){
+  const root=document.getElementById('alertsList');
+  if(!root)return;
+  root.querySelectorAll('.action-alert').forEach(card=>{
+    if(String(card.querySelector('h3')?.textContent||'').trim()==='إرسال العقد للعميل')card.remove();
+  });
+  const booking=contractAlertCandidates()[0];
+  if(!booking){syncHeaderAlertCount();return}
+  root.querySelector('.home-empty-success')?.remove();
+  const article=document.createElement('article');
+  article.className='action-alert contract-policy-alert';
+  const icon=document.createElement('span');icon.className='action-alert-icon';icon.textContent='📄';
+  const body=document.createElement('div');
+  const title=document.createElement('h3');title.textContent='إرسال العقد للعميل';
+  const text=document.createElement('p');text.textContent=`أنشئ العقد ثم أرسله يدويًا للحجز الجديد: ${booking.code||'-'}`;
+  body.append(title,text);
+  const button=document.createElement('button');button.type='button';button.textContent='فتح مركز الإرسال';button.addEventListener('click',()=>window.openContractSendCenter?.(booking.id));
+  article.append(icon,body,button);
+  root.prepend(article);
+  syncHeaderAlertCount();
+}
+
 function wrapRenderAlerts(){
   const current=window.renderAlerts;
   if(typeof current!=='function'){setTimeout(wrapRenderAlerts,120);return}
-  if(current.__adwaaHeaderAlertCountWrapped){syncHeaderAlertCount();return}
+  if(current.__adwaaHeaderAlertCountWrapped){rewriteContractAlert();syncHeaderAlertCount();return}
   const wrapped=function(...args){
     const result=current.apply(this,args);
+    rewriteContractAlert();
     queueMicrotask(syncHeaderAlertCount);
     return result;
   };
@@ -40,6 +83,7 @@ function wrapRenderAlerts(){
   wrapped.__base=current;
   window.renderAlerts=wrapped;
   try{renderAlerts=wrapped}catch(_){}
+  rewriteContractAlert();
   syncHeaderAlertCount();
 }
 
@@ -64,6 +108,7 @@ function ensureModal(){
 }
 
 function openHeaderAlertsPopup(){
+  rewriteContractAlert();
   syncHeaderAlertCount();
   const modal=ensureModal();
   const list=modal.querySelector('#headerAlertsModalList');
@@ -85,6 +130,6 @@ function openHeaderAlertsPopup(){
 window.focusDashboardAlerts=openHeaderAlertsPopup;
 window.openHeaderAlertsPopup=openHeaderAlertsPopup;
 window.syncHeaderAlertCount=syncHeaderAlertCount;
-function install(){installAlertCountSync();wrapRenderAlerts();setTimeout(syncHeaderAlertCount,0);setTimeout(syncHeaderAlertCount,250);}
+function install(){installAlertCountSync();wrapRenderAlerts();rewriteContractAlert();setTimeout(rewriteContractAlert,250);setTimeout(syncHeaderAlertCount,300);}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })();
