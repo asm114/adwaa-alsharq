@@ -24,9 +24,10 @@ test('جسر بوابة العملاء لا يعيد توجيه createClient إ�
   assert.equal(context.window.__adwaaCustomerPortalBackendRef,portalRef);
 });
 
-test('لوحة الإدارة تحمل إصلاح ربط قاعدة بوابة العملاء بعد عميل البوابة',async()=>{
+test('Production لا يحمل عميل البوابة القديم الذي يشارك جلسة الإدارة',async()=>{
   const subscription=await read('subscription-booking-type.js');
-  assert.match(subscription,/portal-admin-client\.js\?v=20260814-2[\s\S]*portal-dedicated-backend-compat\.js\?v=20260819-3/);
+  assert.match(subscription,/runtimeEnvironment==='production'\)return;const script=document\.createElement\('script'\);script\.async=false;script\.src='portal-admin-client\.js\?v=20260819-3'/);
+  assert.match(subscription,/portal-dedicated-backend-compat\.js\?v=20260819-3/);
 });
 
 test('إصلاح الإدارة يستخدم قاعدة البوابة المخصصة ولا يغيّر core Supabase',async()=>{
