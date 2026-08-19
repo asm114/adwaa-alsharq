@@ -36,4 +36,5 @@ function start(){
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
 
-(()=>{const script=document.createElement('script');script.async=false;script.src='worker-check-delete.js?v=20260819-2';script.onerror=()=>console.warn('تعذر تحميل حذف تشييك العامل');document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.async=false;script.src='worker-check-delete.js?v=20260819-3';script.onerror=()=>console.warn('تعذر تحميل حذف تشييك العامل');document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.async=false;script.src='worker-check-stale-alert-fix.js?v=20260819-1';script.onerror=()=>console.warn('تعذر تحميل إصلاح تنبيه تشييك العامل القديم');document.head.appendChild(script)})();
