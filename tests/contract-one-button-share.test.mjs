@@ -26,7 +26,15 @@ test('مستلم العقد يرجع إلى بيانات الحجز المحفو
   assert.match(js,/\[0,80,250,700\]\.forEach/);
 });
 
+test('تحديث مشاركة العقد لا يستخدم مراقب DOM دائري قد يعلق شاشة الدخول',async()=>{
+  const js=await read('contract-one-button-share.js');
+  assert.doesNotMatch(js,/new MutationObserver/);
+  assert.match(js,/target\.textContent!==desiredTarget/);
+  assert.match(js,/button\.disabled!==shouldDisable/);
+  assert.match(js,/\[0,120,400,1000\]\.forEach/);
+});
+
 test('تحميل مشاركة العقد بزر واحد مرتبط بتحسين المستند',async()=>{
   const js=await read('document-preview-controls.js');
-  assert.match(js,/contract-one-button-share\.js\?v=20260819-2/);
+  assert.match(js,/contract-one-button-share\.js\?v=20260819-3/);
 });
