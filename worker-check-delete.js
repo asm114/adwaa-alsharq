@@ -21,7 +21,7 @@ async function latestWorkerCheck(bookingId){
   if(!portalClient||!bookingId||!await adminReady())return null;
   const {data,error}=await portalClient
     .from(TABLE)
-    .select('id,status,photo_paths,voice_path,created_at')
+    .select('id,status,photo_paths,voice_path,shared_at,created_at')
     .eq('booking_id',bookingId)
     .order('created_at',{ascending:false})
     .limit(1)
@@ -34,20 +34,19 @@ function removalPaths(row){
   const photos=Array.isArray(row?.photo_paths)?row.photo_paths:[];
   return [...photos,row?.voice_path].map(value=>String(value||'').trim()).filter(Boolean);
 }
+function isDeletedMarker(row){return row?.status==='reviewed'&&removalPaths(row).length===0}
 
 async function deleteWorkerCheck(row,bookingId,button){
   if(!row?.id)return;
   const pending=row.status==='ready';
   const message=pending
-    ?'حذف رابط تشييك العامل؟ سيتوقف الرابط الحالي ولن يستطيع العامل استخدامه.'
-    :'حذف تشييك العامل نهائيًا؟ سيتم حذف التقرير والصور والتسجيل الصوتي ولا يمكن التراجع.';
+    ?'حذف رابط تشييك العامل؟ سيتوقف الرابط الحالي ولن يعود التنبيه لهذا الحجز.'
+    :'حذف تشييك العامل نهائيًا؟ سيتم حذف التقرير والصور والتسجيل الصوتي ولن يعود التنبيه لهذا الحجز.';
   if(!confirm(message))return;
   const portalClient=client();
   if(!portalClient||!await adminReady()){alert('جلسة إدارة بوابة العملاء غير جاهزة.');return}
   button.disabled=true;button.textContent='جاري الحذف…';
   try{
-    const {error}=await portalClient.from(TABLE).delete().eq('id',row.id);
-    if(error)throw error;
     const paths=removalPaths(row);
     let mediaWarning=false;
     if(paths.length){
@@ -55,13 +54,19 @@ async function deleteWorkerCheck(row,bookingId,button){
       mediaWarning=!!removal.error;
       if(removal.error)console.warn('تعذر حذف بعض ملفات تشييك العامل من التخزين.',removal.error);
     }
+    const now=new Date().toISOString();
+    const {error}=await portalClient.from(TABLE).update({
+      status:'reviewed',issue_types:[],photo_paths:[],voice_path:'',
+      shared_at:row.shared_at||now,submitted_at:null,reviewed_at:now,updated_at:now
+    }).eq('id',row.id);
+    if(error)throw error;
     lastSignature='';
-    if(mediaWarning)alert('تم حذف التشييك، لكن تعذر حذف بعض ملفاته من التخزين.');
-    else alert('تم حذف تشييك العامل.');
+    if(mediaWarning)alert('تم حذف التشييك ومنع رجوع التنبيه، لكن تعذر حذف بعض ملفاته من التخزين.');
+    else alert('تم حذف تشييك العامل ولن يعود التنبيه لهذا الحجز.');
     window.location.reload();
   }catch(error){
     console.error('تعذر حذف تشييك العامل.',error);
-    alert('تعذر حذف تشييك العامل. تأكد من تطبيق صلاحية الحذف في قاعدة بوابة العملاء.');
+    alert('تعذر حذف تشييك العامل. حاول مرة أخرى.');
     button.disabled=false;button.textContent=pending?'حذف رابط التشييك':'حذف تشييك العامل';
   }
 }
@@ -79,7 +84,12 @@ async function injectDeleteButton(){
   injectBusy=true;lastSignature=signature;
   try{
     const row=await latestWorkerCheck(bookingId);
-    if(!row||!['ready','submitted','reviewed'].includes(row.status))return;
+    if(!row)return;
+    if(isDeletedMarker(row)){
+      body.innerHTML='<b>تم حذف تشييك العامل لهذا الحجز.</b><div class="meta" style="margin-top:7px">لن يظهر تنبيه المشاركة مرة أخرى لهذا الحجز.</div>';
+      return;
+    }
+    if(!['ready','submitted','reviewed'].includes(row.status))return;
     let actions=body.querySelector('.actions');
     if(!actions){actions=document.createElement('div');actions.className='actions';body.appendChild(actions)}
     if(actions.querySelector('[data-worker-check-delete]'))return;
