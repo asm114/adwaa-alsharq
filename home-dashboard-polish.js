@@ -5,14 +5,36 @@ window.__adwaaHomeDashboardPolishInstalled=true;
 
 function isHome(){return document.body.classList.contains('simple-view-home')||document.querySelector('#dashboard.view.active')}
 function syncHomeViewClass(){document.body.classList.toggle('simple-view-home',Boolean(document.querySelector('#dashboard.view.active')))}
+function norm(value){return String(value||'').replace(/\s+/g,' ').trim()}
+
+function removeLegacyCleaningUi(){
+  document.querySelectorAll('nav button[data-view="cleaning"],nav button').forEach(button=>{
+    const text=norm(button.textContent);
+    if(button.dataset.view==='cleaning'||text.includes('التنظيف')||text.includes('جميل'))button.remove();
+  });
+  const cleaningView=document.getElementById('cleaning');
+  if(cleaningView){cleaningView.hidden=true;cleaningView.classList.remove('active')}
+  const roots=[document.getElementById('dashboard'),document.getElementById('simpleHomeDashboard')].filter(Boolean);
+  roots.forEach(root=>{
+    root.querySelectorAll('button,h2,h3,h4,.k,.meta,p').forEach(node=>{
+      const text=norm(node.textContent);
+      if(!/تنظيف مطلوب|مهمة تنظيف|فتح التنظيف|التنظيف وجميل/.test(text))return;
+      const card=node.closest('.action-alert,.stat,.item,.card,.section');
+      if(card&&card!==root)card.remove();
+    });
+  });
+  const drawer=document.getElementById('simpleMoreOverlay');
+  drawer?.querySelectorAll('.simple-more-item').forEach(item=>{
+    const text=norm(item.textContent);if(text.includes('التنظيف')||text.includes('جميل'))item.remove();
+  });
+}
 
 function removeLocalAssistantFeature(){
   document.getElementById('localAssistantCard')?.remove();
   window.runLocalAssistant=undefined;
   window.parseAssistantDate=undefined;
   window.initRCCandidateUI=function(){
-    const duplicate=[...document.querySelectorAll('nav button[data-view="cleaning"]')];
-    if(duplicate.length>1){duplicate[0].innerHTML='<b>🧹</b>التنظيف وجميل';duplicate.slice(1).forEach(item=>item.remove())}
+    removeLegacyCleaningUi();
     document.getElementById('localAssistantCard')?.remove();
   };
 }
@@ -42,6 +64,7 @@ function compactStatusCard(){
 function apply(){
   syncHomeViewClass();
   removeLocalAssistantFeature();
+  removeLegacyCleaningUi();
   updatePrivacyButton();removeBookingShortcutsOutsideBookings();
   if(isHome())compactStatusCard();
 }
@@ -59,7 +82,8 @@ function initialize(){
   removeLocalAssistantFeature();
   addStyles();
   apply();setTimeout(apply,350);setTimeout(apply,1400);
-  new MutationObserver(()=>setTimeout(apply,0)).observe(document.body,{attributes:true,attributeFilter:['class']});
+  let queued=false;
+  new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;apply()})}).observe(document.body,{attributes:true,attributeFilter:['class'],childList:true,subtree:true});
   document.addEventListener('click',()=>setTimeout(apply,30),true);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize,{once:true});else initialize();
