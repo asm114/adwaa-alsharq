@@ -14,6 +14,7 @@ let backendAvailable=false;
 let realtimeChannel=null;
 let refreshTimer=null;
 let signedMediaCache=new Map();
+let legacyUiFrame=0;
 
 const state=()=>window.db;
 const bookings=()=>Array.isArray(state()?.bookings)?state().bookings:[];
@@ -40,7 +41,8 @@ function installNormalizeBridge(){
       normalized.settings.propertyType=String(source.settings?.propertyType||normalized.settings.propertyType||DEFAULT_PROPERTY_TYPE).trim()||DEFAULT_PROPERTY_TYPE;
       return normalized;
     };
-    wrapped.__workerPropertyIdentityPreserved=true;wrapped.__baseNormalizeDB=current;
+    wrapped.__workerPropertyIdentityPreserved=true;
+    wrapped.__baseNormalizeDB=current;
     window.normalizeDB=wrapped;
     try{normalizeDB=wrapped}catch(_){}
   }catch(error){console.warn('تعذر تفعيل هوية المنشأة الديناميكية.',error)}
@@ -80,8 +82,9 @@ function postProcessLegacyUI(){
     if(String(button.getAttribute('onclick')||'').includes('sendCleaningTaskToJameel')){button.hidden=true;return}
     button.textContent=`🔎 ${workerCheckTitle()}`;button.hidden=booking?.status!=='تم الخروج';
   });
-  document.querySelectorAll('.action-alert').forEach(card=>{const text=card.textContent||'';if(text.includes('تنظيف')||text.includes('جميل'))card.remove()});
+  document.querySelectorAll('.action-alert').forEach(card=>{const text=card.textContent||'';if(!card.classList.contains('worker-check-alert')&&(text.includes('تنظيف')||text.includes('جميل')))card.remove()});
 }
+function scheduleLegacyPostProcess(){if(legacyUiFrame)return;legacyUiFrame=requestAnimationFrame(()=>{legacyUiFrame=0;postProcessLegacyUI()})}
 
 function ensureWorkerPanel(){
   const form=document.getElementById('bookingForm');if(!form)return null;
@@ -104,7 +107,7 @@ async function signedMedia(row){
 async function renderWorkerPanel(bookingId){
   const panel=ensureWorkerPanel(),body=document.getElementById('workerCheckBookingBody');if(!panel||!body)return;
   const booking=bookings().find(row=>row.id===bookingId);if(!booking){body.textContent='الحجز غير موجود.';return}
-  if(!backendAvailable){body.innerHTML='ربط تشييك العامل غير جاهز في قاعدة البوابة بعد.';return}
+  if(!backendAvailable){body.textContent='ربط تشييك العامل غير جاهز في قاعدة البوابة بعد.';return}
   const row=latestCheck(bookingId);
   if(!row){
     body.innerHTML=booking.status==='تم الخروج'?`لم تتم مشاركة التشييك بعد.<div class="actions"><button class="primary" type="button" data-worker-share>مشاركة ${escapeHtml(workerCheckTitle())}</button></div>`:'يظهر رابط التشييك بعد تسجيل خروج العميل.';
@@ -143,20 +146,15 @@ function renderWorkerAlerts(){
     article.querySelector('button').addEventListener('click',()=>alert.kind==='submitted'?openWorkerCheckReport(alert.booking.id):shareWorkerCheck(alert.booking.id));root.prepend(article);
   }
 }
-function showToast(message){
-  let toast=document.getElementById('workerCheckToast');if(!toast){toast=document.createElement('div');toast.id='workerCheckToast';toast.style.cssText='position:fixed;top:max(16px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:9999;background:#17332d;color:#fff;padding:12px 16px;border-radius:16px;box-shadow:0 8px 25px #0003;font-weight:800;max-width:90vw;text-align:center';document.body.appendChild(toast)}toast.textContent=message;toast.hidden=false;clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>{toast.hidden=true},4500)
-}
+function showToast(message){let toast=document.getElementById('workerCheckToast');if(!toast){toast=document.createElement('div');toast.id='workerCheckToast';toast.style.cssText='position:fixed;top:max(16px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:9999;background:#17332d;color:#fff;padding:12px 16px;border-radius:16px;box-shadow:0 8px 25px #0003;font-weight:800;max-width:90vw;text-align:center';document.body.appendChild(toast)}toast.textContent=message;toast.hidden=false;clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>{toast.hidden=true},4500)}
 
-async function ensurePortalAdmin(){
-  portalClient=window.portalAdminClient||portalClient;if(!portalClient)return false;
-  if(window.portalAdminAuthState?.ready===true)return true;
-  try{return await window.verifyPortalAdminSession?.()===true}catch(_){return false}
-}
+async function ensurePortalAdmin(){portalClient=window.portalAdminClient||portalClient;if(!portalClient)return false;if(window.portalAdminAuthState?.ready===true)return true;try{return await window.verifyPortalAdminSession?.()===true}catch(_){return false}}
 async function refreshChecks(){
   if(!await ensurePortalAdmin()){backendAvailable=false;renderWorkerAlerts();return false}
   try{
     const {data,error}=await portalClient.from(TABLE).select('id,booking_id,booking_code,booking_date,property_name,property_type,status,issue_types,photo_paths,voice_path,shared_at,submitted_at,reviewed_at,created_at').order('created_at',{ascending:false}).limit(100);
-    if(error)throw error;checks=Array.isArray(data)?data:[];checksByBooking=new Map();for(const row of checks){if(!checksByBooking.has(String(row.booking_id||'')))checksByBooking.set(String(row.booking_id||''),row)}backendAvailable=true;renderWorkerAlerts();const current=document.getElementById('bId')?.value;if(current)renderWorkerPanel(current);return true;
+    if(error)throw error;
+    checks=Array.isArray(data)?data:[];checksByBooking=new Map();for(const row of checks){if(!checksByBooking.has(String(row.booking_id||'')))checksByBooking.set(String(row.booking_id||''),row)}backendAvailable=true;renderWorkerAlerts();const current=document.getElementById('bId')?.value;if(current)renderWorkerPanel(current);return true;
   }catch(error){console.warn('تعذر تحميل تشييك العامل.',error);backendAvailable=false;renderWorkerAlerts();return false}
 }
 function shareModal(){
@@ -179,29 +177,14 @@ async function shareWorkerCheck(bookingId){
     const url=new URL('worker-check.html',location.href);url.searchParams.set('token',row.access_token);await openShareDialog(url.href,row.check_id,booking);
   }catch(error){console.error(error);const submitted=String(error?.message||'').includes('already submitted');if(submitted){await refreshChecks();openWorkerCheckReport(bookingId);return}alert('تعذر إنشاء رابط تشييك العامل. تأكد من تجهيز قاعدة بوابة العملاء.')}
 }
-async function markWorkerCheckReviewed(checkId,bookingId){
-  if(!await ensurePortalAdmin())return;const {error}=await portalClient.from(TABLE).update({status:'reviewed',reviewed_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',checkId).eq('status','submitted');if(error){alert('تعذر اعتماد مراجعة التشييك.');return}await refreshChecks();renderWorkerPanel(bookingId)
-}
-function openWorkerCheckReport(bookingId){
-  if(typeof window.openBooking==='function')window.openBooking(bookingId);setTimeout(()=>{renderWorkerPanel(bookingId);document.getElementById('workerCheckBookingPanel')?.scrollIntoView({behavior:'smooth',block:'center'})},180)
-}
+async function markWorkerCheckReviewed(checkId,bookingId){if(!await ensurePortalAdmin())return;const {error}=await portalClient.from(TABLE).update({status:'reviewed',reviewed_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',checkId).eq('status','submitted');if(error){alert('تعذر اعتماد مراجعة التشييك.');return}await refreshChecks();renderWorkerPanel(bookingId)}
+function openWorkerCheckReport(bookingId){if(typeof window.openBooking==='function')window.openBooking(bookingId);setTimeout(()=>{renderWorkerPanel(bookingId);document.getElementById('workerCheckBookingPanel')?.scrollIntoView({behavior:'smooth',block:'center'})},180)}
 
-function patchOpenBooking(){
-  const original=window.openBooking;if(typeof original!=='function'||original.__workerCheckWrapped)return;
-  const wrapped=function(...args){const result=original.apply(this,args),bookingId=args[0]||'';if(bookingId)setTimeout(()=>renderWorkerPanel(bookingId),80);return result};wrapped.__workerCheckWrapped=true;wrapped.__baseOpenBooking=original;window.openBooking=wrapped;
-}
-function patchRenderers(){
-  for(const name of ['renderDashboard','renderBookings','renderAll']){
-    const original=window[name];if(typeof original!=='function'||original.__workerCheckWrapped)continue;
-    const wrapped=function(...args){const result=original.apply(this,args);queueMicrotask(()=>{postProcessLegacyUI();renderWorkerAlerts()});return result};wrapped.__workerCheckWrapped=true;wrapped.__baseWorkerCheck=original;window[name]=wrapped;
-  }
-}
-function subscribeRealtime(){
-  if(!portalClient||realtimeChannel)return;
-  try{realtimeChannel=portalClient.channel('adwaa-worker-checks').on('postgres_changes',{event:'UPDATE',schema:'public',table:TABLE},payload=>{const next=payload.new||{};if(next.status==='submitted')showToast(`🔔 وصل ${workerCheckTitle()} للحجز #${next.booking_code||''}`);signedMediaCache.clear();refreshChecks()}).subscribe()}catch(error){console.warn('تعذر تشغيل تنبيه تشييك العامل الفوري.',error)}
-}
+function patchOpenBooking(){const original=window.openBooking;if(typeof original!=='function'||original.__workerCheckWrapped)return;const wrapped=function(...args){const result=original.apply(this,args),bookingId=args[0]||'';if(bookingId)setTimeout(()=>renderWorkerPanel(bookingId),80);return result};wrapped.__workerCheckWrapped=true;wrapped.__baseOpenBooking=original;window.openBooking=wrapped}
+function patchRenderers(){for(const name of ['renderDashboard','renderBookings','renderAll']){const original=window[name];if(typeof original!=='function'||original.__workerCheckWrapped)continue;const wrapped=function(...args){const result=original.apply(this,args);queueMicrotask(()=>{postProcessLegacyUI();renderWorkerAlerts()});return result};wrapped.__workerCheckWrapped=true;wrapped.__baseWorkerCheck=original;window[name]=wrapped}}
+function subscribeRealtime(){if(!portalClient||realtimeChannel)return;try{realtimeChannel=portalClient.channel('adwaa-worker-checks').on('postgres_changes',{event:'UPDATE',schema:'public',table:TABLE},payload=>{const next=payload.new||{};if(next.status==='submitted')showToast(`🔔 وصل ${workerCheckTitle()} للحجز #${next.booking_code||''}`);signedMediaCache.clear();refreshChecks()}).subscribe()}catch(error){console.warn('تعذر تشغيل تنبيه تشييك العامل الفوري.',error)}}
 function startRefreshLoop(){if(refreshTimer)return;refreshTimer=setInterval(()=>{if(document.visibilityState==='visible')refreshChecks()},60000);window.addEventListener('focus',refreshChecks)}
-function observeLegacyUI(){const observer=new MutationObserver(()=>{postProcessLegacyUI();renderWorkerAlerts()});observer.observe(document.body,{childList:true,subtree:true});setTimeout(()=>observer.disconnect(),15000)}
+function observeLegacyUI(){const observer=new MutationObserver(scheduleLegacyPostProcess);observer.observe(document.body,{childList:true,subtree:true});setTimeout(()=>observer.disconnect(),15000)}
 async function initializePortal(){portalClient=window.portalAdminClient||null;if(!portalClient)return false;const ok=await refreshChecks();if(ok){subscribeRealtime();startRefreshLoop()}return ok}
 function init(){installNormalizeBridge();ensureIdentityDefaults();ensureIdentitySettings();retireLegacyCleaningFunctions();patchOpenBooking();patchRenderers();postProcessLegacyUI();observeLegacyUI();let attempts=0;const timer=setInterval(async()=>{attempts+=1;if(await initializePortal()||attempts>=40)clearInterval(timer)},350)}
 
