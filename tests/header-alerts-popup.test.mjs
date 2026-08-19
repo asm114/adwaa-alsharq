@@ -14,16 +14,24 @@ test('جرس التنبيهات يفتح قائمة واضحة بدل النزو
   assert.doesNotMatch(popup,/scrollIntoView/);
 });
 
-test('رقم الجرس يطابق التنبيهات الظاهرة فعليًا بعد تنظيف البطاقات القديمة',async()=>{
+test('رقم الجرس يطابق التنبيهات الظاهرة فعليًا بعد أي إعادة رسم',async()=>{
   const popup=await read('header-alerts-popup.js');
   assert.match(popup,/function syncHeaderAlertCount\(\)/);
   assert.match(popup,/currentAlertCards\(\)\.length/);
   assert.match(popup,/new MutationObserver\(\(\)=>queueMicrotask\(syncHeaderAlertCount\)\)/);
-  assert.match(popup,/observer\.observe\(root,\{childList:true,subtree:true,attributes:true/);
+  assert.match(popup,/function wrapRenderAlerts\(\)/);
+  assert.match(popup,/queueMicrotask\(syncHeaderAlertCount\)/);
+  assert.match(popup,/window\.renderAlerts=wrapped/);
   assert.match(popup,/window\.syncHeaderAlertCount=syncHeaderAlertCount/);
 });
 
-test('إصلاح الواجهة يحمل نسخة محدثة من نافذة التنبيهات العلوية',async()=>{
+test('تنظيف الواجهة يعيد مزامنة الجرس ويحمل نسخة popup الجديدة',async()=>{
   const cleanup=await read('worker-check-legacy-cleanup.js');
-  assert.match(cleanup,/header-alerts-popup\.js\?v=20260819-2/);
+  assert.match(cleanup,/window\.syncHeaderAlertCount\?\.\(\)/);
+  assert.match(cleanup,/header-alerts-popup\.js\?v=20260819-3/);
+});
+
+test('مركز التنبيهات يحمل نسخة محدثة من تنظيف الواجهة',async()=>{
+  const operations=await read('operational-reminders-center.js');
+  assert.match(operations,/worker-check-legacy-cleanup\.js\?v=20260819-2/);
 });
