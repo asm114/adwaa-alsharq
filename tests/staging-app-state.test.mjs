@@ -6,7 +6,6 @@ import vm from 'node:vm';
 const root=new URL('../',import.meta.url);
 const read=path=>readFile(new URL(path,root),'utf8');
 const productionRef='pgdvlklpyrvmwzitsmbw';
-const stagingRef='ztqqdjryvecscidxxbfe';
 
 test('Migration تنشئ app_state فقط دون إدخال أو نقل بيانات',async()=>{
   const sql=await read('supabase/migrations/20260818135222_staging_app_state.sql');
@@ -52,25 +51,38 @@ test('إضافة Realtime لا تتكرر إذا كان الجدول موجود�
   assert.match(sql,/if not exists[\s\S]*alter publication supabase_realtime add table public\.app_state/i);
 });
 
-test('إعداد Staging يرفض Project Ref الخاص بـProduction فعليًا',async()=>{
+test('إعداد النسخة التجارية يرفض Core Project غير المطابق لإعداد العميل',async()=>{
   const source=await read('supabase-config.staging.js');
+  const configured=source
+    .replace('CHANGE_ME_DEPLOYMENT_ID','customer-alpha')
+    .replace('CHANGE_ME_BASE_PATH','customer-alpha')
+    .replace('CHANGE_ME_STORAGE_NAMESPACE','customer-alpha-storage')
+    .replace('CHANGE_ME_AUTH_NAMESPACE','customer-alpha-auth')
+    .replace('CHANGE_ME_CACHE_NAMESPACE','customer-alpha-cache')
+    .replace('CHANGE_ME_BRAND_NAME','Customer Alpha')
+    .replace('CHANGE_ME_LOCATION','Customer Location')
+    .replace('CHANGE_ME_CORE_PROJECT_REF','clientcore12345')
+    .replace('CHANGE_ME_CORE_PUBLISHABLE_KEY','sb_publishable_test_core')
+    .replace('CHANGE_ME_PORTAL_PROJECT_REF','clientportal12345')
+    .replace('CHANGE_ME_PORTAL_PUBLISHABLE_KEY','sb_publishable_test_portal');
   const context={window:{},URL};
-  vm.runInNewContext(source,context);
-  assert.equal(context.window.ADWAA_SUPABASE_CONFIG.environment,'staging');
-  assert.equal(context.window.ADWAA_SUPABASE_CONFIG.projectRef,stagingRef);
+  vm.runInNewContext(configured,context);
+  assert.equal(context.window.ADWAA_SUPABASE_CONFIG.environment,'production');
+  assert.equal(context.window.ADWAA_SUPABASE_CONFIG.projectRef,'clientcore12345');
+  assert.equal(context.window.ADWAA_PORTAL_SUPABASE_CONFIG.projectRef,'clientportal12345');
   assert.throws(()=>context.window.__adwaaValidateStagingSupabaseConfig({
-    environment:'staging',
-    url:`https://${productionRef}.supabase.co`,
+    environment:'production',
+    url:'https://othercore12345.supabase.co',
     publishableKey:'sb_publishable_test'
-  }),/Production/);
+  }),/غير مطابقة/);
   assert.throws(()=>context.window.__adwaaValidateStagingSupabaseConfig({
-    environment:'staging',
-    url:'https://wrong-project.supabase.co',
+    environment:'production',
+    url:'https://clientportal12345.supabase.co',
     publishableKey:'sb_publishable_test'
-  }),/غير معتمد/);
+  }),/غير مطابقة/);
 });
 
-test('التطبيق وعميل البوابة يستخدمان إعداد Staging الموحد قبل إنشاء العملاء',async()=>{
+test('التطبيق وعميل البوابة يستخدمان إعداد Supabase المركزي قبل إنشاء العملاء',async()=>{
   const [html,portal,worker]=await Promise.all([read('index.html'),read('portal-admin-client.js'),read('sw.js')]);
   assert.match(html,/supabase-config\.staging\.js[\s\S]*supabase-js@2/);
   assert.match(html,/window\.ADWAA_SUPABASE_CONFIG/);
