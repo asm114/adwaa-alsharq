@@ -45,6 +45,7 @@ jobs:
             worker-check-legacy-cleanup.js
             worker-check-delete.js
             worker-check-stale-alert-fix.js
+            header-alerts-popup.js
             sw.js
             resort/portal-today-highlight.js
           )
