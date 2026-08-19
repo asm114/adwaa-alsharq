@@ -27,6 +27,22 @@ function installAlertCountSync(){
   syncHeaderAlertCount();
 }
 
+function wrapRenderAlerts(){
+  const current=window.renderAlerts;
+  if(typeof current!=='function'){setTimeout(wrapRenderAlerts,120);return}
+  if(current.__adwaaHeaderAlertCountWrapped){syncHeaderAlertCount();return}
+  const wrapped=function(...args){
+    const result=current.apply(this,args);
+    queueMicrotask(syncHeaderAlertCount);
+    return result;
+  };
+  wrapped.__adwaaHeaderAlertCountWrapped=true;
+  wrapped.__base=current;
+  window.renderAlerts=wrapped;
+  try{renderAlerts=wrapped}catch(_){}
+  syncHeaderAlertCount();
+}
+
 function ensureModal(){
   let modal=document.getElementById('headerAlertsModal');
   if(modal)return modal;
@@ -69,5 +85,6 @@ function openHeaderAlertsPopup(){
 window.focusDashboardAlerts=openHeaderAlertsPopup;
 window.openHeaderAlertsPopup=openHeaderAlertsPopup;
 window.syncHeaderAlertCount=syncHeaderAlertCount;
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installAlertCountSync,{once:true});else installAlertCountSync();
+function install(){installAlertCountSync();wrapRenderAlerts();setTimeout(syncHeaderAlertCount,0);setTimeout(syncHeaderAlertCount,250);}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })();
