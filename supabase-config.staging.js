@@ -34,4 +34,11 @@ window.ADWAA_SUPABASE_CONFIG=validateStagingSupabaseConfig({
   url:`https://${activeProjectRef}.supabase.co`,
   publishableKey:activePublishableKey
 });
+
+// Production must never instantiate the legacy portal-admin Supabase client.
+// Marking it installed here protects the manager session even if an older cached loader tries to load it.
+if(runtimeEnvironment==='production'){
+  window.__adwaaPortalAdminClientInstalled=true;
+  window.__adwaaLegacyPortalAdminDisabled=true;
+}
 })();
