@@ -2,7 +2,7 @@
 'use strict';
 if(window.__adwaaSimplifiedUiInstalled)return;
 window.__adwaaSimplifiedUiInstalled=true;
-const SIMPLE_UI_BUILD='20260806.6';
+const SIMPLE_UI_BUILD='20260819.1';
 
 const PRIMARY_LABELS=['الرئيسية','الحجوزات','التقويم','العملاء','المالية','المصاريف'];
 const VIEW_CLASS_MAP={الرئيسية:'home',الحجوزات:'bookings',التقويم:'calendar',العملاء:'customers',المالية:'finance',المصاريف:'finance'};
@@ -10,7 +10,6 @@ const DESCRIPTIONS={
   'بوابة العملاء':'إدارة الصور والأسعار والمحتوى',
   'الإعدادات':'إعدادات النظام والنسخ والحماية',
   'المصاريف':'إدارة المصروفات والتصنيفات',
-  'التنظيف':'مهام التنظيف والمتابعة',
   'العمولات':'متابعة العمولة والاستلام',
   'الحماية':'فحص النظام وحماية البيانات',
   'حول النظام':'الإصدار ومعلومات التحديث',
@@ -27,7 +26,7 @@ function canonicalLabel(label){
   const value=normalize(label);
   return PRIMARY_LABELS.find(item=>value===item)||'';
 }
-function isPrimary(label){return Boolean(canonicalLabel(label))}
+function isRetiredCleaningLabel(label){const value=normalize(label);return value.includes('التنظيف')||value.includes('جميل')}
 function description(label){const key=Object.keys(DESCRIPTIONS).find(item=>label.includes(item));return key?DESCRIPTIONS[key]:'أداة إضافية من النظام'}
 function iconFrom(button){return button.querySelector('b')?.textContent?.trim()||'•'}
 function displayLabel(label){return label.includes('المصاريف')?'المالية':label}
@@ -80,7 +79,7 @@ function createDrawer(extraButtons){
   drawer.innerHTML='<div class="simple-more-head"><h2>المزيد</h2><button class="simple-more-close" type="button" aria-label="إغلاق">×</button></div><div class="simple-more-group-title">أدوات إضافية</div><div class="simple-more-list"></div>';
   const list=drawer.querySelector('.simple-more-list');
   extraButtons.forEach(original=>{
-    const label=navLabel(original);if(!label)return;
+    const label=navLabel(original);if(!label||isRetiredCleaningLabel(label))return;
     const item=document.createElement('button');item.type='button';item.className='simple-more-item';
     item.innerHTML=`<span class="simple-more-icon">${iconFrom(original)}</span><span><strong>${displayLabel(label)}</strong><small>${description(label)}</small></span>`;
     item.addEventListener('click',()=>{original.click();setViewClass(label);closeDrawer()});list.appendChild(item);
@@ -100,6 +99,7 @@ function simplifyNavigation(){
   const extras=[];
   buttons.forEach(button=>{
     const label=navLabel(button);
+    if(isRetiredCleaningLabel(label)){button.remove();return}
     const exact=canonicalLabel(label);
     if(exact){
       button.classList.remove('simple-hidden-nav');
@@ -116,7 +116,7 @@ function simplifyNavigation(){
   let more=nav.querySelector('.simple-more-button');
   if(!more){more=document.createElement('button');more.type='button';more.className='simple-more-button';more.innerHTML='<b>•••</b>المزيد';more.addEventListener('click',openDrawer);nav.appendChild(more)}
   createDrawer(extras);
-  const active=buttons.find(button=>button.classList.contains('active'));
+  const active=buttons.find(button=>button.isConnected&&button.classList.contains('active'));
   setViewClass(active?displayLabel(canonicalLabel(navLabel(active))||navLabel(active)):'الرئيسية');
   return true;
 }
