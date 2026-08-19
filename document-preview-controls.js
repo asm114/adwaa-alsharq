@@ -123,4 +123,4 @@ function init(){
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
 
-(()=>{const script=document.createElement('script');script.defer=true;script.src='contract-one-button-share.js?v=20260819-1';script.onerror=()=>console.warn('تعذر تحميل مشاركة العقد بزر واحد');document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.defer=true;script.src='contract-one-button-share.js?v=20260819-2';script.onerror=()=>console.warn('تعذر تحميل مشاركة العقد بزر واحد');document.head.appendChild(script)})();

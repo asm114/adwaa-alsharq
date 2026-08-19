@@ -18,7 +18,15 @@ test('مركز العقد يستخدم زر مشاركة ملف واحد ويو�
   assert.match(js,/v92RecordOperation\('contract','sent'\)/);
 });
 
+test('مستلم العقد يرجع إلى بيانات الحجز المحفوظة ويتحدث عند فتح الحجز',async()=>{
+  const js=await read('contract-one-button-share.js');
+  assert.match(js,/form\?\.name\|\|booking\?\.name/);
+  assert.match(js,/form\?\.phone\|\|booking\?\.phone/);
+  assert.match(js,/installOpenBookingRefresh/);
+  assert.match(js,/\[0,80,250,700\]\.forEach/);
+});
+
 test('تحميل مشاركة العقد بزر واحد مرتبط بتحسين المستند',async()=>{
   const js=await read('document-preview-controls.js');
-  assert.match(js,/contract-one-button-share\.js\?v=20260819-1/);
+  assert.match(js,/contract-one-button-share\.js\?v=20260819-2/);
 });
