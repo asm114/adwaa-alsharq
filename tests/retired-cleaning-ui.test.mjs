@@ -17,6 +17,8 @@ test('الرئيسية تزيل بطاقة تنظيف مطلوب حتى لو أ�
   const js=await read('home-dashboard-polish.js');
   assert.match(js,/removeLegacyCleaningUi/);
   assert.match(js,/تنظيف مطلوب\|مهمة تنظيف\|فتح التنظيف\|التنظيف وجميل/);
+  assert.match(js,/\.today-action-card,\.today-action-label/);
+  assert.match(js,/closest\('\.today-action-card,/);
   assert.match(js,/childList:true,subtree:true/);
   assert.doesNotMatch(js,/innerHTML='<b>🧹<\/b>التنظيف وجميل'/);
 });
