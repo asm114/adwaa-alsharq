@@ -42,6 +42,7 @@ jobs:
             operational-reminders-center.js
             worker-check-admin.js
             worker-check-public.js
+            worker-check-legacy-cleanup.js
             sw.js
             resort/portal-today-highlight.js
           )
