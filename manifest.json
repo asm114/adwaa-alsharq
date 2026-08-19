@@ -1,7 +1,8 @@
 {
-  "name": "إدارة منتجع أضواء الشرق",
-  "short_name": "أضواء الشرق",
+  "name": "إدارة المنشأة",
+  "short_name": "الإدارة",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#f7f5ef",
   "theme_color": "#0d4c3f",
