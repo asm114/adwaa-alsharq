@@ -124,3 +124,4 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 })();
 
 (()=>{const script=document.createElement('script');script.defer=true;script.src='contract-one-button-share.js?v=20260819-3';script.onerror=()=>console.warn('تعذر تحميل مشاركة العقد بزر واحد');document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.defer=true;script.src='booking-welcome-confirmation.js?v=20260819-1';script.onerror=()=>console.warn('تعذر تحميل ترحيب وتأكيد الحجز');document.head.appendChild(script)})();
