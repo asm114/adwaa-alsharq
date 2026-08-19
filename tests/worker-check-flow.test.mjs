@@ -30,7 +30,8 @@ test('تشييك العامل مرتبط بالحجز وهوية المنشأة 
   assert.match(admin,/worker-check\.html/);
   assert.match(admin,/bookingId/);
   assert.match(admin,/window\.ensureCleaningTaskForBooking=noTask/);
-  assert.doesNotMatch(admin,/جميل/);
+  assert.match(admin,/text\.includes\('بوابة جميل'\)/);
+  assert.match(admin,/sendCleaningTaskToJameel=.*shareWorkerCheck/);
   assert.doesNotMatch(html,/جميل/);
 });
 
