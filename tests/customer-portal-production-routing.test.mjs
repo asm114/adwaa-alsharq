@@ -28,22 +28,19 @@ test('إعداد القالب التجاري يفشل مغلقًا قبل أي �
   assert.equal(context.window.ADWAA_PORTAL_SUPABASE_CONFIG,undefined);
 });
 
-test('جسر البوابة يمنع أول اتصال عندما لا توجد إعدادات عميل',async()=>{
-  const source=await read('resort/supabase-runtime-bridge.js');
-  const original=(url,key,options)=>({url,key,options});
-  const context={window:{supabase:{createClient:original}},console};
-  vm.runInNewContext(source,context);
-  assert.equal(context.window.__adwaaCustomerPortalBackendRef,'unconfigured');
-  assert.throws(
-    ()=>context.window.supabase.createClient(`https://${legacyPortalRef}.supabase.co`,'legacy-key',{}),
-    /تم منع بوابة العميل من الاتصال/
-  );
+test('بوابة العميل تقرأ Backend العميل مباشرة ولا تحمل مرجع أضواء الشرق',async()=>{
+  const portal=await read('resort/portal.js');
+  assert.match(portal,/const portalSupabaseConfig=window\.ADWAA_PORTAL_SUPABASE_CONFIG\|\|null/);
+  assert.match(portal,/const SUPABASE_URL=portalSupabaseConfig\.url/);
+  assert.match(portal,/const SUPABASE_PUBLISHABLE_KEY=portalSupabaseConfig\.publishableKey/);
+  assert.match(portal,/window\.supabase\.createClient\(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY/);
+  assert.doesNotMatch(portal,new RegExp(legacyPortalRef));
+  assert.doesNotMatch(portal,/https:\/\/[a-z0-9]+\.supabase\.co/);
 });
 
-test('جسر البوابة يفرض Backend العميل المهيأ على أول createClient',async()=>{
+test('جسر البوابة أصبح Marker فقط ولا يعترض createClient',async()=>{
   const source=await read('resort/supabase-runtime-bridge.js');
-  const calls=[];
-  const original=(url,key,options)=>{calls.push({url,key,options});return {ok:true}};
+  const original=(url,key,options)=>({url,key,options});
   const portalConfig={
     projectRef:'clientportalproject123',
     url:'https://clientportalproject123.supabase.co',
@@ -51,12 +48,15 @@ test('جسر البوابة يفرض Backend العميل المهيأ على أ
   };
   const context={window:{supabase:{createClient:original},ADWAA_PORTAL_SUPABASE_CONFIG:portalConfig},console};
   vm.runInNewContext(source,context);
-  const result=context.window.supabase.createClient(`https://${legacyPortalRef}.supabase.co`,'legacy-key',{auth:{persistSession:false}});
-  assert.equal(result.ok,true);
-  assert.equal(calls.length,1);
-  assert.equal(calls[0].url,portalConfig.url);
-  assert.equal(calls[0].key,portalConfig.publishableKey);
+  assert.equal(context.window.supabase.createClient,original);
   assert.equal(context.window.__adwaaCustomerPortalBackendRef,portalConfig.projectRef);
+  assert.doesNotMatch(source,/supabaseApi\.createClient\s*=|originalCreateClient|firstClientPending/);
+});
+
+test('جسر البوابة يفشل مغلقًا إذا لم يوجد Backend للعميل',async()=>{
+  const source=await read('resort/supabase-runtime-bridge.js');
+  const context={window:{},console};
+  assert.throws(()=>vm.runInNewContext(source,context),/تم منع بوابة العميل من الاتصال/);
 });
 
 test('Production لا يحمل عميل البوابة القديم الذي يشارك جلسة الإدارة',async()=>{
