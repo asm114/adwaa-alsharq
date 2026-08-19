@@ -40,8 +40,20 @@ test('بعد خروج العميل لا تُنشأ مهمة تنظيف ولا ي
   assert.doesNotMatch(reminders,/ensureCleaningTaskForBooking/);
   assert.doesNotMatch(reminders,/addReminder\('cleaning'/);
   assert.doesNotMatch(reminders,/مهمة تنظيف/);
-  assert.match(reminders,/worker-check-admin\.js\?v=20260819-1/);
+  assert.match(reminders,/worker-check-admin\.js\?v=20260819-2/);
+  assert.match(reminders,/worker-check-legacy-cleanup\.js\?v=20260819-1/);
   assert.match(reminders,/if\(item\.operationalType==='cleaning'\)resolveReminder\(item\)/);
+});
+
+test('بطاقات وقوائم التنظيف القديمة تختفي من الرئيسية والمزيد',async()=>{
+  const cleanup=await read('worker-check-legacy-cleanup.js');
+  assert.match(cleanup,/تنظيف مطلوب/);
+  assert.match(cleanup,/مهمة تنظيف لم تكتمل/);
+  assert.match(cleanup,/فتح التنظيف/);
+  assert.match(cleanup,/التنظيف وجميل/);
+  assert.match(cleanup,/simpleMoreOverlay/);
+  assert.match(cleanup,/simpleHomeDashboard/);
+  assert.match(cleanup,/MutationObserver/);
 });
 
 test('خلفية تشييك العامل تحمي الجدول وتسمح للعامل فقط برابط رمزي ورفع محدود',async()=>{
