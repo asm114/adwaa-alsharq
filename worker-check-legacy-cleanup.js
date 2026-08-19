@@ -35,3 +35,5 @@ function start(){
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
+
+(()=>{const script=document.createElement('script');script.async=false;script.src='worker-check-delete.js?v=20260819-1';script.onerror=()=>console.warn('تعذر تحميل حذف تشييك العامل');document.head.appendChild(script)})();
