@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d4c3f">
+<title>تشييك العامل</title>
+<style>
+:root{--green:#0d4c3f;--green2:#176c5a;--bg:#f5f7f4;--card:#fff;--ink:#17342c;--muted:#6d817a;--line:#dce5e0;--warn:#9b5f00;--danger:#a94235}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Tahoma,Arial,sans-serif;background:linear-gradient(180deg,#edf6f2,#f8f8f5);color:var(--ink)}button,input{font:inherit}.app{max-width:680px;margin:auto;min-height:100vh;padding:18px 14px calc(38px + env(safe-area-inset-bottom))}.hidden{display:none!important}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.brand b{display:block;font-size:20px}.brand span{display:block;color:var(--muted);margin-top:4px}.sync{font-size:12px;font-weight:800;border-radius:999px;padding:8px 10px;background:#fff3cd;color:#765900}.sync.ok{background:#ddf3ea;color:#136b54}.sync.bad{background:#fde7e4;color:#91392f}
+.card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:18px;box-shadow:0 12px 32px rgba(16,55,43,.08);margin-bottom:13px}.center{text-align:center}.hero{font-size:64px;line-height:1;margin:10px}.title{font-size:27px;margin:8px 0}.sub{color:var(--muted);line-height:1.8;margin:7px 0}.booking{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}.booking div{background:#f6f9f7;border-radius:15px;padding:12px}.booking span{display:block;color:var(--muted);font-size:12px}.booking b{display:block;margin-top:5px}
+.guide{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.guide-item{background:#f8faf8;border:1px solid var(--line);border-radius:17px;padding:12px 7px;text-align:center;min-height:116px}.guide-item .drawing{font-size:37px;display:block;margin-bottom:7px}.guide-item b{font-size:13px;display:block}.guide-item small{display:block;color:var(--muted);font-size:11px;line-height:1.5;margin-top:4px}
+.section-title{font-size:18px;margin:0 0 5px}.section-note{color:var(--muted);font-size:13px;line-height:1.7;margin:0 0 12px}.issue-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.issue{border:2px solid var(--line);background:#fff;border-radius:19px;padding:15px 8px;font-weight:900;min-height:104px;color:var(--ink)}.issue .icon{display:block;font-size:34px;margin-bottom:7px}.issue.selected{border-color:#d79b35;background:#fff8e8}.issue.ok.selected{border-color:#4d9d7e;background:#eaf7f2}.issue.ok{grid-column:1/-1}
+.photo-button,.voice-button,.submit-button{width:100%;border:0;border-radius:19px;padding:17px 12px;font-weight:900;font-size:18px}.photo-button{display:block;text-align:center;background:var(--green);color:#fff;cursor:pointer}.voice-button{background:#eef4f1;color:var(--green);border:1px solid #cbdcd4}.voice-button.recording{background:#fde8e5;color:#a13c31;border-color:#efaaa1}.submit-button{background:linear-gradient(135deg,var(--green),var(--green2));color:#fff;margin-top:12px}.submit-button:disabled{opacity:.55}
+.photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.photo{position:relative;border-radius:14px;overflow:hidden;aspect-ratio:1;background:#edf1ef}.photo img{width:100%;height:100%;object-fit:cover}.photo button{position:absolute;top:5px;left:5px;width:30px;height:30px;border:0;border-radius:50%;background:#fff;color:var(--danger);font-weight:900}.counter{margin-top:8px;color:var(--muted);font-size:12px;text-align:center}.voice-state{margin-top:10px;padding:12px;background:#f7f9f8;border-radius:14px;text-align:center;color:var(--muted)}audio{width:100%;margin-top:8px}.status-box{border:1px dashed #b9cdc4;background:#f7faf8;border-radius:16px;padding:12px;line-height:1.8;margin-top:12px}.error{color:var(--danger)}
+@media(max-width:430px){.guide{grid-template-columns:1fr 1fr}.guide-item:last-child{grid-column:1/-1}.title{font-size:24px}.issue-grid{grid-template-columns:1fr 1fr}.photo-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="app">
+<header><div class="brand"><b id="propertyLabel">تشييك العامل</b><span>تشييك عامل المنشأة</span></div><div id="sync" class="sync">جاري الفتح…</div></header>
+
+<section id="loading" class="card center"><div class="hero">⏳</div><h1 class="title">جاري فتح التشييك</h1><p class="sub">انتظر قليلًا.</p></section>
+<section id="invalid" class="card center hidden"><div class="hero">🔒</div><h1 class="title">الرابط غير متاح</h1><p class="sub" id="invalidText">اطلب رابطًا جديدًا من الإدارة.</p></section>
+<section id="done" class="card center hidden"><div class="hero">✅</div><h1 class="title">تم إرسال التشييك</h1><p class="sub">وصلت الصور والتسجيل الصوتي إلى الإدارة وربطت بالحجز.</p></section>
+
+<div id="formArea" class="hidden">
+<section class="card">
+  <div class="center"><div class="hero">🔎</div><h1 class="title">تشييك العامل</h1><p class="sub">صوّر اللي تشوفه، وإذا عندك ملاحظة قلها بصوتك. ما تحتاج تكتب أي شيء.</p></div>
+  <div class="booking"><div><span>رقم الحجز</span><b id="bookingCode">—</b></div><div><span>تاريخ الحجز</span><b id="bookingDate">—</b></div></div>
+</section>
+
+<section class="card">
+  <h2 class="section-title">أمثلة تساعدك تعرف المطلوب</h2>
+  <p class="section-note">الرسومات للتوضيح فقط. اختر اللي يشبه الحالة ثم صوّرها.</p>
+  <div class="guide">
+    <div class="guide-item"><span class="drawing">🪑💥</span><b>ضرر</b><small>كسر أو خدش قوي أو قطعة متضررة</small></div>
+    <div class="guide-item"><span class="drawing">🗑️🍽️</span><b>أوساخ زائدة</b><small>نفايات أو بقايا كثيرة وغير معتادة</small></div>
+    <div class="guide-item"><span class="drawing">🚰💧</span><b>ماء أو تسريب</b><small>تسريب أو بلل يحتاج انتباه</small></div>
+  </div>
+</section>
+
+<section class="card">
+  <h2 class="section-title">وش لاحظت؟</h2>
+  <p class="section-note">اضغط على الرسم المناسب. تقدر تختار أكثر من واحد.</p>
+  <div class="issue-grid" id="issueGrid">
+    <button type="button" class="issue" data-issue="damage_furniture"><span class="icon">🪑</span>ضرر أثاث</button>
+    <button type="button" class="issue" data-issue="damage_electrical"><span class="icon">💡</span>كهرباء</button>
+    <button type="button" class="issue" data-issue="damage_water"><span class="icon">🚰</span>ماء / تسريب</button>
+    <button type="button" class="issue" data-issue="damage_glass"><span class="icon">🪟</span>زجاج / كسر</button>
+    <button type="button" class="issue" data-issue="damage_building"><span class="icon">🧱</span>ضرر بالمكان</button>
+    <button type="button" class="issue" data-issue="extra_dirt"><span class="icon">🧽</span>أوساخ زائدة</button>
+    <button type="button" class="issue ok" data-issue="ok"><span class="icon">✅</span>كل شيء طبيعي</button>
+  </div>
+</section>
+
+<section class="card">
+  <h2 class="section-title">الصور</h2><p class="section-note">أرسل صورة واحدة على الأقل، وبحد أقصى 6 صور.</p>
+  <label class="photo-button">📷 إضافة صورة<input id="photoInput" type="file" accept="image/*" capture="environment" hidden></label>
+  <div id="photoGrid" class="photo-grid"></div><div id="photoCounter" class="counter">0 من 6 صور</div>
+</section>
+
+<section class="card">
+  <h2 class="section-title">ملاحظة صوتية</h2><p class="section-note">إذا عندك شيء يحتاج شرح، سجله بصوتك. ما فيه خانة كتابة.</p>
+  <button id="voiceButton" type="button" class="voice-button">🎙️ ابدأ التسجيل الصوتي</button>
+  <div id="voiceState" class="voice-state">التسجيل اختياري — الحد الأقصى 60 ثانية</div>
+  <audio id="voicePreview" controls class="hidden"></audio>
+</section>
+
+<section class="card">
+  <button id="submitButton" type="button" class="submit-button">إرسال التشييك للإدارة</button>
+  <div id="submitStatus" class="status-box hidden"></div>
+</section>
+</div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="worker-check-public.js?v=20260819-1"></script>
+</body>
+</html>
