@@ -16,7 +16,9 @@ const rawCommercialConfig={
   },
   brand:{
     name:'CHANGE_ME_BRAND_NAME',
-    location:'CHANGE_ME_LOCATION'
+    businessType:'CHANGE_ME_BUSINESS_TYPE',
+    location:'CHANGE_ME_LOCATION',
+    description:'CHANGE_ME_BRAND_DESCRIPTION'
   },
   backends:{
     core:{
@@ -64,9 +66,16 @@ function validateCommercialConfig(config){
     auth:configuredValue('namespace.auth',config?.namespace?.auth),
     cache:configuredValue('namespace.cache',config?.namespace?.cache)
   });
+  const brandName=configuredValue('brand.name',config?.brand?.name);
+  const businessType=configuredValue('brand.businessType',config?.brand?.businessType);
+  const displayName=brandName.startsWith(businessType)?brandName:`${businessType} ${brandName}`;
   const brand=Object.freeze({
-    name:configuredValue('brand.name',config?.brand?.name),
-    location:configuredValue('brand.location',config?.brand?.location)
+    name:brandName,
+    businessType,
+    displayName,
+    location:configuredValue('brand.location',config?.brand?.location),
+    description:configuredValue('brand.description',config?.brand?.description),
+    mark:[...brandName.replace(/\s+/g,'')][0]||'•'
   });
   const core=validateBackend('backends.core',config?.backends?.core);
   const portal=validateBackend('backends.portal',config?.backends?.portal);
@@ -82,6 +91,22 @@ function validateCommercialConfig(config){
   });
 }
 
+function installLegacyStorageNamespace(prefix){
+  const StorageCtor=window.Storage,proto=StorageCtor?.prototype;
+  if(!proto||proto.__commercialNamespaceInstalled)return;
+  const originalGet=proto.getItem,originalSet=proto.setItem,originalRemove=proto.removeItem;
+  const targetKey=(storage,key)=>{
+    const text=String(key??'');
+    if(storage!==window.localStorage&&storage!==window.sessionStorage)return text;
+    if(!/^adwaa/i.test(text))return text;
+    return `${prefix}:${text}`;
+  };
+  Object.defineProperty(proto,'__commercialNamespaceInstalled',{value:true,configurable:false});
+  proto.getItem=function(key){return originalGet.call(this,targetKey(this,key))};
+  proto.setItem=function(key,value){return originalSet.call(this,targetKey(this,key),value)};
+  proto.removeItem=function(key){return originalRemove.call(this,targetKey(this,key))};
+}
+
 function validateCoreSupabaseConfig(config){
   const projectRef=projectRefFromUrl(config?.url);
   if(!projectRef||projectRef!==window.ADWAA_COMMERCIAL_CONFIG?.backends?.core?.projectRef)throw new Error('تم منع الاتصال بقاعدة إدارة غير مطابقة لإعداد النسخة.');
@@ -91,6 +116,7 @@ function validateCoreSupabaseConfig(config){
 
 const commercialConfig=validateCommercialConfig(rawCommercialConfig);
 window.ADWAA_COMMERCIAL_CONFIG=commercialConfig;
+installLegacyStorageNamespace(commercialConfig.namespace.storage);
 window.ADWAA_SUPABASE_CONFIG=validateCoreSupabaseConfig({
   environment:commercialConfig.runtimeEnvironment,
   url:commercialConfig.backends.core.url,
@@ -108,5 +134,15 @@ window.__adwaaValidateStagingSupabaseConfig=validateCoreSupabaseConfig;
 if(commercialConfig.runtimeEnvironment==='production'){
   window.__adwaaPortalAdminClientInstalled=true;
   window.__adwaaLegacyPortalAdminDisabled=true;
+}
+
+// Branding is deliberately a separate runtime layer so the legacy single-file UI can
+// be generalized without a high-risk rewrite. It never runs if configuration validation fails.
+if(typeof document!=='undefined'&&!window.__commercialBrandingLoaderInstalled){
+  window.__commercialBrandingLoaderInstalled=true;
+  const script=document.createElement('script');
+  script.async=false;
+  script.src=`${commercialConfig.basePath}commercial-branding.js?v=20260819-1`;
+  document.head.appendChild(script);
 }
 })();
