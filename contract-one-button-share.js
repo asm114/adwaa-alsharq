@@ -104,9 +104,11 @@ function refresh(){
     row.insertAdjacentElement('afterend',target);
   }
   const booking=currentBooking(),form=currentForm(),recipient=recipientInfo(form,booking);
-  target.innerHTML=esc(targetText(form,booking));
-  button.disabled=!booking||!digits(recipient.phone);
-  button.textContent='📎 مشاركة ملف العقد';
+  const desiredTarget=targetText(form,booking);
+  if(target.textContent!==desiredTarget)target.textContent=desiredTarget;
+  const shouldDisable=!booking||!digits(recipient.phone);
+  if(button.disabled!==shouldDisable)button.disabled=shouldDisable;
+  if(button.textContent!=='📎 مشاركة ملف العقد')button.textContent='📎 مشاركة ملف العقد';
 }
 
 function installOpenBookingRefresh(){
@@ -124,12 +126,11 @@ function installOpenBookingRefresh(){
 
 function start(){
   installOpenBookingRefresh();
-  refresh();
+  [0,120,400,1000].forEach(delay=>setTimeout(()=>{installOpenBookingRefresh();refresh()},delay));
   document.addEventListener('input',event=>{if(event.target?.id==='bName'||event.target?.id==='bPhone')refresh()});
   document.addEventListener('change',event=>{if(event.target?.id==='bName'||event.target?.id==='bPhone')refresh()});
   window.addEventListener('focus',refresh);
   window.addEventListener('adwaa-subscription-updated',refresh);
-  new MutationObserver(()=>queueMicrotask(refresh)).observe(document.body,{subtree:true,childList:true});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
