@@ -35,6 +35,16 @@ function removalPaths(row){
   return [...photos,row?.voice_path].map(value=>String(value||'').trim()).filter(Boolean);
 }
 function isDeletedMarker(row){return row?.status==='reviewed'&&removalPaths(row).length===0}
+async function persistDismissal(bookingId,when){
+  const rows=Array.isArray(window.db?.bookings)?window.db.bookings:[];
+  const booking=rows.find(item=>String(item?.id||'')===String(bookingId||''));
+  if(!booking)return;
+  booking.workerCheckDismissedAt=when;
+  try{
+    if(typeof window.persist==='function')await window.persist();
+    else localStorage.setItem('adwaaDB',JSON.stringify(window.db));
+  }catch(error){console.warn('تعذر حفظ إخفاء تنبيه تشييك العامل.',error)}
+}
 
 async function deleteWorkerCheck(row,bookingId,button){
   if(!row?.id)return;
@@ -60,6 +70,7 @@ async function deleteWorkerCheck(row,bookingId,button){
       shared_at:row.shared_at||now,submitted_at:null,reviewed_at:now,updated_at:now
     }).eq('id',row.id);
     if(error)throw error;
+    await persistDismissal(bookingId,now);
     lastSignature='';
     if(mediaWarning)alert('تم حذف التشييك ومنع رجوع التنبيه، لكن تعذر حذف بعض ملفاته من التخزين.');
     else alert('تم حذف تشييك العامل ولن يعود التنبيه لهذا الحجز.');
