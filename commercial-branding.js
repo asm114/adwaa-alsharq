@@ -4,8 +4,8 @@ if(window.__commercialBrandingInstalled)return;
 window.__commercialBrandingInstalled=true;
 
 const config=window.ADWAA_COMMERCIAL_CONFIG;
-if(!config?.brand)throw new Error('Commercial branding requires ADWAA_COMMERCIAL_CONFIG.');
-const brand=config.brand;
+if(!config?.brand||!config?.ownership)throw new Error('Commercial branding requires ADWAA_COMMERCIAL_CONFIG.');
+const brand=config.brand,ownership=config.ownership;
 const replacements=[
   ['منتجع أضواء الشرق',brand.displayName],
   ['أضواء الشرق',brand.name],
@@ -96,6 +96,40 @@ function installDynamicManifest(){
   window.addEventListener('pagehide',()=>URL.revokeObjectURL(href),{once:true});
 }
 
+function installOwnershipMetadata(){
+  let meta=document.querySelector('meta[name="copyright"]');
+  if(!meta){meta=document.createElement('meta');meta.name='copyright';document.head?.appendChild(meta)}
+  if(meta)meta.content=`© ${ownership.copyrightYear} ${ownership.ownerName} — جميع الحقوق محفوظة`;
+  document.documentElement.dataset.commercialClientId=ownership.clientId;
+}
+
+function installOwnershipNotice(){
+  if(!document.body)return;
+  let style=document.getElementById('commercialOwnershipStyles');
+  if(!style){
+    style=document.createElement('style');
+    style.id='commercialOwnershipStyles';
+    style.textContent='.commercial-ownership-notice{max-width:980px;margin:24px auto 112px;padding:10px 16px;text-align:center;font-size:12px;line-height:1.8;color:#6d817a;opacity:.9}.commercial-ownership-notice strong{color:inherit}.commercial-ownership-notice .commercial-ownership-use{display:block}@media(max-width:620px){.commercial-ownership-notice{padding-inline:18px;font-size:11px}}';
+    document.head?.appendChild(style);
+  }
+  let notice=document.getElementById('commercialOwnershipNotice');
+  if(!notice){
+    notice=document.createElement('div');
+    notice.id='commercialOwnershipNotice';
+    notice.className='commercial-ownership-notice';
+    notice.setAttribute('role','contentinfo');
+    document.body.appendChild(notice);
+  }
+  notice.dataset.clientId=ownership.clientId;
+  notice.innerHTML='';
+  const rights=document.createElement('strong');
+  rights.textContent=`© ${ownership.copyrightYear} ${ownership.ownerName} — جميع الحقوق محفوظة.`;
+  const use=document.createElement('span');
+  use.className='commercial-ownership-use';
+  use.textContent=`هذه النسخة مصرح باستخدامها بواسطة ${ownership.authorizedCustomer}.`;
+  notice.append(rights,use);
+}
+
 function applyBranding(){
   if(!document.documentElement)return;
   syncWorkerIdentity();
@@ -108,6 +142,8 @@ function applyBranding(){
   const description=document.querySelector('meta[name="description"]');
   if(description)description.content=brand.description;
   installDynamicManifest();
+  installOwnershipMetadata();
+  installOwnershipNotice();
 }
 
 function scheduleBranding(){syncWorkerIdentity();queueMicrotask(applyBranding)}
