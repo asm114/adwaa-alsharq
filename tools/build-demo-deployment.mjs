@@ -6,14 +6,13 @@ const here=dirname(fileURLToPath(import.meta.url));
 const root=resolve(here,'..');
 const out=join(root,'dist');
 
-function requiredPublishableKey(name){
-  const value=String(process.env[name]||'').trim();
-  if(!value.startsWith('sb_publishable_'))throw new Error(`${name} must be a Supabase publishable key.`);
-  return value;
-}
-
-const coreKey=requiredPublishableKey('DEMO_CORE_PUBLISHABLE_KEY');
-const portalKey=requiredPublishableKey('DEMO_PORTAL_PUBLISHABLE_KEY');
+// Public demo is intentionally local-only. These values only satisfy the
+// commercial runtime validator; demo-local-runtime intercepts both clients
+// before any network request is made.
+const coreKey='sb_publishable_demo_local_core_2026';
+const portalKey='sb_publishable_demo_local_portal_2026';
+const coreRef='democorelocal2026';
+const portalRef='demoportallocal2026';
 
 const excludedTopLevel=new Set(['.git','.github','.impeccable','.vercel','node_modules','dist','supabase','tests','tools']);
 const excludedFiles=new Set([
@@ -64,9 +63,9 @@ const replacements={
   CHANGE_ME_BRAND_DESCRIPTION:'نسخة تجريبية لاستعراض نظام إدارة المنتجعات ببيانات وهمية فقط.',
   CHANGE_ME_AUTHORIZED_CUSTOMER:'نسخة العرض التجريبية للنظام',
   CHANGE_ME_CLIENT_ID:'DEMO-2026',
-  CHANGE_ME_CORE_PROJECT_REF:'gjzdjotuhfzyihwarpfx',
+  CHANGE_ME_CORE_PROJECT_REF:coreRef,
   CHANGE_ME_CORE_PUBLISHABLE_KEY:coreKey,
-  CHANGE_ME_PORTAL_PROJECT_REF:'iqybnohopudffvfntkit',
+  CHANGE_ME_PORTAL_PROJECT_REF:portalRef,
   CHANGE_ME_PORTAL_PUBLISHABLE_KEY:portalKey
 };
 for(const [from,to] of Object.entries(replacements))config=config.split(from).join(to);
@@ -127,7 +126,7 @@ async function injectDemoLayers(directory){
     if(!html.includes('supabase-config.staging.js'))continue;
     const rel=relative(out,full).split(sep).join('/');
     const nested=rel.startsWith('resort/');
-    const safetySrc=nested?'../demo-public-safety.js?v=20260820-4':'demo-public-safety.js?v=20260820-4';
+    const safetySrc=nested?'../demo-public-safety.js?v=20260820-5':'demo-public-safety.js?v=20260820-5';
     const configPattern=/(<script\s+src=["'][^"']*supabase-config\.staging\.js[^"']*["'][^>]*><\/script>)/i;
     if(!configPattern.test(html))throw new Error(`Could not place demo safety layer in ${rel}.`);
     if(!html.includes('demo-public-safety.js'))html=html.replace(configPattern,`$1\n<script src="${safetySrc}"></script>`);
@@ -135,7 +134,7 @@ async function injectDemoLayers(directory){
     if(rel==='index.html'){
       const supabaseLibraryPattern=/(<script\s+src=["'][^"']*@supabase\/supabase-js@2[^"']*["'][^>]*><\/script>)/i;
       if(!supabaseLibraryPattern.test(html))throw new Error('Could not place isolated visitor runtime after Supabase library.');
-      if(!html.includes('demo-local-runtime.js'))html=html.replace(supabaseLibraryPattern,`$1\n<script src="demo-local-runtime.js?v=20260820-1"></script>`);
+      if(!html.includes('demo-local-runtime.js'))html=html.replace(supabaseLibraryPattern,`$1\n<script src="demo-local-runtime.js?v=20260820-2"></script>`);
     }
     await writeFile(full,html,'utf8');
   }
@@ -143,10 +142,11 @@ async function injectDemoLayers(directory){
 await injectDemoLayers(out);
 
 const builtConfig=await readFile(configPath,'utf8');
-if(!builtConfig.includes('gjzdjotuhfzyihwarpfx')||!builtConfig.includes('iqybnohopudffvfntkit'))throw new Error('Demo build points to unexpected Supabase projects.');
+if(!builtConfig.includes(coreRef)||!builtConfig.includes(portalRef))throw new Error('Demo build points to unexpected local demo backends.');
+if(builtConfig.includes('supabase.co'))throw new Error('Public demo config must not point to a live Supabase project.');
 const builtRoot=await readFile(join(out,'index.html'),'utf8');
 if(!builtRoot.includes('demo-local-runtime.js'))throw new Error('Public demo root is not isolated per visitor.');
 const builtPortal=await readFile(join(out,'resort','index.html'),'utf8');
 if(!builtPortal.includes('منتجع العرض التجريبي')||builtPortal.includes('أضواء الشرق'))throw new Error('Demo portal fallback branding was not sanitized correctly.');
 
-console.log('Public demo build prepared in dist/ with current UI, local visitor isolation, scrubbed AAS fallbacks, and isolated Demo backends.');
+console.log('Public demo build prepared in dist/ with current UI, fully local visitor isolation, scrubbed AAS fallbacks, and no live Supabase dependency.');
