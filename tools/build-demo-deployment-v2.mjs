@@ -14,14 +14,31 @@ async function walk(directory){
     if(entry.isDirectory()){await walk(full);continue;}
     if(!entry.isFile()||!entry.name.endsWith('.html'))continue;
     let html=await readFile(full,'utf8');
+    externalSupabase.lastIndex=0;
     if(!externalSupabase.test(html)){externalSupabase.lastIndex=0;continue;}
     externalSupabase.lastIndex=0;
-    html=html.replace(externalSupabase,'\n<script src="/demo-supabase-shim.js?v=20260820-1"></script>');
+    html=html.replace(externalSupabase,'\n<script src="/demo-supabase-shim.js?v=20260820-2"></script>');
     await writeFile(full,html,'utf8');
   }
 }
 
 await walk(out);
+
+const rootHtmlPath=join(out,'index.html');
+let rootHtml=await readFile(rootHtmlPath,'utf8');
+rootHtml=rootHtml
+  .split('منتجع العرض التجريبي').join('نظام إدارة الحجوزات')
+  .split('نظام الإدارة المحمي').join('نسخة تجريبية للعرض');
+await writeFile(rootHtmlPath,rootHtml,'utf8');
+
+const configPath=join(out,'supabase-config.staging.js');
+let demoConfig=await readFile(configPath,'utf8');
+demoConfig=demoConfig
+  .split("name:'نسخة العرض التجريبية'").join("name:'نسخة تجريبية'")
+  .split("businessType:'نظام إدارة المنتجعات'").join("businessType:'نظام إدارة الحجوزات'")
+  .split("displayName:'نظام إدارة المنتجعات — نسخة العرض التجريبية'").join("displayName:'نظام إدارة الحجوزات — نسخة تجريبية'")
+  .split('نسخة تجريبية لاستعراض نظام إدارة المنتجعات ببيانات وهمية فقط.').join('نسخة تجريبية لاستعراض نظام إدارة الحجوزات ببيانات وهمية فقط.');
+await writeFile(configPath,demoConfig,'utf8');
 
 async function verify(directory){
   for(const entry of await readdir(directory,{withFileTypes:true})){
@@ -36,4 +53,10 @@ async function verify(directory){
 }
 
 await verify(out);
-console.log('Public demo post-build removed the blocking external Supabase CDN and uses the local demo shim only.');
+const verifiedRoot=await readFile(rootHtmlPath,'utf8');
+if(verifiedRoot.includes('منتجع العرض التجريبي'))throw new Error('Administration demo still shows the old awkward property name.');
+if(!verifiedRoot.includes('نظام إدارة الحجوزات'))throw new Error('Administration demo is missing the approved generic demo name.');
+const verifiedConfig=await readFile(configPath,'utf8');
+if(!verifiedConfig.includes("displayName:'نظام إدارة الحجوزات — نسخة تجريبية'"))throw new Error('Demo config display name was not normalized.');
+
+console.log('Public demo post-build is fully local, removes the blocking external Supabase CDN, and uses the normalized demo name.');
