@@ -18,6 +18,12 @@ const KNOWN_PLACEHOLDERS=[
 ];
 const SECRET_KEY_NAME=/(?:service[_-]?role|password|secret|private[_-]?key|access[_-]?token|refresh[_-]?token)/i;
 const MIGRATION_NAME=/^\d{14}_[a-z0-9_]+\.sql$/;
+const PROPERTY_KEYS=new Set([
+  'resortName','shortDescription','detailedDescription','checkinTime','checkoutTime',
+  'mapsUrl','whatsappUrl','instagramUrl','resortAddress','checkinInstructions','features',
+  'bookingRequestsOpen','closedMessage'
+]);
+const CONTACT_KEYS=new Set(['whatsappNumber','mapsUrl','instagramUrl','email','contactHours']);
 
 function isObject(value){return Boolean(value)&&typeof value==='object'&&!Array.isArray(value)}
 function requiredText(label,value,{min=1,max=500}={}){
@@ -26,6 +32,15 @@ function requiredText(label,value,{min=1,max=500}={}){
   if(text.length<min||text.length>max)throw new Error(`${label} طوله غير صالح.`);
   return text;
 }
+function optionalText(label,value,{max=1500}={}){
+  const text=String(value??'').trim();
+  if(text.length>max)throw new Error(`${label} أطول من الحد المسموح.`);
+  return text;
+}
+function assertKnownKeys(label,value,allowed){
+  if(!isObject(value))throw new Error(`${label} يجب أن يكون كائنًا.`);
+  for(const key of Object.keys(value))if(!allowed.has(key))throw new Error(`الحقل غير المعروف ${label}.${key} غير مسموح.`);
+}
 function assertNoSecretKeys(value,label='package'){
   if(Array.isArray(value)){value.forEach((item,index)=>assertNoSecretKeys(item,`${label}[${index}]`));return}
   if(!isObject(value))return;
@@ -33,6 +48,21 @@ function assertNoSecretKeys(value,label='package'){
     if(SECRET_KEY_NAME.test(key))throw new Error(`الحقل ${label}.${key} مرفوض: الحزمة العامة لا تحمل أسرارًا.`);
     assertNoSecretKeys(item,`${label}.${key}`);
   }
+}
+function httpsUrl(label,value,{allowEmpty=false}={}){
+  const text=String(value??'').trim();
+  if(!text&&allowEmpty)return '';
+  requiredText(label,text,{max:2000});
+  let parsed;
+  try{parsed=new URL(text)}catch{throw new Error(`${label} يجب أن يكون رابط HTTPS صالحًا.`)}
+  if(parsed.protocol!=='https:')throw new Error(`${label} يجب أن يبدأ بـ https://`);
+  return parsed.toString();
+}
+function emailValue(label,value){
+  const text=String(value??'').trim();
+  if(!text)return '';
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text))throw new Error(`${label} غير صالح.`);
+  return text;
 }
 function validateProjectRef(label,value){
   const ref=requiredText(label,value,{min:10,max:40}).toLowerCase();
@@ -61,19 +91,30 @@ function validatePortalBootstrap(value){
   if(!isObject(value)||Number(value.schemaVersion)!==1)throw new Error('portal-bootstrap schemaVersion غير مدعوم.');
   if(!isObject(value.property)||!isObject(value.contact))throw new Error('portal-bootstrap ناقص property/contact.');
   assertNoSecretKeys(value,'portalBootstrap');
+  assertKnownKeys('portalBootstrap.property',value.property,PROPERTY_KEYS);
+  assertKnownKeys('portalBootstrap.contact',value.contact,CONTACT_KEYS);
   const property=value.property;
   const contact=value.contact;
+  const features=property.features??[];
+  if(!Array.isArray(features)||features.length>30)throw new Error('property.features يجب أن تكون قائمة بحد أقصى 30 عنصرًا.');
+  for(const [index,feature] of features.entries())requiredText(`property.features[${index}]`,feature,{max:120});
+  if(property.bookingRequestsOpen!==true&&property.bookingRequestsOpen!==false)throw new Error('property.bookingRequestsOpen يجب أن تكون boolean.');
   requiredText('property.resortName',property.resortName,{max:120});
   requiredText('property.shortDescription',property.shortDescription,{max:220});
   requiredText('property.detailedDescription',property.detailedDescription,{max:2500});
   requiredText('property.checkinTime',property.checkinTime,{max:80});
   requiredText('property.checkoutTime',property.checkoutTime,{max:80});
-  if(!Array.isArray(property.features))throw new Error('property.features يجب أن تكون قائمة.');
-  if(property.bookingRequestsOpen!==true&&property.bookingRequestsOpen!==false)throw new Error('property.bookingRequestsOpen يجب أن تكون boolean.');
+  httpsUrl('property.mapsUrl',property.mapsUrl,{allowEmpty:true});
+  httpsUrl('property.whatsappUrl',property.whatsappUrl,{allowEmpty:true});
+  httpsUrl('property.instagramUrl',property.instagramUrl,{allowEmpty:true});
+  optionalText('property.resortAddress',property.resortAddress,{max:220});
+  optionalText('property.checkinInstructions',property.checkinInstructions,{max:1500});
+  requiredText('property.closedMessage',property.closedMessage,{max:500});
   const whatsapp=requiredText('contact.whatsappNumber',contact.whatsappNumber,{min:8,max:15});
   if(!/^\d{8,15}$/.test(whatsapp))throw new Error('contact.whatsappNumber غير صالح.');
-  requiredText('contact.mapsUrl',contact.mapsUrl,{max:2000});
-  requiredText('contact.instagramUrl',contact.instagramUrl,{max:2000});
+  httpsUrl('contact.mapsUrl',contact.mapsUrl);
+  httpsUrl('contact.instagramUrl',contact.instagramUrl);
+  emailValue('contact.email',contact.email);
   requiredText('contact.contactHours',contact.contactHours,{max:500});
   return value;
 }
@@ -247,7 +288,7 @@ function propertyPayload(property){return {
   checkout_time:property.checkoutTime,maps_url:property.mapsUrl||'',whatsapp_url:property.whatsappUrl||'',
   instagram_url:property.instagramUrl||'',resort_address:property.resortAddress||'',
   checkin_instructions:property.checkinInstructions||'',features:property.features||[],
-  booking_requests_open:property.bookingRequestsOpen,closed_message:property.closedMessage||'نعتذر، استقبال طلبات الحجز متوقف مؤقتًا في الوقت الحالي. يمكنكم التواصل معنا للاستفسار.'
+  booking_requests_open:property.bookingRequestsOpen,closed_message:property.closedMessage
 }}
 function contactPayload(contact){return {
   id:'main',whatsapp_number:contact.whatsappNumber,maps_url:contact.mapsUrl,
@@ -264,14 +305,14 @@ export async function applySecurePlan(plan,secrets,{repoRoot=ROOT_DIR,spawnImpl=
   await assertPsqlAvailable(spawnImpl);
   await assertFreshDatabase(coreTarget,'core',spawnImpl);
   await assertFreshDatabase(portalTarget,'portal',spawnImpl);
+  await assertFreshAuth(plan.targets.core.projectRef,secrets.coreServiceRoleKey,fetchImpl);
+  await assertFreshAuth(plan.targets.portal.projectRef,secrets.portalServiceRoleKey,fetchImpl);
   const coreFiles=plan.migrations.core.map(name=>path.join(repoRoot,CORE_MIGRATIONS,name));
   const portalFiles=plan.migrations.portal.map(name=>path.join(repoRoot,PORTAL_MIGRATIONS,name));
   await applyMigrations(coreTarget,coreFiles,spawnImpl);
   await verifyTables(coreTarget,'core',spawnImpl);
   await applyMigrations(portalTarget,portalFiles,spawnImpl);
   await verifyTables(portalTarget,'portal',spawnImpl);
-  await assertFreshAuth(plan.targets.core.projectRef,secrets.coreServiceRoleKey,fetchImpl);
-  await assertFreshAuth(plan.targets.portal.projectRef,secrets.portalServiceRoleKey,fetchImpl);
   const coreUserId=await createManager(plan.targets.core.projectRef,secrets.coreServiceRoleKey,secrets,fetchImpl);
   const portalUserId=await createManager(plan.targets.portal.projectRef,secrets.portalServiceRoleKey,secrets,fetchImpl);
   await insertMembership(plan.targets.core.projectRef,secrets.coreServiceRoleKey,'commercial_admins',coreUserId,fetchImpl);
