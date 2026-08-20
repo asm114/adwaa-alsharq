@@ -7,13 +7,14 @@ create table if not exists public.customer_portal_pricing (
   weekend_price numeric(10,2) not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  updated_by uuid references auth.users(id) on delete set null,
   constraint customer_portal_pricing_singleton check (id = 'main'),
   constraint customer_portal_pricing_weekday_nonnegative check (weekday_price >= 0),
   constraint customer_portal_pricing_weekend_nonnegative check (weekend_price >= 0)
 );
 
 comment on table public.customer_portal_pricing is
-  'Public-safe base prices for the customer portal. Values start at zero until customer provisioning/admin setup supplies real prices.';
+  'Base public prices for the customer portal. Values start at zero until customer setup supplies real prices; audit UUID is restricted from anon column access.';
 comment on column public.customer_portal_pricing.weekday_price is
   'Base weekday price. Zero means no public price has been configured yet.';
 comment on column public.customer_portal_pricing.weekend_price is
@@ -39,6 +40,7 @@ set search_path = public
 as $$
 begin
   new.updated_at = now();
+  new.updated_by = auth.uid();
   return new;
 end;
 $$;
@@ -52,7 +54,9 @@ for each row execute function public.set_customer_portal_pricing_updated_at();
 alter table public.customer_portal_pricing enable row level security;
 
 revoke all on table public.customer_portal_pricing from anon, authenticated;
-grant select on table public.customer_portal_pricing to anon, authenticated;
+grant select (id, weekday_price, weekend_price)
+  on table public.customer_portal_pricing to anon;
+grant select on table public.customer_portal_pricing to authenticated;
 grant insert, update on table public.customer_portal_pricing to authenticated;
 
 drop policy if exists "public reads customer portal pricing"
@@ -60,8 +64,16 @@ drop policy if exists "public reads customer portal pricing"
 create policy "public reads customer portal pricing"
 on public.customer_portal_pricing
 for select
-to anon, authenticated
+to anon
 using (id = 'main');
+
+drop policy if exists "admins read customer portal pricing"
+  on public.customer_portal_pricing;
+create policy "admins read customer portal pricing"
+on public.customer_portal_pricing
+for select
+to authenticated
+using (public.is_resort_admin() and id = 'main');
 
 drop policy if exists "admins insert customer portal pricing"
   on public.customer_portal_pricing;
