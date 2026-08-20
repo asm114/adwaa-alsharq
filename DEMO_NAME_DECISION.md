@@ -1,1 +1,0 @@
-Public demo display name decision (2026-08-20): use «نظام إدارة الحجوزات — نسخة تجريبية» for the administration demo instead of «منتجع العرض التجريبي». The customer-facing portal may use «المنتجع التجريبي» only as fake property content where a property name is required.
