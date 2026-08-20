@@ -22,12 +22,8 @@ test('demo local runtime is valid JavaScript and contains no privileged secret',
   assert.doesNotMatch(source,/service_role|demo\.admin@example\.com/i);
 });
 
-test('public demo build uses current UI, isolated local state, and scrubbed demo data',async()=>{
-  const result=spawnSync(process.execPath,['tools/build-demo-deployment.mjs'],{
-    cwd:root,
-    encoding:'utf8',
-    env:{...process.env,DEMO_CORE_PUBLISHABLE_KEY:'sb_publishable_test_core',DEMO_PORTAL_PUBLISHABLE_KEY:'sb_publishable_test_portal'}
-  });
+test('public demo build uses current UI, fully local state, and scrubbed demo data',async()=>{
+  const result=spawnSync(process.execPath,['tools/build-demo-deployment.mjs'],{cwd:root,encoding:'utf8'});
   assert.equal(result.status,0,`${result.stdout}\n${result.stderr}`);
 
   try{
@@ -52,12 +48,12 @@ test('public demo build uses current UI, isolated local state, and scrubbed demo
     assert.doesNotMatch(portalAdminJs,/أضواء الشرق|القاع البارد|966560442799|0560442799|uh8t93tMm5agNWvx7|adwaa_al_sharq_resort/);
     assert.match(portalAdminJs,/منتجع العرض التجريبي|العرض التجريبي/);
 
-    assert.match(config,/gjzdjotuhfzyihwarpfx/);
-    assert.match(config,/iqybnohopudffvfntkit/);
-    assert.match(config,/sb_publishable_test_core/);
-    assert.match(config,/sb_publishable_test_portal/);
+    assert.match(config,/democorelocal2026/);
+    assert.match(config,/demoportallocal2026/);
+    assert.match(config,/sb_publishable_demo_local_core_2026/);
+    assert.match(config,/sb_publishable_demo_local_portal_2026/);
     assert.match(config,/basePath:'\/'/);
-    assert.doesNotMatch(config,/CHANGE_ME_|service_role/i);
+    assert.doesNotMatch(config,/CHANGE_ME_|service_role|\.supabase\.co/i);
 
     assert.match(localRuntime,/__adwaaLocalDemoClient/);
     assert.match(localRuntime,/adwaa_demo_local_\$\{scope\}_v3/);
