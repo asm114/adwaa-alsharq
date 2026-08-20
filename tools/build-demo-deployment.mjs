@@ -126,16 +126,15 @@ async function injectDemoLayers(directory){
     if(!html.includes('supabase-config.staging.js'))continue;
     const rel=relative(out,full).split(sep).join('/');
     const nested=rel.startsWith('resort/');
-    const safetySrc=nested?'../demo-public-safety.js?v=20260820-5':'demo-public-safety.js?v=20260820-5';
+    const safetySrc=nested?'../demo-public-safety.js?v=20260820-6':'demo-public-safety.js?v=20260820-6';
+    const runtimeSrc=nested?'../demo-local-runtime.js?v=20260820-3':'demo-local-runtime.js?v=20260820-3';
     const configPattern=/(<script\s+src=["'][^"']*supabase-config\.staging\.js[^"']*["'][^>]*><\/script>)/i;
     if(!configPattern.test(html))throw new Error(`Could not place demo safety layer in ${rel}.`);
     if(!html.includes('demo-public-safety.js'))html=html.replace(configPattern,`$1\n<script src="${safetySrc}"></script>`);
 
-    if(rel==='index.html'){
-      const supabaseLibraryPattern=/(<script\s+src=["'][^"']*@supabase\/supabase-js@2[^"']*["'][^>]*><\/script>)/i;
-      if(!supabaseLibraryPattern.test(html))throw new Error('Could not place isolated visitor runtime after Supabase library.');
-      if(!html.includes('demo-local-runtime.js'))html=html.replace(supabaseLibraryPattern,`$1\n<script src="demo-local-runtime.js?v=20260820-2"></script>`);
-    }
+    const supabaseLibraryPattern=/(<script\s+src=["'][^"']*@supabase\/supabase-js@2[^"']*["'][^>]*><\/script>)/i;
+    if(!supabaseLibraryPattern.test(html))throw new Error(`Could not place isolated visitor runtime after Supabase library in ${rel}.`);
+    if(!html.includes('demo-local-runtime.js'))html=html.replace(supabaseLibraryPattern,`$1\n<script src="${runtimeSrc}"></script>`);
     await writeFile(full,html,'utf8');
   }
 }
@@ -147,6 +146,7 @@ if(builtConfig.includes('supabase.co'))throw new Error('Public demo config must 
 const builtRoot=await readFile(join(out,'index.html'),'utf8');
 if(!builtRoot.includes('demo-local-runtime.js'))throw new Error('Public demo root is not isolated per visitor.');
 const builtPortal=await readFile(join(out,'resort','index.html'),'utf8');
+if(!builtPortal.includes('demo-local-runtime.js'))throw new Error('Public demo portal is not isolated per visitor.');
 if(!builtPortal.includes('منتجع العرض التجريبي')||builtPortal.includes('أضواء الشرق'))throw new Error('Demo portal fallback branding was not sanitized correctly.');
 
 console.log('Public demo build prepared in dist/ with current UI, fully local visitor isolation, scrubbed AAS fallbacks, and no live Supabase dependency.');
