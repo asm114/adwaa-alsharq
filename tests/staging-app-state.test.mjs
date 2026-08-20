@@ -63,6 +63,8 @@ test('إعداد النسخة التجارية يرفض Core Project غير ال
     .replace('CHANGE_ME_BUSINESS_TYPE','Resort')
     .replace('CHANGE_ME_LOCATION','Customer Location')
     .replace('CHANGE_ME_BRAND_DESCRIPTION','Customer Alpha commercial installation')
+    .replace('CHANGE_ME_AUTHORIZED_CUSTOMER','Customer Alpha')
+    .replace('CHANGE_ME_CLIENT_ID','CLIENT-TEST-0001')
     .replace('CHANGE_ME_CORE_PROJECT_REF','clientcore12345')
     .replace('CHANGE_ME_CORE_PUBLISHABLE_KEY','sb_publishable_test_core')
     .replace('CHANGE_ME_PORTAL_PROJECT_REF','clientportal12345')
