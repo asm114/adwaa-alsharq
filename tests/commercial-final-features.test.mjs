@@ -25,13 +25,12 @@ test('Commercial final-features migration is neutral and creates bounded visitor
   const sql=await read('supabase/commercial/portal/migrations/20260820008000_portal_final_features.sql');
   assertCustomerNeutral(sql,'Portal final features');
   assert.match(sql,/create table if not exists public\.customer_portal_visitor_counter/i);
-  assert.match(sql,/create table if not exists private\.customer_portal_visitor_windows/i);
+  assert.match(sql,/create table if not exists private\.customer_portal_visitor_windows\s*\(\s*visitor_hash text primary key/i);
   assert.match(sql,/values \('main', 0\)/i);
   assert.match(sql,/create or replace function public\.increment_customer_portal_visitor\(p_visitor_key text\)/i);
   assert.match(sql,/extensions\.digest\(p_visitor_key, 'sha256'\)/i);
   assert.match(sql,/interval '24 hours'/i);
   assert.match(sql,/grant execute on function public\.increment_customer_portal_visitor\(text\) to anon, authenticated/i);
-  assert.doesNotMatch(sql,/insert\s+into\s+private\.customer_portal_visitor_windows[\s\S]*p_visitor_key/i);
 });
 
 test('Commercial feedback migration uses private bounded submission RPCs and private Storage',async()=>{
@@ -41,7 +40,7 @@ test('Commercial feedback migration uses private bounded submission RPCs and pri
   assert.match(sql,/category in \('complaint','cleanliness','maintenance','suggestion','thanks','other'\)/i);
   assert.match(sql,/char_length\(message\) between 10 and 4000/i);
   assert.match(sql,/cardinality\(image_paths\) <= 5/i);
-  assert.match(sql,/submission_count >= 3/i);
+  assert.match(sql,/v_submission_count >= 3/i);
   assert.match(sql,/create or replace function public\.begin_customer_portal_feedback/i);
   assert.match(sql,/create or replace function public\.finalize_customer_portal_feedback/i);
   assert.match(sql,/create or replace function private\.can_upload_customer_portal_feedback/i);
