@@ -1,1 +1,0 @@
-Temporary marker for the public-demo loading fix. The pre-fix checkpoint is preserved at commit c830a27c73f7d54cd099a8f5dddbaea69c4972f1 and in backup-demo-public-trial-20260820-1506 plus CHECKPOINT.md history. This file may be removed after verification.
