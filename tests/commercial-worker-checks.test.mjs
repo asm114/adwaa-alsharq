@@ -7,18 +7,16 @@ const read=path=>readFile(new URL(path,root),'utf8');
 const migrationPath='supabase/commercial/portal/migrations/20260820009000_portal_worker_checks.sql';
 
 const forbiddenIdentity=[
-  /asm114@hotmail\.com/i,
   /أضواء الشرق/,
   /القاع البارد/,
-  /560442799/,
-  /adwaa_al_sharq/i,
-  /pgdvlklpyrvmwzitsmbw/i,
-  /ztqqdjryvecscidxxbfe/i
+  /adwaa[_ -]?al[_ -]?sharq/i,
+  /[A-Z0-9._%+-]+@(hotmail|gmail|outlook)\.[A-Z]{2,}/i,
+  /https?:\/\/[a-z0-9-]+\.supabase\.co/i
 ];
 
 function assertCustomerNeutral(source,label){
   for(const pattern of forbiddenIdentity){
-    assert.doesNotMatch(source,pattern,`${label} must not contain AAS/customer identity: ${pattern}`);
+    assert.doesNotMatch(source,pattern,`${label} must not contain customer/developer identity: ${pattern}`);
   }
 }
 
@@ -50,6 +48,15 @@ test('Worker-check RLS and Storage remain private and admin deletion is included
   assert.doesNotMatch(sql,/create policy[^\n]*public[^\n]*read worker check media/i);
 });
 
+test('Worker-check token lifetime follows the current token issuance, including rotations',async()=>{
+  const sql=await read(migrationPath);
+  assert.match(sql,/token_issued_at timestamptz not null default now\(\)/i);
+  assert.match(sql,/access_token_hash = encode\([\s\S]*?token_issued_at = now\(\)/i);
+  const expiryChecks=sql.match(/c\.token_issued_at >= now\(\) - interval '14 days'/gi)||[];
+  assert.equal(expiryChecks.length,3,'all public/upload/finalize token gates must use token_issued_at');
+  assert.doesNotMatch(sql,/c\.created_at >= now\(\) - interval '14 days'/i);
+});
+
 test('Worker-check finalization validates report choices and uploaded paths on the server',async()=>{
   const sql=await read(migrationPath);
   assert.match(sql,/cardinality\(v_photos\) < 1 or cardinality\(v_photos\) > 6/i);
@@ -58,7 +65,7 @@ test('Worker-check finalization validates report choices and uploaded paths on t
   assert.match(sql,/v_path not like v_id::text \|\| '\/' \|\| p_access_token \|\| '\/photo-%'/i);
   assert.match(sql,/v_voice not like v_id::text \|\| '\/' \|\| p_access_token \|\| '\/voice-%'/i);
   assert.match(sql,/status = 'submitted'/i);
-  assert.match(sql,/created_at >= now\(\) - interval '14 days'/i);
+  assert.match(sql,/token_issued_at >= now\(\) - interval '14 days'/i);
 });
 
 test('Current worker-check runtime matches the commercial migration contract',async()=>{
