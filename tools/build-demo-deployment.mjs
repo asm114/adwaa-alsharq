@@ -6,14 +6,6 @@ const here=dirname(fileURLToPath(import.meta.url));
 const root=resolve(here,'..');
 const out=join(root,'dist');
 
-// Public demo is intentionally local-only. These values only satisfy the
-// commercial runtime validator; demo-local-runtime intercepts both clients
-// before any network request is made.
-const coreKey='sb_publishable_demo_local_core_2026';
-const portalKey='sb_publishable_demo_local_portal_2026';
-const coreRef='democorelocal2026';
-const portalRef='demoportallocal2026';
-
 const excludedTopLevel=new Set(['.git','.github','.impeccable','.vercel','node_modules','dist','supabase','tests','tools']);
 const excludedFiles=new Set([
   'AGENTS.md','BRANDING_LAYER_STATUS.md','COMMERCIAL_MIGRATIONS_STATUS.md','COMMERCIAL_TEMPLATE_SETUP.md',
@@ -50,29 +42,34 @@ for(const asset of requiredUiAssets){
 }
 
 const configPath=join(out,'supabase-config.staging.js');
-let config=await readFile(configPath,'utf8');
-const replacements={
-  CHANGE_ME_DEPLOYMENT_ID:'demo-public-2026',
-  CHANGE_ME_BASE_PATH:'',
-  CHANGE_ME_STORAGE_NAMESPACE:'demo-public-2026-storage',
-  CHANGE_ME_AUTH_NAMESPACE:'demo-public-2026-auth',
-  CHANGE_ME_CACHE_NAMESPACE:'demo-public-2026-cache',
-  CHANGE_ME_BRAND_NAME:'نسخة العرض التجريبية',
-  CHANGE_ME_BUSINESS_TYPE:'نظام إدارة المنتجعات',
-  CHANGE_ME_LOCATION:'بيانات تجريبية',
-  CHANGE_ME_BRAND_DESCRIPTION:'نسخة تجريبية لاستعراض نظام إدارة المنتجعات ببيانات وهمية فقط.',
-  CHANGE_ME_AUTHORIZED_CUSTOMER:'نسخة العرض التجريبية للنظام',
-  CHANGE_ME_CLIENT_ID:'DEMO-2026',
-  CHANGE_ME_CORE_PROJECT_REF:coreRef,
-  CHANGE_ME_CORE_PUBLISHABLE_KEY:coreKey,
-  CHANGE_ME_PORTAL_PROJECT_REF:portalRef,
-  CHANGE_ME_PORTAL_PUBLISHABLE_KEY:portalKey
-};
-for(const [from,to] of Object.entries(replacements))config=config.split(from).join(to);
-config=config.replace("basePath:'//'","basePath:'/'");
-if(config.includes('CHANGE_ME_'))throw new Error('Demo runtime config still contains unresolved placeholders.');
-if(!config.includes("basePath:'/'"))throw new Error('Demo runtime basePath must resolve to the site root.');
-await writeFile(configPath,config,'utf8');
+const demoConfig=`(()=>{
+'use strict';
+window.ADWAA_PUBLIC_DEMO=true;
+const core=Object.freeze({projectRef:'democorelocal2026',publishableKey:'sb_publishable_demo_local_core_2026',url:'https://demo-core.invalid'});
+const portal=Object.freeze({projectRef:'demoportallocal2026',publishableKey:'sb_publishable_demo_local_portal_2026',url:'https://demo-portal.invalid'});
+const commercialConfig=Object.freeze({
+  schemaVersion:1,
+  deploymentId:'demo-public-2026',
+  runtimeEnvironment:'staging',
+  basePath:'/',
+  namespace:Object.freeze({storage:'demo-public-2026-storage',auth:'demo-public-2026-auth',cache:'demo-public-2026-cache'}),
+  brand:Object.freeze({name:'نسخة العرض التجريبية',businessType:'نظام إدارة المنتجعات',displayName:'نظام إدارة المنتجعات — نسخة العرض التجريبية',location:'بيانات تجريبية',description:'نسخة تجريبية لاستعراض نظام إدارة المنتجعات ببيانات وهمية فقط.',mark:'ع'}),
+  ownership:Object.freeze({ownerName:'عبدالعزيز الفوزان',copyrightYear:2026,authorizedCustomer:'نسخة العرض التجريبية للنظام',clientId:'DEMO-2026'}),
+  backends:Object.freeze({core,portal})
+});
+window.ADWAA_COMMERCIAL_CONFIG=commercialConfig;
+window.ADWAA_SUPABASE_CONFIG=Object.freeze({environment:'staging',runtimeEnvironment:'staging',...core});
+window.ADWAA_PORTAL_SUPABASE_CONFIG=Object.freeze({environment:'staging',runtimeEnvironment:'staging',...portal});
+window.__adwaaValidateStagingSupabaseConfig=value=>Object.freeze({...value,runtimeEnvironment:'staging'});
+if(typeof document!=='undefined'&&!window.__commercialBrandingLoaderInstalled){
+  window.__commercialBrandingLoaderInstalled=true;
+  const script=document.createElement('script');
+  script.async=false;
+  script.src='/commercial-branding.js?v=20260820-2';
+  document.head.appendChild(script);
+}
+})();\n`;
+await writeFile(configPath,demoConfig,'utf8');
 
 const textExtensions=new Set(['.html','.js','.json']);
 const sensitiveReplacements=[
@@ -141,8 +138,9 @@ async function injectDemoLayers(directory){
 await injectDemoLayers(out);
 
 const builtConfig=await readFile(configPath,'utf8');
-if(!builtConfig.includes(coreRef)||!builtConfig.includes(portalRef))throw new Error('Demo build points to unexpected local demo backends.');
-if(builtConfig.includes('supabase.co'))throw new Error('Public demo config must not point to a live Supabase project.');
+if(!builtConfig.includes('democorelocal2026')||!builtConfig.includes('demoportallocal2026'))throw new Error('Demo build points to unexpected local demo backends.');
+if(builtConfig.includes('supabase.co'))throw new Error('Public demo config must not point to a live Supabase host.');
+if(builtConfig.includes('CHANGE_ME_'))throw new Error('Public demo config contains unresolved commercial placeholders.');
 const builtRoot=await readFile(join(out,'index.html'),'utf8');
 if(!builtRoot.includes('demo-local-runtime.js'))throw new Error('Public demo root is not isolated per visitor.');
 const builtPortal=await readFile(join(out,'resort','index.html'),'utf8');
