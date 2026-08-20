@@ -20,6 +20,12 @@ const rawCommercialConfig={
     location:'CHANGE_ME_LOCATION',
     description:'CHANGE_ME_BRAND_DESCRIPTION'
   },
+  ownership:{
+    ownerName:'عبدالعزيز الفوزان',
+    copyrightYear:2026,
+    authorizedCustomer:'CHANGE_ME_AUTHORIZED_CUSTOMER',
+    clientId:'CHANGE_ME_CLIENT_ID'
+  },
   backends:{
     core:{
       projectRef:'CHANGE_ME_CORE_PROJECT_REF',
@@ -77,6 +83,14 @@ function validateCommercialConfig(config){
     description:configuredValue('brand.description',config?.brand?.description),
     mark:[...brandName.replace(/\s+/g,'')][0]||'•'
   });
+  const ownerName=configuredValue('ownership.ownerName',config?.ownership?.ownerName);
+  if(ownerName!=='عبدالعزيز الفوزان')throw new Error('اسم مالك النظام في القالب التجاري ثابت ولا يُستبدل ببيانات العميل.');
+  const copyrightYear=Number(config?.ownership?.copyrightYear);
+  if(!Number.isInteger(copyrightYear)||copyrightYear<2026||copyrightYear>2100)throw new Error('سنة حقوق الملكية غير صالحة.');
+  const authorizedCustomer=configuredValue('ownership.authorizedCustomer',config?.ownership?.authorizedCustomer);
+  const clientId=configuredValue('ownership.clientId',config?.ownership?.clientId).toUpperCase();
+  if(!/^[A-Z0-9][A-Z0-9-]{3,39}$/.test(clientId))throw new Error('clientId غير صالح. استخدم أحرفًا إنجليزية كبيرة وأرقامًا وشرطات فقط.');
+  const ownership=Object.freeze({ownerName,copyrightYear,authorizedCustomer,clientId});
   const core=validateBackend('backends.core',config?.backends?.core);
   const portal=validateBackend('backends.portal',config?.backends?.portal);
   if(core.projectRef===portal.projectRef)throw new Error('القالب الحالي يتطلب Backend منفصلًا للإدارة وبوابة العميل.');
@@ -87,6 +101,7 @@ function validateCommercialConfig(config){
     basePath,
     namespace,
     brand,
+    ownership,
     backends:Object.freeze({core,portal})
   });
 }
@@ -142,7 +157,7 @@ if(typeof document!=='undefined'&&!window.__commercialBrandingLoaderInstalled){
   window.__commercialBrandingLoaderInstalled=true;
   const script=document.createElement('script');
   script.async=false;
-  script.src=`${commercialConfig.basePath}commercial-branding.js?v=20260819-1`;
+  script.src=`${commercialConfig.basePath}commercial-branding.js?v=20260820-2`;
   document.head.appendChild(script);
 }
 })();
