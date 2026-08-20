@@ -44,6 +44,8 @@ test('public demo build uses current UI, fully local state, and scrubbed demo da
     assert.doesNotMatch(portalJs,/أضواء الشرق|القاع البارد|966560442799|0560442799/);
     assert.match(portalJs,/منتجع العرض التجريبي/);
     assert.match(portalHtml,/demo-public-safety\.js/);
+    assert.match(portalHtml,/\.\.\/demo-local-runtime\.js/);
+    assert.ok(portalHtml.indexOf('@supabase/supabase-js@2')<portalHtml.indexOf('demo-local-runtime.js'),'portal demo runtime must load after the Supabase browser library');
 
     assert.doesNotMatch(portalAdminJs,/أضواء الشرق|القاع البارد|966560442799|0560442799|uh8t93tMm5agNWvx7|adwaa_al_sharq_resort/);
     assert.match(portalAdminJs,/منتجع العرض التجريبي|العرض التجريبي/);
