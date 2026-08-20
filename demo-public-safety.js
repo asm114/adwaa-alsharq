@@ -6,7 +6,7 @@ window.ADWAA_PUBLIC_DEMO=true;
 
 const whatsappPattern=/(?:wa\.me|api\.whatsapp\.com)/i;
 const nativeOpen=window.open.bind(window);
-const blockedMessage='هذه نسخة تجريبية. الإرسال عبر واتساب معطل.';
+const blockedMessage='هذه نسخة تجريبية. الإرسال الخارجي معطل.';
 
 window.open=function(url,...args){
   if(whatsappPattern.test(String(url||''))){
@@ -32,7 +32,12 @@ function installBanner(){
   if(!document.body||document.getElementById('publicDemoBanner'))return;
   const style=document.createElement('style');
   style.id='publicDemoBannerStyles';
-  style.textContent='#publicDemoBanner{position:sticky;top:0;z-index:100000;background:#fff3d9;border-bottom:1px solid #e4c46f;color:#76520b;text-align:center;padding:9px 14px;font:800 13px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Tahoma,Arial,sans-serif}';
+  style.textContent=`
+    #publicDemoBanner{position:sticky;top:0;z-index:100000;background:#fff3d9;border-bottom:1px solid #e4c46f;color:#76520b;text-align:center;padding:9px 14px;font:800 13px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Tahoma,Arial,sans-serif}
+    #headerWhatsappButton,#heroWhatsappButton,#contactWhatsappButton,#contactMapsButton,#contactInstagramButton,#floatingWhatsappButton,#bookingRequestButton,#contactEmailRow{display:none!important}
+    #contactWhatsappNumber{font-size:0!important}
+    #contactWhatsappNumber::after{content:'معطل في النسخة التجريبية';font-size:14px!important}
+  `;
   document.head?.appendChild(style);
   const banner=document.createElement('div');
   banner.id='publicDemoBanner';
