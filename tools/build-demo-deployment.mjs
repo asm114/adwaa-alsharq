@@ -1,5 +1,5 @@
 import {cp, mkdir, readFile, readdir, rm, stat, writeFile} from 'node:fs/promises';
-import {dirname, join, relative, resolve, sep} from 'node:path';
+import {dirname, extname, join, relative, resolve, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const here=dirname(fileURLToPath(import.meta.url));
@@ -38,6 +38,23 @@ await rm(out,{recursive:true,force:true});
 await mkdir(out,{recursive:true});
 await cp(root,out,{recursive:true,filter:shouldCopy});
 
+const requiredUiAssets=[
+  'index.html',
+  'app-experience-pro.css',
+  'home-dashboard-polish.css',
+  'home-dashboard-polish.js',
+  'professional-ui-cleanup.css',
+  'professional-ui-cleanup.js',
+  'professional-ui-stable.js',
+  'simplified-ui.css',
+  'simplified-ui-mobile.css',
+  'simplified-ui.js'
+];
+for(const asset of requiredUiAssets){
+  const info=await stat(join(out,asset)).catch(()=>null);
+  if(!info?.isFile())throw new Error(`Demo build is missing required current UI asset: ${asset}`);
+}
+
 const configPath=join(out,'supabase-config.staging.js');
 let config=await readFile(configPath,'utf8');
 const replacements={
@@ -48,7 +65,7 @@ const replacements={
   CHANGE_ME_CACHE_NAMESPACE:'demo-public-2026-cache',
   CHANGE_ME_BRAND_NAME:'نسخة العرض التجريبية',
   CHANGE_ME_BUSINESS_TYPE:'نظام إدارة المنتجعات',
-  CHANGE_ME_LOCATION:'المملكة العربية السعودية',
+  CHANGE_ME_LOCATION:'بيانات تجريبية',
   CHANGE_ME_BRAND_DESCRIPTION:'نسخة تجريبية لاستعراض نظام إدارة المنتجعات ببيانات وهمية فقط.',
   CHANGE_ME_AUTHORIZED_CUSTOMER:'نسخة العرض التجريبية للنظام',
   CHANGE_ME_CLIENT_ID:'DEMO-2026',
@@ -61,6 +78,47 @@ for(const [from,to] of Object.entries(replacements))config=config.split(from).jo
 if(config.includes('CHANGE_ME_'))throw new Error('Demo runtime config still contains unresolved placeholders.');
 await writeFile(configPath,config,'utf8');
 
+const portalTextExtensions=new Set(['.html','.js','.json']);
+const portalReplacements=[
+  ['منتجع أضواء الشرق','منتجع العرض التجريبي'],
+  ['أضواء الشرق','العرض التجريبي'],
+  ['القصيم – القاع البارد','بيانات تجريبية'],
+  ['القاع البارد','بيانات تجريبية']
+];
+
+async function sanitizeDemoPortal(directory){
+  for(const entry of await readdir(directory,{withFileTypes:true})){
+    const full=join(directory,entry.name);
+    if(entry.isDirectory()){
+      await sanitizeDemoPortal(full);
+      continue;
+    }
+    if(!entry.isFile()||!portalTextExtensions.has(extname(entry.name)))continue;
+    let text=await readFile(full,'utf8');
+    for(const [from,to] of portalReplacements)text=text.split(from).join(to);
+    await writeFile(full,text,'utf8');
+  }
+}
+
+const portalRoot=join(out,'resort');
+await sanitizeDemoPortal(portalRoot);
+
+async function assertPortalSanitized(directory){
+  for(const entry of await readdir(directory,{withFileTypes:true})){
+    const full=join(directory,entry.name);
+    if(entry.isDirectory()){
+      await assertPortalSanitized(full);
+      continue;
+    }
+    if(!entry.isFile()||!portalTextExtensions.has(extname(entry.name)))continue;
+    const text=await readFile(full,'utf8');
+    if(text.includes('أضواء الشرق')||text.includes('القاع البارد')){
+      throw new Error(`Demo portal still contains AAS-specific fallback data in ${relative(out,full)}.`);
+    }
+  }
+}
+await assertPortalSanitized(portalRoot);
+
 async function injectDemoSafety(directory){
   for(const entry of await readdir(directory,{withFileTypes:true})){
     const full=join(directory,entry.name);
@@ -72,7 +130,7 @@ async function injectDemoSafety(directory){
     let html=await readFile(full,'utf8');
     if(!html.includes('supabase-config.staging.js')||html.includes('demo-public-safety.js'))continue;
     const rel=relative(out,full);
-    const safetySrc=rel.startsWith(`resort${sep}`)?'../demo-public-safety.js?v=20260820-1':'demo-public-safety.js?v=20260820-1';
+    const safetySrc=rel.startsWith(`resort${sep}`)?'../demo-public-safety.js?v=20260820-2':'demo-public-safety.js?v=20260820-2';
     const pattern=/(<script\s+src=["'][^"']*supabase-config\.staging\.js[^"']*["'][^>]*><\/script>)/i;
     if(!pattern.test(html))throw new Error(`Could not place demo safety script in ${rel}.`);
     html=html.replace(pattern,`$1\n<script src="${safetySrc}"></script>`);
@@ -85,4 +143,10 @@ const builtConfig=await readFile(configPath,'utf8');
 if(!builtConfig.includes('gjzdjotuhfzyihwarpfx')||!builtConfig.includes('iqybnohopudffvfntkit')){
   throw new Error('Demo build points to unexpected Supabase projects.');
 }
-console.log('Public demo build prepared in dist/ with isolated Demo Admin and Demo Portal backends.');
+
+const builtPortal=await readFile(join(portalRoot,'index.html'),'utf8');
+if(!builtPortal.includes('منتجع العرض التجريبي')||builtPortal.includes('أضواء الشرق')){
+  throw new Error('Demo portal fallback branding was not sanitized correctly.');
+}
+
+console.log('Public demo build prepared in dist/ with current UI assets, sanitized portal fallbacks, and isolated Demo backends.');
