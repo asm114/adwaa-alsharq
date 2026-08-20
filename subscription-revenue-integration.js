@@ -36,6 +36,15 @@ function paymentRows(sub){
 function allSubscriptionPayments(){return managedSubscriptions().flatMap(paymentRows)}
 function subscriptionPaidTotal(){return managedSubscriptions().reduce((sum,row)=>sum+num(row.paid),0)}
 function subscriptionTotalValue(){return managedSubscriptions().reduce((sum,row)=>sum+num(row.total),0)}
+function dueOf(row){return Math.max(0,num(row?.total)-num(row?.paid))}
+function ordinaryDueTotal(rows=ordinaryActiveBookings()){return rows.reduce((sum,row)=>sum+dueOf(row),0)}
+function subscriptionDueTotal(rows=managedSubscriptions()){return rows.reduce((sum,row)=>sum+dueOf(row),0)}
+function subscriptionPeriodDate(row){return row?.createdAt||row?.updatedAt||(Array.isArray(row?.dates)?row.dates[0]:'')||''}
+function outstandingTotal(period='all'){
+  const ordinary=ordinaryActiveBookings().filter(row=>periodMatch(row.date,period));
+  const subscriptionRows=managedSubscriptions().filter(row=>periodMatch(subscriptionPeriodDate(row),period));
+  return ordinaryDueTotal(ordinary)+subscriptionDueTotal(subscriptionRows);
+}
 function ordinaryCommissionStatus(row){return typeof window.commissionStatus==='function'?window.commissionStatus(row):(row?.commissionSnapshot?.status||'not_earned')}
 function ordinaryCommissionAmount(row){return typeof window.managerCommissionAmount==='function'?num(window.managerCommissionAmount(row)):num(row?.commissionSnapshot?.amount)}
 function subscriptionCommissionStatus(row){return typeof window.subscriptionCommissionStatus==='function'?window.subscriptionCommissionStatus(row):(row?.commissionSnapshot?.status||'not_earned')}
@@ -59,14 +68,14 @@ function totalCommissionByStatus(status,period='all'){
 function refreshDashboardFinance(){
   const rows=ordinaryActiveBookings(),today=todayIso(),month=today.slice(0,7);
   const paid=ordinaryPaidTotal(rows)+subscriptionPaidTotal();
-  const total=ordinaryTotalValue(rows)+subscriptionTotalValue();
+  const due=outstandingTotal('all');
   const revenueToday=ordinaryRevenueForDate(rows,date=>date===today)+paymentTotalForDate(date=>date===today);
   const revenueMonth=ordinaryRevenueForDate(rows,date=>date.slice(0,7)===month)+paymentTotalForDate(date=>date.slice(0,7)===month);
   setMoney('sRevenueToday',revenueToday);
   setMoney('sRevenueMonth',revenueMonth);
   setMoney('sPaid',paid);
-  setMoney('sDue',Math.max(0,total-paid));
-  setMoney('sPending',Math.max(0,total-paid));
+  setMoney('sDue',due);
+  setMoney('sPending',due);
   setMoney('sCommission',totalCommissionByStatus('earned','all'));
 }
 
@@ -89,6 +98,7 @@ function refreshFinanceView(){
   const subscriptionRevenue=allSubscriptionPayments().filter(row=>periodMatch(row.date,period)).reduce((sum,row)=>sum+row.amount,0);
   const revenue=ordinaryRevenue+subscriptionRevenue;
   setMoney('finRevenue',revenue);
+  setMoney('finDue',outstandingTotal(period));
 
   const expenses=(Array.isArray(data()?.expenses)?data().expenses:[]).filter(row=>periodMatch(row.date,period)).reduce((sum,row)=>sum+num(row.amount),0);
   const commissionOutstanding=totalCommissionByStatus('earned',period);
