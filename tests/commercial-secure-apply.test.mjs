@@ -77,8 +77,12 @@ test('Secure Apply يعيد التحقق من Bootstrap ولا يثق بحزمة
   badUrl.bootstrap.contact.mapsUrl='http://example.com/maps';
   assert.throws(()=>buildSecureApplyPlanFromData(badUrl),/https:\/\//i);
 
+  const secretField=fixture();
+  secretField.bootstrap.property.hiddenSecret='unexpected';
+  assert.throws(()=>buildSecureApplyPlanFromData(secretField),/لا تحمل أسرارًا/);
+
   const unknownField=fixture();
-  unknownField.bootstrap.property.hiddenSecret='unexpected';
+  unknownField.bootstrap.property.unexpectedField='unexpected';
   assert.throws(()=>buildSecureApplyPlanFromData(unknownField),/غير معروف|غير مسموح/);
 });
 
