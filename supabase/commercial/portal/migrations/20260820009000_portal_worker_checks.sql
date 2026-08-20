@@ -13,6 +13,7 @@ create table if not exists public.customer_portal_worker_checks (
   property_name text not null,
   property_type text not null,
   access_token_hash text not null,
+  token_issued_at timestamptz not null default now(),
   status text not null default 'ready',
   issue_types text[] not null default '{}',
   photo_paths text[] not null default '{}',
@@ -52,6 +53,8 @@ comment on table public.customer_portal_worker_checks is
   'Private worker inspection reports for one isolated customer installation. Public workers access only short-lived token RPCs; portal admins manage reports.';
 comment on column public.customer_portal_worker_checks.access_token_hash is
   'One-way SHA-256 hash for the short-lived worker link token. The raw token is never stored in the table.';
+comment on column public.customer_portal_worker_checks.token_issued_at is
+  'Issuance time for the current worker token. Rotating a ready link resets the 14-day token lifetime without changing the report creation time.';
 
 create index if not exists customer_portal_worker_checks_booking_idx
   on public.customer_portal_worker_checks (booking_id, created_at desc);
@@ -151,6 +154,7 @@ begin
       property_name,
       property_type,
       access_token_hash,
+      token_issued_at,
       status,
       created_by
     ) values (
@@ -160,6 +164,7 @@ begin
       trim(p_property_name),
       trim(p_property_type),
       encode(extensions.digest(v_token, 'sha256'), 'hex'),
+      now(),
       'ready',
       (select auth.uid())
     )
@@ -171,6 +176,7 @@ begin
            property_name = trim(p_property_name),
            property_type = trim(p_property_type),
            access_token_hash = encode(extensions.digest(v_token, 'sha256'), 'hex'),
+           token_issued_at = now(),
            shared_at = null,
            updated_at = now()
      where id = v_id;
@@ -211,7 +217,7 @@ as $$
       extensions.digest(coalesce(p_access_token, ''), 'sha256'),
       'hex'
     )
-    and c.created_at >= now() - interval '14 days'
+    and c.token_issued_at >= now() - interval '14 days'
   limit 1;
 $$;
 
@@ -232,7 +238,7 @@ as $$
         'hex'
       )
       and c.status = 'ready'
-      and c.created_at >= now() - interval '14 days'
+      and c.token_issued_at >= now() - interval '14 days'
   );
 $$;
 
@@ -267,7 +273,7 @@ begin
       'hex'
     )
     and c.status = 'ready'
-    and c.created_at >= now() - interval '14 days'
+    and c.token_issued_at >= now() - interval '14 days'
   limit 1;
 
   if v_id is null then
