@@ -18,6 +18,7 @@ test('demo local runtime is valid JavaScript and contains no privileged secret',
   const source=spawnSync(process.execPath,['-e',"const fs=require('fs');process.stdout.write(fs.readFileSync('demo-local-runtime.js','utf8'))"],{cwd:root,encoding:'utf8'}).stdout;
   assert.match(source,/demo\.visitor@example\.invalid/);
   assert.match(source,/__adwaaLocalDemoClient/);
+  assert.match(source,/adwaa_demo_local_\$\{scope\}_v3/);
   assert.doesNotMatch(source,/service_role|demo\.admin@example\.com/i);
 });
 
@@ -59,8 +60,9 @@ test('public demo build uses current UI, isolated local state, and scrubbed demo
     assert.doesNotMatch(config,/CHANGE_ME_|service_role/i);
 
     assert.match(localRuntime,/__adwaaLocalDemoClient/);
-    assert.match(localRuntime,/adwaa_demo_local_core_v3/);
-    assert.match(localRuntime,/adwaa_demo_local_portal_v3/);
+    assert.match(localRuntime,/adwaa_demo_local_\$\{scope\}_v3/);
+    assert.match(localRuntime,/makeClient\('core'/);
+    assert.match(localRuntime,/makeClient\('portal'/);
     assert.doesNotMatch(localRuntime,/service_role|demo\.admin@example\.com/i);
 
     for(const asset of [
