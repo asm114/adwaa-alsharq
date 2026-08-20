@@ -36,7 +36,11 @@ function shouldCopy(source){
 
 await rm(out,{recursive:true,force:true});
 await mkdir(out,{recursive:true});
-await cp(root,out,{recursive:true,filter:shouldCopy});
+for(const entry of await readdir(root,{withFileTypes:true})){
+  const source=join(root,entry.name);
+  if(!shouldCopy(source))continue;
+  await cp(source,join(out,entry.name),{recursive:true,filter:shouldCopy});
+}
 
 const requiredUiAssets=[
   'index.html',
