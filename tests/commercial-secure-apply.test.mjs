@@ -72,6 +72,16 @@ test('Secure Apply يرفض placeholder فعلي أو secret field داخل ال
   assert.throws(()=>buildSecureApplyPlanFromData(secret),/لا تحمل أسرارًا/);
 });
 
+test('Secure Apply يعيد التحقق من Bootstrap ولا يثق بحزمة معدلة يدويًا',()=>{
+  const badUrl=fixture();
+  badUrl.bootstrap.contact.mapsUrl='http://example.com/maps';
+  assert.throws(()=>buildSecureApplyPlanFromData(badUrl),/https:\/\//i);
+
+  const unknownField=fixture();
+  unknownField.bootstrap.property.hiddenSecret='unexpected';
+  assert.throws(()=>buildSecureApplyPlanFromData(unknownField),/غير معروف|غير مسموح/);
+});
+
 test('الوضع الافتراضي Dry-run ولا يسمح Apply إلا بتأكيد clientId نفسه',()=>{
   const plan=buildSecureApplyPlanFromData(fixture());
   assert.deepEqual(assertApplyConfirmation(plan,{}),{apply:false,mode:'dry-run'});
@@ -114,6 +124,16 @@ test('psql يطبق مجموعة كل Backend داخل transaction واحدة و
   assert.doesNotMatch(args.join(' '),/postgresql:\/\/|password|secret/i);
 });
 
+test('Secure Apply يرتب migrations بنفسه ولا يعتمد ترتيب filesystem',()=>{
+  const input=fixture();
+  input.portalMigrations=['20260820002000_portal_property_info.sql','20260820001000_portal_admin_foundation.sql'];
+  const plan=buildSecureApplyPlanFromData(input);
+  assert.deepEqual([...plan.migrations.portal],[
+    '20260820001000_portal_admin_foundation.sql',
+    '20260820002000_portal_property_info.sql'
+  ]);
+});
+
 test('Secure Apply لا يتيح تمرير الأسرار عبر CLI ولا يكتب ملفات سرية',()=>{
   assert.match(source,/COMMERCIAL_CORE_SERVICE_ROLE_KEY/);
   assert.match(source,/COMMERCIAL_MANAGER_PASSWORD/);
@@ -132,11 +152,11 @@ test('Fresh-install guard وAuth preflight يسبقان أي migrations فعلي
   assert.ok(freshAuth>=0&&freshAuth<migrate,'Auth preflight must run before migrations');
 });
 
-test('المسارات التجارية الحالية تحتوي فقط migration filenames مرتبة وقابلة للتطبيق',async()=>{
+test('المسارات التجارية الحالية تحتوي فقط migration filenames قابلة للتطبيق',async()=>{
   for(const relative of ['supabase/commercial/core/migrations','supabase/commercial/portal/migrations']){
     const names=(await readdir(path.join(root,relative))).filter(name=>name.endsWith('.sql'));
     assert.ok(names.length>0);
+    assert.equal(new Set(names).size,names.length);
     for(const name of names)assert.match(name,/^\d{14}_[a-z0-9_]+\.sql$/);
-    assert.deepEqual([...names].sort(),names,'migration files should remain lexically ordered');
   }
 });
