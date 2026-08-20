@@ -9,6 +9,7 @@ create table if not exists public.customer_portal_unavailable_periods (
   booking_id text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  updated_by uuid references auth.users(id) on delete set null,
   constraint customer_portal_unavailable_periods_date_order
     check (start_date <= end_date),
   constraint customer_portal_unavailable_periods_source_type_check
@@ -24,7 +25,7 @@ create table if not exists public.customer_portal_unavailable_periods (
 );
 
 comment on table public.customer_portal_unavailable_periods is
-  'Public-safe unavailable date ranges for the Customer Portal. Stores closure ownership only; no customer identity, price, reason, or internal note.';
+  'Public availability ranges for the Customer Portal. Booking/customer state remains in Core; audit UUID is restricted from anon column access.';
 comment on column public.customer_portal_unavailable_periods.source_type is
   'Closure ownership: manual admin closure, booking-generated closure, or legacy for controlled imports from an older installation.';
 comment on column public.customer_portal_unavailable_periods.booking_id is
@@ -43,6 +44,7 @@ set search_path = public
 as $$
 begin
   new.updated_at = now();
+  new.updated_by = auth.uid();
   return new;
 end;
 $$;
@@ -56,7 +58,9 @@ for each row execute function public.set_customer_portal_unavailable_periods_upd
 alter table public.customer_portal_unavailable_periods enable row level security;
 
 revoke all on table public.customer_portal_unavailable_periods from anon, authenticated;
-grant select on table public.customer_portal_unavailable_periods to anon, authenticated;
+grant select (id, start_date, end_date, source_type, booking_id)
+  on table public.customer_portal_unavailable_periods to anon;
+grant select on table public.customer_portal_unavailable_periods to authenticated;
 grant insert, update, delete on table public.customer_portal_unavailable_periods to authenticated;
 
 drop policy if exists "public reads customer portal unavailable periods"
@@ -64,8 +68,16 @@ drop policy if exists "public reads customer portal unavailable periods"
 create policy "public reads customer portal unavailable periods"
 on public.customer_portal_unavailable_periods
 for select
-to anon, authenticated
+to anon
 using (true);
+
+drop policy if exists "admins read customer portal unavailable periods"
+  on public.customer_portal_unavailable_periods;
+create policy "admins read customer portal unavailable periods"
+on public.customer_portal_unavailable_periods
+for select
+to authenticated
+using (public.is_resort_admin());
 
 drop policy if exists "admins insert customer portal unavailable periods"
   on public.customer_portal_unavailable_periods;
