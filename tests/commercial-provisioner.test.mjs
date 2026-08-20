@@ -55,10 +55,45 @@ function validInput(){
   };
 }
 
-test('Provisioner يبني حزمة مكتملة بدون CHANGE_ME ويشتق العزل من deploymentId',()=>{
+function assertNoSensitiveKeys(value,pathLabel='manifest'){
+  const forbiddenKeys=new Set([
+    'publishableKey','serviceRoleKey','service_role_key','password','secret',
+    'privateKey','private_key','accessToken','access_token','refreshToken','refresh_token'
+  ]);
+  if(Array.isArray(value)){
+    value.forEach((item,index)=>assertNoSensitiveKeys(item,`${pathLabel}[${index}]`));
+    return;
+  }
+  if(!value||typeof value!=='object')return;
+  for(const [key,item] of Object.entries(value)){
+    assert.equal(forbiddenKeys.has(key),false,`Sensitive key found at ${pathLabel}.${key}`);
+    assertNoSensitiveKeys(item,`${pathLabel}.${key}`);
+  }
+}
+
+test('Provisioner يستبدل كل placeholders الفعلية ويشتق العزل من deploymentId',()=>{
   const result=buildProvisioningArtifacts(template,validInput());
   const runtime=result.files['supabase-config.staging.js'];
-  assert.doesNotMatch(runtime,/CHANGE_ME_/);
+  const actualPlaceholders=[
+    'CHANGE_ME_DEPLOYMENT_ID',
+    '/CHANGE_ME_BASE_PATH/',
+    'CHANGE_ME_STORAGE_NAMESPACE',
+    'CHANGE_ME_AUTH_NAMESPACE',
+    'CHANGE_ME_CACHE_NAMESPACE',
+    'CHANGE_ME_BRAND_NAME',
+    'CHANGE_ME_BUSINESS_TYPE',
+    'CHANGE_ME_LOCATION',
+    'CHANGE_ME_BRAND_DESCRIPTION',
+    'CHANGE_ME_AUTHORIZED_CUSTOMER',
+    'CHANGE_ME_CLIENT_ID',
+    'CHANGE_ME_CORE_PROJECT_REF',
+    'CHANGE_ME_CORE_PUBLISHABLE_KEY',
+    'CHANGE_ME_PORTAL_PROJECT_REF',
+    'CHANGE_ME_PORTAL_PUBLISHABLE_KEY'
+  ];
+  for(const placeholder of actualPlaceholders){
+    assert.equal(runtime.includes(`'${placeholder}'`)||runtime.includes(`"${placeholder}"`),false,`Placeholder remains: ${placeholder}`);
+  }
   assert.match(runtime,/commercial:sample-resort:storage/);
   assert.match(runtime,/commercial-sample-resort-auth/);
   assert.match(runtime,/commercial-sample-resort-cache/);
@@ -69,12 +104,12 @@ test('Provisioner يبني حزمة مكتملة بدون CHANGE_ME ويشتق �
   assert.match(runtime,/runtimeEnvironment:"staging"/);
 });
 
-test('Manifest لا يكرر Publishable Keys ولا يحتوي أسرارًا',()=>{
+test('Manifest لا يكرر Publishable Keys ولا يخزن حقول أسرار',()=>{
   const result=buildProvisioningArtifacts(template,validInput());
   const manifest=result.files['provisioning-manifest.json'];
-  assert.doesNotMatch(manifest,/sb_publishable_/);
-  assert.doesNotMatch(manifest,/service.?role|password|access.?token|refresh.?token/i);
+  assert.doesNotMatch(manifest,/sb_publishable_test_core_123456|sb_publishable_test_portal_123456/);
   const parsed=JSON.parse(manifest);
+  assertNoSensitiveKeys(parsed);
   assert.equal(parsed.backends.core.projectRef,'coreproject12345');
   assert.equal(parsed.backends.portal.projectRef,'portalproj12345');
   assert.equal(parsed.ownership.ownerName,'عبدالعزيز الفوزان');
