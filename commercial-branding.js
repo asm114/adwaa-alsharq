@@ -20,6 +20,17 @@ function replaceLegacyText(value){
   return text;
 }
 
+function syncWorkerIdentity(){
+  const db=window.db;
+  if(!db||typeof db!=='object')return;
+  db.settings=db.settings&&typeof db.settings==='object'?db.settings:{};
+  const currentName=String(db.settings.propertyName||'').trim();
+  const currentType=String(db.settings.propertyType||'').trim();
+  const legacyName=!currentName||currentName==='أضواء الشرق'||currentName==='منتجع أضواء الشرق';
+  if(legacyName)db.settings.propertyName=brand.name;
+  if(!currentType||(legacyName&&currentType==='منتجع'))db.settings.propertyType=brand.businessType;
+}
+
 function rewriteWhatsappLinks(root=document){
   root.querySelectorAll?.('a[href*="wa.me"],a[href*="api.whatsapp.com"]').forEach(link=>{
     try{
@@ -87,6 +98,7 @@ function installDynamicManifest(){
 
 function applyBranding(){
   if(!document.documentElement)return;
+  syncWorkerIdentity();
   rewriteTextNodes();
   rewriteAttributes();
   rewriteFormValues();
@@ -98,7 +110,7 @@ function applyBranding(){
   installDynamicManifest();
 }
 
-function scheduleBranding(){queueMicrotask(applyBranding)}
+function scheduleBranding(){syncWorkerIdentity();queueMicrotask(applyBranding)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',applyBranding,{once:true});else applyBranding();
 [0,250,1000,2500].forEach(delay=>setTimeout(applyBranding,delay));
 document.addEventListener('click',scheduleBranding,true);
