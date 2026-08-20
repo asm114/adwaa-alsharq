@@ -1,0 +1,47 @@
+{
+  "clientId": "CHANGE_ME_CLIENT_ID",
+  "deploymentId": "CHANGE_ME_DEPLOYMENT_ID",
+  "runtimeEnvironment": "staging",
+  "basePath": "/CHANGE_ME_BASE_PATH/",
+  "authorizedCustomer": "CHANGE_ME_AUTHORIZED_CUSTOMER",
+  "brand": {
+    "name": "CHANGE_ME_BRAND_NAME",
+    "businessType": "CHANGE_ME_BUSINESS_TYPE",
+    "location": "CHANGE_ME_LOCATION",
+    "description": "CHANGE_ME_BRAND_DESCRIPTION"
+  },
+  "backends": {
+    "core": {
+      "projectRef": "CHANGE_ME_CORE_PROJECT_REF",
+      "publishableKey": "CHANGE_ME_CORE_PUBLISHABLE_KEY"
+    },
+    "portal": {
+      "projectRef": "CHANGE_ME_PORTAL_PROJECT_REF",
+      "publishableKey": "CHANGE_ME_PORTAL_PUBLISHABLE_KEY"
+    }
+  },
+  "portal": {
+    "property": {
+      "resortName": "CHANGE_ME_PROPERTY_NAME",
+      "shortDescription": "CHANGE_ME_SHORT_DESCRIPTION",
+      "detailedDescription": "CHANGE_ME_DETAILED_DESCRIPTION",
+      "checkinTime": "CHANGE_ME_CHECKIN_TIME",
+      "checkoutTime": "CHANGE_ME_CHECKOUT_TIME",
+      "mapsUrl": "https://CHANGE_ME_MAPS_URL",
+      "whatsappUrl": "https://CHANGE_ME_WHATSAPP_URL",
+      "instagramUrl": "https://CHANGE_ME_INSTAGRAM_URL",
+      "resortAddress": "CHANGE_ME_ADDRESS",
+      "checkinInstructions": "",
+      "features": [],
+      "bookingRequestsOpen": false,
+      "closedMessage": "نعتذر، استقبال طلبات الحجز متوقف مؤقتًا في الوقت الحالي. يمكنكم التواصل معنا للاستفسار."
+    },
+    "contact": {
+      "whatsappNumber": "CHANGE_ME_WHATSAPP_DIGITS",
+      "mapsUrl": "https://CHANGE_ME_MAPS_URL",
+      "instagramUrl": "https://CHANGE_ME_INSTAGRAM_URL",
+      "email": "",
+      "contactHours": "CHANGE_ME_CONTACT_HOURS"
+    }
+  }
+}
