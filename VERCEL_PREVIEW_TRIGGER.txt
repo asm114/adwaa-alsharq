@@ -1,0 +1,3 @@
+Vercel preview trigger for isolated demo verification.
+Source branch: demo/public-trial
+Date: 2026-08-20
