@@ -9,7 +9,7 @@ test('تنبيه الحركة يتيح تحديث حالة الدخول أو ا�
   const reminders=await read('operational-reminders-center.js');
   assert.match(reminders,/window\.confirmOperationalMovement=confirmOperationalMovement/);
   assert.match(reminders,/targetStatus===['"]تم الدخول['"]\?['"]entry['"]:targetStatus===['"]تم الخروج['"]\?['"]exit['"]/);
-  assert.match(reminders,/status===['"]تم الخروج['"][\s\S]*ensureCleaningTaskForBooking/);
+  assert.match(reminders,/return setBookingStatus\(booking,targetStatus,item\)/);
 });
 
 test('ملخص حركة اليوم يتحول إلى بطاقة مرتبطة بالحجز نفسه',async()=>{
