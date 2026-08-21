@@ -1,0 +1,89 @@
+/* Impeccable refinement — audit → polish → adapt.
+   Visual-only overrides. No booking, finance, persistence, sync, or calendar logic. */
+:root{
+  --impeccable-shadow:0 8px 24px rgba(10,68,57,.055);
+  --impeccable-line:#d7e3df;
+  --impeccable-green:#0f5b4c;
+  --impeccable-green-dark:#0a4439;
+  --impeccable-green-soft:#eaf4f0;
+  --impeccable-text:#16231f;
+  --impeccable-muted:#61706b;
+}
+
+/* Polish: keep the interface quiet and make direct operational actions visually obvious. */
+body.simplified-ui .action-alert[data-operational-movement="1"]{
+  background:linear-gradient(180deg,#fff 0%,#fbfdfc 100%);
+}
+body.simplified-ui .action-alert[data-operational-movement="1"] .action-alert-icon{
+  background:var(--impeccable-green-soft)!important;
+  color:var(--impeccable-green)!important;
+}
+body.simplified-ui .action-alert[data-operational-movement="1"] button{
+  min-height:46px;
+  border-color:var(--impeccable-green)!important;
+  background:var(--impeccable-green)!important;
+  color:#fff!important;
+  box-shadow:none!important;
+}
+body.simplified-ui .action-alert[data-operational-movement="1"] button:focus-visible{
+  outline:3px solid rgba(15,91,76,.24)!important;
+  outline-offset:3px!important;
+}
+body.simplified-ui #headerAlertsModalList .action-alert{
+  border:1px solid var(--impeccable-line);
+  border-radius:16px;
+  background:#fff;
+  box-shadow:var(--impeccable-shadow);
+}
+body.simplified-ui #headerAlertsModalList .action-alert+ .action-alert{margin-top:10px}
+body.simplified-ui #headerAlertsModalList .action-alert h3{color:var(--impeccable-text)}
+body.simplified-ui #headerAlertsModalList .action-alert p{color:var(--impeccable-muted)}
+
+/* Adapt: touch devices should not retain desktop hover elevation. */
+@media(hover:none){
+  body.simplified-ui .stat:hover{
+    transform:none!important;
+    box-shadow:0 5px 18px rgba(16,44,36,.045)!important;
+  }
+}
+
+/* Adapt: phone readability and one-tap actions. */
+@media(max-width:620px){
+  body.simplified-ui main{padding-inline:10px!important}
+  body.simplified-ui nav>button{
+    min-height:58px!important;
+    font-size:11px!important;
+    line-height:1.25!important;
+  }
+  body.simplified-ui nav>button b{font-size:18px!important}
+  body.simplified-ui.simple-view-home .app-header .subtitle{font-size:12px!important}
+  body.simplified-ui.simple-view-home .home-status .secondary{font-size:12.5px!important}
+  body.simplified-ui .action-alert h3{font-size:16px;line-height:1.45}
+  body.simplified-ui .action-alert[data-operational-movement="1"]{
+    grid-template-columns:40px minmax(0,1fr)!important;
+    gap:10px!important;
+  }
+  body.simplified-ui .action-alert[data-operational-movement="1"]>button{
+    grid-column:1/-1!important;
+    width:100%!important;
+    margin-top:3px;
+    font-size:14px;
+  }
+  body.simplified-ui #headerAlertsModal .sheet{padding-inline:12px!important}
+  body.simplified-ui #headerAlertsModalList .action-alert{padding:14px!important}
+}
+
+/* Adapt: tablet gets comfortable breathing room without changing the command-center order. */
+@media(min-width:621px) and (max-width:899px){
+  body.simplified-ui.simple-view-home main{padding-inline:18px!important}
+  body.simplified-ui.simple-view-home .app-header{padding-inline:18px!important}
+  body.simplified-ui .action-alert[data-operational-movement="1"] button{min-width:170px}
+  body.simplified-ui #headerAlertsModal .sheet{width:min(680px,calc(100% - 32px))!important}
+}
+
+@media(hover:hover){
+  body.simplified-ui .action-alert[data-operational-movement="1"] button:hover{
+    border-color:var(--impeccable-green-dark)!important;
+    background:var(--impeccable-green-dark)!important;
+  }
+}

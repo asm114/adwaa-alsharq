@@ -76,6 +76,9 @@ function addStyles(){
   if(!document.querySelector('link[data-home-dashboard-polish]')){
     const link=document.createElement('link');link.rel='stylesheet';link.href='home-dashboard-polish.css?v=20260818-1';link.dataset.homeDashboardPolish='1';document.head.appendChild(link);
   }
+  if(!document.querySelector('link[data-impeccable-refinement]')){
+    const link=document.createElement('link');link.rel='stylesheet';link.href='impeccable-refinement.css?v=20260821-1';link.dataset.impeccableRefinement='1';document.head.appendChild(link);
+  }
 }
 
 function initialize(){
