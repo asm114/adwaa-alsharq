@@ -51,7 +51,33 @@ async function saveAndRender(){try{if(typeof window.persist==='function')await w
 function addAudit(action,booking,details,before,after){try{window.addAudit?.(action,'تنبيه تشغيلي',`${booking.name||''} — #${booking.code||''} — ${details}`,before,after)}catch(_){}}
 async function setBookingStatus(booking,status,item){
   const before=booking.status;booking.status=status;booking.updatedAt=nowIso();
-  resolveReminder(item);addAudit('تأكيد',booking,`${before} ← ${status}`,{status:before},{status});await saveAndRender();
+  resolveReminder(item);addAudit('تأكيد',booking,`${before} ← ${status}`,{status:before},{status});await saveAndRender();return true;
+}
+function dueMovementRows(now=new Date()){
+  const today=isoDate(now),rows=[];
+  for(const booking of bookings()){
+    if(!activeBooking(booking))continue;
+    if(booking.date===today&&!['تم الدخول','تم الخروج'].includes(booking.status)){
+      const entryAt=atLocal(today,ENTRY_HOUR,ENTRY_MINUTE);
+      if(entryAt&&now>=entryAt)rows.push({type:'entry',targetStatus:'تم الدخول',booking,at:entryAt});
+    }
+    if(booking.status==='تم الدخول'){
+      const exitAt=bookingExitMoment(booking);
+      if(exitAt&&isoDate(exitAt)===today&&now>=exitAt)rows.push({type:'exit',targetStatus:'تم الخروج',booking,at:exitAt});
+    }
+  }
+  return rows;
+}
+async function confirmOperationalMovement(bookingId,targetStatus){
+  const booking=bookings().find(row=>String(row?.id)===String(bookingId));
+  if(!activeBooking(booking))return false;
+  const type=targetStatus==='تم الدخول'?'entry':targetStatus==='تم الخروج'?'exit':'';
+  if(!type)return false;
+  if(type==='entry'&&['تم الدخول','تم الخروج'].includes(booking.status))return true;
+  if(type==='exit'&&booking.status==='تم الخروج')return true;
+  if(type==='exit'&&booking.status!=='تم الدخول')return false;
+  const item=existingReminder(reminderKey(type,booking));
+  return setBookingStatus(booking,targetStatus,item);
 }
 function ensureModal(){if(document.getElementById('operationalReminderModal'))return;const modal=document.createElement('div');modal.id='operationalReminderModal';modal.className='modal';modal.innerHTML=`<div class="sheet" style="max-width:560px;margin:auto"><div class="sheet-head"><h2 id="operationalReminderTitle">تنبيه تشغيلي</h2><button class="close" id="operationalReminderClose" type="button">×</button></div><div id="operationalReminderBody" class="notice" style="line-height:1.9"></div><div class="actions" id="operationalReminderActions"></div></div>`;document.body.appendChild(modal);document.getElementById('operationalReminderClose').addEventListener('click',()=>closePrompt(true))}
 function closePrompt(defer=false){const modal=document.getElementById('operationalReminderModal'),item=modal?._reminderItem;if(defer&&item){deferReminder(item,DEFAULT_SNOOZE_MINUTES);saveAndRender()}if(modal){modal.classList.remove('open');modal._reminderItem=null}promptOpen=false}
@@ -61,9 +87,9 @@ function showPrompt(item,booking){
   if(promptOpen||!item||!booking||!popupEligible(item))return;
   ensureModal();const modal=document.getElementById('operationalReminderModal'),title=document.getElementById('operationalReminderTitle'),body=document.getElementById('operationalReminderBody'),actions=document.getElementById('operationalReminderActions');modal._reminderItem=item;promptOpen=true;const laterLabel=escapeText(laterButtonLabel(item));
   if(item.operationalType==='entry'){
-    title.textContent='موعد دخول العميل';body.innerHTML=`<b>${escapeText(booking.name||'العميل')}</b> — #${escapeText(booking.code||'')}<br>بدأ وقت الدخول الساعة 3:30 مساءً.<br><b>هل دخل العميل؟</b>`;actions.innerHTML=`<button class="primary" id="opsYes">نعم، دخل العميل</button><button class="secondary" id="opsLater">${laterLabel}</button>`;document.getElementById('opsYes').onclick=async()=>{modal.classList.remove('open');promptOpen=false;await setBookingStatus(booking,'تم الدخول',item)};document.getElementById('opsLater').onclick=()=>closePrompt(true);
+    title.textContent='موعد دخول العميل';body.innerHTML=`<b>${escapeText(booking.name||'العميل')}</b> — #${escapeText(booking.code||'')}<br>بدأ وقت الدخول الساعة 3:30 مساءً.<br><b>هل دخل العميل؟</b>`;actions.innerHTML=`<button class="primary" id="opsYes">نعم، دخل العميل</button><button class="secondary" id="opsLater">${laterLabel}</button>`;document.getElementById('opsYes').onclick=async()=>{modal.classList.remove('open');promptOpen=false;await confirmOperationalMovement(booking.id,'تم الدخول')};document.getElementById('opsLater').onclick=()=>closePrompt(true);
   }else if(item.operationalType==='exit'){
-    title.textContent='موعد خروج العميل';body.innerHTML=`<b>${escapeText(booking.name||'العميل')}</b> — #${escapeText(booking.code||'')}<br>وصل وقت الخروج المسجل للحجز.<br><b>هل خرج العميل؟</b>`;actions.innerHTML=`<button class="primary" id="opsYes">نعم، خرج العميل</button><button class="secondary" id="opsLater">${laterLabel}</button>`;document.getElementById('opsYes').onclick=async()=>{modal.classList.remove('open');promptOpen=false;await setBookingStatus(booking,'تم الخروج',item)};document.getElementById('opsLater').onclick=()=>closePrompt(true);
+    title.textContent='موعد خروج العميل';body.innerHTML=`<b>${escapeText(booking.name||'العميل')}</b> — #${escapeText(booking.code||'')}<br>وصل وقت الخروج المسجل للحجز.<br><b>هل خرج العميل؟</b>`;actions.innerHTML=`<button class="primary" id="opsYes">نعم، خرج العميل</button><button class="secondary" id="opsLater">${laterLabel}</button>`;document.getElementById('opsYes').onclick=async()=>{modal.classList.remove('open');promptOpen=false;await confirmOperationalMovement(booking.id,'تم الخروج')};document.getElementById('opsLater').onclick=()=>closePrompt(true);
   }else{promptOpen=false;return}
   modal.classList.add('open');
 }
@@ -82,20 +108,18 @@ function resolveObsoleteReminders(){
   });
 }
 function collectDueReminders(){
-  const now=new Date(),today=isoDate(now),due=[];
-  for(const booking of bookings()){
-    if(!activeBooking(booking))continue;
-    if(booking.date===today&&!['تم الدخول','تم الخروج'].includes(booking.status)){
-      const entryAt=atLocal(today,ENTRY_HOUR,ENTRY_MINUTE);if(entryAt&&now>=entryAt){const item=addReminder('entry',booking,`هل دخل العميل ${booking.name||''}؟`);if(popupEligible(item))due.push({item,booking,priority:1})}
-    }
-    if(booking.status==='تم الدخول'){
-      const exitAt=bookingExitMoment(booking);if(exitAt&&isoDate(exitAt)===today&&now>=exitAt){const item=addReminder('exit',booking,`هل خرج العميل ${booking.name||''}؟`);if(popupEligible(item))due.push({item,booking,priority:2})}
-    }
+  const due=[];
+  for(const row of dueMovementRows(new Date())){
+    const booking=row.booking,message=row.type==='entry'?`هل دخل العميل ${booking.name||''}؟`:`هل خرج العميل ${booking.name||''}؟`,item=addReminder(row.type,booking,message);
+    if(popupEligible(item))due.push({item,booking,priority:row.type==='entry'?1:2});
   }
   return due.sort((a,b)=>a.priority-b.priority);
 }
 async function scan(){if(!db())return;const before=notifications().map(item=>`${item.id}:${item.resolvedAt||''}:${item.snoozedUntil||''}:${item.popupDeferCount||0}:${item.popupSuppressed===true}`).join('|');resolveObsoleteReminders();const due=collectDueReminders(),after=notifications().map(item=>`${item.id}:${item.resolvedAt||''}:${item.snoozedUntil||''}:${item.popupDeferCount||0}:${item.popupSuppressed===true}`).join('|');if(before!==after)await saveAndRender();if(!promptOpen&&due.length)showPrompt(due[0].item,due[0].booking)}
 function start(){if(scanTimer)return;scan();scanTimer=setInterval(scan,60000);window.addEventListener('focus',scan);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')scan()});window.addEventListener('adwaa-subscription-updated',()=>setTimeout(scan,0))}
+window.getDueOperationalMovements=()=>dueMovementRows(new Date());
+window.confirmOperationalMovement=confirmOperationalMovement;
+window.dispatchEvent(new CustomEvent('adwaa-operational-reminders-ready'));
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(start,300),{once:true});else setTimeout(start,300);
 })();
 

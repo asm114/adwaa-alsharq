@@ -15,6 +15,38 @@ function removeContractAlerts(){
   });
 }
 
+function movementRows(){
+  if(typeof window.getDueOperationalMovements!=='function')return null;
+  try{return window.getDueOperationalMovements()||[]}catch(error){console.warn('تعذر قراءة حركات الدخول والخروج',error);return[]}
+}
+function movementSummaryCard(root){
+  return [...root.querySelectorAll('.action-alert')].find(card=>!card.dataset.operationalMovement&&/حركة دخول أو خروج اليوم/.test(String(card.querySelector('h3')?.textContent||'')));
+}
+function movementActionCard(summary,row){
+  const booking=row?.booking||{},entry=row?.type==='entry',card=summary.cloneNode(true),title=card.querySelector('h3'),text=card.querySelector('p'),button=card.querySelector('button');
+  card.dataset.operationalMovement='1';
+  card.dataset.bookingId=String(booking.id||'');
+  card.dataset.movementType=entry?'entry':'exit';
+  if(title)title.textContent=`${entry?'تأكيد دخول':'تأكيد خروج'} ${booking.name||'العميل'}`;
+  if(text)text.textContent=`#${booking.code||'-'} • ${entry?'موعد الدخول 3:30 م':'وصل موعد الخروج'} — حدّث الحالة من هنا مباشرة.`;
+  if(button){
+    const target=entry?'تم الدخول':'تم الخروج';
+    button.textContent=entry?'نعم، دخل العميل':'نعم، خرج العميل';
+    button.removeAttribute('onclick');
+    button.setAttribute('onclick',`window.confirmOperationalMovement(${JSON.stringify(String(booking.id||''))},${JSON.stringify(target)})`);
+    button.setAttribute('aria-label',`${entry?'تأكيد دخول':'تأكيد خروج'} ${booking.name||'العميل'}`);
+  }
+  return card;
+}
+function enhanceMovementAlerts(){
+  const root=document.getElementById('alertsList');if(!root)return;
+  const summary=movementSummaryCard(root);if(!summary)return;
+  const rows=movementRows();if(rows===null)return;
+  if(!rows.length){summary.remove();return}
+  rows.forEach(row=>summary.before(movementActionCard(summary,row)));
+  summary.remove();
+}
+
 function syncHeaderAlertCount(){
   const badge=document.getElementById('headerAlertCount');
   if(!badge)return;
@@ -25,24 +57,29 @@ function syncHeaderAlertCount(){
   if(badge.hidden!==hidden)badge.hidden=hidden;
 }
 
+function refreshAlertPresentation(){
+  removeContractAlerts();
+  enhanceMovementAlerts();
+  syncHeaderAlertCount();
+}
+
 function installAlertCountSync(){
   const root=document.getElementById('alertsList');
   if(!root){setTimeout(installAlertCountSync,120);return}
-  if(root.__adwaaHeaderAlertCountObserver){removeContractAlerts();syncHeaderAlertCount();return}
-  const observer=new MutationObserver(()=>queueMicrotask(()=>{removeContractAlerts();syncHeaderAlertCount()}));
+  if(root.__adwaaHeaderAlertCountObserver){refreshAlertPresentation();return}
+  const observer=new MutationObserver(()=>queueMicrotask(refreshAlertPresentation));
   observer.observe(root,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','class','style']});
   root.__adwaaHeaderAlertCountObserver=observer;
-  removeContractAlerts();
-  syncHeaderAlertCount();
+  refreshAlertPresentation();
 }
 
 function wrapRenderAlerts(){
   const current=window.renderAlerts;
   if(typeof current!=='function'){setTimeout(wrapRenderAlerts,120);return}
-  if(current.__adwaaHeaderAlertCountWrapped){removeContractAlerts();syncHeaderAlertCount();return}
+  if(current.__adwaaHeaderAlertCountWrapped){refreshAlertPresentation();return}
   const wrapped=function(...args){
     const result=current.apply(this,args);
-    removeContractAlerts();
+    refreshAlertPresentation();
     queueMicrotask(syncHeaderAlertCount);
     return result;
   };
@@ -50,8 +87,7 @@ function wrapRenderAlerts(){
   wrapped.__base=current;
   window.renderAlerts=wrapped;
   try{renderAlerts=wrapped}catch(_){}
-  removeContractAlerts();
-  syncHeaderAlertCount();
+  refreshAlertPresentation();
 }
 
 function ensureModal(){
@@ -75,8 +111,7 @@ function ensureModal(){
 }
 
 function openHeaderAlertsPopup(){
-  removeContractAlerts();
-  syncHeaderAlertCount();
+  refreshAlertPresentation();
   const modal=ensureModal();
   const list=modal.querySelector('#headerAlertsModalList');
   const meta=modal.querySelector('#headerAlertsModalMeta');
@@ -97,6 +132,7 @@ function openHeaderAlertsPopup(){
 window.focusDashboardAlerts=openHeaderAlertsPopup;
 window.openHeaderAlertsPopup=openHeaderAlertsPopup;
 window.syncHeaderAlertCount=syncHeaderAlertCount;
-function install(){installAlertCountSync();wrapRenderAlerts();removeContractAlerts();setTimeout(removeContractAlerts,250);setTimeout(syncHeaderAlertCount,300);}
+window.addEventListener('adwaa-operational-reminders-ready',()=>queueMicrotask(refreshAlertPresentation));
+function install(){installAlertCountSync();wrapRenderAlerts();refreshAlertPresentation();setTimeout(refreshAlertPresentation,350);setTimeout(refreshAlertPresentation,900);}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })();
