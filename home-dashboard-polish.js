@@ -85,6 +85,12 @@ function addStyles(){
   if(!document.querySelector('link[data-luxe-customers-trial]')){
     const link=document.createElement('link');link.rel='stylesheet';link.href='luxe-customers-trial.css?v=20260821-1';link.dataset.luxeCustomersTrial='1';document.head.appendChild(link);
   }
+  if(!document.querySelector('link[data-customer-directory-v2]')){
+    const link=document.createElement('link');link.rel='stylesheet';link.href='customer-directory-v2.css?v=20260822-1';link.dataset.customerDirectoryV2='1';document.head.appendChild(link);
+  }
+  if(!document.querySelector('script[data-customer-directory-v2]')){
+    const script=document.createElement('script');script.src='customer-directory-trial.js?v=20260822-1';script.defer=true;script.dataset.customerDirectoryV2='1';document.head.appendChild(script);
+  }
 }
 
 function initialize(){
