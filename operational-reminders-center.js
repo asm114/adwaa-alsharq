@@ -51,9 +51,6 @@ async function saveAndRender(){try{if(typeof window.persist==='function')await w
 function addAudit(action,booking,details,before,after){try{window.addAudit?.(action,'تنبيه تشغيلي',`${booking.name||''} — #${booking.code||''} — ${details}`,before,after)}catch(_){}}
 async function setBookingStatus(booking,status,item){
   const before=booking.status;booking.status=status;booking.updatedAt=nowIso();
-  if(status==='تم الخروج'&&typeof window.ensureCleaningTaskForBooking==='function'){
-    try{window.ensureCleaningTaskForBooking(booking,before)}catch(error){console.warn('تعذر إنشاء متابعة ما بعد الخروج',error)}
-  }
   resolveReminder(item);addAudit('تأكيد',booking,`${before} ← ${status}`,{status:before},{status});await saveAndRender();return true;
 }
 function dueMovementRows(now=new Date()){
@@ -84,7 +81,7 @@ async function confirmOperationalMovement(bookingId,targetStatus){
 }
 function ensureModal(){if(document.getElementById('operationalReminderModal'))return;const modal=document.createElement('div');modal.id='operationalReminderModal';modal.className='modal';modal.innerHTML=`<div class="sheet" style="max-width:560px;margin:auto"><div class="sheet-head"><h2 id="operationalReminderTitle">تنبيه تشغيلي</h2><button class="close" id="operationalReminderClose" type="button">×</button></div><div id="operationalReminderBody" class="notice" style="line-height:1.9"></div><div class="actions" id="operationalReminderActions"></div></div>`;document.body.appendChild(modal);document.getElementById('operationalReminderClose').addEventListener('click',()=>closePrompt(true))}
 function closePrompt(defer=false){const modal=document.getElementById('operationalReminderModal'),item=modal?._reminderItem;if(defer&&item){deferReminder(item,DEFAULT_SNOOZE_MINUTES);saveAndRender()}if(modal){modal.classList.remove('open');modal._reminderItem=null}promptOpen=false}
-function escapeText(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]))}
+function escapeText(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#039;'}[char]))}
 function laterButtonLabel(item){return popupDeferCount(item)>=1?'إغلاق وإبقاؤه في التنبيهات':'لا، ذكرني بعد ساعتين'}
 function showPrompt(item,booking){
   if(promptOpen||!item||!booking||!popupEligible(item))return;
