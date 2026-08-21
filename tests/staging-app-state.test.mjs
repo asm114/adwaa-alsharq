@@ -70,6 +70,31 @@ test('إعداد Staging يرفض Project Ref الخاص بـProduction فعلي
   }),/غير معتمد/);
 });
 
+test('Production يتفعل فقط لمسار مستودع أضواء الشرق على GitHub Pages',async()=>{
+  const source=await read('supabase-config.staging.js');
+  const run=(hostname,pathname)=>{
+    const context={window:{location:{hostname,pathname}},URL};
+    vm.runInNewContext(source,context);
+    return context.window.ADWAA_SUPABASE_CONFIG;
+  };
+
+  const productionRoot=run('asm114.github.io','/adwaa-alsharq');
+  assert.equal(productionRoot.runtimeEnvironment,'production');
+  assert.equal(productionRoot.projectRef,productionRef);
+
+  const productionNested=run('asm114.github.io','/adwaa-alsharq/resort/');
+  assert.equal(productionNested.runtimeEnvironment,'production');
+  assert.equal(productionNested.projectRef,productionRef);
+
+  const otherRepository=run('asm114.github.io','/booking-system-demo/');
+  assert.equal(otherRepository.runtimeEnvironment,'staging');
+  assert.equal(otherRepository.projectRef,stagingRef);
+
+  const localPreview=run('localhost','/adwaa-alsharq/');
+  assert.equal(localPreview.runtimeEnvironment,'staging');
+  assert.equal(localPreview.projectRef,stagingRef);
+});
+
 test('التطبيق وعميل البوابة يستخدمان إعداد Staging الموحد قبل إنشاء العملاء',async()=>{
   const [html,portal,worker]=await Promise.all([read('index.html'),read('portal-admin-client.js'),read('sw.js')]);
   assert.match(html,/supabase-config\.staging\.js[\s\S]*supabase-js@2/);
