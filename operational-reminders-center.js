@@ -26,8 +26,20 @@ function parseArabicTime(label){
   if(pm&&hour<12)hour+=12;if(am&&hour===12)hour=0;if(hour>23||minute>59)return null;return {hour,minute};
 }
 function atLocal(dateStr,hour,minute){if(!dateStr)return null;const value=new Date(`${dateStr}T${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}:00`);return Number.isNaN(value.getTime())?null:value}
-function bookingExitDateValue(booking){try{return typeof window.bookingExitDate==='function'?window.bookingExitDate(booking):booking.date}catch(_){return booking?.date||''}}
-function bookingExitMoment(booking){try{const date=bookingExitDateValue(booking),times=typeof window.bookingTimes==='function'?window.bookingTimes(booking):null,parsed=parseArabicTime(times?.exit||'');if(!date||!parsed)return null;return atLocal(date,parsed.hour,parsed.minute)}catch(_){return null}}
+function addDaysLocalISO(dateStr,days){const date=new Date(`${dateStr}T12:00:00`);if(Number.isNaN(date.getTime()))return'';date.setDate(date.getDate()+Number(days||0));return isoDate(date)}
+function bookingExitDateValue(booking){
+  const entryDate=String(booking?.date||'');if(!entryDate)return'';
+  if(booking?.type!=='مبيت')return addDaysLocalISO(entryDate,1);
+  try{
+    if(typeof window.bookingExitDate==='function'){
+      const external=String(window.bookingExitDate(booking)||'');
+      if(external&&external!==entryDate)return external;
+    }
+  }catch(_){}
+  try{if(typeof window.bookingEndDate==='function'){const end=String(window.bookingEndDate(booking)||'');if(end)return end}}catch(_){}
+  return addDaysLocalISO(entryDate,Math.max(1,Number(booking?.stayDays||1)));
+}
+function bookingExitMoment(booking){try{const date=bookingExitDateValue(booking),times=typeof window.bookingTimes==='function'?window.bookingTimes(booking):null,fallback=booking?.type==='مبيت'?'8:00 صباحًا':'3:00 صباحًا',parsed=parseArabicTime(times?.exit||fallback);if(!date||!parsed)return null;return atLocal(date,parsed.hour,parsed.minute)}catch(_){return null}}
 function existingReminder(key){return notifications().find(item=>item?.reminderKey===key&&!item.resolvedAt)}
 function snoozed(item){return !!(item?.snoozedUntil&&new Date(item.snoozedUntil).getTime()>Date.now())}
 function popupDeferCount(item){return Math.max(0,Number(item?.popupDeferCount||0))}
@@ -56,12 +68,16 @@ function showPrompt(item,booking){
   modal.classList.add('open');
 }
 function resolveObsoleteReminders(){
+  const now=Date.now();
   notifications().forEach(item=>{
     if(item?.type!=='operational'||item.resolvedAt)return;
     const booking=bookings().find(row=>row.id===item.bookingId);
     if(!booking||booking.status==='ملغي'){resolveReminder(item);return}
     if(item.operationalType==='entry'&&['تم الدخول','تم الخروج'].includes(booking.status))resolveReminder(item);
-    if(item.operationalType==='exit'&&booking.status==='تم الخروج')resolveReminder(item);
+    if(item.operationalType==='exit'){
+      const exitAt=bookingExitMoment(booking);
+      if(booking.status==='تم الخروج'||booking.status!=='تم الدخول'||!exitAt||now<exitAt.getTime())resolveReminder(item);
+    }
     if(item.operationalType==='cleaning')resolveReminder(item);
   });
 }
@@ -72,7 +88,7 @@ function collectDueReminders(){
     if(booking.date===today&&!['تم الدخول','تم الخروج'].includes(booking.status)){
       const entryAt=atLocal(today,ENTRY_HOUR,ENTRY_MINUTE);if(entryAt&&now>=entryAt){const item=addReminder('entry',booking,`هل دخل العميل ${booking.name||''}؟`);if(popupEligible(item))due.push({item,booking,priority:1})}
     }
-    if(booking.status!=='تم الخروج'){
+    if(booking.status==='تم الدخول'){
       const exitAt=bookingExitMoment(booking);if(exitAt&&isoDate(exitAt)===today&&now>=exitAt){const item=addReminder('exit',booking,`هل خرج العميل ${booking.name||''}؟`);if(popupEligible(item))due.push({item,booking,priority:2})}
     }
   }
