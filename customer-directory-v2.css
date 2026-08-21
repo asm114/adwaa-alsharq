@@ -1,0 +1,40 @@
+/* Adwaa Al Sharq — customer directory v2. Visual-only redesign for customer list. */
+body.simplified-ui.simple-view-customers #customers{max-width:980px;margin-inline:auto}
+body.simplified-ui.simple-view-customers #customers>.section{background:transparent!important;border:0!important;box-shadow:none!important;overflow:visible!important}
+body.simplified-ui.simple-view-customers #customers .section-head{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:12px!important;padding:6px 2px 16px!important;background:transparent!important;border:0!important}
+body.simplified-ui.simple-view-customers #customers .section-head>div:first-child{grid-column:1/-1!important}
+body.simplified-ui.simple-view-customers #customers .section-head h3{font-size:28px!important;letter-spacing:-.02em!important;margin:0!important;color:#0c1625!important}
+body.simplified-ui.simple-view-customers #customers .section-head .meta{display:block!important;margin-top:6px!important;font-size:13px!important;color:#7a8493!important}
+body.simplified-ui.simple-view-customers #customerSearch{grid-column:1!important;min-height:50px!important;border:1px solid #dfe4ea!important;border-radius:15px!important;padding-inline:16px!important;background:#fff!important;box-shadow:0 8px 24px rgba(16,24,40,.05)!important}
+body.simplified-ui.simple-view-customers #customerSort{grid-column:2!important;width:148px!important;min-height:50px!important;border-radius:15px!important;background:#fff!important;border-color:#dfe4ea!important;box-shadow:0 8px 24px rgba(16,24,40,.05)!important}
+body.simplified-ui.simple-view-customers .subscription-launch{grid-column:1/-1!important;justify-self:start!important;min-height:38px!important;padding:8px 11px!important;border-radius:999px!important;font-size:11px!important;background:#0f172a!important;color:#f7e6bb!important;border:1px solid rgba(215,168,74,.25)!important;box-shadow:none!important}
+
+body.simplified-ui.simple-view-customers #customerList{display:grid!important;gap:10px!important;background:transparent!important;border:0!important;box-shadow:none!important;overflow:visible!important}
+body.simplified-ui.simple-view-customers #customerList>.customer-card,
+body.simplified-ui.simple-view-customers #customerList>.customer-directory-row{position:relative!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;gap:12px!important;min-height:70px!important;margin:0!important;padding:15px 54px 15px 18px!important;border:1px solid #e3e8ee!important;border-radius:18px!important;background:linear-gradient(180deg,#fff,#fcfdff)!important;box-shadow:0 8px 22px rgba(16,24,40,.055)!important;cursor:pointer!important;overflow:hidden!important}
+[dir="rtl"] body.simplified-ui.simple-view-customers #customerList>.customer-card,
+[dir="rtl"] body.simplified-ui.simple-view-customers #customerList>.customer-directory-row{padding:15px 18px 15px 54px!important}
+body.simplified-ui.simple-view-customers #customerList>.customer-card:active,
+body.simplified-ui.simple-view-customers #customerList>.customer-directory-row:active{transform:scale(.992)!important;background:#f8fbfa!important}
+body.simplified-ui.simple-view-customers #customerList h4{margin:0!important;font-size:17px!important;font-weight:850!important;line-height:1.3!important;color:#101828!important}
+body.simplified-ui.simple-view-customers #customerList h4 .customer-tag,
+body.simplified-ui.simple-view-customers #customerList .customer-tag,
+body.simplified-ui.simple-view-customers #customerList .meta,
+body.simplified-ui.simple-view-customers #customerList .customer-stats,
+body.simplified-ui.simple-view-customers #customerList .customer-stat,
+body.simplified-ui.simple-view-customers #customerList .actions{display:none!important}
+body.simplified-ui.simple-view-customers .customer-directory-arrow{position:absolute;inset-inline-end:18px;top:50%;transform:translateY(-52%);width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:#f1f5f4;color:#0f6a57;font-size:26px;font-weight:400;line-height:1}
+body.simplified-ui.simple-view-customers #customerList>.customer-directory-row::after{content:'فتح السجل';font-size:11px;font-weight:800;color:#8a93a2;white-space:nowrap}
+body.simplified-ui.simple-view-customers #customerList>.empty{border:1px dashed #d9dee6;border-radius:18px;background:#fff}
+
+@media(max-width:620px){
+  body.simplified-ui.simple-view-customers #customers{margin-inline:0}
+  body.simplified-ui.simple-view-customers #customers .section-head h3{font-size:24px!important}
+  body.simplified-ui.simple-view-customers #customerSearch{min-height:48px!important}
+  body.simplified-ui.simple-view-customers #customerSort{width:126px!important;min-height:48px!important}
+  body.simplified-ui.simple-view-customers #customerList{gap:8px!important}
+  body.simplified-ui.simple-view-customers #customerList>.customer-card,
+  body.simplified-ui.simple-view-customers #customerList>.customer-directory-row{min-height:64px!important;border-radius:16px!important;padding-top:13px!important;padding-bottom:13px!important}
+  body.simplified-ui.simple-view-customers #customerList h4{font-size:16px!important}
+  body.simplified-ui.simple-view-customers #customerList>.customer-directory-row::after{display:none!important}
+}
