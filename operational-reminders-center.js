@@ -5,7 +5,8 @@ window.__adwaaOperationalRemindersInstalled=true;
 
 const ENTRY_HOUR=15;
 const ENTRY_MINUTE=30;
-const DEFAULT_SNOOZE_MINUTES=30;
+const DEFAULT_SNOOZE_MINUTES=120;
+const MAX_POPUP_DEFERS=2;
 let promptOpen=false;
 let scanTimer=null;
 
@@ -29,9 +30,11 @@ function bookingExitDateValue(booking){try{return typeof window.bookingExitDate=
 function bookingExitMoment(booking){try{const date=bookingExitDateValue(booking),times=typeof window.bookingTimes==='function'?window.bookingTimes(booking):null,parsed=parseArabicTime(times?.exit||'');if(!date||!parsed)return null;return atLocal(date,parsed.hour,parsed.minute)}catch(_){return null}}
 function existingReminder(key){return notifications().find(item=>item?.reminderKey===key&&!item.resolvedAt)}
 function snoozed(item){return !!(item?.snoozedUntil&&new Date(item.snoozedUntil).getTime()>Date.now())}
-function addReminder(type,booking,message){const key=reminderKey(type,booking),existing=existingReminder(key);if(existing)return existing;const item={id:crypto.randomUUID(),type:'operational',message,bookingId:booking.id,createdAt:nowIso(),read:false,reminderKey:key,operationalType:type,snoozedUntil:'',resolvedAt:''};notifications().unshift(item);if(notifications().length>100)notifications().length=100;return item}
-function resolveReminder(item){if(!item)return;item.read=true;item.resolvedAt=nowIso();item.snoozedUntil=''}
-function snoozeReminder(item,minutes=DEFAULT_SNOOZE_MINUTES){if(!item)return;item.read=false;item.snoozedUntil=new Date(Date.now()+minutes*60000).toISOString()}
+function popupDeferCount(item){return Math.max(0,Number(item?.popupDeferCount||0))}
+function popupEligible(item){return !!item&&!item.popupSuppressed&&popupDeferCount(item)<MAX_POPUP_DEFERS&&!snoozed(item)}
+function addReminder(type,booking,message){const key=reminderKey(type,booking),existing=existingReminder(key);if(existing)return existing;const item={id:crypto.randomUUID(),type:'operational',message,bookingId:booking.id,createdAt:nowIso(),read:false,reminderKey:key,operationalType:type,snoozedUntil:'',resolvedAt:'',popupDeferCount:0,popupSuppressed:false};notifications().unshift(item);if(notifications().length>100)notifications().length=100;return item}
+function resolveReminder(item){if(!item)return;item.read=true;item.resolvedAt=nowIso();item.snoozedUntil='';item.popupSuppressed=true}
+function deferReminder(item,minutes=DEFAULT_SNOOZE_MINUTES){if(!item)return;item.read=false;item.popupDeferCount=popupDeferCount(item)+1;if(item.popupDeferCount>=MAX_POPUP_DEFERS){item.popupSuppressed=true;item.snoozedUntil=''}else{item.snoozedUntil=new Date(Date.now()+minutes*60000).toISOString()}}
 async function saveAndRender(){try{if(typeof window.persist==='function')await window.persist();else localStorage.setItem('adwaaDB',JSON.stringify(db()))}catch(error){console.warn('تعذر حفظ التنبيه التشغيلي',error)}try{window.renderNotifications?.()}catch(_){}try{window.renderAll?.()}catch(_){}}
 function addAudit(action,booking,details,before,after){try{window.addAudit?.(action,'تنبيه تشغيلي',`${booking.name||''} — #${booking.code||''} — ${details}`,before,after)}catch(_){}}
 async function setBookingStatus(booking,status,item){
@@ -39,15 +42,16 @@ async function setBookingStatus(booking,status,item){
   resolveReminder(item);addAudit('تأكيد',booking,`${before} ← ${status}`,{status:before},{status});await saveAndRender();
 }
 function ensureModal(){if(document.getElementById('operationalReminderModal'))return;const modal=document.createElement('div');modal.id='operationalReminderModal';modal.className='modal';modal.innerHTML=`<div class="sheet" style="max-width:560px;margin:auto"><div class="sheet-head"><h2 id="operationalReminderTitle">تنبيه تشغيلي</h2><button class="close" id="operationalReminderClose" type="button">×</button></div><div id="operationalReminderBody" class="notice" style="line-height:1.9"></div><div class="actions" id="operationalReminderActions"></div></div>`;document.body.appendChild(modal);document.getElementById('operationalReminderClose').addEventListener('click',()=>closePrompt(true))}
-function closePrompt(snooze=false){const modal=document.getElementById('operationalReminderModal'),item=modal?._reminderItem;if(snooze&&item){snoozeReminder(item,DEFAULT_SNOOZE_MINUTES);saveAndRender()}if(modal){modal.classList.remove('open');modal._reminderItem=null}promptOpen=false}
+function closePrompt(defer=false){const modal=document.getElementById('operationalReminderModal'),item=modal?._reminderItem;if(defer&&item){deferReminder(item,DEFAULT_SNOOZE_MINUTES);saveAndRender()}if(modal){modal.classList.remove('open');modal._reminderItem=null}promptOpen=false}
 function escapeText(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]))}
+function laterButtonLabel(item){return popupDeferCount(item)>=1?'إغلاق وإبقاؤه في التنبيهات':'لا، ذكرني بعد ساعتين'}
 function showPrompt(item,booking){
-  if(promptOpen||!item||!booking||snoozed(item))return;
-  ensureModal();const modal=document.getElementById('operationalReminderModal'),title=document.getElementById('operationalReminderTitle'),body=document.getElementById('operationalReminderBody'),actions=document.getElementById('operationalReminderActions');modal._reminderItem=item;promptOpen=true;
+  if(promptOpen||!item||!booking||!popupEligible(item))return;
+  ensureModal();const modal=document.getElementById('operationalReminderModal'),title=document.getElementById('operationalReminderTitle'),body=document.getElementById('operationalReminderBody'),actions=document.getElementById('operationalReminderActions');modal._reminderItem=item;promptOpen=true;const laterLabel=escapeText(laterButtonLabel(item));
   if(item.operationalType==='entry'){
-    title.textContent='موعد دخول العميل';body.innerHTML=`<b>${escapeText(booking.name||'العميل')}</b> — #${escapeText(booking.code||'')}<br>بدأ وقت الدخول الساعة 3:30 مساءً.<br><b>هل دخل العميل؟</b>`;actions.innerHTML='<button class="primary" id="opsYes">نعم، دخل العميل</button><button class="secondary" id="opsLater">لا، ذكرني لاحقًا</button>';document.getElementById('opsYes').onclick=async()=>{modal.classList.remove('open');promptOpen=false;await setBookingStatus(booking,'تم الدخول',item)};document.getElementById('opsLater').onclick=()=>closePrompt(true);
+    title.textContent='موعد دخول العميل';body.innerHTML=`<b>${escapeText(booking.name||'العميل')}</b> — #${escapeText(booking.code||'')}<br>بدأ وقت الدخول الساعة 3:30 مساءً.<br><b>هل دخل العميل؟</b>`;actions.innerHTML=`<button class="primary" id="opsYes">نعم، دخل العميل</button><button class="secondary" id="opsLater">${laterLabel}</button>`;document.getElementById('opsYes').onclick=async()=>{modal.classList.remove('open');promptOpen=false;await setBookingStatus(booking,'تم الدخول',item)};document.getElementById('opsLater').onclick=()=>closePrompt(true);
   }else if(item.operationalType==='exit'){
-    title.textContent='موعد خروج العميل';body.innerHTML=`<b>${escapeText(booking.name||'العميل')}</b> — #${escapeText(booking.code||'')}<br>وصل وقت الخروج المسجل للحجز.<br><b>هل خرج العميل؟</b>`;actions.innerHTML='<button class="primary" id="opsYes">نعم، خرج العميل</button><button class="secondary" id="opsLater">لا، ذكرني لاحقًا</button>';document.getElementById('opsYes').onclick=async()=>{modal.classList.remove('open');promptOpen=false;await setBookingStatus(booking,'تم الخروج',item)};document.getElementById('opsLater').onclick=()=>closePrompt(true);
+    title.textContent='موعد خروج العميل';body.innerHTML=`<b>${escapeText(booking.name||'العميل')}</b> — #${escapeText(booking.code||'')}<br>وصل وقت الخروج المسجل للحجز.<br><b>هل خرج العميل؟</b>`;actions.innerHTML=`<button class="primary" id="opsYes">نعم، خرج العميل</button><button class="secondary" id="opsLater">${laterLabel}</button>`;document.getElementById('opsYes').onclick=async()=>{modal.classList.remove('open');promptOpen=false;await setBookingStatus(booking,'تم الخروج',item)};document.getElementById('opsLater').onclick=()=>closePrompt(true);
   }else{promptOpen=false;return}
   modal.classList.add('open');
 }
@@ -66,15 +70,15 @@ function collectDueReminders(){
   for(const booking of bookings()){
     if(!activeBooking(booking))continue;
     if(booking.date===today&&!['تم الدخول','تم الخروج'].includes(booking.status)){
-      const entryAt=atLocal(today,ENTRY_HOUR,ENTRY_MINUTE);if(entryAt&&now>=entryAt){const item=addReminder('entry',booking,`هل دخل العميل ${booking.name||''}؟`);if(!snoozed(item))due.push({item,booking,priority:1})}
+      const entryAt=atLocal(today,ENTRY_HOUR,ENTRY_MINUTE);if(entryAt&&now>=entryAt){const item=addReminder('entry',booking,`هل دخل العميل ${booking.name||''}؟`);if(popupEligible(item))due.push({item,booking,priority:1})}
     }
     if(booking.status!=='تم الخروج'){
-      const exitAt=bookingExitMoment(booking);if(exitAt&&isoDate(exitAt)===today&&now>=exitAt){const item=addReminder('exit',booking,`هل خرج العميل ${booking.name||''}؟`);if(!snoozed(item))due.push({item,booking,priority:2})}
+      const exitAt=bookingExitMoment(booking);if(exitAt&&isoDate(exitAt)===today&&now>=exitAt){const item=addReminder('exit',booking,`هل خرج العميل ${booking.name||''}؟`);if(popupEligible(item))due.push({item,booking,priority:2})}
     }
   }
   return due.sort((a,b)=>a.priority-b.priority);
 }
-async function scan(){if(!db())return;const before=notifications().map(item=>`${item.id}:${item.resolvedAt||''}:${item.snoozedUntil||''}`).join('|');resolveObsoleteReminders();const due=collectDueReminders(),after=notifications().map(item=>`${item.id}:${item.resolvedAt||''}:${item.snoozedUntil||''}`).join('|');if(before!==after)await saveAndRender();if(!promptOpen&&due.length)showPrompt(due[0].item,due[0].booking)}
+async function scan(){if(!db())return;const before=notifications().map(item=>`${item.id}:${item.resolvedAt||''}:${item.snoozedUntil||''}:${item.popupDeferCount||0}:${item.popupSuppressed===true}`).join('|');resolveObsoleteReminders();const due=collectDueReminders(),after=notifications().map(item=>`${item.id}:${item.resolvedAt||''}:${item.snoozedUntil||''}:${item.popupDeferCount||0}:${item.popupSuppressed===true}`).join('|');if(before!==after)await saveAndRender();if(!promptOpen&&due.length)showPrompt(due[0].item,due[0].booking)}
 function start(){if(scanTimer)return;scan();scanTimer=setInterval(scan,60000);window.addEventListener('focus',scan);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')scan()});window.addEventListener('adwaa-subscription-updated',()=>setTimeout(scan,0))}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(start,300),{once:true});else setTimeout(start,300);
 })();
