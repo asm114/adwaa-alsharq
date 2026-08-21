@@ -95,6 +95,15 @@ test('Production يتفعل فقط لمسار مستودع أضواء الشرق
   assert.equal(localPreview.projectRef,stagingRef);
 });
 
+test('Service Worker يعزل Cache داخل نطاق أضواء الشرق فقط',async()=>{
+  const worker=await read('sw.js');
+  assert.match(worker,/CACHE_NAMESPACE=`adwaa-alsharq:\$\{SCOPE_PATH\}:`/);
+  assert.match(worker,/key\.startsWith\(CACHE_NAMESPACE\)&&key!==CACHE/);
+  assert.doesNotMatch(worker,/keys\.filter\(key=>key!==CACHE\)/);
+  assert.match(worker,/function currentCacheMatch\(request\)[\s\S]*caches\.open\(CACHE\)\.then\(cache=>cache\.match\(request\)\)/);
+  assert.doesNotMatch(worker,/caches\.match\(/);
+});
+
 test('التطبيق وعميل البوابة يستخدمان إعداد Staging الموحد قبل إنشاء العملاء',async()=>{
   const [html,portal,worker]=await Promise.all([read('index.html'),read('portal-admin-client.js'),read('sw.js')]);
   assert.match(html,/supabase-config\.staging\.js[\s\S]*supabase-js@2/);
