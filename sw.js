@@ -1,5 +1,7 @@
-// Refresh environment routing assets without changing the established cache contract.
-const CACHE='adwaa-staging-app-state-20260818';
+// Keep this app's cache isolated from other projects sharing the same GitHub Pages origin.
+const SCOPE_PATH=new URL(self.registration.scope).pathname.replace(/\/+$/,'')||'/';
+const CACHE_NAMESPACE=`adwaa-alsharq:${SCOPE_PATH}:`;
+const CACHE=`${CACHE_NAMESPACE}app-state-20260821`;
 const FALLBACK='./index.html';
 const ASSETS=['./index.html','./manifest.json','./supabase-config.staging.js'];
 
@@ -10,6 +12,10 @@ function isAppShellRequest(request){
   return requestUrl.origin===scopeUrl.origin&&(requestUrl.pathname===scopeUrl.pathname||requestUrl.pathname===fallbackUrl.pathname);
 }
 
+function currentCacheMatch(request){
+  return caches.open(CACHE).then(cache=>cache.match(request));
+}
+
 self.addEventListener('install',event=>{
   self.skipWaiting();
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)));
@@ -18,7 +24,7 @@ self.addEventListener('install',event=>{
 self.addEventListener('activate',event=>{
   event.waitUntil(
     caches.keys()
-      .then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key))))
+      .then(keys=>Promise.all(keys.filter(key=>key.startsWith(CACHE_NAMESPACE)&&key!==CACHE).map(key=>caches.delete(key))))
       .then(()=>self.clients.claim())
   );
 });
@@ -35,7 +41,7 @@ self.addEventListener('fetch',event=>{
           }
           return response;
         })
-        .catch(()=>caches.match(event.request).then(response=>response||caches.match(FALLBACK)))
+        .catch(()=>currentCacheMatch(event.request).then(response=>response||currentCacheMatch(FALLBACK)))
     );
     return;
   }
@@ -49,6 +55,6 @@ self.addEventListener('fetch',event=>{
         }
         return response;
       })
-      .catch(()=>caches.match(event.request))
+      .catch(()=>currentCacheMatch(event.request))
   );
 });
