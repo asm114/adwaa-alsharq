@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 
 const css=await readFile(new URL('../luxe-trial-theme.css',import.meta.url),'utf8');
 const loader=await readFile(new URL('../home-dashboard-polish.js',import.meta.url),'utf8');
+const cssWithoutComments=css.replace(/\/\*[\s\S]*?\*\//g,'');
 
 test('luxe trial theme is loaded as a reversible visual layer',()=>{
   assert.match(loader,/luxe-trial-theme\.css\?v=20260821-1/);
@@ -12,8 +13,8 @@ test('luxe trial theme is loaded as a reversible visual layer',()=>{
 });
 
 test('luxe trial theme deliberately leaves calendar implementation untouched',()=>{
-  assert.doesNotMatch(css,/(^|[\s,{])\.calendar\b/m);
-  assert.doesNotMatch(css,/(^|[\s,{])\.day\b/m);
+  assert.doesNotMatch(cssWithoutComments,/(^|[\s,{])\.calendar\b/m);
+  assert.doesNotMatch(cssWithoutComments,/(^|[\s,{])\.day\b/m);
   assert.match(css,/Calendar guardrail/);
 });
 
