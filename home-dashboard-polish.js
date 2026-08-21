@@ -79,6 +79,9 @@ function addStyles(){
   if(!document.querySelector('link[data-impeccable-refinement]')){
     const link=document.createElement('link');link.rel='stylesheet';link.href='impeccable-refinement.css?v=20260821-1';link.dataset.impeccableRefinement='1';document.head.appendChild(link);
   }
+  if(!document.querySelector('link[data-luxe-trial-theme]')){
+    const link=document.createElement('link');link.rel='stylesheet';link.href='luxe-trial-theme.css?v=20260821-1';link.dataset.luxeTrialTheme='1';document.head.appendChild(link);
+  }
 }
 
 function initialize(){
