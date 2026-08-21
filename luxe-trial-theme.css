@@ -1,0 +1,107 @@
+/* Adwaa Al Sharq — Luxe trial theme.
+   Presentation only. Intentionally leaves calendar layout/behavior untouched. */
+:root{
+  --luxe-ink:#09111f;
+  --luxe-ink-2:#111b2d;
+  --luxe-panel:#0d1727;
+  --luxe-gold:#d7a84a;
+  --luxe-gold-soft:#f7e6bb;
+  --luxe-paper:#f7f8fa;
+  --luxe-surface:#ffffff;
+  --luxe-text:#111827;
+  --luxe-muted:#667085;
+  --luxe-line:#e7e9ee;
+  --luxe-green:#0f6a57;
+  --luxe-green-deep:#0a4f42;
+  --luxe-shadow:0 16px 42px rgba(9,17,31,.10);
+}
+
+/* Base shell: bright workspace with premium dark chrome. */
+body.simplified-ui{background:linear-gradient(180deg,#f7f8fa 0%,#f2f4f7 100%)!important;color:var(--luxe-text)!important}
+body.simplified-ui .app-header{background:linear-gradient(145deg,var(--luxe-ink),var(--luxe-ink-2))!important;border:1px solid rgba(215,168,74,.24)!important;box-shadow:0 14px 38px rgba(9,17,31,.16)!important}
+body.simplified-ui .app-header .title{color:#fff!important}
+body.simplified-ui .app-header .subtitle{color:#aeb8c8!important}
+body.simplified-ui .app-header .eyebrow{color:var(--luxe-gold)!important}
+body.simplified-ui .header-actions .icon-btn,
+body.simplified-ui .privacy-btn{background:rgba(255,255,255,.06)!important;color:var(--luxe-gold-soft)!important;border-color:rgba(215,168,74,.26)!important;box-shadow:none!important}
+body.simplified-ui .header-actions .icon-btn:active,
+body.simplified-ui .privacy-btn:active{background:rgba(215,168,74,.12)!important}
+
+/* Cards become quieter and more architectural. */
+body.simplified-ui .section,
+body.simplified-ui .about-card,
+body.simplified-ui .protection-card,
+body.simplified-ui .finance-card,
+body.simplified-ui .simple-home-dashboard{background:rgba(255,255,255,.96)!important;border:1px solid var(--luxe-line)!important;box-shadow:var(--luxe-shadow)!important}
+body.simplified-ui .section-head{background:linear-gradient(180deg,#fff,#fbfcfd)!important;border-bottom-color:var(--luxe-line)!important}
+body.simplified-ui .section-head h3{color:var(--luxe-text)!important}
+body.simplified-ui .meta,
+body.simplified-ui .label{color:var(--luxe-muted)!important}
+
+/* Home command center: stronger hierarchy, matching the approved concept. */
+body.simplified-ui.simple-view-home .app-header{background:transparent!important;border:0!important;border-bottom:1px solid #dde1e7!important;box-shadow:none!important}
+body.simplified-ui.simple-view-home .app-header .title{color:var(--luxe-text)!important}
+body.simplified-ui.simple-view-home .app-header .subtitle{color:var(--luxe-muted)!important}
+body.simplified-ui.simple-view-home .app-header-copy::before{background:linear-gradient(145deg,var(--luxe-ink),var(--luxe-ink-2))!important;color:var(--luxe-gold-soft)!important;box-shadow:0 10px 24px rgba(9,17,31,.18)!important}
+body.simplified-ui.simple-view-home #resortStatusCard.home-status{background:linear-gradient(135deg,#0a1322,#14233a)!important;border:1px solid rgba(215,168,74,.25)!important;box-shadow:0 18px 44px rgba(9,17,31,.18)!important}
+body.simplified-ui.simple-view-home #resortStatusCard.home-status .secondary{border-color:rgba(215,168,74,.42)!important;color:#fff!important;background:rgba(215,168,74,.08)!important}
+body.simplified-ui.simple-view-home .home-section{border-color:#e4e7ec!important;box-shadow:0 10px 28px rgba(16,24,40,.06)!important}
+body.simplified-ui.simple-view-home .home-today{box-shadow:0 14px 34px rgba(16,24,40,.08)!important}
+body.simplified-ui.simple-view-home .home-important-alerts{background:#fffdfa!important;border-color:#eadcb8!important}
+body.simplified-ui.simple-view-home .home-quick-actions{background:linear-gradient(145deg,#0d1727,#111f34)!important;border:1px solid rgba(215,168,74,.20)!important}
+body.simplified-ui.simple-view-home .home-quick-actions .home-section-head h2,
+body.simplified-ui.simple-view-home .home-quick-actions .home-section-head p{color:#fff!important}
+body.simplified-ui.simple-view-home .home-quick-actions .home-section-head p{opacity:.66}
+body.simplified-ui.simple-view-home .quick-action-grid button{color:#e7edf5!important;border-bottom-color:rgba(255,255,255,.09)!important}
+body.simplified-ui.simple-view-home .quick-action-grid button:first-child{color:var(--luxe-gold-soft)!important}
+body.simplified-ui.simple-view-home .quick-action-grid svg{color:var(--luxe-gold)!important}
+
+/* Priority operations use semantic color, not decorative noise. */
+body.simplified-ui .action-alert[data-operational-movement="1"]{border-inline-start:3px solid var(--luxe-green)!important}
+body.simplified-ui .action-alert[data-operational-movement="1"] button,
+body.simplified-ui .home-primary-action,
+body.simplified-ui .primary{background:linear-gradient(145deg,var(--luxe-green),var(--luxe-green-deep))!important;color:#fff!important;border-color:transparent!important;box-shadow:0 8px 18px rgba(15,106,87,.16)!important}
+body.simplified-ui .pending,
+body.simplified-ui .due-badge{background:#fff5df!important;color:#8a5a08!important}
+body.simplified-ui .confirmed,
+body.simplified-ui .paid-badge{background:#e8f5f0!important;color:#0d6b57!important}
+
+/* Notification sheet mirrors the premium workspace rather than a generic modal. */
+body.simplified-ui #headerAlertsModal .sheet{background:#f7f8fa!important;border-top:1px solid #e4e7ec!important;box-shadow:0 -24px 60px rgba(9,17,31,.22)!important}
+body.simplified-ui #headerAlertsModalList .action-alert{background:#fff!important;border-color:#e4e7ec!important;box-shadow:0 10px 24px rgba(16,24,40,.06)!important}
+
+/* Bottom navigation becomes a dark control dock. */
+body.simplified-ui nav{background:linear-gradient(145deg,#08111e,#111d30)!important;border:1px solid rgba(215,168,74,.20)!important;box-shadow:0 18px 44px rgba(9,17,31,.28)!important}
+body.simplified-ui nav>button{color:#aab4c4!important}
+body.simplified-ui nav>button.active{background:linear-gradient(180deg,rgba(215,168,74,.18),rgba(215,168,74,.08))!important;color:#ffe8ad!important;box-shadow:inset 0 0 0 1px rgba(215,168,74,.20)!important}
+
+/* Forms and booking sheets stay bright for fast data entry. */
+body.simplified-ui .sheet:not(#headerAlertsModal .sheet){background:#f8f9fb!important}
+body.simplified-ui input,
+body.simplified-ui select,
+body.simplified-ui textarea{border-color:#dfe3e8!important;background:#fff!important;color:var(--luxe-text)!important}
+body.simplified-ui input:focus,
+body.simplified-ui select:focus,
+body.simplified-ui textarea:focus{border-color:rgba(15,106,87,.46)!important;box-shadow:0 0 0 4px rgba(15,106,87,.10)!important}
+
+/* Calendar guardrail: no selectors for .calendar or .day on purpose.
+   Existing calendar structure, colors, click behavior, and day states remain exactly as implemented. */
+
+@media(max-width:620px){
+  body.simplified-ui .app-header{margin-inline:7px!important;border-radius:20px!important}
+  body.simplified-ui.simple-view-home .app-header{margin-inline:10px!important;border-radius:0!important}
+  body.simplified-ui .section,
+  body.simplified-ui .simple-home-dashboard{box-shadow:0 8px 22px rgba(16,24,40,.055)!important}
+  body.simplified-ui nav{width:calc(100% - 12px)!important;border-radius:22px!important}
+  body.simplified-ui nav>button{font-size:10.5px!important}
+  body.simplified-ui .home-quick-actions{border-radius:18px!important}
+}
+
+@media(min-width:900px){
+  body.simplified-ui.simple-view-home main{max-width:1320px!important}
+  body.simplified-ui.simple-view-home .home-command-center{gap:20px!important}
+}
+
+@media(prefers-reduced-motion:reduce){
+  body.simplified-ui *{transition:none!important}
+}
