@@ -1,0 +1,140 @@
+/* Adwaa Al Sharq — customer registry refinement for the luxe trial theme.
+   Visual-only. Keeps customer data, handlers, filters, and detail opening untouched. */
+
+body.simplified-ui.simple-view-customers #customers{
+  --customer-row-height:72px;
+}
+
+body.simplified-ui.simple-view-customers #customers>.section,
+body.simplified-ui.simple-view-customers #customerList{
+  background:#fff!important;
+  border-color:#e6e9ee!important;
+}
+
+/* The registry header should read as a utility bar, not another hero card. */
+body.simplified-ui.simple-view-customers #customers .section-head{
+  padding:16px 18px!important;
+  gap:12px!important;
+  align-items:center!important;
+  background:#fff!important;
+}
+body.simplified-ui.simple-view-customers #customers .section-head h3{
+  font-size:20px!important;
+  line-height:1.25!important;
+}
+body.simplified-ui.simple-view-customers #customerSearch,
+body.simplified-ui.simple-view-customers #customerSort{
+  min-height:44px!important;
+  border-radius:12px!important;
+  box-shadow:none!important;
+}
+body.simplified-ui.simple-view-customers #customerSearch{min-width:0!important}
+body.simplified-ui.simple-view-customers #customerSort{max-width:180px!important}
+
+/* Keep subscriptions available, but stop the launcher from dominating the registry. */
+body.simplified-ui.simple-view-customers .subscription-launch{
+  width:auto!important;
+  min-width:0!important;
+  min-height:44px!important;
+  margin:0!important;
+  padding:9px 13px!important;
+  border-radius:12px!important;
+  font-size:12px!important;
+  line-height:1.35!important;
+  box-shadow:none!important;
+}
+
+/* Customer list = names first. Details stay one tap away. */
+body.simplified-ui.simple-view-customers #customerList{
+  display:grid!important;
+  gap:0!important;
+  overflow:hidden!important;
+  border:1px solid #e6e9ee!important;
+  border-radius:18px!important;
+  box-shadow:0 12px 28px rgba(16,24,40,.055)!important;
+}
+body.simplified-ui.simple-view-customers #customerList>.item,
+body.simplified-ui.simple-view-customers #customerList>.customer-card,
+body.simplified-ui.simple-view-customers #customerList>article{
+  position:relative!important;
+  min-height:var(--customer-row-height)!important;
+  margin:0!important;
+  padding:15px 18px!important;
+  border:0!important;
+  border-bottom:1px solid #edf0f3!important;
+  border-radius:0!important;
+  background:#fff!important;
+  box-shadow:none!important;
+}
+body.simplified-ui.simple-view-customers #customerList>:last-child{border-bottom:0!important}
+body.simplified-ui.simple-view-customers #customerList>.item:hover,
+body.simplified-ui.simple-view-customers #customerList>.customer-card:hover,
+body.simplified-ui.simple-view-customers #customerList>article:hover{
+  background:#f8fbfa!important;
+  transform:none!important;
+}
+body.simplified-ui.simple-view-customers #customerList h4,
+body.simplified-ui.simple-view-customers #customerList .customer-name{
+  margin:0!important;
+  color:#111827!important;
+  font-size:16px!important;
+  font-weight:850!important;
+  line-height:1.35!important;
+}
+
+/* Hide summary noise only inside the list; the full customer record still shows everything. */
+body.simplified-ui.simple-view-customers #customerList .customer-phone,
+body.simplified-ui.simple-view-customers #customerList .customer-stats,
+body.simplified-ui.simple-view-customers #customerList .customer-stat,
+body.simplified-ui.simple-view-customers #customerList .meta,
+body.simplified-ui.simple-view-customers #customerList .badge,
+body.simplified-ui.simple-view-customers #customerList .simple-ui-chip{
+  display:none!important;
+}
+
+/* Preserve existing action handlers, but reduce competing buttons in the row. */
+body.simplified-ui.simple-view-customers #customerList .actions{
+  margin:0!important;
+  gap:7px!important;
+}
+body.simplified-ui.simple-view-customers #customerList .actions button,
+body.simplified-ui.simple-view-customers #customerList button{
+  min-height:40px!important;
+  padding:8px 12px!important;
+  border-radius:11px!important;
+  font-size:12px!important;
+  box-shadow:none!important;
+}
+
+@media(max-width:620px){
+  body.simplified-ui.simple-view-customers #customers .section-head{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    padding:14px!important;
+  }
+  body.simplified-ui.simple-view-customers #customers .section-head>div:first-child{
+    grid-column:1/-1!important;
+  }
+  body.simplified-ui.simple-view-customers #customerSearch{
+    grid-column:1!important;
+  }
+  body.simplified-ui.simple-view-customers #customerSort{
+    grid-column:2!important;
+    width:132px!important;
+    max-width:132px!important;
+  }
+  body.simplified-ui.simple-view-customers .subscription-launch{
+    grid-column:1/-1!important;
+    justify-self:start!important;
+  }
+  body.simplified-ui.simple-view-customers #customerList>.item,
+  body.simplified-ui.simple-view-customers #customerList>.customer-card,
+  body.simplified-ui.simple-view-customers #customerList>article{
+    min-height:64px!important;
+    padding:13px 14px!important;
+  }
+  body.simplified-ui.simple-view-customers #customerList h4,
+  body.simplified-ui.simple-view-customers #customerList .customer-name{
+    font-size:15.5px!important;
+  }
+}
