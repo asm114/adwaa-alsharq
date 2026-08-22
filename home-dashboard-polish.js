@@ -97,6 +97,9 @@ function addStyles(){
   if(!document.querySelector('script[data-home-metric-drilldowns]')){
     const script=document.createElement('script');script.src='home-metric-drilldowns.js?v=20260822-1';script.defer=true;script.dataset.homeMetricDrilldowns='1';document.head.appendChild(script);
   }
+  if(!document.querySelector('link[data-luxe-controls]')){
+    const link=document.createElement('link');link.rel='stylesheet';link.href='luxe-controls.css?v=20260822-1';link.dataset.luxeControls='1';document.head.appendChild(link);
+  }
 }
 
 function initialize(){

@@ -1,0 +1,84 @@
+/* Adwaa Al Sharq — luxe control identity.
+   Visual-only. Replaces legacy green/mint button treatments while preserving semantic status colors and calendar styling. */
+
+body.simplified-ui{
+  --luxe-control-ink:#0b1423;
+  --luxe-control-ink-2:#152238;
+  --luxe-control-gold:#d7a84a;
+  --luxe-control-gold-soft:#f8e7bb;
+  --luxe-control-line:#d9dee7;
+}
+
+body.simplified-ui button.primary,
+body.simplified-ui .home-primary-action,
+body.simplified-ui .action-alert button.primary,
+body.simplified-ui .today-actions button.primary,
+body.simplified-ui .send-grid button.primary{
+  background:linear-gradient(145deg,var(--luxe-control-ink),var(--luxe-control-ink-2))!important;
+  color:#fff!important;
+  border:1px solid rgba(215,168,74,.28)!important;
+  box-shadow:0 8px 20px rgba(9,17,31,.16)!important;
+}
+body.simplified-ui button.primary:active,
+body.simplified-ui .home-primary-action:active{
+  background:linear-gradient(145deg,#111d30,#1a2b45)!important;
+  transform:translateY(1px);
+}
+
+body.simplified-ui button.secondary,
+body.simplified-ui .secondary,
+body.simplified-ui .soft-btn{
+  background:#fff!important;
+  color:#27364b!important;
+  border:1px solid var(--luxe-control-line)!important;
+  box-shadow:0 3px 10px rgba(16,24,40,.045)!important;
+}
+body.simplified-ui button.secondary:active,
+body.simplified-ui .secondary:active{
+  background:#f5f7fa!important;
+  border-color:#c9d0dc!important;
+}
+
+body.simplified-ui .link,
+body.simplified-ui button.link{
+  color:#9a6b13!important;
+}
+
+body.simplified-ui.simple-view-home .home-secondary-details>summary{
+  background:linear-gradient(180deg,#fff,#f8f9fb)!important;
+  color:#28374c!important;
+  border:1px solid #e2e6ed!important;
+  box-shadow:none!important;
+}
+body.simplified-ui.simple-view-home .home-secondary-details[open]>summary{
+  color:#8f6519!important;
+  border-color:rgba(215,168,74,.42)!important;
+  background:#fffaf0!important;
+}
+
+body.simplified-ui.simple-view-home #homeNextBooking button:not(.secondary):not(.danger),
+body.simplified-ui.simple-view-home .home-next-booking button:not(.secondary):not(.danger),
+body.simplified-ui.simple-view-home .home-today button:not(.secondary):not(.danger),
+body.simplified-ui.simple-view-home .action-alert button:not(.secondary):not(.danger){
+  background:linear-gradient(145deg,var(--luxe-control-ink),var(--luxe-control-ink-2))!important;
+  color:#fff!important;
+  border:1px solid rgba(215,168,74,.28)!important;
+  box-shadow:0 8px 20px rgba(9,17,31,.14)!important;
+}
+
+body.simplified-ui .subscription-launch{
+  background:linear-gradient(145deg,#111b2d,#18263d)!important;
+  color:var(--luxe-control-gold-soft)!important;
+  border:1px solid rgba(215,168,74,.28)!important;
+  box-shadow:none!important;
+}
+
+body.simplified-ui button.danger,
+body.simplified-ui .danger{
+  background:#fff2f2!important;
+  color:#a33a3a!important;
+  border:1px solid #efcaca!important;
+  box-shadow:none!important;
+}
+
+/* Calendar intentionally untouched: no .calendar or .day selectors. */
