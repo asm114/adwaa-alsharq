@@ -3,7 +3,7 @@
 if(window.__adwaaDocumentPreviewControlsInstalled)return;
 window.__adwaaDocumentPreviewControlsInstalled=true;
 
-function escJs(value){return JSON.stringify(String(value??''));}
+function escJs(value){return JSON.stringify(String(value??'')).replace(/</g,'\\u003c').replace(/>/g,'\\u003e').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');}
 
 function subscriptionVisitDocumentEnhancements(b){
   if(!(b?.subscriptionVisit||b?.subscriptionId))return{style:'',body:'',script:''};

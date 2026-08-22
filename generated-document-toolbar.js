@@ -3,7 +3,7 @@
 if(window.__adwaaGeneratedDocumentToolbarInstalled)return;
 window.__adwaaGeneratedDocumentToolbarInstalled=true;
 
-function escJs(value){return JSON.stringify(String(value??''));}
+function escJs(value){return JSON.stringify(String(value??'')).replace(/</g,'\\u003c').replace(/>/g,'\\u003e').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');}
 
 function enhance(html,b,type){
   if(typeof html!=='string'||!html.includes('<body>'))return html;

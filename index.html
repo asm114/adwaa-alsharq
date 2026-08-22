@@ -1204,13 +1204,15 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <div id="resortStatusOptions" class="status-options"></div>
 </div></div>
 <script src="supabase-config.staging.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.111.0" integrity="sha384-fPWur1rx/DE6YtXP/x0MD6dd90RgnVsz5yX/DIg7CcVAnTBZsENWuIcpvVTM39ti" crossorigin="anonymous"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 const {url:SUPABASE_URL,publishableKey:SUPABASE_PUBLISHABLE_KEY,projectRef:SUPABASE_PROJECT_REF,environment:APP_ENVIRONMENT}=window.ADWAA_SUPABASE_CONFIG;
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 window.supabaseClient=supabaseClient;
 const STATE_ROW_ID='main';
+const MANAGER_CACHE_OWNER_KEY='adwaaDBOwner';
+let lastRemoteLoadDenied=false;
 // v9.8.0 — customer portal final release over the stable local provider.
 const APP_VERSION='9.8.0';
 const APP_BUILD='20260801.1';
@@ -1263,7 +1265,8 @@ const DEFAULT_WELCOME_STAY=`يسرّنا استقبالكم في منتجع أض
 
 نسعد بخدمتكم، ونتمنى لكم إقامة طيبة.`;
 function readLocalDB(){try{return JSON.parse(localStorage.getItem('adwaaDB')||'null')}catch(err){console.warn('تعذر قراءة النسخة المحلية',err);return null}}
-let db=readLocalDB()||{bookings:[],expenses:[],cleaningTasks:[],notifications:[],customerNotes:{},backupHistory:[],auditLog:[],settings:{waNumber:'',welcomeMsgDaily:DEFAULT_WELCOME_DAILY,welcomeMsgStay:DEFAULT_WELCOME_STAY,resortStatus:'ready',resortStatusUpdated:'',calendarMode:'both',commissionEnabled:true,commissionMethod:'per_day',commissionRate:100},seq:1};
+function createEmptyDB(){return {bookings:[],expenses:[],cleaningTasks:[],notifications:[],customerNotes:{},backupHistory:[],auditLog:[],settings:{waNumber:'',welcomeMsgDaily:DEFAULT_WELCOME_DAILY,welcomeMsgStay:DEFAULT_WELCOME_STAY,resortStatus:'ready',resortStatusUpdated:'',calendarMode:'both',commissionEnabled:true,commissionMethod:'per_day',commissionRate:100},seq:1}}
+let db=readLocalDB()||createEmptyDB();
 const HELP_CONTENT={
   contract:{title:'متى يُستخدم العقد؟',text:'يُرسل العقد بعد الاتفاق مع العميل على التاريخ والسعر، وقبل تأكيد الحجز نهائيًا. يوضح العقد الشروط وأوقات الدخول والخروج ومسؤولية الأضرار.'},
   invoice:{title:'متى تُرسل الفاتورة النهائية؟',text:'تُرسل الفاتورة النهائية بعد استلام كامل مبلغ الحجز. يجب أن يظهر المتبقي صفرًا وحالة الدفع: مدفوع بالكامل.'},
@@ -1386,16 +1389,35 @@ function showLogin(){
   document.getElementById('signedInEmail')&&(document.getElementById('signedInEmail').textContent='—');
   setTimeout(initializeRememberLogin,0);
 }
+function clearSensitiveLocalState(){
+  try{localStorage.removeItem('adwaaDB');localStorage.removeItem(MANAGER_CACHE_OWNER_KEY)}catch(err){console.warn('تعذر مسح النسخة المحلية',err)}
+  db=createEmptyDB();
+  invalidateCaches();
+  renderAll();
+}
 async function showApplication(user){
   currentUser=user||null;
   if(!currentUser){showLogin();return}
+  let cachedOwner='';try{cachedOwner=localStorage.getItem(MANAGER_CACHE_OWNER_KEY)||''}catch(_){}
+  const ownerMatches=!!currentUser.id&&cachedOwner===String(currentUser.id);
+  document.getElementById('appRoot')?.classList.add('auth-locked');
+  setAuthStatus('جاري التحقق من صلاحية المدير...');
+  const authorized=await loadRemoteData({render:false});
+  if(!authorized&&(!ownerMatches||lastRemoteLoadDenied)){
+    clearSensitiveLocalState();
+    try{await supabaseClient.auth.signOut()}catch(err){console.error(err)}
+    showLogin();
+    setAuthStatus('تم رفض الوصول: الحساب غير مصرح له بإدارة المنصة.','error');
+    hideLaunchSplash();
+    return;
+  }
   document.getElementById('authGate')?.setAttribute('hidden','');
   document.getElementById('appRoot')?.classList.remove('auth-locked');
   const email=document.getElementById('signedInEmail');
   if(email)email.textContent=currentUser.email||'حساب المدير';
   renderAll();
-  await loadRemoteData();
-  subscribeRealtime();
+  if(authorized)subscribeRealtime();
+  else setSyncStatus('وضع دون اتصال: تم فتح نسخة هذا المدير المرتبطة بهذا الجهاز فقط','error');
   hideLaunchSplash();
 }
 async function loginManager(event){
@@ -1426,6 +1448,7 @@ async function logoutManager(){
   try{await supabaseClient.auth.signOut()}catch(err){console.error(err)}
   if(realtimeChannel){try{await supabaseClient.removeChannel(realtimeChannel)}catch(_){} realtimeChannel=null}
   showLogin();
+  clearSensitiveLocalState();
 }
 async function initializeSecureApp(){
   initializeRememberLogin();
@@ -1494,7 +1517,7 @@ async function renderDataProtectionSyncStatus(){
   el.title=synced?'آخر بيانات محلية تطابق آخر حالة مؤكدة مع Supabase.':lastSyncError||'البيانات المحلية لا تطابق آخر حالة مؤكدة مع Supabase.';
 }
 
-async function loadRemoteData(){
+async function loadRemoteData({render=true}={}){
   if(!currentUser){showLogin();return}
   try{
     const {data,error}=await supabaseClient
@@ -1504,6 +1527,7 @@ async function loadRemoteData(){
       .maybeSingle();
 
     if(error) throw error;
+    lastRemoteLoadDenied=false;
 
     if(data?.data){
       const migrationBackup=await createPreMigrationBackupFromData(data.data,'commission-states-v1','نسخة تلقائية قبل توحيد حالات العمولة وأنواع السجلات');
@@ -1521,8 +1545,8 @@ async function loadRemoteData(){
     remoteReady=true;
     lastSuccessfulReadAt=new Date().toISOString();lastSyncError='';
     await markRemoteStateConfirmed(data?.data?normalizeDB(data.data):db);
-    try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(storageErr){console.warn('تعذر حفظ النسخة المحلية',storageErr)}
-    scheduleRenderAll();
+    try{localStorage.setItem('adwaaDB',JSON.stringify(db));if(currentUser?.id)localStorage.setItem(MANAGER_CACHE_OWNER_KEY,String(currentUser.id))}catch(storageErr){console.warn('تعذر حفظ النسخة المحلية',storageErr)}
+    if(render)scheduleRenderAll();
     setSyncStatus('متصل ومتزامن بحساب المدير','ok');
     return true;
   }catch(err){
@@ -1530,8 +1554,10 @@ async function loadRemoteData(){
     remoteReady=false;
     lastSyncError=String(err?.message||err||'تعذر الاتصال بقاعدة البيانات');
     void renderDataProtectionSyncStatus();
-    scheduleRenderAll();
-    const denied=String(err?.message||'').toLowerCase().includes('policy')||String(err?.code||'')==='42501';
+    if(render)scheduleRenderAll();
+    const errorText=String(err?.message||'').toLowerCase(),errorCode=String(err?.code||'').toUpperCase();
+    const denied=/(?:policy|permission|unauthorized|forbidden|jwt)/.test(errorText)||['42501','401','403','PGRST301'].includes(errorCode);
+    lastRemoteLoadDenied=denied;
     setSyncStatus(denied?'تم رفض الوصول: فعّل سياسة حماية حساب المدير في Supabase.':'تعذر الاتصال بالسحابة؛ يعمل مؤقتًا من هذا الجهاز','error');
     return false;
   }
@@ -1951,16 +1977,16 @@ function itemHTML(b){
   const payment=getPaymentStatus(b),family=b.recordType==='family';
   const cleaning=family?null:(db.cleaningTasks||[]).find(t=>t.bookingId===b.id&&t.status!=='ملغي');
   const cleanLabel=cleaning?(cleaning.status==='done'?'✅ تم التنظيف':cleaning.status==='in_progress'?'🟠 جاري التنظيف':'🧹 بانتظار جميل'):'🧹 إنشاء مهمة جميل';
-  return `<div class="item" onclick="openBooking('${b.id}')">
+  return `<div class="item" onclick="openBooking(${htmlJsArg(b.id)})">
     <div>
-      <h4>${escapeHtml(b.name)} <span class="small">#${b.code}</span></h4>
-      <div class="meta">${b.date} • ${b.type}<br>${family?'استخدام داخلي':(b.phone||'')}<br><span class="badge ${family?'family-badge':payment.code==='paid'?'paid-badge':'due-badge'}">${family?'تواجد العائلة':payment.label}</span></div>
+      <h4>${escapeHtml(b.name)} <span class="small">#${escapeHtml(b.code)}</span></h4>
+      <div class="meta">${escapeHtml(b.date)} • ${escapeHtml(b.type)}<br>${family?'استخدام داخلي':escapeHtml(b.phone||'')}<br><span class="badge ${family?'family-badge':payment.code==='paid'?'paid-badge':'due-badge'}">${family?'تواجد العائلة':escapeHtml(payment.label)}</span></div>
       <div class="task-actions" style="margin-top:9px">
-        ${family?'':`<button class="secondary small" type="button" onclick="event.stopPropagation();createCleaningLink('${b.id}',false)">${cleanLabel}</button>`}
-        ${cleaning?`<button class="primary small" type="button" onclick="event.stopPropagation();sendCleaningTaskToJameel('${b.id}')">واتساب جميل</button>`:''}
+        ${family?'':`<button class="secondary small" type="button" onclick="event.stopPropagation();createCleaningLink(${htmlJsArg(b.id)},false)">${escapeHtml(cleanLabel)}</button>`}
+        ${cleaning?`<button class="primary small" type="button" onclick="event.stopPropagation();sendCleaningTaskToJameel(${htmlJsArg(b.id)})">واتساب جميل</button>`:''}
       </div>
     </div>
-    <span class="badge ${statusClass(b.status)}">${b.status}</span>
+    <span class="badge ${statusClass(b.status)}">${escapeHtml(b.status)}</span>
   </div>`
 }
 function renderBookings(){let q=(search?.value||'').trim(),s=statusFilter?.value||'';let arr=[...db.bookings].sort((a,b)=>b.date.localeCompare(a.date)).filter(b=>(!q||b.name.includes(q)||String(b.phone).includes(q)||String(b.code||'').includes(q))&&(!s||b.status===s));bookingList.innerHTML=arr.map(itemHTML).join('')||'<div class="empty">لا توجد نتائج</div>'}
@@ -2507,7 +2533,7 @@ function taskStatusText(t){
 function taskPhotosHTML(t){
   const photos=Array.isArray(t.photos)?t.photos:[];
   if(!photos.length)return '<div class="meta">لم تُرفع صور بعد.</div>';
-  return `<div class="photo-review-grid">${photos.map(p=>`<div><img src="${p.dataUrl}" onclick="window.open(this.src,'_blank')"><div class="meta">${escapeHtml(p.place||'صورة')} • ${p.phase==='after'?'بعد':'قبل'}</div></div>`).join('')}</div>`;
+  return `<div class="photo-review-grid">${photos.map(p=>isSafeBackupImageDataUrl(p?.dataUrl)?`<div><img src="${escapeHtml(p.dataUrl)}" alt="${escapeHtml(p.place||'صورة')}" onclick="window.open(this.src,'_blank')"><div class="meta">${escapeHtml(p.place||'صورة')} • ${p.phase==='after'?'بعد':'قبل'}</div></div>`:'').join('')}</div>`;
 }
 async function approveCleaning(id){
   const t=db.cleaningTasks.find(x=>x.id===id);if(!t)return;
@@ -3296,6 +3322,31 @@ async function renderBackupManagement(){
   const latest=latestBackupRecord();setAboutText('backupLastFileName',latest?.fileName||'لا توجد نسخة');const date=latest?.createdAt?new Date(latest.createdAt):null,validDate=date&&!Number.isNaN(date.getTime());setAboutText('backupLastDate',validDate?date.toLocaleDateString('ar-SA',{calendar:'gregory'}):'—');setAboutText('backupLastTime',validDate?date.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'}):'—');setAboutText('backupLastSize',latest?formatBytes(latest.size):'—');setAboutText('backupLastStatus',latest?(latest.verified===false?'❌ لم تجتز الفحص':'✅ ناجحة وسليمة'):'—');setAboutText('backupLastLocation',latest?.location||'—')
 }
 function sanitizeBackupValue(value){if(Array.isArray(value))return value.map(sanitizeBackupValue);if(!value||typeof value!=='object')return value;const clean={};Object.entries(value).forEach(([key,item])=>{if(!/(?:password|passwd|secret|token|api[_-]?key|private[_-]?key)/i.test(key))clean[key]=sanitizeBackupValue(item)});return clean}
+const BACKUP_MAX_FILE_BYTES=25*1024*1024;
+const BACKUP_SAFE_ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
+const BACKUP_RECOVERY_ID=/^ADW-\d{8}-[A-Z0-9.]{8,80}$/;
+function isSafeBackupImageDataUrl(value){return /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=\r\n]+$/i.test(String(value||''))}
+function assertSafeBackupValue(value,path='data',depth=0,key=''){
+  if(depth>30)throw new Error(`تجاوزت بنية النسخة العمق الآمن عند ${path}`);
+  if(typeof value==='string'){
+    const max=key==='dataUrl'?7*1024*1024:20000;
+    if(value.length>max)throw new Error(`قيمة طويلة بصورة غير آمنة عند ${path}`);
+    if(/<\s*\/?\s*[a-z!]/i.test(value))throw new Error(`تحتوي النسخة على ترميز HTML غير مسموح عند ${path}`);
+    if(/^(?:id|bookingId|taskId|notificationId|expenseId)$/i.test(key)&&value&&!BACKUP_SAFE_ID.test(value))throw new Error(`معرّف غير صالح عند ${path}`);
+    if(key==='dataUrl'&&value&&!isSafeBackupImageDataUrl(value))throw new Error(`صيغة صورة غير آمنة عند ${path}`);
+    return;
+  }
+  if(value===null||typeof value==='number'||typeof value==='boolean'||value===undefined)return;
+  if(Array.isArray(value)){
+    if(value.length>20000)throw new Error(`قائمة أكبر من الحد الآمن عند ${path}`);
+    value.forEach((item,index)=>assertSafeBackupValue(item,`${path}[${index}]`,depth+1,key));
+    return;
+  }
+  if(typeof value!=='object')throw new Error(`نوع بيانات غير صالح عند ${path}`);
+  const entries=Object.entries(value);
+  if(entries.length>500)throw new Error(`كائن أكبر من الحد الآمن عند ${path}`);
+  entries.forEach(([childKey,item])=>assertSafeBackupValue(item,`${path}.${childKey}`,depth+1,childKey));
+}
 function backupCoreData(){const copy=sanitizeBackupValue(safeClone(db)||{});copy.backupHistory=[];return copy}
 async function sha256Text(value){if(!crypto?.subtle)return '';const bytes=new TextEncoder().encode(value),hash=await crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 function createRecoveryId(at=new Date()){const stamp=at.toISOString().slice(0,10).replaceAll('-',''),uuid=(crypto?.randomUUID?.()||`${Date.now()}-${Math.random()}`).replaceAll('-','').toUpperCase();return `ADW-${stamp}-${uuid}`}
@@ -3340,6 +3391,8 @@ function validateBackupPayload(raw){
   const envelope=raw?.schema==='adwaa-alsharq-backup'?raw:{schema:'adwaa-alsharq-backup',version:'قديم',createdAt:new Date().toISOString(),createdBy:'ملف قديم',type:'مستورد',data:raw};
   const data=envelope?.data;
   if(!data||typeof data!=='object'||!Array.isArray(data.bookings)||!Array.isArray(data.expenses))throw new Error('الملف لا يحتوي بنية بيانات أضواء الشرق الصحيحة');
+  if(envelope.recoveryId!==undefined&&!BACKUP_RECOVERY_ID.test(String(envelope.recoveryId)))throw new Error('Recovery ID غير صالح داخل النسخة');
+  assertSafeBackupValue(data);
   for(const field of ['cleaningTasks','notifications','auditLog'])if(data[field]!==undefined&&!Array.isArray(data[field]))throw new Error(`قسم ${field} غير صالح داخل النسخة`);
   const relationships=inspectBackupRelationships(data);
   if(!relationships.ok)throw new Error(`فشل فحص العلاقات: ${relationships.errors[0]}`);
@@ -3384,7 +3437,7 @@ async function renderBackupHistory(){
   const rows=(db.backupHistory||[]);if(!rows.length){body.innerHTML='<tr><td colspan="5" class="empty">لم تُنشأ نسخ احتياطية بعد</td></tr>';return}
   body.innerHTML='<tr><td colspan="5" class="empty">جاري قراءة سجل النسخ...</td></tr>';
   const available=await backupVaultAvailability(rows.map(r=>r.id));
-  body.innerHTML=rows.map(r=>`<tr><td><b>${formatDateTime(r.createdAt)}</b><div class="meta">v${escapeHtml(r.version||'—')}</div></td><td>${formatBytes(r.size)}</td><td>${escapeHtml(r.user||'الفوزان')}</td><td><span class="backup-type">${escapeHtml(r.type||'يدوي')}</span></td><td><div class="table-actions">${available[r.id]?`<button class="secondary" onclick="downloadStoredBackup('${r.id}')">تحميل</button><button class="primary" onclick="restoreStoredBackup('${r.id}')">استعادة</button>`:`<span class="local-missing">الملف غير موجود على هذا الجهاز؛ استخدم «استعادة من ملف»</span>`}</div></td></tr>`).join('');
+  body.innerHTML=rows.map(r=>`<tr><td><b>${formatDateTime(r.createdAt)}</b><div class="meta">v${escapeHtml(r.version||'—')}</div></td><td>${formatBytes(r.size)}</td><td>${escapeHtml(r.user||'الفوزان')}</td><td><span class="backup-type">${escapeHtml(r.type||'يدوي')}</span></td><td><div class="table-actions">${available[r.id]?`<button class="secondary" onclick="downloadStoredBackup(${htmlJsArg(r.id)})">تحميل</button><button class="primary" onclick="restoreStoredBackup(${htmlJsArg(r.id)})">استعادة</button>`:`<span class="local-missing">الملف غير موجود على هذا الجهاز؛ استخدم «استعادة من ملف»</span>`}</div></td></tr>`).join('');
 }
 async function downloadStoredBackup(id){const record=await activeDataProtectionProvider().get(id);if(!record){alert('ملف هذه النسخة غير موجود على هذا الجهاز. استخدم ملف النسخة الذي نُزّل سابقًا.');return}download(record.fileName||backupFileName(record.envelope.type,new Date(record.envelope.createdAt),record.envelope.recoveryId),record.json||JSON.stringify(record.envelope,null,2),'application/json')}
 function mergeAuditLogs(current,restored){const map=new Map();[...(current||[]),...(restored||[])].forEach(x=>{if(x?.id&&!map.has(x.id))map.set(x.id,x)});return [...map.values()].sort((a,b)=>String(b.at).localeCompare(String(a.at)))}
@@ -3428,7 +3481,7 @@ async function restoreStoredBackup(id){
   try{await applyRestorePayload(checked.data,`استعادة النسخة ${recoveryId} — ${formatDateTime(record.envelope.createdAt)}`);alert('تمت الاستعادة في Supabase وتأكيد تطابق البيانات بنجاح.')}
   catch(err){alert(`لم تكتمل الاستعادة، ولم تُعتمد كعملية ناجحة.\n${err.message||err}\n\nاحتُفظ بالبيانات المحلية الحالية. راجع حالة المزامنة قبل أي إجراء آخر.`)}
 }
-function readJsonFile(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>{try{resolve(JSON.parse(r.result))}catch(_){reject(new Error('الملف ليس JSON صالحًا'))}};r.onerror=()=>reject(new Error('تعذر قراءة الملف'));r.readAsText(file)})}
+function readJsonFile(file){return new Promise((resolve,reject)=>{if(!file||file.size>BACKUP_MAX_FILE_BYTES){reject(new Error('حجم ملف النسخة يتجاوز الحد الآمن (25 MB)'));return}const r=new FileReader();r.onload=()=>{try{resolve(JSON.parse(r.result))}catch(_){reject(new Error('الملف ليس JSON صالحًا'))}};r.onerror=()=>reject(new Error('تعذر قراءة الملف'));r.readAsText(file)})}
 async function inspectBackupFile(ev){
   const file=ev.target.files?.[0];if(!file)return;const box=document.getElementById('backupCheckStatus');box.style.display='block';
   try{const raw=await readJsonFile(file),checked=await verifyBackupPayload(raw);box.className='notice backup-status';box.innerHTML=`✅ <b>النسخة سليمة وقابلة للاستعادة</b><br>اسم الملف: ${escapeHtml(file.name)} • الحجم: ${formatBytes(file.size)}<br>الحجوزات: ${checked.summary.bookings} • المصروفات: ${checked.summary.expenses} • مهام التنظيف: ${checked.summary.cleaning}<br>الإصدار: ${escapeHtml(checked.envelope.version||'قديم')} • تاريخ الإنشاء: ${formatDateTime(checked.envelope.createdAt)}`}
@@ -3484,7 +3537,7 @@ async function renderDataProtectionCenter(){
     <td><span class="protection-status ${status.className}">${escapeHtml(status.label)}</span></td>
     <td>${escapeHtml(r.location||'مخزن المتصفح')}</td>
     <td>${escapeHtml(r.type||'يدوي')}</td>
-    <td><div class="table-actions">${available[r.id]?`<button class="secondary" type="button" onclick="downloadStoredBackup('${r.id}')">تحميل</button><button class="primary" type="button" onclick="restoreStoredBackup('${r.id}')">استعادة</button>`:'<span class="local-missing">استخدم ملف النسخة على هذا الجهاز</span>'}</div></td>
+    <td><div class="table-actions">${available[r.id]?`<button class="secondary" type="button" onclick="downloadStoredBackup(${htmlJsArg(r.id)})">تحميل</button><button class="primary" type="button" onclick="restoreStoredBackup(${htmlJsArg(r.id)})">استعادة</button>`:'<span class="local-missing">استخدم ملف النسخة على هذا الجهاز</span>'}</div></td>
   </tr>`}).join('');
 }
 function recoveryReportHtml(checked,record,fileName=''){
@@ -3521,10 +3574,12 @@ function renderAuditLog(){
   body.innerHTML=rows.map(x=>`<tr><td>${formatDateTime(x.at)}</td><td>${escapeHtml(x.user||'—')}</td><td><b>${escapeHtml(x.action||'—')}</b></td><td>${escapeHtml(x.entity||'—')}</td><td class="audit-details">${escapeHtml(x.details||'')}${x.before||x.after?`<details class="audit-change"><summary>عرض قبل وبعد</summary><pre style="white-space:pre-wrap;direction:ltr;text-align:left">${escapeHtml(JSON.stringify({before:x.before,after:x.after},null,2))}</pre></details>`:''}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">لا توجد عمليات مسجلة بعد</td></tr>';
 }
 function exportAuditLog(){download(`Adwaa-audit-log-${isoToday()}.json`,JSON.stringify(db.auditLog||[],null,2),'application/json')}
-function exportCSV(){let rows=[['رقم الحجز','العميل','الجوال','التاريخ','النوع','المدفوع','الإجمالي','المتبقي','الحالة','ملاحظات'],...db.bookings.map(b=>[b.code,b.name,b.phone,b.date,b.type,b.paid,b.total,b.total-b.paid,b.status,b.notes])];let csv='\ufeff'+rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n');download(`bookings-${isoToday()}.csv`,csv,'text/csv;charset=utf-8')}
+function csvSafeCell(value){const text=String(value??'');return /^[\u0000-\u0020]*[=+\-@]/.test(text)?`'${text}`:text}
+function exportCSV(){let rows=[['رقم الحجز','العميل','الجوال','التاريخ','النوع','المدفوع','الإجمالي','المتبقي','الحالة','ملاحظات'],...db.bookings.map(b=>[b.code,b.name,b.phone,b.date,b.type,b.paid,b.total,b.total-b.paid,b.status,b.notes])];let csv='\ufeff'+rows.map(r=>r.map(v=>`"${csvSafeCell(v).replaceAll('"','""')}"`).join(',')).join('\n');download(`bookings-${isoToday()}.csv`,csv,'text/csv;charset=utf-8')}
 function download(name,content,type){const a=document.createElement('a'),url=URL.createObjectURL(new Blob([content],{type}));a.href=url;a.download=name;a.rel='noopener';document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},1500)}
 async function resetAll(){if(!confirm('سيتم مسح كل الحجوزات والمصروفات من جميع الأجهزة. سيُنشئ النظام نسخة أمان أولًا. هل أنت متأكد؟'))return;await createBackup('قبل المسح',{downloadFile:true,silent:true,note:'نسخة أمان قبل مسح جميع البيانات'});const history=[...(db.backupHistory||[])],audit=[...(db.auditLog||[])];db={bookings:[],expenses:[],cleaningTasks:[],notifications:[],customerNotes:{},backupHistory:history,auditLog:audit,settings:{waNumber:'',welcomeMsgDaily:DEFAULT_WELCOME_DAILY,welcomeMsgStay:DEFAULT_WELCOME_STAY,resortStatus:'ready',resortStatusUpdated:'',calendarMode:'both'},seq:1};addAudit('مسح','جميع البيانات','تم مسح الحجوزات والمصروفات بعد إنشاء نسخة أمان');await persist();alert('تم مسح البيانات من جميع الأجهزة')}
 function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function htmlJsArg(value){return escapeHtml(JSON.stringify(String(value??'')))}
 function startVoice(){let SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert('الإدخال الصوتي غير مدعوم في هذا المتصفح. استخدم Chrome أو Safari الحديث.');return}let r=new SR();r.lang='ar-SA';r.interimResults=false;r.onresult=e=>parseVoice(e.results[0][0].transcript);r.onerror=()=>alert('تعذر التقاط الصوت');r.start();voiceHint.textContent='جاري الاستماع...'}
 function parseVoice(t){voiceHint.textContent='تم سماع: '+t;let paid=t.match(/(?:عربون|دفع|مدفوع)\s*(\d+)/),total=t.match(/(?:الإجمالي|اجمالي|المبلغ)\s*(\d+)/),phone=t.match(/05\d{8}/),day=t.match(/(?:يوم|بتاريخ)\s*(\d{1,2})\s*(?:\/|-|\s)\s*(\d{1,2})?/);let name=t.split(/يوم|بتاريخ|عربون|دفع|مدفوع|الإجمالي|اجمالي|المبلغ/)[0].replace(/سجل|حجز|جديد|للعميل/g,'').trim();if(name)bName.value=name;if(paid)bPaid.value=paid[1];if(total)bTotal.value=total[1];if(phone)bPhone.value=phone[0];if(/مبيت/.test(t)){bType.value='مبيت';const dm=t.match(/(\d+)\s*(?:يوم|أيام)/);if(dm)bStayDays.value=dm[1];updateStayFields();}if(day){let y=new Date().getFullYear(),m=day[2]?Number(day[2]):new Date().getMonth()+1,d=Number(day[1]);bDate.value=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`}}
 const AMOUNT_PRIVACY_KEY='adwaaAmountsHidden';
