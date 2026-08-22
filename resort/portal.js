@@ -373,8 +373,8 @@ async function loadGallery(){
 
 async function loadUnavailablePeriods(){
   const {data,error}=await portalClient
-    .from('customer_portal_unavailable_periods')
-    .select('id,start_date,end_date')
+    .from('customer_portal_unavailable_periods_public')
+    .select('start_date,end_date')
     .order('start_date',{ascending:true});
   if(error){
     console.error(error);

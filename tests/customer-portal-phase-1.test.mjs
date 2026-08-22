@@ -336,8 +336,8 @@ test('بوابة العملاء تعرض المعرض والتقويم والأ�
   assert.match(js,/heroCoverImage\.src/);
   assert.match(js,/function renderPricingOverview/);
   assert.match(js,/CATEGORY_LABELS/);
-  assert.match(js,/customer_portal_unavailable_periods/);
-  assert.match(js,/\.select\('id,start_date,end_date'\)/);
+  assert.match(js,/customer_portal_unavailable_periods_public/);
+  assert.match(js,/\.select\('start_date,end_date'\)/);
   assert.match(js,/function isUnavailable/);
   assert.match(js,/function renderCalendar/);
   assert.match(js,/function formatHijri/);
