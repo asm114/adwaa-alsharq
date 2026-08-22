@@ -91,6 +91,12 @@ function addStyles(){
   if(!document.querySelector('script[data-customer-directory-v2]')){
     const script=document.createElement('script');script.src='customer-directory-trial.js?v=20260822-1';script.defer=true;script.dataset.customerDirectoryV2='1';document.head.appendChild(script);
   }
+  if(!document.querySelector('link[data-home-metric-drilldowns]')){
+    const link=document.createElement('link');link.rel='stylesheet';link.href='home-metric-drilldowns.css?v=20260822-1';link.dataset.homeMetricDrilldowns='1';document.head.appendChild(link);
+  }
+  if(!document.querySelector('script[data-home-metric-drilldowns]')){
+    const script=document.createElement('script');script.src='home-metric-drilldowns.js?v=20260822-1';script.defer=true;script.dataset.homeMetricDrilldowns='1';document.head.appendChild(script);
+  }
 }
 
 function initialize(){
