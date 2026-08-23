@@ -76,3 +76,13 @@ function addStyles(){if(document.getElementById('browserControlsStyle'))return;c
 function init(){addStyles();if(!installButtons()){const mo=new MutationObserver(()=>{if(installButtons())mo.disconnect()});mo.observe(document.documentElement,{childList:true,subtree:true})}watchNavigation()}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
+
+(()=>{
+  if(window.__adwaaCalendarAwarenessLoaderInstalled)return;
+  window.__adwaaCalendarAwarenessLoaderInstalled=true;
+  const script=document.createElement('script');
+  script.src='calendar-awareness.js?v=20260823-1';
+  script.defer=true;
+  script.onerror=()=>console.warn('تعذر تحميل تنبيهات المناسبات والإجازات');
+  document.head.appendChild(script);
+})();
