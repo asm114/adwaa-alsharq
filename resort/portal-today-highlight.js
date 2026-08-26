@@ -194,7 +194,7 @@ function initialize(){
   refreshCalendarUi();
   new MutationObserver(()=>requestAnimationFrame(refreshCalendarUi)).observe(grid,{childList:true});
   const selectedCard=document.getElementById('selectedDayCard');
-  if(selectedCard)new MutationObserver(()=>requestAnimationFrame(decorateSelectedDayPricing)).observe(selectedCard,{childList:true,subtree:true});
+  if(selectedCard)new MutationObserver(()=>requestAnimationFrame(decorateSelectedDayPricing)).observe(selectedCard,{childList:true});
   document.getElementById('prevMonthButton')?.addEventListener('click',()=>requestAnimationFrame(refreshCalendarUi));
   document.getElementById('nextMonthButton')?.addEventListener('click',()=>requestAnimationFrame(refreshCalendarUi));
   document.addEventListener('click',event=>{
