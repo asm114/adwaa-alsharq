@@ -29,13 +29,23 @@ const SCHOOL_HOLIDAYS_1448_1449=[
   {start:'2027-06-24',end:'2027-08-28',name:'إجازة نهاية العام — مدارس',kind:'school',audience:'طلاب المدارس'}
 ];
 
-const UNIVERSITY_COMMON_HOLIDAYS_1448_1449=[
-  {start:'2026-09-23',end:'2026-09-24',name:'إجازة اليوم الوطني — جامعات',kind:'university',audience:'طلاب الجامعات',note:'قد تختلف المدة حسب الجامعة'},
-  {start:'2026-11-19',end:'2026-11-28',name:'إجازة الخريف — جامعات',kind:'university',audience:'طلاب الجامعات',note:'تقويم شائع؛ قد تختلف البداية حسب الجامعة'},
-  {start:'2027-01-08',end:'2027-01-16',name:'إجازة منتصف العام — جامعات',kind:'university',audience:'طلاب الجامعات',note:'تختلف بعض الجامعات في بداية الإجازة'},
-  {start:'2027-02-19',end:'2027-02-22',name:'إجازة يوم التأسيس — جامعات',kind:'university',audience:'طلاب الجامعات',note:'قد تختلف البداية حسب الجامعة'},
-  {start:'2027-02-25',end:'2027-03-13',name:'إجازة عيد الفطر — جامعات',kind:'university',audience:'طلاب الجامعات',note:'تقويم شائع؛ بعض الجامعات تبدأ أبكر'},
-  {start:'2027-05-06',end:'2027-05-22',name:'إجازة عيد الأضحى — جامعات',kind:'university',audience:'طلاب الجامعات',note:'تقويم شائع؛ قد تختلف البداية حسب الجامعة'}
+const PUBLIC_UNIVERSITY_REFERENCE_NAMES=[
+  'جامعة الملك سعود',
+  'جامعة الملك عبدالعزيز',
+  'جامعة أم القرى',
+  'جامعة القصيم'
+];
+
+const PUBLIC_UNIVERSITY_REFERENCE_NOTE='نافذة مجمعة من تقاويم الجامعات الحكومية المرجعية؛ قد تختلف البداية أو النهاية من جامعة لأخرى، ولا يعني ذلك أن جميع الجامعات في إجازة طوال كامل الفترة.';
+
+const PUBLIC_UNIVERSITY_HOLIDAYS_1448_1449=[
+  {start:'2026-09-23',end:'2026-09-26',name:'إجازة اليوم الوطني — جامعات حكومية',kind:'university',audience:'طلاب الجامعات الحكومية المرجعية',note:PUBLIC_UNIVERSITY_REFERENCE_NOTE},
+  {start:'2026-11-20',end:'2026-11-28',name:'إجازة الخريف — جامعات حكومية',kind:'university',audience:'طلاب الجامعات الحكومية المرجعية',note:PUBLIC_UNIVERSITY_REFERENCE_NOTE},
+  {start:'2026-12-27',end:'2027-01-16',name:'إجازة منتصف العام — جامعات حكومية',kind:'university',audience:'طلاب الجامعات الحكومية المرجعية',note:PUBLIC_UNIVERSITY_REFERENCE_NOTE},
+  {start:'2027-02-21',end:'2027-02-22',name:'إجازة يوم التأسيس — جامعات حكومية',kind:'university',audience:'طلاب الجامعات الحكومية المرجعية',note:PUBLIC_UNIVERSITY_REFERENCE_NOTE},
+  {start:'2027-02-14',end:'2027-03-13',name:'إجازة عيد الفطر — جامعات حكومية',kind:'university',audience:'طلاب الجامعات الحكومية المرجعية',note:PUBLIC_UNIVERSITY_REFERENCE_NOTE},
+  {start:'2027-04-30',end:'2027-05-22',name:'إجازة عيد الأضحى — جامعات حكومية',kind:'university',audience:'طلاب الجامعات الحكومية المرجعية',note:PUBLIC_UNIVERSITY_REFERENCE_NOTE},
+  {start:'2027-06-20',end:'2027-08-28',name:'إجازة نهاية العام — جامعات حكومية',kind:'university',audience:'طلاب الجامعات الحكومية المرجعية',note:'تختلف بداية إجازة نهاية العام حسب الجامعة، وقد يستمر الفصل الصيفي لبعض الطلاب.'}
 ];
 
 function hijriPartsForDate(date){
@@ -120,7 +130,7 @@ function getSaudiCalendarEvents(iso){
     if(isIsoInRange(iso,event.start,event.end))pushUniqueEvent(events,event);
   });
 
-  UNIVERSITY_COMMON_HOLIDAYS_1448_1449.forEach(event=>{
+  PUBLIC_UNIVERSITY_HOLIDAYS_1448_1449.forEach(event=>{
     if(isIsoInRange(iso,event.start,event.end))pushUniqueEvent(events,event);
   });
 
@@ -133,6 +143,7 @@ function getSaudiOfficialHoliday(iso){
 
 window.getSaudiCalendarEvents=getSaudiCalendarEvents;
 window.getSaudiOfficialHoliday=getSaudiOfficialHoliday;
+window.PUBLIC_UNIVERSITY_REFERENCE_NAMES=[...PUBLIC_UNIVERSITY_REFERENCE_NAMES];
 
 function installEnhancementStyles(){
   if(document.getElementById('portalBookingEnhancementStyles'))return;
@@ -210,7 +221,7 @@ function ensureHolidayLegend(){
   if(!legend.querySelector('.holiday-calendar-note')){
     const note=document.createElement('div');
     note.className='holiday-calendar-note';
-    note.textContent='يشمل القطاع الحكومي والخاص وتقويم مدارس التعليم العام 1448–1449هـ. إجازات الجامعات الأكاديمية تختلف من جامعة لأخرى، لذلك يظهر التقويم الجامعي الشائع مع تنبيه عند الاختلاف.';
+    note.textContent=`يشمل القطاع الحكومي والخاص ومدارس التعليم العام 1448–1449هـ. للجامعات نعتمد مرجع الجامعات الحكومية المعروفة: ${PUBLIC_UNIVERSITY_REFERENCE_NAMES.join('، ')}، وتظهر نافذة الإجازة المجمعة لأن التواريخ قد تختلف بين جامعة وأخرى.`;
     legend.appendChild(note);
   }
 }
