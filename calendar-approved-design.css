@@ -1,0 +1,78 @@
+/* Approved booking calendar visual layer.
+   Scoped to admin calendar only; no booking, pricing, or Supabase writes. */
+#calendarView{--cal-navy:#0b1728;--cal-navy-2:#12223a;--cal-gold:#c99732;--cal-gold-soft:#fbf1d8;--cal-green:#238b57;--cal-purple:#7656b5;--cal-red:#c74848;--cal-line:#e2e7e4;--cal-muted:#74817d}
+#calendarView>.section{overflow:visible!important;background:transparent!important;border:0!important;box-shadow:none!important}
+#calendarView>.section>.section-head{position:relative;display:grid!important;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:22px!important;border:1px solid rgba(201,151,50,.22)!important;border-radius:24px 24px 0 0!important;background:linear-gradient(145deg,var(--cal-navy),var(--cal-navy-2))!important;color:#fff!important;box-shadow:0 16px 38px rgba(11,23,40,.16)!important}
+#calendarView>.section>.section-head>div:first-child{min-width:0}
+#calendarView>.section>.section-head h3{display:grid;gap:5px;margin:0!important;color:#fff!important}
+#calendarView .calendar-title-main{font-size:30px;font-weight:900;line-height:1.15;letter-spacing:-.02em}
+#calendarView .calendar-title-month{font-size:21px;font-weight:900;color:#f0d38e}
+#calendarView .calendar-title-hijri{font-size:13px;font-weight:700;color:#c3ccda;line-height:1.6}
+#calendarView>.section>.section-head .meta{display:none!important}
+#calendarView .calendar-toolbar{display:flex!important;justify-content:flex-start;align-items:center;gap:8px!important}
+#calendarView .calendar-toolbar .calendar-nav-icon{width:52px!important;height:52px!important;min-width:52px!important;padding:0!important;border:1px solid rgba(201,151,50,.38)!important;border-radius:14px!important;background:rgba(255,255,255,.055)!important;color:#f7dfa7!important;font-size:24px!important;font-weight:900!important;box-shadow:none!important}
+#calendarView .calendar-toolbar .calendar-refresh{font-size:22px!important}
+#calendarView .calendar-toolbar select{min-width:132px!important;border-color:rgba(255,255,255,.18)!important;background:#fff!important;color:#223047!important;box-shadow:none!important}
+#calendarView>.section>div[style*="padding:14px"]{padding:0!important;background:#fff;border:1px solid var(--cal-line);border-top:0;border-radius:0 0 24px 24px;overflow:hidden;box-shadow:0 16px 38px rgba(11,23,40,.07)}
+#calendarView #calendarSummary{padding:14px 16px 4px;margin:0!important;background:#fff}
+#calendarView .calendar-summary-card{background:#f8faf9!important;border-color:#e5e9e7!important;border-radius:14px!important}
+#calendarView .v95-legend{display:flex!important;align-items:center;justify-content:center;gap:22px!important;flex-wrap:wrap;margin:10px 16px!important;padding:14px 16px!important;border:0!important;border-top:1px solid #eef1ef!important;border-bottom:1px solid #eef1ef!important;background:#fff!important}
+#calendarView .v95-legend .cal-key{font-size:13px!important;font-weight:800!important;color:#26352f!important}
+#calendarView .v95-legend .cal-key:nth-child(n+5){display:none!important}
+#calendarView .v95-legend .cal-key:nth-child(2){order:2}
+#calendarView .v95-legend .cal-key:nth-child(3){order:3}
+#calendarView .v95-legend .cal-key:nth-child(1){order:1}
+#calendarView .v95-legend::after{content:'◈  موسم / سعر خاص';order:4;color:#765816;font-size:13px;font-weight:900}
+#calendarView .notice{margin:12px 16px!important;border-color:#ead39a!important;background:#fff9ea!important;color:#765816!important;text-align:center;font-weight:800!important}
+#calendarView #calendar{margin:0 16px 16px!important;gap:5px!important;border:1px solid #e4e8e6;border-radius:18px;overflow:hidden;background:#f3f5f4}
+#calendarView .calendar-weekday{min-height:46px!important;border:0!important;border-radius:0!important;background:#f7f8f8!important;color:#16241f!important;font-size:12px!important;display:grid!important;place-items:center!important}
+#calendarView .day:not(.calendar-weekday){min-height:112px!important;margin:0!important;padding:9px 7px!important;border:0!important;border-radius:0!important;background:#fff!important;box-shadow:inset 0 0 0 1px #edf0ee!important;overflow:hidden!important}
+#calendarView .day:not(.calendar-weekday).today{outline:2px solid #2b79cf!important;outline-offset:-2px!important}
+#calendarView .day:not(.calendar-weekday).busy{background:#f8fbfa!important;box-shadow:inset 0 0 0 1px #b7d9cb!important}
+#calendarView .day:not(.calendar-weekday).partial{background:#fffaf0!important;box-shadow:inset 0 0 0 1px #e6c36a!important}
+#calendarView .day:not(.calendar-weekday).family{background:#f6f1ff!important;box-shadow:inset 0 0 0 1px #b7a0e0!important}
+#calendarView .calendar-date-primary{font-size:15px!important;color:#111c2b!important}
+#calendarView .calendar-date-secondary{font-size:10px!important;color:#7a8782!important}
+#calendarView .calendar-event{display:block!important;margin-top:5px!important;padding:3px 5px!important;border-radius:7px!important;background:#fbf1d8!important;color:#765816!important;font-size:9px!important;font-weight:900!important;white-space:normal!important;line-height:1.3!important}
+#calendarView .calendar-approved-season{display:block;margin-top:4px;padding:3px 5px;border-radius:7px;background:#fbf1d8;color:#765816;font-size:9px;font-weight:900;line-height:1.35}
+#calendarView .calendar-approved-price-pending{display:block;margin-top:4px;color:#7a5a12;font-size:8.5px;font-weight:800;line-height:1.35}
+#calendarView .calendar-approved-client{display:block;margin-top:5px;padding:4px 6px;border-radius:8px;background:#edf7f3;color:#0f684f;font-size:10px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#calendarView .family .calendar-approved-client{background:#eee7ff;color:#6545a1}
+#calendarView .day .dot{font-size:10px!important;margin-top:4px!important}
+#calendarView .day .meta{font-size:8.5px!important;line-height:1.3!important}
+#calendarView .calendar-month-events{margin:4px 16px 18px;border:1px solid #e7dfc9;border-radius:18px;overflow:hidden;background:#fff}
+#calendarView .calendar-month-events-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;background:linear-gradient(180deg,#fffaf0,#fff);border-bottom:1px solid #eee5d1}
+#calendarView .calendar-month-events-head h4{margin:0;font-size:18px;color:#19251f}
+#calendarView .calendar-month-events-head span{font-size:12px;color:#9a762b;font-weight:800}
+#calendarView .calendar-month-events-list{display:grid}
+#calendarView .calendar-month-event{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:12px 16px;border-bottom:1px solid #eef0ef}
+#calendarView .calendar-month-event:last-child{border-bottom:0}
+#calendarView .calendar-month-event strong{display:block;font-size:14px;color:#16231e}
+#calendarView .calendar-month-event small{display:block;margin-top:3px;color:#7a8782;font-size:11px;line-height:1.5}
+#calendarView .calendar-month-event time{font-size:12px;font-weight:800;color:#4b5a55;white-space:nowrap}
+#calendarView .calendar-month-events-empty{padding:20px;text-align:center;color:#7a8782}
+@media(max-width:760px){
+  #calendarView>.section>.section-head{grid-template-columns:1fr!important;padding:18px 16px!important;border-radius:20px 20px 0 0!important}
+  #calendarView .calendar-title-main{font-size:25px}
+  #calendarView .calendar-title-month{font-size:19px}
+  #calendarView .calendar-toolbar{justify-content:flex-start!important;overflow-x:auto;flex-wrap:nowrap!important;padding-bottom:2px}
+  #calendarView .calendar-toolbar select{display:none!important}
+  #calendarView .calendar-toolbar .calendar-nav-icon{width:48px!important;height:48px!important;min-width:48px!important}
+  #calendarView #calendarSummary{grid-template-columns:1fr 1fr!important}
+  #calendarView .v95-legend{gap:10px 15px!important;justify-content:flex-start!important;padding:11px 12px!important;margin:8px 10px!important}
+  #calendarView .v95-legend .cal-key,#calendarView .v95-legend::after{font-size:11px!important}
+  #calendarView .notice{margin:10px!important;font-size:12px!important}
+  #calendarView #calendar{margin:0 8px 12px!important;gap:2px!important;border-radius:12px}
+  #calendarView .calendar-weekday{min-height:34px!important;font-size:9px!important;padding:4px 1px!important}
+  #calendarView .day:not(.calendar-weekday){min-height:94px!important;padding:6px 3px!important}
+  #calendarView .calendar-date-primary{font-size:12px!important}
+  #calendarView .calendar-date-secondary{font-size:7.5px!important}
+  #calendarView .calendar-event,#calendarView .calendar-approved-season{font-size:7px!important;padding:2px 3px!important}
+  #calendarView .calendar-approved-client{font-size:7.5px!important;padding:3px 3px!important}
+  #calendarView .calendar-approved-price-pending{font-size:6.8px!important}
+  #calendarView .day .dot{font-size:7.5px!important}
+  #calendarView .day .meta{display:none!important}
+  #calendarView .calendar-month-events{margin:0 8px 12px;border-radius:13px}
+  #calendarView .calendar-month-event{grid-template-columns:1fr;padding:10px 12px;gap:4px}
+  #calendarView .calendar-month-event time{font-size:10px}
+}

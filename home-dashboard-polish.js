@@ -100,6 +100,12 @@ function addStyles(){
   if(!document.querySelector('link[data-luxe-controls]')){
     const link=document.createElement('link');link.rel='stylesheet';link.href='luxe-controls.css?v=20260822-1';link.dataset.luxeControls='1';document.head.appendChild(link);
   }
+  if(!document.querySelector('link[data-approved-calendar-design]')){
+    const link=document.createElement('link');link.rel='stylesheet';link.href='calendar-approved-design.css?v=20260826-1';link.dataset.approvedCalendarDesign='1';document.head.appendChild(link);
+  }
+  if(!document.querySelector('script[data-approved-calendar-design]')){
+    const script=document.createElement('script');script.src='calendar-approved-design.js?v=20260826-1';script.defer=true;script.dataset.approvedCalendarDesign='1';document.head.appendChild(script);
+  }
 }
 
 function initialize(){
