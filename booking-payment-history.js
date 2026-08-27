@@ -89,7 +89,8 @@
     document.getElementById('bookingDepositAmount')?.addEventListener('input',()=>syncDepositFromControls());
     document.getElementById('bookingDepositAmount')?.addEventListener('change',()=>syncDepositFromControls({render:true}));
     document.getElementById('bookingDepositMethod')?.addEventListener('change',()=>syncDepositFromControls({render:true}));
-    document.getElementById('bTotal')?.addEventListener('input',()=>{syncDepositFromControls();renderPayments()});
+    document.getElementById('bTotal')?.addEventListener('input',()=>renderPayments());
+    document.getElementById('bTotal')?.addEventListener('change',()=>syncDepositFromControls({render:true}));
     document.getElementById('bRecordType')?.addEventListener('change',renderPayments);
     return true;
   }
