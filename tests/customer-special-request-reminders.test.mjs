@@ -4,8 +4,10 @@ import {readFile} from 'node:fs/promises';
 
 const source=await readFile(new URL('../customer-special-request-reminders.js',import.meta.url),'utf8');
 const loader=await readFile(new URL('../worker-check-legacy-cleanup.js',import.meta.url),'utf8');
+const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
 
-test('special request reminder layer is loaded without changing the main document',()=>{
+test('special request reminder layer has a direct cache-busted loader and keeps the legacy fallback',()=>{
+  assert.match(html,/customer-special-request-reminders\.js\?v=20260829-1/);
   assert.match(loader,/customer-special-request-reminders\.js\?v=20260828-1/);
   assert.match(source,/__special_request__:/);
   assert.doesNotMatch(source,/supabase/i);
