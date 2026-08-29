@@ -1,30 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import vm from 'node:vm';
+import {randomUUID} from 'node:crypto';
 
-const source=await readFile(new URL('../customer-special-request-reminders.js',import.meta.url),'utf8');
-const loader=await readFile(new URL('../worker-check-legacy-cleanup.js',import.meta.url),'utf8');
+const root=new URL('../',import.meta.url);
+const source=await readFile(new URL('customer-special-request-reminders.js',root),'utf8');
+const html=await readFile(new URL('index.html',root),'utf8');
+const loader=await readFile(new URL('worker-check-legacy-cleanup.js',root),'utf8');
+function dateAt(days){const date=new Date();date.setHours(12,0,0,0);date.setDate(date.getDate()+days);return`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`}
+function harness(data={}){const window={db:data,escapeHtml:value=>String(value),persist:async()=>{},renderAlerts(){},renderNotifications(){},syncHeaderAlertCount(){},addEventListener(){}};const document={readyState:'loading',addEventListener(){},getElementById(){return null}};const context={window,document,crypto:{randomUUID},localStorage:{setItem(){}},console,setTimeout,clearTimeout};vm.runInNewContext(source,context,{filename:'customer-special-request-reminders.js'});return{window,api:window.__adwaaSpecialRequestTestApi}}
+function baseDB(bookings=[]){return{bookings,notifications:[],customerNotes:{}}}
+function booking(id,date,extra={}){return{id,name:'عميل حالي',phone:'0501234567',date,status:'مؤكد',recordType:'customer',...extra}}
 
-test('special request reminder layer is loaded without changing the main document',()=>{
-  assert.match(loader,/customer-special-request-reminders\.js\?v=20260828-1/);
-  assert.match(source,/__special_request__:/);
-  assert.doesNotMatch(source,/supabase/i);
-});
-
-test('request is customer-level and applies to ordinary or subscription bookings',()=>{
-  assert.match(source,/customerKeyFromBooking=booking=>normalizePhone\(booking\?\.phone\)\|\|String\(booking\?\.name/);
-  assert.match(source,/for\(const booking of bookings\(\)\)/);
-  assert.doesNotMatch(source,/!booking\.subscriptionId|subscriptionId\s*===\s*null/);
-});
-
-test('default reminder is one day before each booking and completion is per booking occurrence',()=>{
-  assert.match(source,/DEFAULT_DAYS_BEFORE=1/);
-  assert.match(source,/shiftDate\(booking\.date,-config\.daysBefore\)/);
-  assert.match(source,/ops:\$\{SPECIAL_TYPE\}:\$\{booking\.id\}:\$\{booking\.date\}:\$\{config\.updatedAt\}/);
-  assert.match(source,/تم التنفيذ/);
-  assert.match(source,/completeCustomerSpecialRequest/);
-});
-
-test('disabled customers do not produce due reminders',()=>{
-  assert.match(source,/if\(!config\?\.enabled\|\|!config\.text\)continue/);
-});
+test('direct loader is single and the customer profile has a permanent section',()=>{assert.match(html,/customer-special-request-reminders\.js\?v=20260829-2/);assert.doesNotMatch(loader,/customer-special-request-reminders\.js/);assert.match(source,/id='customerSpecialRequestCard'/);assert.match(source,/الطلبات الخاصة/)})
+test('legacy customer data is readable and multiple requests support add, edit, delete',()=>{const db=baseDB();db.customerNotes['__special_request__:0501234567']=JSON.stringify({enabled:true,text:'طلب قديم',daysBefore:1});const{api}=harness(db);assert.equal(api.readRequests('0501234567').length,1);assert.equal(api.readRequests('0501234567')[0].text,'طلب قديم');api.writeRequests('0501234567',[{id:'one',text:'تفريغ المسبح',daysBefore:1,enabled:true},{id:'two',text:'فرش إضافي',daysBefore:3,enabled:true}]);assert.deepEqual(Array.from(api.readRequests('0501234567'),x=>x.text),['تفريغ المسبح','فرش إضافي']);api.writeRequests('0501234567',[{id:'one',text:'تجهيز المسبح',daysBefore:2,enabled:true}]);assert.deepEqual(Array.from(api.readRequests('0501234567'),x=>x.text),['تجهيز المسبح'])})
+test('current, new, ordinary, and multi-subscription bookings inherit customer requests',()=>{const date=dateAt(1),db=baseDB([booking('current',date),booking('new',date,{id:'new',type:'يومي'}),booking('subscription',date,{id:'subscription',subscriptionId:'sub-1',subscriptionSequence:2})]);const{api}=harness(db);api.writeRequests('0501234567',[{id:'a',text:'طلب A',daysBefore:1,enabled:true},{id:'b',text:'طلب B',daysBefore:1,enabled:true}]);const rows=api.dueRows();assert.equal(rows.length,3);assert.ok(rows.every(row=>row.requests.length===2))})
+test('one notification is created per booking, completion is scoped, and request remains for next booking',async()=>{const date=dateAt(1),db=baseDB([booking('first',date),booking('next',date)]),{window,api}=harness(db);api.writeRequests('0501234567',[{id:'a',text:'تجهيز معين',daysBefore:1,enabled:true}]);const rows=api.dueRows();rows.forEach(row=>api.ensureNotification(row));rows.forEach(row=>api.ensureNotification(row));assert.equal(db.notifications.length,2);assert.equal(new Set(db.notifications.map(x=>x.bookingId)).size,2);await window.completeCustomerSpecialRequest('first',rows.find(x=>x.booking.id==='first').key);assert.ok(db.notifications.find(x=>x.bookingId==='first').resolvedAt);assert.equal(db.notifications.find(x=>x.bookingId==='next').resolvedAt,'');assert.equal(api.activeRequests('0501234567').length,1)})
+test('changing date or cancelling booking resolves its old notification; customers without requests stay quiet',()=>{const oldDate=dateAt(1),newDate=dateAt(2),db=baseDB([booking('move',oldDate),booking('cancel',oldDate,{id:'cancel'}),booking('quiet',oldDate,{id:'quiet',phone:'0550000000'})]),{api}=harness(db);api.writeRequests('0501234567',[{id:'a',text:'طلب',daysBefore:1,enabled:true}]);const oldRow=api.dueRows().find(x=>x.booking.id==='move'),oldKey=oldRow.key;api.ensureNotification(oldRow);assert.equal(api.dueRows().filter(x=>x.booking.id==='quiet').length,0);db.bookings.find(x=>x.id==='move').date=newDate;db.bookings.find(x=>x.id==='cancel').status='ملغي';const newRows=api.dueRows();api.resolveObsolete(new Set(newRows.map(x=>x.key)));assert.ok(db.notifications[0].resolvedAt);assert.equal(api.dueRows().some(x=>x.booking.id==='cancel'),false);assert.notEqual(oldKey,api.reminderKey(db.bookings.find(x=>x.id==='move'),api.activeRequests('0501234567')))})
