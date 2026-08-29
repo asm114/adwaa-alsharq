@@ -3,196 +3,98 @@
 if(window.__adwaaCustomerSpecialRequestRemindersInstalled)return;
 window.__adwaaCustomerSpecialRequestRemindersInstalled=true;
 
-const CONFIG_PREFIX='__special_request__:';
+const STORAGE_PREFIX='__special_requests__:';
+const LEGACY_PREFIX='__special_request__:';
 const SPECIAL_TYPE='special_request';
 const DEFAULT_DAYS_BEFORE=1;
-let scanTimer=null;
-let renderWrapTimer=null;
-let customerWrapTimer=null;
-
-const state=()=>window.db;
-const bookings=()=>Array.isArray(state()?.bookings)?state().bookings:[];
-const notes=()=>{const db=state();if(!db)return{};db.customerNotes=db.customerNotes&&typeof db.customerNotes==='object'?db.customerNotes:{};return db.customerNotes};
-const notifications=()=>{const db=state();if(!db)return[];db.notifications=Array.isArray(db.notifications)?db.notifications:[];return db.notifications};
-const esc=value=>typeof window.escapeHtml==='function'?window.escapeHtml(String(value??'')):String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
+const MAX_DAYS_BEFORE=3;
+let scanTimer=null,profileWrapTimer=null,bookingWrapTimer=null,alertsWrapTimer=null,closeWrapTimer=null,identityRenderTimer=null;
+const db=()=>window.db;
+const bookings=()=>Array.isArray(db()?.bookings)?db().bookings:[];
+const notifications=()=>{if(!db())return[];db().notifications=Array.isArray(db().notifications)?db().notifications:[];return db().notifications};
+const customerNotes=()=>{if(!db())return{};db().customerNotes=db().customerNotes&&typeof db().customerNotes==='object'?db().customerNotes:{};return db().customerNotes};
+const esc=value=>typeof window.escapeHtml==='function'?window.escapeHtml(String(value??'')):String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const phoneKey=value=>String(value||'').replace(/\D/g,'');
+const normalizedName=value=>String(value||'').trim().toLowerCase();
+function phoneKeys(value){
+ const raw=phoneKey(value);if(!raw)return[];let canonical=raw.startsWith('00')?raw.slice(2):raw;
+ if(/^05\d{8}$/.test(canonical))canonical=`966${canonical.slice(1)}`;else if(/^5\d{8}$/.test(canonical))canonical=`966${canonical}`;
+ return[...new Set([raw,canonical].filter(Boolean))];
+}
+function directCustomerKeys(subject){
+ if(typeof subject==='string')return[...new Set([subject,...phoneKeys(subject)].filter(Boolean))];
+ const explicit=String(subject?.customerKey||subject?.customerId||'').trim(),phones=phoneKeys(subject?.phone);
+ return[...new Set([explicit,...phones,...(!explicit&&!phones.length?[normalizedName(subject?.name)]:[])].filter(Boolean))];
+}
+function relatedCustomerKeys(subject){
+ const keys=new Set(directCustomerKeys(subject));if(!keys.size)return[];
+ let changed=true;
+ while(changed){changed=false;for(const booking of bookings()){
+   const candidate=directCustomerKeys(booking);if(!candidate.some(key=>keys.has(key)))continue;
+   candidate.forEach(key=>{if(!keys.has(key)){keys.add(key);changed=true}});
+ }}
+ return[...keys];
+}
+const customerKeyFromBooking=booking=>resolveCustomerKey(booking);
 const isoDate=date=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
 const todayIso=()=>isoDate(new Date());
-const normalizePhone=value=>String(value||'').replace(/\D/g,'');
-const customerKeyFromBooking=booking=>normalizePhone(booking?.phone)||String(booking?.name||'').trim().toLowerCase();
-const configStorageKey=customerKey=>`${CONFIG_PREFIX}${customerKey}`;
-const activeBooking=booking=>booking&&booking.recordType!=='family'&&!['ملغي','تم الدخول','تم الخروج'].includes(String(booking.status||''));
-
-function parseDate(value){
-  const parts=String(value||'').split('-').map(Number);
-  if(parts.length!==3||parts.some(part=>!Number.isFinite(part)))return null;
-  const date=new Date(parts[0],parts[1]-1,parts[2],12,0,0,0);
-  return Number.isNaN(date.getTime())?null:date;
+const parseDate=value=>{const m=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return null;const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]),12);return d.getFullYear()===Number(m[1])&&d.getMonth()===Number(m[2])-1&&d.getDate()===Number(m[3])?d:null};
+const shiftDate=(value,days)=>{const d=parseDate(value);if(!d)return'';d.setDate(d.getDate()+Number(days||0));return isoDate(d)};
+const daysUntil=value=>{const target=parseDate(value),today=parseDate(todayIso());return target&&today?Math.round((target-today)/86400000):null};
+const requestId=()=>crypto.randomUUID?.()||`request-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+const storageKey=key=>`${STORAGE_PREFIX}${key}`,legacyStorageKey=key=>`${LEGACY_PREFIX}${key}`;
+const clampDays=value=>Math.min(MAX_DAYS_BEFORE,Math.max(1,Number(value||DEFAULT_DAYS_BEFORE)));
+function normalizeRequest(raw,index=0){const text=String(raw?.text||'').trim();return{id:String(raw?.id||`legacy-${index}-${text.slice(0,12)}`),text,enabled:raw?.enabled!==false,daysBefore:clampDays(raw?.daysBefore),updatedAt:String(raw?.updatedAt||'legacy')}}
+function parseStored(raw){if(!raw)return[];try{const parsed=typeof raw==='string'?JSON.parse(raw):raw;if(Array.isArray(parsed))return parsed.map(normalizeRequest).filter(x=>x.text);if(Array.isArray(parsed?.requests))return parsed.requests.map(normalizeRequest).filter(x=>x.text);if(parsed?.text)return[normalizeRequest(parsed)]}catch(_){return[]}return[]}
+function readRequests(key){if(!key)return[];const notes=customerNotes(),current=parseStored(notes[storageKey(key)]);return current.length?current:parseStored(notes[legacyStorageKey(key)])}
+function writeRequests(key,requests){customerNotes()[storageKey(key)]=JSON.stringify({version:2,requests:requests.map(normalizeRequest),updatedAt:new Date().toISOString()})}
+function hasStoredKey(key){const notes=customerNotes();return Object.prototype.hasOwnProperty.call(notes,storageKey(key))||Object.prototype.hasOwnProperty.call(notes,legacyStorageKey(key))}
+function resolveCustomerKey(subject){const keys=relatedCustomerKeys(subject);return keys.find(hasStoredKey)||keys[0]||''}
+function readRequestsFor(subject){return readRequests(resolveCustomerKey(subject))}
+function activeRequests(subject){return readRequestsFor(subject).filter(request=>request.enabled&&request.text)}
+function hash(value){let result=2166136261;for(const char of String(value)){result^=char.charCodeAt(0);result=Math.imul(result,16777619)}return(result>>>0).toString(36)}
+function reminderKey(booking,requests){const fingerprint=hash(requests.map(r=>`${r.id}|${r.text}|${r.daysBefore}|${r.updatedAt}`).join('||'));return`ops:${SPECIAL_TYPE}:${booking.id}:${booking.date}:${fingerprint}`}
+function isActiveBooking(booking){return booking&&booking.recordType!=='family'&&!['ملغي','تم الدخول','تم الخروج'].includes(String(booking.status||''))}
+function dueRows(){const today=todayIso(),rows=[];for(const booking of bookings()){if(!isActiveBooking(booking))continue;const key=customerKeyFromBooking(booking),requests=activeRequests(key);if(!requests.length)continue;const triggerDates=requests.map(request=>shiftDate(booking.date,-request.daysBefore)).filter(Boolean),triggerDate=triggerDates.sort()[0];if(!triggerDate||today<triggerDate||today>booking.date)continue;rows.push({booking,customerKey:key,requests,triggerDate,key:reminderKey(booking,requests)})}return rows.sort((a,b)=>String(a.booking.date).localeCompare(String(b.booking.date)))}
+function notificationFor(key){return notifications().find(item=>String(item?.reminderKey||'')===String(key))}
+function ensureNotification(row){const existing=notificationFor(row.key);if(existing)return existing;const text=row.requests.map(request=>request.text).join(' • ');const item={id:requestId(),type:'operational',operationalType:SPECIAL_TYPE,message:`طلبات خاصة قبل وصول ${row.booking.name||'العميل'}: ${text}`,bookingId:row.booking.id,customerKey:row.customerKey,bookingDate:row.booking.date,reminderKey:row.key,createdAt:new Date().toISOString(),read:false,resolvedAt:'',popupSuppressed:true};notifications().unshift(item);if(notifications().length>120)notifications().length=120;return item}
+function resolveObsolete(expected){let changed=false;for(const item of notifications()){if(item?.operationalType!==SPECIAL_TYPE||item.resolvedAt)continue;if(!expected.has(String(item.reminderKey||''))){item.read=true;item.resolvedAt=new Date().toISOString();item.popupSuppressed=true;changed=true}}return changed}
+async function persistAndRefresh(){try{if(typeof window.persist==='function')await window.persist();else localStorage.setItem('adwaaDB',JSON.stringify(db()))}catch(error){console.warn('تعذر حفظ تنبيه الطلب الخاص',error)}try{window.renderAlerts?.()}catch(_){}try{window.renderNotifications?.()}catch(_){}try{window.syncHeaderAlertCount?.()}catch(_){}
 }
-function shiftDate(value,days){const date=parseDate(value);if(!date)return'';date.setDate(date.getDate()+Number(days||0));return isoDate(date)}
-function daysUntil(value){const target=parseDate(value),today=parseDate(todayIso());if(!target||!today)return null;return Math.round((target-today)/86400000)}
-function readConfig(customerKey){
-  if(!customerKey)return null;
-  const raw=notes()[configStorageKey(customerKey)];
-  if(!raw)return null;
-  try{
-    const parsed=typeof raw==='string'?JSON.parse(raw):raw;
-    if(!parsed||typeof parsed!=='object')return null;
-    return {
-      enabled:parsed.enabled===true,
-      text:String(parsed.text||'').trim(),
-      daysBefore:Math.min(7,Math.max(1,Number(parsed.daysBefore||DEFAULT_DAYS_BEFORE))),
-      updatedAt:String(parsed.updatedAt||'legacy')
-    };
-  }catch(_){return null}
+async function scanSpecialRequests(){if(!db())return[];const rows=dueRows(),expected=new Set(rows.map(row=>row.key));let changed=resolveObsolete(expected);rows.forEach(row=>{if(!notificationFor(row.key)){ensureNotification(row);changed=true}});if(changed)await persistAndRefresh();else renderSpecialAlerts();return rows.filter(row=>{const item=notificationFor(row.key);return item&&!item.resolvedAt})}
+function installStyles(){if(document.getElementById('customerSpecialRequestStyles'))return;const style=document.createElement('style');style.id='customerSpecialRequestStyles';style.textContent=`
+.customer-special-request-card{min-width:0;margin:0;padding:16px;border:1px solid #d7e3df;border-radius:16px;background:#fff}.booking-special-request-section{grid-column:1/-1!important}.booking-special-request-section>.customer-special-request-card{padding:0;border:0;border-radius:0;background:transparent}.customer-special-request-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}.customer-special-request-head>div{min-width:0}.customer-special-request-head h3{margin:0 0 4px;color:#0a4439;font-size:17px;line-height:1.4}.customer-special-request-list{display:grid;gap:10px;min-width:0}.customer-special-request-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(140px,180px) minmax(110px,140px) auto;gap:10px;align-items:end;min-width:0;padding:12px;border:1px solid #d7e3df;background:#f8faf9;border-radius:14px}.customer-special-request-row>*{min-width:0}.customer-special-request-row textarea{min-height:72px;resize:vertical;overflow-wrap:anywhere}.customer-special-request-row .label{display:block;margin-bottom:5px}.customer-special-request-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.customer-special-request-actions button{min-height:44px}.customer-special-request-empty{padding:14px;border:1px dashed #9fb8af;border-radius:12px;color:var(--muted);background:#f8faf9;overflow-wrap:anywhere}.customer-special-status{flex:0 0 auto;color:#14785f;font-weight:800;font-size:12px}.customer-special-request-card[data-dirty="true"] .customer-special-status{color:#9a6a16}.customer-special-request-card[data-unavailable="true"]{opacity:.72}.special-request-alert{border-color:#ead39a!important;background:#fffaf0!important}.special-request-alert .action-alert-icon{background:#f8e7b9!important;color:#765816!important}@media(max-width:720px){.customer-special-request-card{padding:14px}.booking-special-request-section>.customer-special-request-card{padding:0}.customer-special-request-head{align-items:stretch;flex-direction:column;gap:6px}.customer-special-status{align-self:flex-start}.customer-special-request-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.customer-special-request-row textarea{grid-column:1/-1;font-size:16px}.customer-special-request-row select{font-size:16px}.customer-special-request-row button{grid-column:1/-1;min-height:44px}.customer-special-request-actions{display:grid;grid-template-columns:1fr}.customer-special-request-actions button{width:100%}}`;document.head.appendChild(style)}
+function editorHtml(){return`<div class="customer-special-request-head"><div><h3>الطلبات الخاصة</h3><div class="meta">مرتبطة بالعميل وتنعكس تلقائيًا على حجوزاته الحالية والجديدة، بما فيها الاشتراكات.</div></div><span class="customer-special-status" data-request-status role="status" aria-live="polite"></span></div><div class="customer-special-request-list" data-request-list></div><div class="customer-special-request-actions"><button class="secondary" type="button" data-request-add>إضافة طلب خاص</button><button class="primary" type="button" data-request-save>حفظ الطلبات</button></div><div class="meta" style="margin-top:8px">حفظ الطلبات مستقل عن زر حفظ الحجز.</div>`}
+function bindEditor(card){if(card.dataset.bound)return;card.dataset.bound='true';card.addEventListener('click',event=>{const button=event.target.closest('button');if(!button||!card.contains(button))return;if(button.matches('[data-request-add]'))addRequestRow(card);if(button.matches('[data-request-save]'))saveCustomerRequests(card);if(button.dataset.deleteRequest)deleteRequestRow(card,button.dataset.deleteRequest)});['input','change'].forEach(type=>card.addEventListener(type,event=>{event.stopPropagation();if(event.target.matches('[data-request-text],[data-request-days],[data-request-enabled]'))markEditorDirty(card)}))}
+function ensureCustomerSection(){const modal=document.getElementById('customerModal');if(!modal)return null;let card=document.getElementById('customerSpecialRequestCard');if(card)return card;installStyles();card=document.createElement('section');card.id='customerSpecialRequestCard';card.className='customer-special-request-card';card.dataset.requestScope='profile';card.innerHTML=editorHtml();const history=document.getElementById('customerBookingHistory'),anchor=history?.closest('.section')||document.getElementById('customerAdminNotes')?.closest('.section');if(anchor?.parentElement)anchor.parentElement.insertBefore(card,anchor);else modal.querySelector('.sheet')?.appendChild(card);bindEditor(card);return card}
+function ensureBookingSection(){const form=document.getElementById('bookingForm');if(!form)return null;let section=document.getElementById('bookingSpecialRequestSection');if(section)return section;installStyles();section=document.createElement('fieldset');section.id='bookingSpecialRequestSection';section.className='booking-form-section booking-special-request-section';section.innerHTML=`<legend>الطلبات الخاصة بالعميل</legend><div id="bookingSpecialRequestCard" class="customer-special-request-card" data-request-scope="booking">${editorHtml()}</div>`;const anchor=form.querySelector('.booking-stay-section');anchor?.insertAdjacentElement('afterend',section);if(!section.parentElement)form.appendChild(section);bindEditor(section.querySelector('.customer-special-request-card'));return section}
+function requestRowHtml(request,index){return`<div class="customer-special-request-row" data-request-row="${esc(request.id)}"><label style="grid-column:1/-1"><span class="label">الطلب ${index+1}</span><textarea maxlength="300" data-request-text aria-label="نص الطلب ${index+1}">${esc(request.text)}</textarea></label><label><span class="label">موعد التنبيه</span><select data-request-days aria-label="موعد تنبيه الطلب ${index+1}"><option value="1" ${request.daysBefore===1?'selected':''}>قبل الحجز بيوم</option><option value="2" ${request.daysBefore===2?'selected':''}>قبل الحجز بيومين</option><option value="3" ${request.daysBefore===3?'selected':''}>قبل الحجز بـ3 أيام</option></select></label><label><span class="label">الحالة</span><select data-request-enabled aria-label="حالة الطلب ${index+1}"><option value="1" ${request.enabled?'selected':''}>فعّال</option><option value="0" ${!request.enabled?'selected':''}>متوقف</option></select></label><button class="danger" type="button" data-delete-request="${esc(request.id)}" aria-label="حذف الطلب ${index+1}">حذف</button></div>`}
+function bookingEditorSubject(){const id=String(document.getElementById('bId')?.value||''),stored=id?bookings().find(row=>String(row.id)===id):null;if(stored)return stored;return{customerKey:String(document.getElementById('bCustomerKey')?.value||''),name:document.getElementById('bName')?.value||'',phone:document.getElementById('bPhone')?.value||''}}
+function editorSubject(card){return card?.dataset.requestScope==='booking'?bookingEditorSubject():String(document.getElementById('customerProfileKey')?.value||'')}
+function emptyHtml(message='لا توجد طلبات خاصة لهذا العميل. أضف الطلب الأول عند الحاجة.'){return`<div class="customer-special-request-empty">${esc(message)}</div>`}
+function renderEditor(card,subject){if(!card)return;const list=card.querySelector('[data-request-list]'),status=card.querySelector('[data-request-status]'),add=card.querySelector('[data-request-add]'),save=card.querySelector('[data-request-save]'),key=resolveCustomerKey(subject),family=card.dataset.requestScope==='booking'&&document.getElementById('bRecordType')?.value==='family';card.closest('.booking-special-request-section')?.toggleAttribute('hidden',family);if(family)return;const available=!!key,requests=available?readRequests(key):[];card.dataset.customerKey=key;card.dataset.dirty='false';card.dataset.unavailable=String(!available);if(list)list.innerHTML=available?(requests.length?requests.map(requestRowHtml).join(''):emptyHtml()):emptyHtml('أدخل رقم الجوال أو اسم العميل أولًا لربط الطلبات به.');if(status)status.textContent=available?(requests.length?`${requests.length} طلب محفوظ`:'لا توجد طلبات محفوظة'):'بانتظار تحديد العميل';if(add)add.disabled=!available;if(save)save.disabled=!available}
+function renderCustomerSpecialRequests(){renderEditor(ensureCustomerSection(),String(document.getElementById('customerProfileKey')?.value||''))}
+function renderBookingSpecialRequests(){const section=ensureBookingSection(),card=section?.querySelector('.customer-special-request-card');renderEditor(card,bookingEditorSubject())}
+function markEditorDirty(card){card.dataset.dirty='true';const status=card.querySelector('[data-request-status]');if(status)status.textContent='تغييرات غير محفوظة'}
+function rowsFromEditor(card){return[...card.querySelectorAll('[data-request-row]')].map(row=>({id:row.dataset.requestRow||requestId(),text:String(row.querySelector('[data-request-text]')?.value||'').trim(),daysBefore:clampDays(row.querySelector('[data-request-days]')?.value),enabled:row.querySelector('[data-request-enabled]')?.value!=='0',updatedAt:new Date().toISOString()})).filter(request=>request.text)}
+function addRequestRow(card){const list=card.querySelector('[data-request-list]');if(!list)return;const requests=rowsFromEditor(card);requests.push({id:requestId(),text:'',daysBefore:DEFAULT_DAYS_BEFORE,enabled:true});list.innerHTML=requests.map(requestRowHtml).join('');markEditorDirty(card);list.querySelector('[data-request-row]:last-child textarea')?.focus()}
+async function saveCustomerRequests(card=document.getElementById('customerSpecialRequestCard')){if(!card)return false;const subject=card.dataset.customerKey||editorSubject(card),key=resolveCustomerKey(subject);if(!key)return false;const requests=rowsFromEditor(card),notes=customerNotes(),currentKey=storageKey(key),hadCurrent=Object.prototype.hasOwnProperty.call(notes,currentKey),before=notes[currentKey],auditLength=Array.isArray(db()?.auditLog)?db().auditLog.length:null,save=card.querySelector('[data-request-save]');if(save)save.disabled=true;writeRequests(key,requests);try{window.addAudit?.('تعديل','طلبات خاصة لعميل',key,null,{requests})}catch(_){}try{await window.persist?.()}catch(error){if(hadCurrent)notes[currentKey]=before;else delete notes[currentKey];if(auditLength!==null&&Array.isArray(db()?.auditLog))db().auditLog.length=auditLength;const status=card.querySelector('[data-request-status]');if(status)status.textContent='تعذر الحفظ — حاول مرة أخرى';card.dataset.dirty='true';if(save)save.disabled=false;console.warn('تعذر حفظ الطلبات الخاصة',error);return false}renderEditor(card,subject);await scanSpecialRequests();const status=card.querySelector('[data-request-status]');if(status)status.textContent=`تم الحفظ — ${requests.length} طلب`;return true}
+function deleteRequestRow(card,id){const row=[...card.querySelectorAll('[data-request-row]')].find(item=>item.dataset.requestRow===String(id));row?.remove();const list=card.querySelector('[data-request-list]');if(list&&!list.querySelector('[data-request-row]'))list.innerHTML=emptyHtml();markEditorDirty(card)}
+function hasDirtyBookingRequests(){return document.getElementById('bookingSpecialRequestCard')?.dataset.dirty==='true'}
+function reminderLabel(date){const days=daysUntil(date);return days===0?'اليوم':days===1?'غدًا':days>1?`بعد ${days} أيام`:'موعد قريب'}
+function renderSpecialAlerts(){const root=document.getElementById('alertsList');if(!root)return;root.querySelectorAll('.special-request-alert').forEach(card=>card.remove());const rows=dueRows().filter(row=>{const item=notificationFor(row.key);return item&&!item.resolvedAt});if(!rows.length){window.syncHeaderAlertCount?.();return}const first=root.firstChild;rows.forEach(row=>{const card=document.createElement('article');card.className='action-alert special-request-alert';card.dataset.bookingId=String(row.booking.id||'');card.innerHTML=`<span class="action-alert-icon">⚠️</span><div><h3>${esc(`طلبات خاصة ${reminderLabel(row.booking.date)} — ${row.booking.name||'العميل'}`)}</h3><p>${esc(row.requests.map(request=>request.text).join(' • '))} • موعد الحجز ${esc(row.booking.date)}</p></div><button type="button">تم التنفيذ</button>`;card.querySelector('button')?.addEventListener('click',()=>completeCustomerSpecialRequest(row.booking.id,row.key));root.insertBefore(card,first)});window.syncHeaderAlertCount?.()}
+async function completeCustomerSpecialRequest(bookingId,key){const item=notificationFor(key);if(!item||String(item.bookingId)!==String(bookingId))return;item.read=true;item.resolvedAt=new Date().toISOString();item.popupSuppressed=true;try{const booking=bookings().find(row=>String(row.id)===String(bookingId));window.addAudit?.('إكمال','طلب خاص قبل الوصول',booking?.name||String(bookingId),null,{bookingId,reminderKey:key})}catch(_){}await persistAndRefresh();renderSpecialAlerts()}
+function wrapProfile(){const current=window.openCustomerProfile;if(typeof current!=='function'){clearTimeout(profileWrapTimer);profileWrapTimer=setTimeout(wrapProfile,150);return}if(current.__customerSpecialRequestWrapped)return;const wrapped=function(...args){const result=current.apply(this,args);queueMicrotask(renderCustomerSpecialRequests);return result};wrapped.__customerSpecialRequestWrapped=true;wrapped.__base=current;window.openCustomerProfile=wrapped;try{openCustomerProfile=wrapped}catch(_){}
 }
-function writeConfig(customerKey,config){notes()[configStorageKey(customerKey)]=JSON.stringify(config)}
-function specialReminderKey(booking,config){return `ops:${SPECIAL_TYPE}:${booking.id}:${booking.date}:${config.updatedAt}`}
-function dueRows(){
-  const today=todayIso(),rows=[];
-  for(const booking of bookings()){
-    if(!activeBooking(booking))continue;
-    const customerKey=customerKeyFromBooking(booking),config=readConfig(customerKey);
-    if(!config?.enabled||!config.text)continue;
-    const triggerDate=shiftDate(booking.date,-config.daysBefore);
-    if(!triggerDate||today<triggerDate||today>booking.date)continue;
-    rows.push({booking,customerKey,config,triggerDate,key:specialReminderKey(booking,config)});
-  }
-  return rows.sort((a,b)=>String(a.booking.date).localeCompare(String(b.booking.date)));
+function wrapBooking(){const current=window.openBooking;if(typeof current!=='function'){clearTimeout(bookingWrapTimer);bookingWrapTimer=setTimeout(wrapBooking,150);return}if(current.__customerSpecialRequestWrapped)return;const wrapped=function(...args){const result=current.apply(this,args);queueMicrotask(renderBookingSpecialRequests);return result};wrapped.__customerSpecialRequestWrapped=true;wrapped.__base=current;window.openBooking=wrapped;try{openBooking=wrapped}catch(_){}
 }
-function findNotification(key){return notifications().find(item=>item?.reminderKey===key)}
-function unresolvedNotification(key){const item=findNotification(key);return item&&!item.resolvedAt?item:null}
-function ensureNotification(row){
-  let item=findNotification(row.key);
-  if(item)return item;
-  item={id:crypto.randomUUID?.()||`special-${Date.now()}-${Math.random().toString(16).slice(2)}`,type:'operational',operationalType:SPECIAL_TYPE,message:`طلب خاص قبل وصول ${row.booking.name||'العميل'}: ${row.config.text}`,bookingId:row.booking.id,customerKey:row.customerKey,bookingDate:row.booking.date,reminderKey:row.key,createdAt:new Date().toISOString(),read:false,resolvedAt:'',popupSuppressed:true};
-  notifications().unshift(item);
-  if(notifications().length>120)notifications().length=120;
-  return item;
+function wrapBookingClose(){const current=window.closeBookingAndReturn;if(typeof current!=='function'){clearTimeout(closeWrapTimer);closeWrapTimer=setTimeout(wrapBookingClose,150);return}if(current.__customerSpecialRequestWrapped)return;const wrapped=function(...args){if(hasDirtyBookingRequests()&&!confirm('توجد تغييرات غير محفوظة في الطلبات الخاصة. هل تريد الإغلاق دون حفظها؟'))return;const card=document.getElementById('bookingSpecialRequestCard');if(card)card.dataset.dirty='false';return current.apply(this,args)};wrapped.__customerSpecialRequestWrapped=true;wrapped.__base=current;window.closeBookingAndReturn=wrapped;try{closeBookingAndReturn=wrapped}catch(_){}
 }
-function resolveObsolete(expectedKeys){
-  let changed=false;
-  for(const item of notifications()){
-    if(item?.operationalType!==SPECIAL_TYPE||item.resolvedAt)continue;
-    if(!expectedKeys.has(String(item.reminderKey||''))){item.read=true;item.resolvedAt=new Date().toISOString();item.popupSuppressed=true;changed=true}
-  }
-  return changed;
+function wrapAlerts(){const current=window.renderAlerts;if(typeof current!=='function'){clearTimeout(alertsWrapTimer);alertsWrapTimer=setTimeout(wrapAlerts,150);return}if(current.__customerSpecialRequestWrapped)return;const wrapped=function(...args){const result=current.apply(this,args);queueMicrotask(renderSpecialAlerts);return result};wrapped.__customerSpecialRequestWrapped=true;wrapped.__base=current;window.renderAlerts=wrapped;try{renderAlerts=wrapped}catch(_){}
 }
-async function persistAndRefresh(){
-  try{if(typeof window.persist==='function')await window.persist();else localStorage.setItem('adwaaDB',JSON.stringify(state()))}catch(error){console.warn('تعذر حفظ تنبيه الطلب الخاص',error)}
-  try{window.renderAlerts?.()}catch(_){}
-  try{window.renderNotifications?.()}catch(_){}
-  try{window.syncHeaderAlertCount?.()}catch(_){}
-}
-async function scanSpecialRequests({persist=true}={}){
-  if(!state())return[];
-  const rows=dueRows(),expected=new Set(rows.map(row=>row.key));
-  let changed=resolveObsolete(expected);
-  for(const row of rows){if(!findNotification(row.key)){ensureNotification(row);changed=true}}
-  if(changed&&persist)await persistAndRefresh();else renderSpecialAlertCards();
-  return rows.filter(row=>unresolvedNotification(row.key));
-}
-
-function installStyles(){
-  if(document.getElementById('customerSpecialRequestStyles'))return;
-  const style=document.createElement('style');style.id='customerSpecialRequestStyles';style.textContent=`
-    .customer-special-request-card{margin-top:12px;border:1px solid #ead39a;background:#fffaf0;border-radius:18px;padding:14px}.customer-special-request-title{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}.customer-special-request-title h3{margin:0;font-size:17px}.customer-special-toggle{display:inline-flex;align-items:center;gap:8px;font-weight:900;color:#765816}.customer-special-toggle input{width:auto}.customer-special-request-fields{display:grid;grid-template-columns:1fr 170px;gap:9px}.customer-special-request-fields textarea{min-height:74px}.customer-special-help{grid-column:1/-1;color:var(--muted);font-size:12px;line-height:1.7}.customer-special-actions{grid-column:1/-1;display:flex;gap:8px;align-items:center}.customer-special-status{font-size:12px;color:#14785f;font-weight:800}.special-request-alert{border-color:#ead39a!important;background:#fffaf0!important}.special-request-alert .action-alert-icon{background:#f8e7b9!important;color:#765816!important}
-    @media(max-width:620px){.customer-special-request-fields{grid-template-columns:1fr}.customer-special-help,.customer-special-actions{grid-column:auto}}
-  `;document.head.appendChild(style);
-}
-function ensureCustomerSection(){
-  const modal=document.getElementById('customerModal');if(!modal)return null;
-  let card=document.getElementById('customerSpecialRequestCard');
-  if(card)return card;
-  installStyles();
-  card=document.createElement('section');card.id='customerSpecialRequestCard';card.className='customer-special-request-card';card.innerHTML=`
-    <div class="customer-special-request-title"><div><h3>⚠️ طلب خاص متكرر</h3><div class="meta">يظهر قبل كل حجز لهذا العميل، بما فيها حجوزات الاشتراك.</div></div><label class="customer-special-toggle"><input id="customerSpecialRequestEnabled" type="checkbox"> تفعيل</label></div>
-    <div class="customer-special-request-fields">
-      <label><span class="label">الطلب الخاص</span><textarea id="customerSpecialRequestText" maxlength="300" placeholder="مثال: تفريغ المسبح قبل وصول العميل"></textarea></label>
-      <label><span class="label">موعد التنبيه</span><select id="customerSpecialRequestDays"><option value="1" selected>قبل الحجز بيوم</option><option value="2">قبل الحجز بيومين</option><option value="3">قبل الحجز بـ3 أيام</option></select></label>
-      <div class="customer-special-help">التنبيه اختياري. إذا كان غير مفعّل فلن يظهر أي تنبيه لهذا العميل.</div>
-      <div class="customer-special-actions"><button class="primary" id="customerSpecialRequestSave" type="button">حفظ الطلب الخاص</button><span id="customerSpecialRequestStatus" class="customer-special-status"></span></div>
-    </div>`;
-  const history=document.getElementById('customerBookingHistory')?.closest('.section');
-  const notesSection=document.getElementById('customerAdminNotes')?.closest('.section');
-  if(history?.parentElement)history.parentElement.insertBefore(card,history);else if(notesSection?.parentElement)notesSection.after(card);else modal.querySelector('.sheet')?.appendChild(card);
-  card.querySelector('#customerSpecialRequestSave')?.addEventListener('click',saveCustomerSpecialRequest);
-  card.querySelector('#customerSpecialRequestEnabled')?.addEventListener('change',updateSpecialFieldsState);
-  return card;
-}
-function updateSpecialFieldsState(){
-  const enabled=document.getElementById('customerSpecialRequestEnabled')?.checked===true;
-  const text=document.getElementById('customerSpecialRequestText'),days=document.getElementById('customerSpecialRequestDays');
-  if(text)text.disabled=!enabled;if(days)days.disabled=!enabled;
-}
-function currentCustomerKey(){return String(document.getElementById('customerProfileKey')?.value||'')}
-function loadCustomerSpecialRequest(){
-  const card=ensureCustomerSection();if(!card)return;
-  const key=currentCustomerKey(),config=readConfig(key);
-  const enabled=document.getElementById('customerSpecialRequestEnabled'),text=document.getElementById('customerSpecialRequestText'),days=document.getElementById('customerSpecialRequestDays'),status=document.getElementById('customerSpecialRequestStatus');
-  if(enabled)enabled.checked=config?.enabled===true;if(text)text.value=config?.text||'';if(days)days.value=String(config?.daysBefore||DEFAULT_DAYS_BEFORE);if(status)status.textContent=config?.enabled?'التنبيه مفعّل لهذا العميل':'';updateSpecialFieldsState();
-}
-async function saveCustomerSpecialRequest(){
-  const key=currentCustomerKey();if(!key)return;
-  const enabled=document.getElementById('customerSpecialRequestEnabled')?.checked===true;
-  const text=String(document.getElementById('customerSpecialRequestText')?.value||'').trim();
-  const daysBefore=Math.min(7,Math.max(1,Number(document.getElementById('customerSpecialRequestDays')?.value||DEFAULT_DAYS_BEFORE)));
-  if(enabled&&!text){alert('اكتب الطلب الخاص أولًا، أو أوقف التفعيل.');return}
-  const before=readConfig(key),config={enabled,text,daysBefore,updatedAt:new Date().toISOString()};
-  writeConfig(key,config);
-  try{window.addAudit?.('تعديل','طلب خاص متكرر',key,before,config)}catch(_){}
-  try{if(typeof window.persist==='function')await window.persist();else localStorage.setItem('adwaaDB',JSON.stringify(state()))}catch(error){console.warn('تعذر حفظ الطلب الخاص',error);alert('تعذر حفظ الطلب الخاص. حاول مرة أخرى.');return}
-  const status=document.getElementById('customerSpecialRequestStatus');if(status)status.textContent=enabled?'تم الحفظ — التنبيه مفعّل':'تم الحفظ — التنبيه متوقف';
-  await scanSpecialRequests();
-}
-
-function reminderLabel(bookingDate){const days=daysUntil(bookingDate);if(days===0)return'اليوم';if(days===1)return'غدًا';if(days>1)return`بعد ${days} أيام`;return'موعد قريب'}
-function renderSpecialAlertCards(){
-  const root=document.getElementById('alertsList');if(!root)return;
-  root.querySelectorAll('.special-request-alert').forEach(card=>card.remove());
-  const rows=dueRows().filter(row=>unresolvedNotification(row.key));
-  if(!rows.length){window.syncHeaderAlertCount?.();return}
-  const first=root.firstChild;
-  for(const row of rows){
-    const card=document.createElement('article');card.className='action-alert special-request-alert';card.dataset.specialRequest='1';card.dataset.bookingId=String(row.booking.id||'');
-    card.innerHTML=`<span class="action-alert-icon">⚠️</span><div><h3>${esc(`طلب خاص ${reminderLabel(row.booking.date)} — ${row.booking.name||'العميل'}`)}</h3><p>${esc(row.config.text)} • موعد الحجز ${esc(row.booking.date)}</p></div><button type="button">تم التنفيذ</button>`;
-    card.querySelector('button')?.addEventListener('click',()=>completeCustomerSpecialRequest(row.booking.id,row.key));
-    root.insertBefore(card,first);
-  }
-  window.syncHeaderAlertCount?.();
-}
-async function completeCustomerSpecialRequest(bookingId,key){
-  const item=findNotification(String(key||''));
-  if(item){item.read=true;item.resolvedAt=new Date().toISOString();item.popupSuppressed=true}
-  try{const booking=bookings().find(row=>String(row?.id)===String(bookingId));window.addAudit?.('إكمال','طلب خاص قبل الوصول',booking?.name||String(bookingId),null,{bookingId,reminderKey:key})}catch(_){}
-  await persistAndRefresh();
-  renderSpecialAlertCards();
-}
-window.completeCustomerSpecialRequest=completeCustomerSpecialRequest;
-window.getDueCustomerSpecialRequests=()=>dueRows().filter(row=>unresolvedNotification(row.key));
-window.saveCustomerSpecialRequest=saveCustomerSpecialRequest;
-window.loadCustomerSpecialRequest=loadCustomerSpecialRequest;
-
-function wrapRenderAlerts(){
-  const current=window.renderAlerts;
-  if(typeof current!=='function'){clearTimeout(renderWrapTimer);renderWrapTimer=setTimeout(wrapRenderAlerts,120);return}
-  if(current.__customerSpecialRequestWrapped){renderSpecialAlertCards();return}
-  const wrapped=function(...args){const result=current.apply(this,args);queueMicrotask(renderSpecialAlertCards);return result};
-  wrapped.__customerSpecialRequestWrapped=true;wrapped.__base=current;window.renderAlerts=wrapped;try{renderAlerts=wrapped}catch(_){};renderSpecialAlertCards();
-}
-function wrapCustomerProfile(){
-  const current=window.openCustomerProfile;
-  if(typeof current!=='function'){clearTimeout(customerWrapTimer);customerWrapTimer=setTimeout(wrapCustomerProfile,120);return}
-  if(current.__customerSpecialRequestWrapped)return;
-  const wrapped=function(...args){const result=current.apply(this,args);setTimeout(loadCustomerSpecialRequest,0);return result};
-  wrapped.__customerSpecialRequestWrapped=true;wrapped.__base=current;window.openCustomerProfile=wrapped;try{openCustomerProfile=wrapped}catch(_){}
-}
-function start(){
-  installStyles();ensureCustomerSection();wrapCustomerProfile();wrapRenderAlerts();scanSpecialRequests();
-  if(!scanTimer)scanTimer=setInterval(()=>scanSpecialRequests(),60000);
-  window.addEventListener('focus',()=>scanSpecialRequests());
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')scanSpecialRequests()});
-  window.addEventListener('adwaa-subscription-updated',()=>setTimeout(()=>scanSpecialRequests(),0));
-  document.addEventListener('click',event=>{if(event.target.closest('[onclick*="openCustomerProfile"],.customer-directory-row'))setTimeout(loadCustomerSpecialRequest,30)},true);
-}
+function scheduleBookingIdentityRender(){clearTimeout(identityRenderTimer);identityRenderTimer=setTimeout(()=>{const card=document.getElementById('bookingSpecialRequestCard');if(card?.dataset.dirty==='true')return;renderBookingSpecialRequests()},180)}
+function start(){installStyles();ensureCustomerSection();ensureBookingSection();wrapProfile();wrapBooking();wrapBookingClose();wrapAlerts();['bName','bPhone'].forEach(id=>document.getElementById(id)?.addEventListener('input',scheduleBookingIdentityRender));document.getElementById('bRecordType')?.addEventListener('change',renderBookingSpecialRequests);document.getElementById('customerSuggestions')?.addEventListener('click',()=>setTimeout(renderBookingSpecialRequests,0));scanSpecialRequests();if(!scanTimer)scanTimer=setInterval(scanSpecialRequests,60000);window.addEventListener('focus',scanSpecialRequests);window.addEventListener('beforeunload',event=>{if(hasDirtyBookingRequests()){event.preventDefault();event.returnValue=''}});document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')scanSpecialRequests()});window.addEventListener('adwaa-subscription-updated',()=>setTimeout(scanSpecialRequests,0))}
+window.completeCustomerSpecialRequest=completeCustomerSpecialRequest;window.getDueCustomerSpecialRequests=()=>dueRows().filter(row=>{const item=notificationFor(row.key);return item&&!item.resolvedAt});window.renderCustomerSpecialRequests=renderCustomerSpecialRequests;window.renderBookingSpecialRequests=renderBookingSpecialRequests;window.saveCustomerRequests=saveCustomerRequests;
+window.__adwaaSpecialRequestTestApi={normalizeRequest,parseStored,phoneKeys,directCustomerKeys,relatedCustomerKeys,resolveCustomerKey,readRequests,readRequestsFor,writeRequests,activeRequests,dueRows,reminderKey,ensureNotification,resolveObsolete};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
