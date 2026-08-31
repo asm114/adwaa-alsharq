@@ -41,7 +41,7 @@ test('بعد خروج العميل لا تُنشأ مهمة تنظيف ولا ي
   assert.doesNotMatch(reminders,/addReminder\('cleaning'/);
   assert.doesNotMatch(reminders,/مهمة تنظيف/);
   assert.match(reminders,/worker-check-admin\.js\?v=20260819-2/);
-  assert.match(reminders,/worker-check-legacy-cleanup\.js\?v=20260819-2/);
+  assert.match(reminders,/worker-check-legacy-cleanup\.js\?v=20260828-2/);
   assert.match(reminders,/if\(item\.operationalType==='cleaning'\)resolveReminder\(item\)/);
 });
 
