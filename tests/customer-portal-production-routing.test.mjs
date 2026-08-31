@@ -26,11 +26,20 @@ test('جسر بوابة العملاء لا يعيد توجيه createClient إ�
 
 test('Production لا يحمل عميل البوابة القديم الذي يشارك جلسة الإدارة',async()=>{
   const subscription=await read('subscription-booking-type.js');
-  assert.match(subscription,/runtimeEnvironment==='production'\)return;const script=document\.createElement\('script'\);script\.async=false;script\.src='portal-admin-client\.js\?v=20260819-3'/);
+  assert.match(subscription,/runtimeEnvironment==='production'\)return;window\.__adwaaPortalCalendarConsistencyInstalled=true;const script=document\.createElement\('script'\);script\.async=false;script\.src='portal-admin-client\.js\?v=20260819-3'/);
   assert.match(subscription,/portal-dedicated-backend-compat\.js\?v=20260819-3/);
 });
 
-test('إصلاح الإدارة يستخدم قاعدة البوابة المخصصة ولا يغيّر core Supabase',async()=>{
+test('Staging يعطل reconciler القديم قبل تحميل عميل البوابة',async()=>{
+  const subscription=await read('subscription-booking-type.js');
+  const guardIndex=subscription.indexOf('window.__adwaaPortalCalendarConsistencyInstalled=true');
+  const oldClientIndex=subscription.indexOf("script.src='portal-admin-client.js?v=20260819-3'");
+  assert.ok(guardIndex>=0,'legacy reconciler guard must exist');
+  assert.ok(oldClientIndex>guardIndex,'legacy reconciler must be disabled before the old auth client is loaded');
+  assert.equal(subscription.match(/portal-admin-client\.js/g)?.length,1,'official loader must reference the old client only once');
+});
+
+test('الإدارة تستخدم قاعدة البوابة المخصصة ولا تغيّر core Supabase',async()=>{
   const compat=await read('portal-dedicated-backend-compat.js');
   assert.match(compat,new RegExp(`PORTAL_PROJECT_REF='${portalRef}'`));
   assert.match(compat,/window\.portalAdminClient=dedicatedClient/);
