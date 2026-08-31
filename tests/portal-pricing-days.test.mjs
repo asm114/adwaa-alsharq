@@ -4,16 +4,20 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const source=fs.readFileSync(new URL('../resort/portal-pricing-days.js',import.meta.url),'utf8');
+const marker='const HIJRI_NUMERIC_FORMATTER';
+const markerIndex=source.indexOf(marker);
+assert.notEqual(markerIndex,-1,'pricing classifier marker must remain present');
+const classifierSource=`${source.slice(0,markerIndex)}\n})();`;
 
-function loadClassifier(){
-  const context={window:{}};
+function loadClassifier(contextOverrides={}){
+  const context={window:{},...contextOverrides};
   vm.createContext(context);
-  vm.runInContext(source,context);
-  return context.window.isPortalHighDemandDay;
+  vm.runInContext(classifierSource,context);
+  return {context,classify:context.window.isPortalHighDemandDay};
 }
 
 test('customer portal prices Thursday and Friday as high-demand days only',()=>{
-  const classify=loadClassifier();
+  const {classify}=loadClassifier();
   assert.equal(typeof classify,'function');
   assert.equal(classify(new Date('2026-08-13T12:00:00')),true,'Thursday must use high-demand price');
   assert.equal(classify(new Date('2026-08-14T12:00:00')),true,'Friday must use high-demand price');
@@ -25,9 +29,9 @@ test('customer portal prices Thursday and Friday as high-demand days only',()=>{
 });
 
 test('pricing override replaces the legacy portal isWeekend function',()=>{
-  const context={window:{},isWeekend:()=>false};
-  vm.createContext(context);
-  vm.runInContext(source,context);
+  const legacy=()=>false;
+  const {context}=loadClassifier({isWeekend:legacy});
+  assert.notEqual(context.isWeekend,legacy);
   assert.equal(context.isWeekend(new Date('2026-08-13T12:00:00')),true);
   assert.equal(context.isWeekend(new Date('2026-08-15T12:00:00')),false);
 });

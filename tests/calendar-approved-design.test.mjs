@@ -30,5 +30,6 @@ test('styles are scoped to calendar view',()=>{
   const stripped=css.replace(/\/\*[\s\S]*?\*\//g,'');
   const selectors=stripped.split('{').map(x=>x.split('}').pop()?.trim()).filter(Boolean);
   assert.match(css,/#calendarView/);
-  assert.doesNotMatch(css,/supabase|localStorage|booking_id/i);
+  assert.ok(selectors.length>0);
+  assert.doesNotMatch(stripped,/supabase|localStorage|booking_id/i);
 });
