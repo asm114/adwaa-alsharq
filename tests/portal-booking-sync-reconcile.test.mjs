@@ -74,3 +74,35 @@ test('reconcile is idempotent and never creates duplicates',async()=>{
   await h.reconcile();
   assert.deepEqual(h.rows,first);
 });
+
+test('historical legacy overlap is not reported as an availability conflict',async()=>{
+  const rows=[period({id:'legacy-history',source_type:'legacy',booking_id:null,start_date:'2026-08-02',end_date:'2026-08-07'})];
+  const h=createSyncHarness({today:'2026-08-31',bookings:[booking({date:'2026-08-04'})],periods:rows});
+  assert.equal(await h.reconcile(),true);
+  assert.deepEqual(h.rows,rows);
+  assert.deepEqual(h.lastResult().conflicts,[]);
+});
+
+test('historical booking rows and mappings are preserved without rewrite',async()=>{
+  const old=period({id:'history-owned',start_date:'2026-08-20',end_date:'2026-08-20'});
+  const h=createSyncHarness({today:'2026-08-31',bookings:[booking({date:'2026-08-20',portalUnavailablePeriodIds:{'2026-08-20':'history-owned'}})],periods:[old]});
+  assert.equal(await h.reconcile(),true);
+  assert.deepEqual(h.rows,[old]);
+  assert.equal(h.state.bookings[0].portalUnavailablePeriodIds['2026-08-20'],'history-owned');
+});
+
+test('stay that started in the past syncs only today and future occupied days',async()=>{
+  const h=createSyncHarness({today:'2026-08-31',bookings:[booking({date:'2026-08-30',type:'مبيت',stayDays:3})]});
+  assert.equal(await h.reconcile(),true);
+  assert.deepEqual(h.rows.map(row=>row.start_date),['2026-08-31','2026-09-01']);
+  assert.deepEqual(Object.keys(h.state.bookings[0].portalUnavailablePeriodIds),['2026-08-31','2026-09-01']);
+});
+
+test('today or future conflicts are still blocked and reported',async()=>{
+  const futureLegacy=period({id:'legacy-future',source_type:'legacy',booking_id:null,start_date:'2026-09-10',end_date:'2026-09-10'});
+  const h=createSyncHarness({today:'2026-08-31',bookings:[booking()],periods:[futureLegacy]});
+  assert.equal(await h.reconcile(),false);
+  assert.equal(h.lastResult().conflicts.length,1);
+  assert.equal(h.lastResult().conflicts[0].sourceType,'legacy');
+  assert.deepEqual(h.rows,[futureLegacy]);
+});
