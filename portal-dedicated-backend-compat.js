@@ -133,3 +133,4 @@ if(!install()){
 })();
 
 (()=>{const script=document.createElement('script');script.async=false;script.src='portal-unavailable-ownership-guard.js?v=20260831-1';script.onerror=()=>console.warn('تعذر تحميل حماية ملكية فترات بوابة العملاء');document.head.appendChild(script)})();
+(()=>{const script=document.createElement('script');script.async=false;script.src='data-protection-status-clarity.js?v=20260831-1';script.onerror=()=>console.warn('تعذر تحميل توضيح أسباب حالة حماية البيانات');document.head.appendChild(script)})();
