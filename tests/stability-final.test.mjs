@@ -104,7 +104,7 @@ test('لودرات التدقيق النهائي تستخدم أرقام كاش 
   const portalHtml=await read('resort/index.html');
   assert.match(finalAdmin,/booking-payment-history\.js\?v=20260813-2/);
   assert.match(finalAdmin,/subscription-booking-type\.js\?v=20260813-4/);
-  assert.match(finalAdmin,/portal-booking-sync-stable\.js\?v=20260813-4/);
+  assert.match(finalAdmin,/portal-booking-sync-stable\.js\?v=20260831-1/);
   assert.match(subscription,/portal-admin-client\.js\?v=20260819-3/);
   assert.match(subscription,/subscription-commission-core\.js\?v=20260813-1/);
   assert.match(subscription,/subscription-revenue-integration\.js\?v=20260813-2/);

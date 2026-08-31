@@ -125,7 +125,13 @@ async function loadPeriods(client){
   if(error)throw error;
   return Array.isArray(data)?data:[];
 }
-function periodCovering(periods,date){return periods.find(period=>date>=period.start_date&&date<=period.end_date)||null}
+function periodCoversDate(period,date){return !!period&&date>=period.start_date&&date<=period.end_date}
+function periodOwnedByBooking(period,bookingId,date){
+  return !!period&&period.source_type===SOURCE_BOOKING&&String(period.booking_id||'')===String(bookingId||'')&&periodCoversDate(period,date);
+}
+function periodById(periods,id){return id?periods.find(period=>period.id===id)||null:null}
+function ownedPeriodForDate(periods,bookingId,date){return periods.find(period=>periodOwnedByBooking(period,bookingId,date))||null}
+function conflictingPeriodForDate(periods,bookingId,date){return periods.find(period=>periodCoversDate(period,date)&&!periodOwnedByBooking(period,bookingId,date))||null}
 async function createPeriod(client,date,bookingId){
   const owner=String(bookingId||'').trim();
   if(!owner)throw new Error('تعذر إنشاء إغلاق الحجز بدون معرف ملكية.');
@@ -140,6 +146,27 @@ async function deletePeriod(client,id,bookingId){
   if(owner)query=query.eq('booking_id',owner);
   const {error}=await query;
   if(error)throw error;
+}
+async function deletePeriodsForBooking(client,bookingId){
+  const owner=String(bookingId||'').trim();
+  if(!owner)return;
+  const {error}=await client.from(TABLE).delete().eq('source_type',SOURCE_BOOKING).eq('booking_id',owner);
+  if(error)throw error;
+}
+async function deleteObsoleteBookingPeriods(client,periods,desiredByBooking){
+  let cleaned=0;
+  for(const period of [...periods]){
+    if(period.source_type!==SOURCE_BOOKING)continue;
+    const owner=String(period.booking_id||'');
+    if(!desiredByBooking.has(owner))continue;
+    const desired=desiredByBooking.get(owner);
+    const exactOwnedDay=period.start_date===period.end_date&&desired?.has(period.start_date);
+    if(exactOwnedDay)continue;
+    await deletePeriod(client,period.id,owner);
+    periods=periods.filter(item=>item.id!==period.id);
+    cleaned++;
+  }
+  return{periods,cleaned};
 }
 async function saveMappingState(){
   if(typeof window.persist!=='function')return true;
@@ -164,7 +191,7 @@ async function flushCapturedDeletes(client){
   for(const [bookingId,map] of [...pendingDeletes]){
     const stillExists=(state()?.bookings||[]).some(booking=>booking.id===bookingId);
     if(stillExists){pendingDeletes.delete(bookingId);continue}
-    for(const id of [...new Set(Object.values(map||{}).filter(Boolean))])await deletePeriod(client,id,bookingId);
+    await deletePeriodsForBooking(client,bookingId);
     pendingDeletes.delete(bookingId);
     cleaned++;
   }
@@ -190,21 +217,41 @@ async function reconcileAll(reason='auto'){
     const deletedCount=await flushCapturedDeletes(client);
     let periods=await loadPeriods(client);
     let stateChanged=restored;
+    const desiredByBooking=new Map(state().bookings.map(booking=>[String(booking.id||''),new Set(occupiedDates(booking))]));
+    const cleanup=await deleteObsoleteBookingPeriods(client,periods,desiredByBooking);
+    periods=cleanup.periods;
+    const conflicts=[];
 
     for(const booking of state().bookings){
       const desired=new Set(occupiedDates(booking));
       const oldMap=mappingOf(booking);
-      const nextMap={...oldMap};
+      const nextMap={};
 
       for(const [date,id] of Object.entries(oldMap)){
         if(desired.has(date))continue;
-        await deletePeriod(client,id,booking.id);
-        periods=periods.filter(period=>period.id!==id);
-        delete nextMap[date];
+        const mapped=periodById(periods,id);
+        if(mapped&&mapped.source_type===SOURCE_BOOKING&&String(mapped.booking_id||'')===String(booking.id||'')){
+          await deletePeriod(client,id,booking.id);
+          periods=periods.filter(period=>period.id!==id);
+        }
       }
 
       for(const date of desired){
-        if(nextMap[date]||periodCovering(periods,date))continue;
+        const mapped=periodById(periods,oldMap[date]);
+        if(periodOwnedByBooking(mapped,booking.id,date)){
+          nextMap[date]=mapped.id;
+          continue;
+        }
+        const existing=ownedPeriodForDate(periods,booking.id,date);
+        if(existing){
+          nextMap[date]=existing.id;
+          continue;
+        }
+        const conflict=conflictingPeriodForDate(periods,booking.id,date);
+        if(conflict){
+          conflicts.push({bookingId:String(booking.id||''),date,periodId:conflict.id,sourceType:conflict.source_type,owner:String(conflict.booking_id||'')});
+          continue;
+        }
         try{
           const created=await createPeriod(client,date,booking.id);
           if(created){periods.push(created);nextMap[date]=created.id}
@@ -220,7 +267,12 @@ async function reconcileAll(reason='auto'){
     if(stateChanged&&!(await saveMappingState())){
       throw new Error('تم تحديث توفر البوابة، لكن تعذر تثبيت خريطة الربط في Supabase. بقيت الخريطة محفوظة على هذا الجهاز وستدخل مع أول حفظ ناجح لاحقًا.');
     }
-    report(`تمت مزامنة توفر بوابة العملاء (${reason})${deletedCount?`، وتحرير ${deletedCount} حجز محذوف`:''}.`,'success');
+    window.portalBookingSyncLastResult={ok:conflicts.length===0,reason,conflicts,cleanedBookingPeriods:cleanup.cleaned,deletedBookings:deletedCount};
+    if(conflicts.length){
+      report(`اكتملت المزامنة مع وجود ${conflicts.length} تعارض في التواريخ. لم يتم تغيير السجلات المتعارضة.`,'error');
+      return false;
+    }
+    report(`تمت مزامنة توفر بوابة العملاء (${reason})${cleanup.cleaned?`، وتنظيف ${cleanup.cleaned} سجل قديم`:''}${deletedCount?`، وتحرير ${deletedCount} حجز محذوف`:''}.`,'success');
     return true;
   }catch(error){
     console.error('فشل مزامنة توفر بوابة العملاء',error);
