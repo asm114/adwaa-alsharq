@@ -69,7 +69,7 @@ function initialize(){addSubscriptionOption();wrapOpenBooking();setTimeout(()=>{
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize);else initialize();
 })();
 
-(()=>{if(window.ADWAA_SUPABASE_CONFIG?.runtimeEnvironment==='production')return;const script=document.createElement('script');script.async=false;script.src='portal-admin-client.js?v=20260819-3';script.onerror=()=>console.warn('تعذر تحميل جلسة إدارة بوابة العملاء');document.head.appendChild(script)})();
+(()=>{if(window.ADWAA_SUPABASE_CONFIG?.runtimeEnvironment==='production')return;window.__adwaaPortalCalendarConsistencyInstalled=true;const script=document.createElement('script');script.async=false;script.src='portal-admin-client.js?v=20260819-3';script.onerror=()=>console.warn('تعذر تحميل جلسة إدارة بوابة العملاء');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='portal-dedicated-backend-compat.js?v=20260819-3';script.onerror=()=>console.warn('تعذر تحميل ربط بوابة العملاء المخصصة');document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='subscription-draft-workflow.js';document.head.appendChild(script)})();
 (()=>{const script=document.createElement('script');script.async=false;script.src='subscription-editing.js?v=20260807-2';script.onerror=()=>console.warn('تعذر تحميل تعديل الاشتراكات');document.head.appendChild(script)})();
