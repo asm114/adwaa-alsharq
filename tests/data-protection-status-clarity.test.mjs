@@ -8,9 +8,10 @@ const loader=fs.readFileSync('portal-dedicated-backend-compat.js','utf8');
 test('مركز حماية البيانات يعرض سبب حالة يحتاج مراجعة مباشرة على الجوال',()=>{
   assert.match(clarity,/سبب أن الحالة تحتاج مراجعة/);
   assert.match(clarity,/protectionReviewSummary/);
-  assert.match(clarity,/protectionReason-protectionLevel/);
-  assert.match(clarity,/protectionReason-protectionSystemStatus/);
-  assert.match(clarity,/protectionReason-protectionSyncStatus/);
+  assert.match(clarity,/protectionReason-\$\{targetId\}/);
+  assert.match(clarity,/setReason\('protectionLevel'/);
+  assert.match(clarity,/setReason\('protectionSystemStatus'/);
+  assert.match(clarity,/setReason\('protectionSyncStatus'/);
   assert.match(clarity,/غير موجودة داخل مخزن النسخ الآمن في هذا المتصفح على هذا الجهاز/);
 });
 
