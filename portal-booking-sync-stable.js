@@ -155,12 +155,17 @@ async function deletePeriodsForBooking(client,bookingId){
 }
 async function deleteObsoleteBookingPeriods(client,periods,desiredByBooking){
   let cleaned=0;
+  const desiredDates=new Set();
+  for(const desired of desiredByBooking.values())for(const date of desired)desiredDates.add(date);
   for(const period of [...periods]){
     if(period.source_type!==SOURCE_BOOKING)continue;
     const owner=String(period.booking_id||'');
+    const ownerKnown=desiredByBooking.has(owner);
     const desired=desiredByBooking.get(owner);
     const exactOwnedDay=period.start_date===period.end_date&&desired?.has(period.start_date);
     if(exactOwnedDay)continue;
+    const conflictsWithDesired=!ownerKnown&&[...desiredDates].some(date=>periodCoversDate(period,date));
+    if(conflictsWithDesired)continue;
     await deletePeriod(client,period.id,owner);
     periods=periods.filter(item=>item.id!==period.id);
     cleaned++;
