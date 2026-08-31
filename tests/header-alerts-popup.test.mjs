@@ -44,5 +44,5 @@ test('تنظيف الواجهة يعيد مزامنة الجرس ويحمل نس
 
 test('مركز التنبيهات يحمل نسخة محدثة من تنظيف الواجهة',async()=>{
   const operations=await read('operational-reminders-center.js');
-  assert.match(operations,/worker-check-legacy-cleanup\.js\?v=20260819-2/);
+  assert.match(operations,/worker-check-legacy-cleanup\.js\?v=20260828-2/);
 });
