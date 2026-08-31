@@ -30,6 +30,7 @@ jobs:
             portal-dedicated-backend-compat.js
             portal-unavailable-ownership-guard.js
             data-protection-status-clarity.js
+            backup-flow-reliability.js
             portal-booking-sync-stable.js
             portal-final-admin.js
             booking-payment-history.js
