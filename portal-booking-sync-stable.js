@@ -158,7 +158,6 @@ async function deleteObsoleteBookingPeriods(client,periods,desiredByBooking){
   for(const period of [...periods]){
     if(period.source_type!==SOURCE_BOOKING)continue;
     const owner=String(period.booking_id||'');
-    if(!desiredByBooking.has(owner))continue;
     const desired=desiredByBooking.get(owner);
     const exactOwnedDay=period.start_date===period.end_date&&desired?.has(period.start_date);
     if(exactOwnedDay)continue;
