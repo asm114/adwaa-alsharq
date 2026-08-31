@@ -46,6 +46,13 @@ test('deleting a booking removes all rows for that booking id only',async()=>{
   assert.deepEqual(h.rows.map(row=>row.id),['manual-a']);
 });
 
+test('orphan booking rows are removed even when deletion was outside the wrapped UI',async()=>{
+  const rows=[period({id:'orphan-booking',booking_id:'booking-deleted'}),period({id:'manual-a',source_type:'manual',booking_id:null,start_date:'2026-09-12',end_date:'2026-09-12'}),period({id:'legacy-a',source_type:'legacy',booking_id:null,start_date:'2026-09-13',end_date:'2026-09-13'})];
+  const h=createSyncHarness({bookings:[],periods:rows});
+  await h.reconcile();
+  assert.deepEqual(h.rows.map(row=>row.id),['manual-a','legacy-a']);
+});
+
 test('multi-day stay creates and maps every occupied day',async()=>{
   const h=createSyncHarness({bookings:[booking({type:'مبيت',stayDays:3})]});
   await h.reconcile();
