@@ -27,6 +27,16 @@ function occupiedDates(booking){
   const days=booking.type==='مبيت'?Math.max(1,Number(booking.stayDays||1)):1;
   return Array.from({length:days},(_,index)=>addDays(booking.date,index));
 }
+function riyadhToday(){
+  const override=String(window.__portalSyncToday||'').trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(override))return override;
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Riyadh',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const get=type=>parts.find(part=>part.type===type)?.value||'';
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+function syncableDates(booking,today=riyadhToday()){
+  return occupiedDates(booking).filter(date=>date>=today);
+}
 function mappingOf(booking){
   const value=booking?.[MAP_KEY];
   return value&&typeof value==='object'&&!Array.isArray(value)?{...value}:{};
@@ -153,12 +163,13 @@ async function deletePeriodsForBooking(client,bookingId){
   const {error}=await client.from(TABLE).delete().eq('source_type',SOURCE_BOOKING).eq('booking_id',owner);
   if(error)throw error;
 }
-async function deleteObsoleteBookingPeriods(client,periods,desiredByBooking){
+async function deleteObsoleteBookingPeriods(client,periods,desiredByBooking,today){
   let cleaned=0;
   const desiredDates=new Set();
   for(const desired of desiredByBooking.values())for(const date of desired)desiredDates.add(date);
   for(const period of [...periods]){
     if(period.source_type!==SOURCE_BOOKING)continue;
+    if(period.end_date<today)continue;
     const owner=String(period.booking_id||'');
     const ownerKnown=desiredByBooking.has(owner);
     const desired=desiredByBooking.get(owner);
@@ -221,18 +232,19 @@ async function reconcileAll(reason='auto'){
     const deletedCount=await flushCapturedDeletes(client);
     let periods=await loadPeriods(client);
     let stateChanged=restored;
-    const desiredByBooking=new Map(state().bookings.map(booking=>[String(booking.id||''),new Set(occupiedDates(booking))]));
-    const cleanup=await deleteObsoleteBookingPeriods(client,periods,desiredByBooking);
+    const today=riyadhToday();
+    const desiredByBooking=new Map(state().bookings.map(booking=>[String(booking.id||''),new Set(syncableDates(booking,today))]));
+    const cleanup=await deleteObsoleteBookingPeriods(client,periods,desiredByBooking,today);
     periods=cleanup.periods;
     const conflicts=[];
 
     for(const booking of state().bookings){
-      const desired=new Set(occupiedDates(booking));
+      const desired=new Set(syncableDates(booking,today));
       const oldMap=mappingOf(booking);
-      const nextMap={};
+      const nextMap=Object.fromEntries(Object.entries(oldMap).filter(([date])=>date<today));
 
       for(const [date,id] of Object.entries(oldMap)){
-        if(desired.has(date))continue;
+        if(date<today||desired.has(date))continue;
         const mapped=periodById(periods,id);
         if(mapped&&mapped.source_type===SOURCE_BOOKING&&String(mapped.booking_id||'')===String(booking.id||'')){
           await deletePeriod(client,id,booking.id);
