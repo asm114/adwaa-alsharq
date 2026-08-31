@@ -80,7 +80,7 @@ test('historical legacy overlap is not reported as an availability conflict',asy
   const h=createSyncHarness({today:'2026-08-31',bookings:[booking({date:'2026-08-04'})],periods:rows});
   assert.equal(await h.reconcile(),true);
   assert.deepEqual(h.rows,rows);
-  assert.deepEqual(h.lastResult().conflicts,[]);
+  assert.equal(h.lastResult().conflicts.length,0);
 });
 
 test('historical booking rows and mappings are preserved without rewrite',async()=>{
