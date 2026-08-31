@@ -18,12 +18,20 @@ test('Migration ملكية الإغلاقات يحفظ القديم كـ legacy 
   assert.doesNotMatch(sql,/drop table|truncate/i);
 });
 
-test('فحص التوافق يحذف فقط الإغلاقات المملوكة للحجز ولا يحذف legacy تلقائيًا',async()=>{
-  const js=await read('portal-admin-client.js');
-  assert.match(js,/source_type:SOURCE_BOOKING,booking_id:id/);
-  assert.match(js,/period\.source_type!==SOURCE_BOOKING/);
-  assert.match(js,/\.delete\(\)\.eq\('id',period\.id\)\.eq\('source_type',SOURCE_BOOKING\)/);
-  assert.match(js,/period\.source_type===SOURCE_LEGACY&&exactDay\(period,date\)/);
-  assert.match(js,/legacyUnownedSingleDays/);
-  assert.doesNotMatch(js,/SOURCE_LEGACY[\s\S]*\.delete\(\)\.eq\('source_type',SOURCE_LEGACY\)/);
+test('المزامن المستقر يكتب ويحذف booking فقط ويعامل manual وlegacy كتعارض غير قابل للامتلاك',async()=>{
+  const stable=await read('portal-booking-sync-stable.js');
+  assert.match(stable,/source_type:SOURCE_BOOKING,booking_id:owner/);
+  assert.match(stable,/\.delete\(\)\.eq\('id',id\)\.eq\('source_type',SOURCE_BOOKING\)/);
+  assert.match(stable,/conflictingPeriodForDate\(periods,booking\.id,date\)/);
+  assert.doesNotMatch(stable,/SOURCE_LEGACY/);
+  assert.doesNotMatch(stable,/source_type\s*:\s*['"]legacy['"]/i);
+  assert.doesNotMatch(stable,/source_type\s*:\s*['"]manual['"]/i);
+});
+
+test('المسار الرسمي يعطل reconciler القديم قبل تحميل portal-admin-client في Staging',async()=>{
+  const loader=await read('subscription-booking-type.js');
+  const guardIndex=loader.indexOf('window.__adwaaPortalCalendarConsistencyInstalled=true');
+  const clientIndex=loader.indexOf("script.src='portal-admin-client.js?v=20260819-3'");
+  assert.ok(guardIndex>=0);
+  assert.ok(clientIndex>guardIndex);
 });
