@@ -28,6 +28,7 @@ jobs:
           files=(
             portal-admin-client.js
             portal-dedicated-backend-compat.js
+            portal-unavailable-ownership-guard.js
             portal-booking-sync-stable.js
             portal-final-admin.js
             booking-payment-history.js
