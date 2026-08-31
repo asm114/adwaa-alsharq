@@ -14,7 +14,7 @@ function resultBuilder(run){
   return builder;
 }
 
-export function createSyncHarness({bookings=[],periods=[],selectedBookingId=''}={}){
+export function createSyncHarness({bookings=[],periods=[],selectedBookingId='',today='2026-08-31'}={}){
   let sequence=100;
   const rows=structuredClone(periods);
   const state={bookings:structuredClone(bookings)};
@@ -50,7 +50,7 @@ export function createSyncHarness({bookings=[],periods=[],selectedBookingId=''}=
     body:{appendChild(){}},head:{appendChild(){}}
   };
   const window={
-    db:state,portalAdminClient:client,portalAdminAuthState:{ready:false},
+    db:state,portalAdminClient:client,portalAdminAuthState:{ready:false},__portalSyncToday:today,
     verifyPortalAdminSession:async()=>true,
     addEventListener(){},portalUnavailableStatus(){},
     persist:async()=>{context.lastSuccessfulWriteAt=String(Number(context.lastSuccessfulWriteAt)+1)},
