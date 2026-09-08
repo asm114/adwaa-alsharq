@@ -10,6 +10,14 @@ const SPECIAL_OCCASION_PRICE_TEXT='يحدد من قبل الإدارة';
 function localIso(date=new Date()){
   return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
 }
+function riyadhIso(date=new Date()){
+  try{
+    const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Riyadh',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date);
+    const values=Object.fromEntries(parts.filter(part=>part.type!=='literal').map(part=>[part.type,part.value]));
+    if(values.year&&values.month&&values.day)return `${values.year}-${values.month}-${values.day}`;
+  }catch(_){}
+  return localIso(date);
+}
 function holidayEvents(iso){
   try{
     return typeof window.getSaudiCalendarEvents==='function'?(window.getSaudiCalendarEvents(iso)||[]):[];
@@ -75,6 +83,8 @@ function ensureStyle(){
     .calendar-day.portal-today{position:relative;border:3px solid #c99b42!important;box-shadow:0 0 0 3px rgba(201,155,66,.22)!important}
     .calendar-day.portal-today:before{content:'اليوم';position:absolute;top:3px;left:3px;padding:1px 5px;border-radius:999px;background:#c99b42;color:#17372f;font-size:8px;font-weight:900;line-height:1.5;z-index:2}
     .calendar-day.portal-today.unavailable{border-color:#c99b42!important;opacity:1}
+    .calendar-day.portal-past{background:#f4f5f3!important;color:#818b87!important;border-color:#e0e5e2!important;box-shadow:none!important;cursor:default!important;opacity:.76}
+    .calendar-day.portal-past span{background:#e8ecea!important;color:#6f7975!important}
     .header-whatsapp-hidden{display:none!important}
     .nav-availability{background:var(--gold);color:#18352d;white-space:nowrap}
     .calendar-day .calendar-weekday{display:none}
@@ -124,12 +134,49 @@ function compactFloatingWhatsapp(){
   button.classList.add('floating-whatsapp-compact');
   button.setAttribute('aria-label','تواصل عبر واتساب');
 }
+function hideHistoricalAvailability(grid){
+  const today=riyadhIso();
+  try{
+    if(Array.isArray(unavailablePeriods))unavailablePeriods=unavailablePeriods.filter(period=>String(period?.end_date||'')>=today);
+  }catch(_){}
+  grid.querySelectorAll('.calendar-day[data-date]').forEach(day=>{
+    const iso=String(day.dataset.date||'');
+    if(!iso||iso>=today)return;
+    day.classList.remove('available','unavailable','selected','portal-today');
+    day.classList.add('portal-past');
+    day.disabled=true;
+    day.setAttribute('aria-disabled','true');
+    day.querySelectorAll('em,b').forEach(node=>node.remove());
+    const status=day.querySelector('span');
+    if(status)status.textContent='منتهي';
+    let label=iso;
+    try{if(typeof formatGregorian==='function')label=formatGregorian(iso);}catch(_){}
+    day.setAttribute('aria-label',`${label}، منتهي`);
+  });
+}
+function calendarMonthKey(){
+  try{
+    if(typeof calendarCursor!=='undefined'&&calendarCursor instanceof Date&&!Number.isNaN(calendarCursor.getTime())){
+      return `${calendarCursor.getFullYear()}-${String(calendarCursor.getMonth()+1).padStart(2,'0')}`;
+    }
+  }catch(_){}
+  return riyadhIso().slice(0,7);
+}
+function enforceCurrentMonthFloor(){
+  const previous=document.getElementById('prevMonthButton');
+  if(!previous)return;
+  const atFloor=calendarMonthKey()<=riyadhIso().slice(0,7);
+  previous.disabled=atFloor;
+  previous.setAttribute('aria-disabled',atFloor?'true':'false');
+  previous.title=atFloor?'لا تُعرض الأشهر المنتهية في بوابة العملاء':'';
+}
 function decorateCalendarDays(grid){
   grid.querySelectorAll('.calendar-day[data-date]').forEach(day=>{
     const iso=String(day.dataset.date||'');
     const date=new Date(`${iso}T12:00:00`);
     if(Number.isNaN(date.getTime()))return;
     day.dataset.weekday=weekdayFormatter.format(date);
+    if(iso<riyadhIso())return;
 
     const pricing=pricingForDay(day);
     const existing=day.querySelector('em');
@@ -147,6 +194,7 @@ function decorateSelectedDayPricing(){
   const selected=document.querySelector('.calendar-day.selected[data-date]');
   const card=document.getElementById('selectedDayCard');
   if(!selected||!card)return;
+  if(String(selected.dataset.date||'')<riyadhIso())return;
   const pricing=pricingForDay(selected);
   let note=card.querySelector('.special-occasion-price-note');
   if(!pricing?.specialPricePending){
@@ -162,6 +210,7 @@ function decorateSelectedDayPricing(){
   note.innerHTML=`<b>${SPECIAL_OCCASION_PRICE_LABEL}</b><small>${SPECIAL_OCCASION_PRICE_TEXT}</small>`;
 }
 function decorateBookingModalPricing(day){
+  if(String(day?.dataset?.date||'')<riyadhIso())return;
   const pricing=pricingForDay(day);
   if(!pricing?.specialPricePending)return;
   const row=document.getElementById('bookingConfirmationPriceRow');
@@ -175,9 +224,11 @@ function decorateBookingModalPricing(day){
 function refreshCalendarUi(){
   ensureStyle();
   const grid=document.getElementById('calendarGrid');if(!grid)return;
+  hideHistoricalAvailability(grid);
   decorateCalendarDays(grid);
+  enforceCurrentMonthFloor();
   grid.querySelectorAll('.calendar-day.portal-today').forEach(day=>day.classList.remove('portal-today'));
-  const today=grid.querySelector(`.calendar-day[data-date="${localIso()}"]`);
+  const today=grid.querySelector(`.calendar-day[data-date="${riyadhIso()}"]`);
   if(today){
     today.classList.add('portal-today');
     const current=today.getAttribute('aria-label')||'';
@@ -195,11 +246,19 @@ function initialize(){
   new MutationObserver(()=>requestAnimationFrame(refreshCalendarUi)).observe(grid,{childList:true});
   const selectedCard=document.getElementById('selectedDayCard');
   if(selectedCard)new MutationObserver(()=>requestAnimationFrame(decorateSelectedDayPricing)).observe(selectedCard,{childList:true});
-  document.getElementById('prevMonthButton')?.addEventListener('click',()=>requestAnimationFrame(refreshCalendarUi));
+  const previous=document.getElementById('prevMonthButton');
+  previous?.addEventListener('click',event=>{
+    if(calendarMonthKey()<=riyadhIso().slice(0,7)){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      enforceCurrentMonthFloor();
+    }
+  },true);
+  previous?.addEventListener('click',()=>requestAnimationFrame(refreshCalendarUi));
   document.getElementById('nextMonthButton')?.addEventListener('click',()=>requestAnimationFrame(refreshCalendarUi));
   document.addEventListener('click',event=>{
     const day=event.target.closest?.('.calendar-day.available[data-date]');
-    if(!day)return;
+    if(!day||String(day.dataset.date||'')<riyadhIso())return;
     requestAnimationFrame(()=>{
       decorateSelectedDayPricing();
       decorateBookingModalPricing(day);
