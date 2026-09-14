@@ -6,6 +6,7 @@ window.__adwaaDepositRefundPolicyInstalled=true;
 const safeNumber=value=>Math.max(0,Number(value||0));
 const todayIso=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Riyadh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const dispositionLabel=value=>({retained:'العربون غير مسترد',refunded:'تم إرجاع العربون كاملًا',partial:'تم إرجاع جزء من العربون'}[value]||'لم يحدد');
+const POLICY_TEXT='سياسة العربون: العربون المدفوع غير مسترد في حال إلغاء الحجز من قبل العميل. وفي حال تعذر تنفيذ الحجز من جهة المنتجع يُعاد العربون كاملًا.';
 
 function currentBooking(){
   const rows=Array.isArray(window.db?.bookings)?window.db.bookings:[];
@@ -21,6 +22,7 @@ function depositAmount(booking=currentBooking()){
   if(deposit)return safeNumber(deposit.amount);
   return safeNumber(booking?.paid);
 }
+function bookingHasDeposit(booking){return depositAmount(booking)>0}
 function readState(){
   return {
     status:String(document.getElementById('depositDisposition')?.value||'retained'),
@@ -50,7 +52,7 @@ function injectUi(){
   if(!grid)return false;
   injectStyles();
   if(!document.getElementById('depositPolicyNote')){
-    const note=document.createElement('div');note.id='depositPolicyNote';note.className='deposit-policy-note';note.textContent='سياسة العربون: عند دفع العربون وتأكيد الحجز يكون العربون غير مسترد إذا ألغى العميل الحجز.';grid.appendChild(note);
+    const note=document.createElement('div');note.id='depositPolicyNote';note.className='deposit-policy-note';note.textContent=POLICY_TEXT;grid.appendChild(note);
   }
   if(document.getElementById('depositRefundPolicy'))return true;
   const box=document.createElement('section');box.id='depositRefundPolicy';box.className='deposit-refund-policy';box.innerHTML=`
@@ -116,12 +118,22 @@ function wrapOpenBooking(){
   const original=window.openBooking;if(typeof original!=='function'||original.__depositRefundPolicyWrapped)return false;
   const wrapped=function(){const result=original.apply(this,arguments);setTimeout(loadState,0);return result};wrapped.__depositRefundPolicyWrapped=true;wrapped.__original=original;window.openBooking=wrapped;return true;
 }
+function wrapWelcomeMessage(){
+  const original=window.welcomeMessageText;if(typeof original!=='function'||original.__depositPolicyWrapped)return false;
+  const wrapped=function(booking){
+    const text=String(original.apply(this,arguments)||'');
+    const b=booking||currentBooking();
+    if(!bookingHasDeposit(b)||text.includes(POLICY_TEXT))return text;
+    return `${text}\n\n${POLICY_TEXT}`;
+  };
+  wrapped.__depositPolicyWrapped=true;wrapped.__original=original;window.welcomeMessageText=wrapped;return true;
+}
 function start(){
-  injectUi();loadState();wrapOpenBooking();wrapSaveBooking();
-  let tries=0;const timer=setInterval(()=>{tries++;injectUi();wrapOpenBooking();wrapSaveBooking();if(tries>=20)clearInterval(timer)},250);
+  injectUi();loadState();wrapOpenBooking();wrapSaveBooking();wrapWelcomeMessage();
+  let tries=0;const timer=setInterval(()=>{tries++;injectUi();wrapOpenBooking();wrapSaveBooking();wrapWelcomeMessage();if(tries>=20)clearInterval(timer)},250);
   document.addEventListener('input',event=>{if(['bookingDepositAmount','bPaid'].includes(event.target?.id))refreshVisibility()});
   document.addEventListener('change',event=>{if(['bookingDepositAmount','bPaid','bStatus','depositDisposition'].includes(event.target?.id))refreshVisibility()});
 }
-window.__adwaaDepositPolicy={depositAmount,readState,validateState,dispositionLabel};
+window.__adwaaDepositPolicy={depositAmount,bookingHasDeposit,readState,validateState,dispositionLabel,POLICY_TEXT};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
