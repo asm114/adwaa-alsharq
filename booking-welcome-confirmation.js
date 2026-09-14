@@ -4,6 +4,7 @@ if(window.__adwaaBookingWelcomeConfirmationInstalled)return;
 window.__adwaaBookingWelcomeConfirmationInstalled=true;
 
 const digits=value=>String(value||'').replace(/\D/g,'');
+const DEPOSIT_POLICY_TEXT='سياسة العربون: العربون المدفوع غير مسترد في حال إلغاء الحجز من قبل العميل. وفي حال تعذر تنفيذ الحجز من جهة المنتجع يُعاد العربون كاملًا.';
 
 function savedBooking(){
   try{if(typeof window.v92Booking==='function')return window.v92Booking()}catch(_){}
@@ -31,6 +32,13 @@ function resolvedBooking(){
   };
 }
 
+function paidDepositAmount(booking){
+  const payments=Array.isArray(booking?.payments)?booking.payments:[];
+  const deposit=payments.find(row=>row?.type==='deposit');
+  if(deposit&&Number(deposit.amount||0)>0)return Number(deposit.amount||0);
+  return Math.max(0,Number(booking?.paid||0));
+}
+
 function dateLabel(value){
   const raw=String(value||'').trim();
   if(!raw)return '-';
@@ -45,18 +53,19 @@ function bookingTimesSafe(booking){
 }
 
 function welcomeConfirmationText(booking){
-  const b=booking||resolvedBooking(),times=bookingTimesSafe(b);
-  return [
+  const b=booking||resolvedBooking(),times=bookingTimesSafe(b),hasDeposit=paidDepositAmount(b)>0;
+  const lines=[
     'حياك الله ضيفنا الكريم 🌷',
     'تم تأكيد حجزكم لدينا.',
     '',
     `رقم الحجز: ${b.code||'-'}`,
     `التاريخ: ${dateLabel(b.date)}`,
     `الدخول: ${times.entry||'-'}`,
-    `الخروج: ${times.exit||'-'}`,
-    '',
-    'سعداء باستضافتكم ونتمنى لكم إقامة جميلة.'
-  ].join('\n');
+    `الخروج: ${times.exit||'-'}`
+  ];
+  if(hasDeposit)lines.push('',DEPOSIT_POLICY_TEXT);
+  lines.push('','سعداء باستضافتكم ونتمنى لكم إقامة جميلة.');
+  return lines.join('\n');
 }
 
 function formatSentAt(value){
@@ -141,10 +150,11 @@ function start(){
     if(installRenderHook()&&document.querySelector('#v92SendCenter .v92-message-grid'))clearInterval(timer);
     if(tries>=20)clearInterval(timer);
   },250);
-  document.addEventListener('input',event=>{if(['bPhone','bDate','bType','bCode'].includes(event.target?.id))refreshWelcomeStatus()});
-  document.addEventListener('change',event=>{if(['bPhone','bDate','bType','bCode'].includes(event.target?.id))refreshWelcomeStatus()});
+  document.addEventListener('input',event=>{if(['bPhone','bDate','bType','bCode','bPaid','bookingDepositAmount'].includes(event.target?.id))refreshWelcomeStatus()});
+  document.addEventListener('change',event=>{if(['bPhone','bDate','bType','bCode','bPaid','bookingDepositAmount'].includes(event.target?.id))refreshWelcomeStatus()});
   window.addEventListener('focus',refreshWelcomeStatus);
 }
 
+window.__adwaaDepositPolicyMessage={paidDepositAmount,DEPOSIT_POLICY_TEXT};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
