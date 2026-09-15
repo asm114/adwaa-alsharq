@@ -70,7 +70,7 @@ test('إعداد Staging يرفض Project Ref الخاص بـProduction فعلي
   }),/غير معتمد/);
 });
 
-test('Production يتفعل فقط لمسار مستودع أضواء الشرق على GitHub Pages',async()=>{
+test('Production يتفعل فقط على GitHub Pages الرسمي أو نطاق Vercel الإنتاجي الرسمي',async()=>{
   const source=await read('supabase-config.staging.js');
   const run=(hostname,pathname)=>{
     const context={window:{location:{hostname,pathname}},URL};
@@ -85,6 +85,14 @@ test('Production يتفعل فقط لمسار مستودع أضواء الشرق
   const productionNested=run('asm114.github.io','/adwaa-alsharq/resort/');
   assert.equal(productionNested.runtimeEnvironment,'production');
   assert.equal(productionNested.projectRef,productionRef);
+
+  const vercelProduction=run('adwaa-alsharq.vercel.app','/');
+  assert.equal(vercelProduction.runtimeEnvironment,'production');
+  assert.equal(vercelProduction.projectRef,productionRef);
+
+  const vercelPreview=run('adwaa-alsharq-example-asm114-6247s-projects.vercel.app','/');
+  assert.equal(vercelPreview.runtimeEnvironment,'staging');
+  assert.equal(vercelPreview.projectRef,stagingRef);
 
   const otherRepository=run('asm114.github.io','/booking-system-demo/');
   assert.equal(otherRepository.runtimeEnvironment,'staging');
