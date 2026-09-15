@@ -7,12 +7,14 @@ const STAGING_PUBLISHABLE_KEY='sb_publishable_M3MQwFfxiMMKt_-tq-KAjQ_OQTtg2MD';
 const PRODUCTION_PUBLISHABLE_KEY='sb_publishable_BFTIR_8VK2qQuKnl2c-jDA_cMnWz0E-';
 const PRODUCTION_GITHUB_HOST='asm114.github.io';
 const PRODUCTION_GITHUB_PATH='/adwaa-alsharq';
+const PRODUCTION_VERCEL_HOST='adwaa-alsharq.vercel.app';
 const hostname=String(window.location?.hostname||'').toLowerCase();
 const pathname=String(window.location?.pathname||'');
 const isProductionGithubPages=hostname===PRODUCTION_GITHUB_HOST&&(
   pathname===PRODUCTION_GITHUB_PATH||pathname.startsWith(`${PRODUCTION_GITHUB_PATH}/`)
 );
-const runtimeEnvironment=isProductionGithubPages?'production':'staging';
+const isProductionVercel=hostname===PRODUCTION_VERCEL_HOST;
+const runtimeEnvironment=(isProductionGithubPages||isProductionVercel)?'production':'staging';
 
 function projectRefFromUrl(value){
   const hostname=new URL(String(value||'')).hostname.toLowerCase();
