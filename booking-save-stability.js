@@ -37,13 +37,6 @@ function showStatus(state,title,detail='',autoHide=0){
 }
 function bookingSubmitButton(){return document.querySelector('#bookingModal button[type="submit"],#bookingModal .modal-footer .primary')}
 function setSavingDisabled(disabled){const button=bookingSubmitButton();if(button){button.disabled=!!disabled;button.dataset.bookingSaveBusy=disabled?'1':'0'}}
-function syncFailureMessage(){
-  try{if(typeof lastSyncError!=='undefined'&&String(lastSyncError||'').trim())return String(lastSyncError).trim()}catch(_){}
-  return 'تعذر تأكيد حفظ الحجز في Supabase. بقيت شاشة الحجز مفتوحة للمراجعة وإعادة المحاولة.';
-}
-function remoteWriteConfirmed(){
-  try{return typeof remoteReady!=='undefined'&&remoteReady===true&&typeof lastSuccessfulWriteAt!=='undefined'&&!!lastSuccessfulWriteAt&&(!lastSyncError)}catch(_){return false}
-}
 function preserveNewBookingId(beforeIds){
   const currentId=String(document.getElementById('bId')?.value||'').trim();if(currentId)return currentId;
   const rows=Array.isArray(window.db?.bookings)?window.db.bookings:[];
@@ -98,17 +91,35 @@ function wrapNormalizeBookingCommission(){
   window.normalizeBookingCommission=wrapped;return true;
 }
 
-function wrapPersist(){
-  const current=window.persist;
-  if(typeof current!=='function'||current.__bookingSaveStabilityConfirmed)return false;
-  const wrapped=async function(){
-    const result=await current.apply(this,arguments);
-    if(!remoteWriteConfirmed())throw new Error(syncFailureMessage());
-    return result===undefined?true:result;
-  };
-  wrapped.__bookingSaveStabilityConfirmed=true;wrapped.__base=current;
-  try{persist=wrapped}catch(_){}
-  window.persist=wrapped;return true;
+function localSavedBooking(id,code){
+  const rows=Array.isArray(window.db?.bookings)?window.db.bookings:[];
+  return rows.find(row=>(id&&String(row?.id||'')===id)||(code&&String(row?.code||'')===code))||null;
+}
+function depositFromBooking(booking){
+  const payments=Array.isArray(booking?.payments)?booking.payments:[];
+  const deposit=payments.find(item=>item?.type==='deposit');
+  return deposit?moneyValue(deposit.amount):0;
+}
+async function verifySavedBookingInSupabase(id,code,requested){
+  let client=null,rowId='main';
+  try{if(typeof supabaseClient!=='undefined')client=supabaseClient}catch(_){}
+  try{if(typeof STATE_ROW_ID!=='undefined'&&STATE_ROW_ID)rowId=STATE_ROW_ID}catch(_){}
+  if(!client)throw new Error('تعذر الوصول إلى اتصال Supabase من شاشة الحجز. حدّث الصفحة وسجّل الدخول ثم حاول مرة أخرى.');
+  const {data,error}=await client.from('app_state').select('data').eq('id',rowId).maybeSingle();
+  if(error)throw new Error(`فشل التحقق من Supabase: ${error.message||error.code||'خطأ غير معروف'}`);
+  if(!data?.data)throw new Error('لم يرجع Supabase سجل النظام عند التحقق من الحفظ.');
+  const remoteRows=Array.isArray(data.data.bookings)?data.data.bookings:[];
+  const remote=remoteRows.find(item=>(id&&String(item?.id||'')===id)||(code&&String(item?.code||'')===code));
+  if(!remote)throw new Error(`لم يظهر الحجز ${code||id||''} في Supabase بعد الحفظ.`);
+  const local=localSavedBooking(id,code);
+  if(local){
+    const fields=['code','name','phone','date','type','status','recordType','updatedAt'];
+    for(const field of fields){if(String(remote?.[field]??'')!==String(local?.[field]??''))throw new Error(`Supabase لم يؤكد آخر قيمة للحقل ${field}. بقيت شاشة الحجز مفتوحة لحماية البيانات.`)}
+    if(Math.abs(moneyValue(remote.total)-moneyValue(local.total))>0.009)throw new Error('إجمالي الحجز في Supabase لا يطابق آخر تعديل.');
+    if(Math.abs(moneyValue(remote.paid)-moneyValue(local.paid))>0.009)throw new Error('المدفوع في Supabase لا يطابق آخر تعديل.');
+  }
+  if(requested>0&&Math.abs(depositFromBooking(remote)-requested)>0.009)throw new Error(`تم رفض تأكيد العربون: المطلوب ${requested} ر.س بينما المحفوظ في Supabase ${depositFromBooking(remote)} ر.س.`);
+  return remote;
 }
 
 function wrapSaveBooking(){
@@ -117,22 +128,24 @@ function wrapSaveBooking(){
   const wrapped=async function(event){
     if(saveInFlight){event?.preventDefault?.();return}
     captureRequestedDeposit();
+    const requested=requestedDeposit();
     const beforeIds=new Set((window.db?.bookings||[]).map(row=>String(row?.id||'')));
-    saveInFlight=true;setSavingDisabled(true);showStatus('saving','جاري حفظ الحجز…','يتم الآن حفظ البيانات والتأكد من مزامنتها مع Supabase.');
+    const code=String(document.getElementById('bCode')?.value||'').trim();
+    saveInFlight=true;setSavingDisabled(true);showStatus('saving','جاري حفظ الحجز…','يتم الآن حفظ البيانات ثم قراءتها من Supabase للتأكد من نجاح الحفظ.');
     try{
       const result=await current.apply(this,arguments);
-      if(!remoteWriteConfirmed())throw new Error(syncFailureMessage());
       const savedId=preserveNewBookingId(beforeIds);
+      await verifySavedBookingInSupabase(savedId,code,requested);
       window.__adwaaLastBookingSaveConfirmed={ok:true,id:savedId,at:new Date().toISOString()};
-      showStatus('success','تم حفظ الحجز بنجاح','تم تأكيد الحفظ والمزامنة مع Supabase. العقد أصبح متاحًا عند فتح الحجز.',4200);
+      showStatus('success','تم حفظ الحجز بنجاح','تمت قراءة الحجز من Supabase وتأكيد آخر البيانات. العقد أصبح متاحًا عند فتح الحجز.',4200);
       return result;
     }catch(error){
-      preserveNewBookingId(beforeIds);restoreRequestedDeposit();
+      const savedId=preserveNewBookingId(beforeIds);restoreRequestedDeposit();
       const message=String(error?.message||error||'تعذر حفظ الحجز');
-      window.__adwaaLastBookingSaveConfirmed={ok:false,error:message,at:new Date().toISOString()};
+      window.__adwaaLastBookingSaveConfirmed={ok:false,id:savedId,error:message,at:new Date().toISOString()};
       document.getElementById('bookingModal')?.classList.add('open');
-      showStatus('error','لم يتم حفظ الحجز سحابيًا',message);
-      console.error('Booking save stability guard:',error);
+      showStatus('error','لم يتم تأكيد حفظ الحجز',message);
+      console.error('Booking save verification:',error);
       return false;
     }finally{saveInFlight=false;setSavingDisabled(false)}
   };
@@ -151,12 +164,12 @@ function clarifyUnsavedContract(){
 }
 
 function install(){
-  injectStyles();wrapPersist();wrapNormalizeBookingCommission();wrapSaveBooking();clarifyUnsavedContract();
+  injectStyles();wrapNormalizeBookingCommission();wrapSaveBooking();clarifyUnsavedContract();
   document.addEventListener('input',event=>{if(event.target?.id==='bookingDepositAmount')captureRequestedDeposit()},true);
   document.addEventListener('change',event=>{if(event.target?.id==='bookingDepositAmount')captureRequestedDeposit()},true);
-  let tries=0;const timer=setInterval(()=>{tries++;wrapPersist();wrapNormalizeBookingCommission();wrapSaveBooking();clarifyUnsavedContract();if(tries>=24)clearInterval(timer)},250);
+  let tries=0;const timer=setInterval(()=>{tries++;wrapNormalizeBookingCommission();wrapSaveBooking();clarifyUnsavedContract();if(tries>=24)clearInterval(timer)},250);
 }
 
-window.__adwaaBookingSaveStability={remoteWriteConfirmed,requestedDeposit,showStatus};
+window.__adwaaBookingSaveStability={requestedDeposit,showStatus,verifySavedBookingInSupabase};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })();

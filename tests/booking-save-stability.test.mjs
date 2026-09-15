@@ -11,17 +11,25 @@ test('حماية الحفظ تحمل بدون خطأ نحوي وتعرض حال�
   assert.doesNotThrow(()=>new vm.Script(source));
   assert.match(source,/جاري حفظ الحجز/);
   assert.match(source,/تم حفظ الحجز بنجاح/);
-  assert.match(source,/لم يتم حفظ الحجز سحابيًا/);
+  assert.match(source,/لم يتم تأكيد حفظ الحجز/);
   assert.match(source,/bookingSaveBusy/);
 });
 
-test('الحفظ لا يعتبر ناجحًا ما لم تؤكد Supabase الكتابة',async()=>{
+test('الحفظ لا يعتبر ناجحًا إلا بعد قراءة الحجز من Supabase',async()=>{
   const source=await read('booking-save-stability.js');
-  assert.match(source,/remoteWriteConfirmed\(\)/);
-  assert.match(source,/remoteReady===true/);
-  assert.match(source,/lastSuccessfulWriteAt/);
-  assert.match(source,/throw new Error\(syncFailureMessage\(\)\)/);
+  assert.match(source,/verifySavedBookingInSupabase/);
+  assert.match(source,/from\('app_state'\)\.select\('data'\)/);
+  assert.match(source,/لم يظهر الحجز/);
+  assert.match(source,/updatedAt/);
   assert.match(source,/bookingModal.*classList\.add\('open'\)/s);
+  assert.doesNotMatch(source,/remoteWriteConfirmed\(\)/);
+});
+
+test('التحقق يقارن العربون المطلوب مع المحفوظ فعليًا',async()=>{
+  const source=await read('booking-save-stability.js');
+  assert.match(source,/depositFromBooking/);
+  assert.match(source,/تم رفض تأكيد العربون/);
+  assert.match(source,/requested>0&&Math\.abs\(depositFromBooking\(remote\)-requested\)>0\.009/);
 });
 
 test('العربون لا يتم تصغيره بصمت أثناء الحفظ',async()=>{
