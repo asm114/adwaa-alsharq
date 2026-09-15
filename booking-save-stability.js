@@ -19,13 +19,11 @@ function injectStyles(){
   `;
   document.head.appendChild(style);
 }
-
 function toast(){
   injectStyles();
   let node=document.getElementById('bookingSaveStatusToast');
   if(node)return node;
-  node=document.createElement('div');
-  node.id='bookingSaveStatusToast';node.setAttribute('role','status');node.setAttribute('aria-live','assertive');
+  node=document.createElement('div');node.id='bookingSaveStatusToast';node.setAttribute('role','status');node.setAttribute('aria-live','assertive');
   node.innerHTML='<span class="save-status-icon">⏳</span><span class="save-status-copy"><b></b><small></small></span>';
   document.body.appendChild(node);return node;
 }
@@ -48,22 +46,34 @@ function preserveNewBookingId(beforeIds){
 
 function captureRequestedDeposit(){
   const input=document.getElementById('bookingDepositAmount');if(!input)return;
-  const raw=String(input.value??'').trim();input.dataset.requestedDeposit=raw;
+  input.dataset.requestedDeposit=String(input.value??'').trim();
 }
 function requestedDeposit(){
   const input=document.getElementById('bookingDepositAmount');if(!input)return 0;
   const raw=input.dataset.requestedDeposit!==undefined?input.dataset.requestedDeposit:input.value;
   return moneyValue(raw);
 }
-function restoreRequestedDeposit(){const input=document.getElementById('bookingDepositAmount');if(!input)return;const raw=input.dataset.requestedDeposit;if(raw!==undefined)input.value=raw}
+function restoreRequestedDeposit(){
+  const input=document.getElementById('bookingDepositAmount');if(!input)return;
+  const raw=input.dataset.requestedDeposit;if(raw!==undefined)input.value=raw;
+}
+function isCurrentFormBooking(booking){
+  if(!booking||booking.recordType==='family')return false;
+  const modal=document.getElementById('bookingModal');
+  if(!modal?.classList.contains('open'))return false;
+  const formId=String(document.getElementById('bId')?.value||'').trim();
+  const formCode=String(document.getElementById('bCode')?.value||'').trim();
+  if(formId)return String(booking.id||'')===formId;
+  return !!formCode&&String(booking.code||'')===formCode;
+}
 
 function wrapNormalizeBookingCommission(){
   const current=window.normalizeBookingCommission;
   if(typeof current!=='function'||current.__bookingSaveStabilityDepositGuard)return false;
   const wrapped=function(raw,settings){
-    const requested=requestedDeposit();
     const booking=current.call(this,raw,settings);
-    if(!booking||booking.recordType==='family')return booking;
+    if(!isCurrentFormBooking(booking))return booking;
+    const requested=requestedDeposit();
     const payments=Array.isArray(booking.payments)?booking.payments.map(item=>({...item})):[];
     const otherPaid=payments.filter(item=>item.type!=='deposit').reduce((sum,item)=>sum+moneyValue(item.amount),0);
     const total=moneyValue(booking.total);
@@ -71,15 +81,13 @@ function wrapNormalizeBookingCommission(){
     if(Number.isFinite(maxDeposit)&&requested>maxDeposit+0.009){
       restoreRequestedDeposit();
       const extra=otherPaid>0?` توجد دفعات أخرى مسجلة بمجموع ${otherPaid} ر.س.`:'';
-      throw new Error(`لم يتم الحفظ: العربون المدخل ${requested} ر.س لا يمكن تغييره تلقائيًا إلى مبلغ آخر. الحد المتاح حاليًا ${maxDeposit} ر.س.${extra} راجع إجمالي الحجز والدفعات.`);
+      throw new Error(`لم يتم الحفظ: العربون المدخل ${requested} ر.س يتجاوز الحد المتاح ${maxDeposit} ر.س.${extra} راجع إجمالي الحجز والدفعات.`);
     }
+    const index=payments.findIndex(item=>item.type==='deposit');
     if(requested>0){
-      const index=payments.findIndex(item=>item.type==='deposit');
       if(index>=0)payments[index]={...payments[index],amount:requested};
       else payments.unshift({id:window.crypto?.randomUUID?.()||`deposit-${Date.now()}`,amount:requested,type:'deposit',method:document.getElementById('bookingDepositMethod')?.value||'transfer',date:new Date().toISOString().slice(0,10),note:'عربون الحجز',createdAt:new Date().toISOString(),order:0});
-    }else{
-      for(let i=payments.length-1;i>=0;i--)if(payments[i]?.type==='deposit')payments.splice(i,1);
-    }
+    }else if(index>=0)payments.splice(index,1);
     booking.payments=payments;
     booking.paid=payments.reduce((sum,item)=>sum+moneyValue(item.amount),0);
     const paid=document.getElementById('bPaid');if(paid)paid.value=String(booking.paid);
@@ -162,14 +170,12 @@ function clarifyUnsavedContract(){
   const target=card.querySelector('[data-contract-share-target],.meta');
   if(!id&&target)target.textContent='احفظ الحجز وتأكد من ظهور «تم حفظ الحجز بنجاح» ثم يصبح العقد متاحًا.';
 }
-
 function install(){
   injectStyles();wrapNormalizeBookingCommission();wrapSaveBooking();clarifyUnsavedContract();
   document.addEventListener('input',event=>{if(event.target?.id==='bookingDepositAmount')captureRequestedDeposit()},true);
   document.addEventListener('change',event=>{if(event.target?.id==='bookingDepositAmount')captureRequestedDeposit()},true);
   let tries=0;const timer=setInterval(()=>{tries++;wrapNormalizeBookingCommission();wrapSaveBooking();clarifyUnsavedContract();if(tries>=24)clearInterval(timer)},250);
 }
-
-window.__adwaaBookingSaveStability={requestedDeposit,showStatus,verifySavedBookingInSupabase};
+window.__adwaaBookingSaveStability={requestedDeposit,showStatus,verifySavedBookingInSupabase,isCurrentFormBooking};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })();
