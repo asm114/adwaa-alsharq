@@ -32,13 +32,21 @@ test('التحقق يقارن العربون المطلوب مع المحفوظ 
   assert.match(source,/requested>0&&Math\.abs\(depositFromBooking\(remote\)-requested\)>0\.009/);
 });
 
-test('العربون لا يتم تصغيره بصمت أثناء الحفظ',async()=>{
+test('حماية العربون تطبق فقط على الحجز المفتوح ولا تعدل بقية الحجوزات أثناء normalizeDB',async()=>{
   const source=await read('booking-save-stability.js');
-  assert.match(source,/requestedDeposit\(\)/);
+  assert.match(source,/function isCurrentFormBooking\(booking\)/);
+  assert.match(source,/if\(!isCurrentFormBooking\(booking\)\)return booking/);
+  assert.match(source,/formId/);
+  assert.match(source,/formCode/);
   assert.match(source,/requested>maxDeposit\+0\.009/);
-  assert.match(source,/العربون المدخل/);
-  assert.match(source,/لا يمكن تغييره تلقائيًا إلى مبلغ آخر/);
   assert.match(source,/payments\[index\]=\{\.\.\.payments\[index\],amount:requested\}/);
+});
+
+test('القيمة التي كتبها المستخدم تحفظ قبل أن تعيد واجهة الدفعات ضبط الحقل',async()=>{
+  const source=await read('booking-save-stability.js');
+  assert.match(source,/dataset\.requestedDeposit/);
+  assert.match(source,/addEventListener\('input'.*captureRequestedDeposit.*true/s);
+  assert.match(source,/restoreRequestedDeposit/);
 });
 
 test('الملف محمل بعد سياسة إرجاع العربون',async()=>{
