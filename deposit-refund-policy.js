@@ -40,6 +40,29 @@ function validateState(state,amount){
   if(state.status==='refunded'&&amount>0&&Math.abs(state.refundAmount-amount)>0.009)return 'في الإرجاع الكامل يجب أن يساوي مبلغ الإرجاع قيمة العربون.';
   return '';
 }
+function buildCancellationRecord(state,amount){
+  return {
+    status:state.status,
+    depositAmount:amount,
+    refundAmount:state.status==='retained'?0:state.refundAmount,
+    refundDate:state.status==='retained'?'':state.refundDate,
+    refundMethod:state.status==='retained'?'':state.refundMethod,
+    note:state.note||'',
+    recordedAt:new Date().toISOString()
+  };
+}
+function applyCancellationState(snapshot){
+  if(snapshot.status!=='ملغي'||snapshot.amount<=0)return false;
+  const rows=Array.isArray(window.db?.bookings)?window.db.bookings:[];
+  const booking=rows.find(row=>(snapshot.id&&String(row?.id||'')===snapshot.id)||(snapshot.code&&String(row?.code||'')===snapshot.code));
+  if(!booking)return false;
+  const before=booking.depositCancellation&&typeof booking.depositCancellation==='object'?{...booking.depositCancellation}:null;
+  const next=buildCancellationRecord(snapshot.state,snapshot.amount);
+  booking.depositCancellation=next;
+  booking.updatedAt=new Date().toISOString();
+  if(typeof window.addAudit==='function')try{window.addAudit('تعديل','حالة عربون',`${booking.name||''} — #${booking.code||''}`,before,next)}catch(_){}
+  return true;
+}
 function injectStyles(){
   if(document.getElementById('depositRefundPolicyStyles'))return;
   const style=document.createElement('style');style.id='depositRefundPolicyStyles';style.textContent=`
@@ -91,16 +114,6 @@ function loadState(){
   const note=document.getElementById('depositRefundNote');if(note)note.value=state.note||'';
   refreshVisibility();
 }
-async function persistCancellationState(snapshot){
-  const rows=Array.isArray(window.db?.bookings)?window.db.bookings:[];
-  const booking=rows.find(row=>(snapshot.id&&String(row?.id||'')===snapshot.id)||(snapshot.code&&String(row?.code||'')===snapshot.code));
-  if(!booking)return;
-  if(snapshot.status!=='ملغي'||snapshot.amount<=0)return;
-  booking.depositCancellation={status:snapshot.state.status,depositAmount:snapshot.amount,refundAmount:snapshot.state.status==='retained'?0:snapshot.state.refundAmount,refundDate:snapshot.state.status==='retained'?'':snapshot.state.refundDate,refundMethod:snapshot.state.status==='retained'?'':snapshot.state.refundMethod,note:snapshot.state.note||'',recordedAt:new Date().toISOString()};
-  booking.updatedAt=new Date().toISOString();
-  if(typeof window.addAudit==='function')try{window.addAudit('تعديل','حالة عربون',`${booking.name||''} — #${booking.code||''}`,null,booking.depositCancellation)}catch(_){}
-  if(typeof window.persist==='function')await window.persist();
-}
 function wrapSaveBooking(){
   const original=window.saveBooking;if(typeof original!=='function'||original.__depositRefundPolicyWrapped)return false;
   const wrapped=async function(event){
@@ -108,9 +121,23 @@ function wrapSaveBooking(){
     const booking=currentBooking();const amount=depositAmount(booking);const status=String(document.getElementById('bStatus')?.value||'');const state=readState();
     if(status==='ملغي'&&amount>0){const error=validateState(state,amount);if(error){event?.preventDefault?.();alert(error);return}}
     const snapshot={id:String(document.getElementById('bId')?.value||''),code:String(document.getElementById('bCode')?.value||''),status,amount,state};
-    const result=await original.apply(this,arguments);
-    if(!document.getElementById('bookingModal')?.classList.contains('open'))await persistCancellationState(snapshot);
-    return result;
+    const shouldAttach=status==='ملغي'&&amount>0;
+    const originalPersist=window.persist;
+    let interceptedPersist=null;
+    let applied=false;
+    if(shouldAttach&&typeof originalPersist==='function'){
+      interceptedPersist=async function(){
+        if(!applied){applied=applyCancellationState(snapshot)}
+        return originalPersist.apply(this,arguments);
+      };
+      interceptedPersist.__depositRefundPolicyIntercept=true;
+      window.persist=interceptedPersist;
+    }
+    try{
+      return await original.apply(this,arguments);
+    }finally{
+      if(interceptedPersist&&window.persist===interceptedPersist)window.persist=originalPersist;
+    }
   };
   wrapped.__depositRefundPolicyWrapped=true;wrapped.__original=original;window.saveBooking=wrapped;return true;
 }
@@ -134,6 +161,6 @@ function start(){
   document.addEventListener('input',event=>{if(['bookingDepositAmount','bPaid'].includes(event.target?.id))refreshVisibility()});
   document.addEventListener('change',event=>{if(['bookingDepositAmount','bPaid','bStatus','depositDisposition'].includes(event.target?.id))refreshVisibility()});
 }
-window.__adwaaDepositPolicy={depositAmount,bookingHasDeposit,readState,validateState,dispositionLabel,POLICY_TEXT};
+window.__adwaaDepositPolicy={depositAmount,bookingHasDeposit,readState,validateState,buildCancellationRecord,applyCancellationState,dispositionLabel,POLICY_TEXT};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();

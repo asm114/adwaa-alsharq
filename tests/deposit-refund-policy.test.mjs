@@ -18,11 +18,21 @@ test('إلغاء حجز بعربون يدعم غير مسترد وكامل وج�
   assert.match(js,/retained:'العربون غير مسترد'/);
   assert.match(js,/refunded:'تم إرجاع العربون كاملًا'/);
   assert.match(js,/partial:'تم إرجاع جزء من العربون'/);
-  assert.match(js,/booking\.depositCancellation=\{status:snapshot\.state\.status,depositAmount:snapshot\.amount,refundAmount:/);
+  assert.match(js,/function buildCancellationRecord\(state,amount\)/);
+  assert.match(js,/booking\.depositCancellation=next/);
   assert.match(js,/refundDate:/);
   assert.match(js,/refundMethod:/);
   assert.match(js,/note:/);
   assert.match(js,/recordedAt:new Date\(\)\.toISOString\(\)/);
+});
+
+test('حالة إرجاع العربون تدخل في نفس عملية حفظ الحجز ولا تنفذ persist ثانية بعدها',async()=>{
+  const js=await read('deposit-refund-policy.js');
+  assert.match(js,/window\.persist=interceptedPersist/);
+  assert.match(js,/applyCancellationState\(snapshot\)/);
+  assert.match(js,/return originalPersist\.apply\(this,arguments\)/);
+  assert.doesNotMatch(js,/persistCancellationState/);
+  assert.doesNotMatch(js,/await window\.persist\(\)/);
 });
 
 test('لا يسمح بإرجاع أكثر من العربون والإرجاع الكامل يجب أن يساويه',async()=>{
