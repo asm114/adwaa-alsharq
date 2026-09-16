@@ -49,4 +49,25 @@ if(runtimeEnvironment==='production'){
   window.__adwaaPortalAdminClientInstalled=true;
   window.__adwaaLegacyPortalAdminDisabled=true;
 }
+
+function loadBookingSaveHotfixes(){
+  if(window.__adwaaBookingSaveHotfixLoaderStarted)return;
+  window.__adwaaBookingSaveHotfixLoaderStarted=true;
+  const loadScript=src=>new Promise((resolve,reject)=>{
+    const script=document.createElement('script');
+    script.src=src;
+    script.async=false;
+    script.onload=()=>resolve();
+    script.onerror=()=>reject(new Error(`تعذر تحميل ${src}`));
+    document.head.appendChild(script);
+  });
+  loadScript('booking-persist-update-path.js?v=20260916-1')
+    .then(()=>loadScript('booking-save-stability.js?v=20260916-1'))
+    .catch(error=>console.error('تعذر تهيئة إصلاح حفظ الحجوزات',error));
+}
+
+if(typeof document!=='undefined'){
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loadBookingSaveHotfixes,{once:true});
+  else loadBookingSaveHotfixes();
+}
 })();
