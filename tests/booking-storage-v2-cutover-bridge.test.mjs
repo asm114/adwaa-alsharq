@@ -42,6 +42,14 @@ test('dual-write bridge is opt-in and intercepts all persist-based booking mutat
   assert.match(source,/Booking v2 preflight mismatch/);
 });
 
+test('legacy full-state restore is guarded while v2 dual-write is enabled',async()=>{
+  const source=await read('booking-storage-v2-dualwrite.js');
+  assert.match(source,/originalRestoreCommit=commitRestoredDataToSupabase/);
+  assert.match(source,/commitRestoredDataToSupabase=async function bookingV2RestoreGuard/);
+  assert.match(source,/استعادة نسخة قديمة متوقفة مؤقتًا أثناء تشغيل نظام الحجوزات v2/);
+  assert.match(source,/commitRestoredDataToSupabase=originalRestoreCommit/);
+});
+
 test('dual-write bridge serializes persist calls and can be uninstalled for rollback',async()=>{
   const source=await read('booking-storage-v2-dualwrite.js');
   assert.match(source,/persistQueue\.then\(\(\)=>runPersist\(args\)\)/);
