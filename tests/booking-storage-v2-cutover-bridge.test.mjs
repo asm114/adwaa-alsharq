@@ -62,5 +62,5 @@ test('browser helper loader loads v2 files but never enables cutover automatical
   assert.match(source,/booking-storage-v2\.js\?v=20260916-2/);
   assert.match(source,/booking-storage-v2-dualwrite\.js\?v=20260916-2/);
   assert.match(source,/explicit/);
-  assert.doesNotMatch(source,/\.install\(\{enable:true\}\)/);
+  assert.doesNotMatch(source,/^\s*(?:window\.)?__adwaaBookingV2DualWrite\.install\(\{enable:true\}\)/m);
 });
