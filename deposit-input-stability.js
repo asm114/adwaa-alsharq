@@ -33,3 +33,13 @@ function install(){
 window.__adwaaDepositInputStability={restoreDuringTotalTyping};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })();
+
+(()=>{
+  if(window.__adwaaBookingPersistUpdatePathLoader)return;
+  window.__adwaaBookingPersistUpdatePathLoader=true;
+  const script=document.createElement('script');
+  script.async=false;
+  script.src='booking-persist-update-path.js?v=20260916-1';
+  script.onerror=()=>console.warn('تعذر تحميل مسار حفظ الحجوزات المحسن');
+  document.head.appendChild(script);
+})();
