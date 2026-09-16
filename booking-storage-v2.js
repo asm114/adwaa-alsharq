@@ -126,12 +126,6 @@ async function remove(idValue){
   return {...result,committed};
 }
 
-async function syncLegacy(){
-  const {data,error}=await client().rpc('sync_booking_legacy_mirror_v2');
-  if(error)throw error;
-  return Number(data||0);
-}
-
 function revisionOf(id){return revisions.get(String(id||''))??null}
 function reset(){revisions.clear();lastRows=[]}
 
@@ -141,7 +135,6 @@ window.__adwaaBookingStorageV2={
   readCommitted,
   save,
   remove,
-  syncLegacy,
   revisionOf,
   reset
 };
