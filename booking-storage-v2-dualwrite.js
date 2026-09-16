@@ -5,6 +5,7 @@ window.__adwaaBookingV2DualWriteInstalled=true;
 
 let enabled=false;
 let originalPersist=null;
+let originalRestoreCommit=null;
 let persistQueue=Promise.resolve();
 const committed=new Map();
 
@@ -89,14 +90,28 @@ async function install(options={}){
     persistQueue=task.catch(()=>{});
     return task;
   };
+
+  // The legacy restore path writes app_state directly and would bypass v2. Keep it
+  // blocked during dual-write; emergency recovery uses the controlled v2 rollback plan.
+  if(typeof commitRestoredDataToSupabase==='function'){
+    originalRestoreCommit=commitRestoredDataToSupabase;
+    commitRestoredDataToSupabase=async function bookingV2RestoreGuard(){
+      throw new Error('استعادة نسخة قديمة متوقفة مؤقتًا أثناء تشغيل نظام الحجوزات v2. استخدم خطة الاستعادة/الرجوع المعتمدة حتى لا تتأثر حركة الدفعات التاريخية.');
+    };
+  }
+
   enabled=true;
-  return {enabled:true,comparison};
+  return {enabled:true,comparison,legacyRestoreGuarded:!!originalRestoreCommit};
 }
 
 function uninstall(){
   if(enabled&&originalPersist){
     persist=originalPersist;
     originalPersist=null;
+  }
+  if(originalRestoreCommit){
+    commitRestoredDataToSupabase=originalRestoreCommit;
+    originalRestoreCommit=null;
   }
   enabled=false;
   persistQueue=Promise.resolve();
