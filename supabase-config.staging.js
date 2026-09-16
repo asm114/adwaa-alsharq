@@ -1,12 +1,6 @@
 (()=>{
 'use strict';
 
-// Splash-only visual layer. Loaded independently so any failure falls back to the existing launch screen.
-const launchBranding=document.createElement('link');
-launchBranding.rel='stylesheet';
-launchBranding.href='launch-branding.css?v=20260916-1';
-document.head.appendChild(launchBranding);
-
 const STAGING_PROJECT_REF='ztqqdjryvecscidxxbfe';
 const PRODUCTION_PROJECT_REF='pgdvlklpyrvmwzitsmbw';
 const STAGING_PUBLISHABLE_KEY='sb_publishable_M3MQwFfxiMMKt_-tq-KAjQ_OQTtg2MD';
