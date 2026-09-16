@@ -13,28 +13,20 @@ test('soft delete migration preserves financial history and stops deleted bookin
   assert.match(sql,/delete_booking_v2/);
   assert.match(sql,/deleted_at is null and coalesce\(status, ''\) <> 'ملغي'/);
   assert.match(sql,/revoke delete on table public\.reservations from authenticated/i);
-  const deleteFn=sql.slice(sql.indexOf('create or replace function public.delete_booking_v2'),sql.indexOf('create or replace function public.sync_booking_legacy_mirror_v2'));
+  const deleteFn=sql.slice(sql.indexOf('create or replace function public.delete_booking_v2'));
   assert.doesNotMatch(deleteFn,/delete\s+from\s+public\.payments/i);
   assert.match(deleteFn,/revision=r\.revision\+1/);
   assert.match(deleteFn,/booking_revision_conflict/);
+  assert.match(deleteFn,/p_expected_revision in \(v_current_revision, v_current_revision-1\)/);
 });
 
-test('legacy mirror only replaces the bookings key from active v2 rows',async()=>{
-  const sql=await read(migration);
-  const mirror=sql.slice(sql.indexOf('create or replace function public.sync_booking_legacy_mirror_v2'));
-  assert.match(mirror,/jsonb_set\(data, '\{bookings\}', v_bookings, true\)/);
-  assert.match(mirror,/r\.deleted_at is null/);
-  assert.match(mirror,/order by r\.reservation_number/);
-  assert.doesNotMatch(mirror,/data\s*=\s*v_bookings/i);
-});
-
-test('adapter supports read-back verified soft delete and legacy mirror sync',async()=>{
+test('adapter supports read-back verified soft delete and excludes deleted rows from load',async()=>{
   const source=await read('booking-storage-v2.js');
   assert.doesNotThrow(()=>new vm.Script(source));
   assert.match(source,/\.is\('deleted_at',null\)/);
   assert.match(source,/rpc\('delete_booking_v2'/);
   assert.match(source,/Supabase booking delete read-back verification failed/);
-  assert.match(source,/rpc\('sync_booking_legacy_mirror_v2'\)/);
+  assert.doesNotMatch(source,/sync_booking_legacy_mirror_v2/);
 });
 
 test('dual-write bridge is opt-in and intercepts all persist-based booking mutations centrally',async()=>{
@@ -46,7 +38,7 @@ test('dual-write bridge is opt-in and intercepts all persist-based booking mutat
   assert.match(source,/persist=function bookingV2DualWritePersist/);
   assert.match(source,/adapter\.save\(booking\)/);
   assert.match(source,/adapter\.remove\(id\)/);
-  assert.match(source,/adapter\.syncLegacy\(\)/);
+  assert.match(source,/return originalPersist\(\.\.\.args\)/);
   assert.match(source,/Booking v2 preflight mismatch/);
 });
 
