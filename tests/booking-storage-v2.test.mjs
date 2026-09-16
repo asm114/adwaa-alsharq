@@ -25,6 +25,7 @@ test('adapter uses revision checked RPC for writes',async()=>{
   assert.match(source,/rpc\('save_booking_v2'/);
   assert.match(source,/p_expected_revision:expected/);
   assert.match(source,/revisions\.set\(id,nextRevision\)/);
+  assert.match(source,/call load\(\) before editing existing bookings/);
 });
 
 test('adapter verifies the committed row after every v2 save',async()=>{
