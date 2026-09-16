@@ -3,6 +3,8 @@
 if(window.__adwaaBookingStorageV2Installed)return;
 window.__adwaaBookingStorageV2Installed=true;
 
+// Cutover contract: call load() before editing existing bookings so the adapter has
+// the authoritative revision; save() always performs a database read-back before success.
 const revisions=new Map();
 let lastRows=[];
 
