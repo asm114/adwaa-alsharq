@@ -57,6 +57,17 @@ function compareWithLegacy(legacyBookings){
   };
 }
 
+async function readCommitted(id){
+  const {data,error}=await client()
+    .from('reservations')
+    .select('legacy_booking_id,booking_code,legacy_payload,revision,source_hash,updated_at')
+    .eq('legacy_booking_id',id)
+    .maybeSingle();
+  if(error)throw error;
+  if(!data)throw new Error('Supabase did not return the committed booking.');
+  return data;
+}
+
 async function save(booking){
   const id=bookingId(booking);
   if(!id)throw new Error('Booking id is required.');
@@ -69,8 +80,19 @@ async function save(booking){
   const result=Array.isArray(data)?data[0]:data;
   const nextRevision=Number(result?.revision||0);
   if(!nextRevision)throw new Error('Supabase did not return the new booking revision.');
+
+  const committed=await readCommitted(id);
+  if(Number(committed.revision||0)!==nextRevision){
+    throw new Error('Supabase booking revision verification failed.');
+  }
+  if(stable(rowBooking(committed))!==stable(booking)){
+    throw new Error('Supabase booking read-back verification failed.');
+  }
+
   revisions.set(id,nextRevision);
-  return result;
+  const index=lastRows.findIndex(row=>String(row.legacy_booking_id||'')===id);
+  if(index>=0)lastRows[index]=committed;else lastRows.push(committed);
+  return {...result,committed};
 }
 
 function revisionOf(id){return revisions.get(String(id||''))??null}
@@ -79,6 +101,7 @@ function reset(){revisions.clear();lastRows=[]}
 window.__adwaaBookingStorageV2={
   load,
   compareWithLegacy,
+  readCommitted,
   save,
   revisionOf,
   reset
