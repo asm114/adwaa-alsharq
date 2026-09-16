@@ -51,8 +51,8 @@ if(runtimeEnvironment==='production'){
 }
 
 function loadBookingSaveHotfixes(){
-  if(window.__adwaaBookingSaveHotfixLoaderStarted)return;
-  window.__adwaaBookingSaveHotfixLoaderStarted=true;
+  if(window.__adwaaBookingSaveHotfixLoaderStartedV2)return;
+  window.__adwaaBookingSaveHotfixLoaderStartedV2=true;
   const loadScript=src=>new Promise((resolve,reject)=>{
     const script=document.createElement('script');
     script.src=src;
@@ -61,8 +61,9 @@ function loadBookingSaveHotfixes(){
     script.onerror=()=>reject(new Error(`تعذر تحميل ${src}`));
     document.head.appendChild(script);
   });
-  loadScript('booking-persist-update-path.js?v=20260916-1')
-    .then(()=>loadScript('booking-save-stability.js?v=20260916-1'))
+  loadScript('booking-persist-update-path.js?v=20260916-2')
+    .then(()=>loadScript('booking-save-stability.js?v=20260916-2'))
+    .then(()=>loadScript('booking-save-direct-production.js?v=20260916-2'))
     .catch(error=>console.error('تعذر تهيئة إصلاح حفظ الحجوزات',error));
 }
 
