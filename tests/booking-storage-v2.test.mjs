@@ -27,6 +27,14 @@ test('adapter uses revision checked RPC for writes',async()=>{
   assert.match(source,/revisions\.set\(id,nextRevision\)/);
 });
 
+test('adapter verifies the committed row after every v2 save',async()=>{
+  const source=await read('booking-storage-v2.js');
+  assert.match(source,/async function readCommitted\(id\)/);
+  assert.match(source,/const committed=await readCommitted\(id\)/);
+  assert.match(source,/Supabase booking revision verification failed/);
+  assert.match(source,/Supabase booking read-back verification failed/);
+});
+
 test('migration preserves exact source snapshot before backfill',async()=>{
   const sql=await read(baseMigration);
   assert.match(sql,/booking_migration_snapshots/);
