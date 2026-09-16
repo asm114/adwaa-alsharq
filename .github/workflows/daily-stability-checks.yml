@@ -34,6 +34,7 @@ jobs:
             portal-booking-sync-stable.js
             portal-final-admin.js
             booking-payment-history.js
+            booking-relational-store.js
             deposit-refund-policy.js
             remaining-payment-flow.js
             subscription-booking-type.js
