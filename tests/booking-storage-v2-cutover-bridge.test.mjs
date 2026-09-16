@@ -56,3 +56,11 @@ test('dual-write bridge serializes persist calls and can be uninstalled for roll
   assert.match(source,/persist=originalPersist/);
   assert.match(source,/uninstall/);
 });
+
+test('browser helper loader loads v2 files but never enables cutover automatically',async()=>{
+  const source=await read('deposit-input-stability.js');
+  assert.match(source,/booking-storage-v2\.js\?v=20260916-2/);
+  assert.match(source,/booking-storage-v2-dualwrite\.js\?v=20260916-2/);
+  assert.match(source,/explicit/);
+  assert.doesNotMatch(source,/\.install\(\{enable:true\}\)/);
+});
