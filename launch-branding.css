@@ -1,0 +1,10 @@
+/* Adwaa Al Sharq launch identity — isolated splash-only styling. */
+.launch-splash{isolation:isolate;overflow:hidden;background:#073f35}
+.launch-splash::before{content:"";position:absolute;inset:-2%;z-index:-2;background:url('assets/launch-resort-photo.svg') center 46%/cover no-repeat;opacity:.34;transform:scale(1.035)}
+.launch-splash::after{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(circle at 50% 42%,rgba(11,104,84,.22),rgba(2,39,32,.12) 42%,rgba(1,30,25,.30) 100%),linear-gradient(145deg,rgba(4,62,52,.82),rgba(10,92,76,.72))}
+.launch-splash .launch-brand{position:relative;z-index:1;padding:30px 34px 28px;border-radius:34px;background:linear-gradient(180deg,rgba(4,55,46,.10),rgba(4,55,46,.03));text-shadow:0 3px 18px rgba(0,0,0,.28)}
+.launch-splash .launch-mark{border:1px solid rgba(255,255,255,.10);box-shadow:0 20px 54px rgba(0,0,0,.34),0 0 0 8px rgba(255,255,255,.025)}
+.launch-splash .launch-brand p{color:rgba(233,244,239,.88)}
+.launch-splash .launch-line{background:rgba(255,255,255,.18)}
+@media(max-width:640px){.launch-splash::before{background-position:center 48%;opacity:.31}.launch-splash .launch-brand{padding:24px 26px 22px;border-radius:28px}}
+@media(prefers-reduced-motion:reduce){.launch-splash .launch-mark,.launch-splash .launch-line:after{animation:none}}
