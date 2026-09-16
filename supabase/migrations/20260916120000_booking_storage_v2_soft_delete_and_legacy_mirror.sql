@@ -1,7 +1,8 @@
--- Booking storage v2 soft-delete and rollback-mirror support.
+-- Booking storage v2 soft-delete support for safe cutover/rollback.
 -- Final deletion never removes the reservation row or its financial ledger.
--- app_state.bookings remains a rollback-compatible mirror after cutover, while the
--- immutable pre-cutover snapshot remains in booking_migration_snapshots.
+-- During cutover the opt-in dual-write bridge continues mirroring the active booking
+-- list through the existing app_state persist path; the immutable pre-cutover source
+-- remains preserved separately in booking_migration_snapshots.
 
 alter table public.reservations
   add column if not exists deleted_at timestamptz;
@@ -111,44 +112,3 @@ $$;
 
 revoke all on function public.delete_booking_v2(text,bigint) from public;
 grant execute on function public.delete_booking_v2(text,bigint) to authenticated;
-
--- Rebuild only the bookings key in app_state from authoritative active v2 rows.
--- All unrelated app_state keys (expenses, settings, cleaning tasks, audit, etc.) remain intact.
-create or replace function public.sync_booking_legacy_mirror_v2()
-returns integer
-language plpgsql
-security invoker
-set search_path = public
-as $$
-declare
-  v_bookings jsonb;
-  v_count integer;
-begin
-  if lower(coalesce(auth.jwt()->>'email','')) <> lower('asm114@hotmail.com') then
-    raise exception 'not_authorized' using errcode='42501';
-  end if;
-
-  perform 1 from public.app_state where id='main' for update;
-  if not found then
-    raise exception 'legacy_state_missing' using errcode='P0002';
-  end if;
-
-  select
-    coalesce(jsonb_agg(r.legacy_payload order by r.reservation_number), '[]'::jsonb),
-    count(*)::integer
-  into v_bookings, v_count
-  from public.reservations r
-  where r.legacy_booking_id is not null
-    and r.deleted_at is null;
-
-  update public.app_state
-  set data=jsonb_set(data, '{bookings}', v_bookings, true),
-      updated_at=now()
-  where id='main';
-
-  return v_count;
-end;
-$$;
-
-revoke all on function public.sync_booking_legacy_mirror_v2() from public;
-grant execute on function public.sync_booking_legacy_mirror_v2() to authenticated;
