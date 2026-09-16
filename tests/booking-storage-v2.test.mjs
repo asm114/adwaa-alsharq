@@ -7,6 +7,7 @@ const root=new URL('../',import.meta.url);
 const read=path=>readFile(new URL(path,root),'utf8');
 const baseMigration='supabase/migrations/20260916060000_booking_storage_v2.sql';
 const ledgerHardening='supabase/migrations/20260916070000_booking_storage_v2_payment_ledger_hardening.sql';
+const overlapHardening='supabase/migrations/20260916080000_booking_storage_v2_date_overlap_hardening.sql';
 
 test('booking storage v2 adapter loads without syntax errors',async()=>{
   const source=await read('booking-storage-v2.js');
@@ -60,6 +61,13 @@ test('payment hardening is ordered after the base v2 migration',()=>{
   assert.ok(hardeningStamp>baseStamp);
 });
 
+test('date overlap hardening is ordered after payment hardening',()=>{
+  const ledgerStamp=Number(ledgerHardening.match(/migrations\/(\d+)_/)?.[1]);
+  const overlapStamp=Number(overlapHardening.match(/migrations\/(\d+)_/)?.[1]);
+  assert.ok(Number.isFinite(ledgerStamp)&&Number.isFinite(overlapStamp));
+  assert.ok(overlapStamp>ledgerStamp);
+});
+
 test('migration protects concurrent booking edits with revisions',async()=>{
   const sql=await read(ledgerHardening);
   assert.match(sql,/p_expected_revision bigint/);
@@ -96,4 +104,14 @@ test('v2 reservation access remains restricted to manager account',async()=>{
   const sql=await read(baseMigration);
   assert.match(sql,/drop policy if exists "manager reservations"/);
   assert.match(sql,/asm114@hotmail\.com/);
+});
+
+test('database prevents overlapping non-cancelled booking dates',async()=>{
+  const sql=await read(overlapHardening);
+  assert.match(sql,/occupied_range daterange/);
+  assert.match(sql,/daterange\(/);
+  assert.match(sql,/reservations_no_active_date_overlap/);
+  assert.match(sql,/exclude using gist \(occupied_range with &&\)/);
+  assert.match(sql,/coalesce\(status, ''\) <> 'ملغي'/);
+  assert.match(sql,/existing_booking_date_overlap/);
 });
