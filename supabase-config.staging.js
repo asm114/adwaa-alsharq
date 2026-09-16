@@ -66,6 +66,8 @@ function loadBookingSaveHotfixes(){
     .catch(error=>console.error('تعذر تهيئة إصلاح حفظ الحجوزات',error));
 }
 
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loadBookingSaveHotfixes,{once:true});
-else loadBookingSaveHotfixes();
+if(typeof document!=='undefined'){
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loadBookingSaveHotfixes,{once:true});
+  else loadBookingSaveHotfixes();
+}
 })();
