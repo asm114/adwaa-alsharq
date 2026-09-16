@@ -56,28 +56,11 @@ async function runPersist(args){
     throw error;
   }
 
-  // Mark the v2 state committed before the legacy write. If legacy persistence fails,
-  // a retry will not create extra revisions/payments; it will only retry app_state + mirror.
+  // v2 is authoritative. The existing persist path then mirrors the exact current
+  // application booking list into app_state together with unrelated legacy state.
+  // Snapshot before legacy persistence makes retries idempotent for v2 if app_state fails.
   snapshot(current);
-
-  let legacyResult;
-  let legacyError=null;
-  try{
-    legacyResult=await originalPersist(...args);
-  }catch(error){
-    legacyError=error;
-  }
-
-  let mirrorError=null;
-  try{
-    await adapter.syncLegacy();
-  }catch(error){
-    mirrorError=error;
-  }
-
-  if(legacyError)throw legacyError;
-  if(mirrorError)throw mirrorError;
-  return legacyResult;
+  return originalPersist(...args);
 }
 
 async function preflight(){
