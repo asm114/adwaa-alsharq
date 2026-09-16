@@ -24,12 +24,18 @@ test('direct save surfaces real Supabase update errors',async()=>{
   assert.match(source,/لم يتم حفظ الحجز في Supabase/);
 });
 
-test('production config loads direct save fix after existing save guards',async()=>{
+test('production config owns booking submit and verifies Supabase before closing',async()=>{
   const config=await read('supabase-config.staging.js');
-  const persist=config.indexOf('booking-persist-update-path.js?v=20260916-2');
-  const stability=config.indexOf('booking-save-stability.js?v=20260916-2');
-  const direct=config.indexOf('booking-save-direct-production.js?v=20260916-2');
-  assert.ok(persist>=0);
-  assert.ok(stability>persist);
-  assert.ok(direct>stability);
+  assert.match(config,/BOOKING_SAVE_VERSION='20260916-3'/);
+  assert.match(config,/document\.addEventListener\('submit'/);
+  assert.match(config,/event\.target\?\.id!=='bookingForm'/);
+  assert.match(config,/event\.stopImmediatePropagation\(\)/);
+  assert.match(config,/writeStateAndVerifyBooking/);
+  assert.match(config,/\.from\('app_state'\)/);
+  assert.match(config,/\.update\(payload\)/);
+  assert.match(config,/\.select\('data,updated_at'\)/);
+  assert.match(config,/closeModal\('bookingModal'\)/);
+  assert.ok(!config.includes('booking-save-direct-production.js?v=20260916-2'));
+  assert.ok(!config.includes('booking-persist-update-path.js?v=20260916-2'));
+  assert.match(config,/booking-save-stability\.js\?v=\$\{BOOKING_SAVE_VERSION\}/);
 });
