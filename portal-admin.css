@@ -1,3 +1,4 @@
+@import url('launch-branding.css?v=20260916-1');
 .portal-admin-hero{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:22px;border-radius:24px;background:linear-gradient(135deg,#0d4c3f,#176956);color:#fff}
 .portal-admin-hero h2{margin:5px 0;font-size:28px}
 .portal-admin-hero p{margin:0;color:#d7e8e2;line-height:1.8}
