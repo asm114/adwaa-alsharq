@@ -15,5 +15,6 @@ test('حفظ كلمة المرور لا يحجز انتقال الدخول عل�
 
 test('تحميل إصلاح الدخول يستخدم نسخة جديدة لتجاوز كاش المتصفح',async()=>{
   const loader=await read('subscription-booking-type.js');
-  assert.match(loader,/portal-dedicated-backend-compat\.js\?v=20260819-3/);
+  assert.match(loader,/portal-dedicated-backend-compat\.js\?v=20260916-4/);
+  assert.match(loader,/setTimeout\(\(\)=>\{/);
 });
