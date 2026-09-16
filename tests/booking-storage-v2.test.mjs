@@ -5,6 +5,8 @@ import vm from 'node:vm';
 
 const root=new URL('../',import.meta.url);
 const read=path=>readFile(new URL(path,root),'utf8');
+const baseMigration='supabase/migrations/20260916060000_booking_storage_v2.sql';
+const ledgerHardening='supabase/migrations/20260916070000_booking_storage_v2_payment_ledger_hardening.sql';
 
 test('booking storage v2 adapter loads without syntax errors',async()=>{
   const source=await read('booking-storage-v2.js');
@@ -26,7 +28,7 @@ test('adapter uses revision checked RPC for writes',async()=>{
 });
 
 test('migration preserves exact source snapshot before backfill',async()=>{
-  const sql=await read('supabase/migrations/20260916060000_booking_storage_v2.sql');
+  const sql=await read(baseMigration);
   assert.match(sql,/booking_migration_snapshots/);
   assert.match(sql,/md5\(s\.data::text\)/);
   const snapshotIndex=sql.indexOf('insert into public.booking_migration_snapshots');
@@ -35,31 +37,46 @@ test('migration preserves exact source snapshot before backfill',async()=>{
 });
 
 test('migration preserves full legacy booking and payment JSON',async()=>{
-  const sql=await read('supabase/migrations/20260916060000_booking_storage_v2.sql');
+  const sql=await read(baseMigration);
   assert.match(sql,/legacy_payload jsonb/);
   assert.match(sql,/booking,\n  md5\(booking::text\)/);
   assert.match(sql,/p\.payment,\n  md5\(p\.payment::text\)/);
 });
 
 test('migration protects concurrent booking edits with revisions',async()=>{
-  const sql=await read('supabase/migrations/20260916060000_booking_storage_v2.sql');
+  const sql=await read(ledgerHardening);
   assert.match(sql,/p_expected_revision bigint/);
   assert.match(sql,/for update/);
   assert.match(sql,/booking_revision_conflict/);
   assert.match(sql,/revision=r\.revision\+1/);
 });
 
-test('migration replaces payment set atomically inside booking save function',async()=>{
-  const sql=await read('supabase/migrations/20260916060000_booking_storage_v2.sql');
+test('final save function never deletes payment history',async()=>{
+  const sql=await read(ledgerHardening);
   const fnIndex=sql.indexOf('create or replace function public.save_booking_v2');
-  const deleteIndex=sql.indexOf('delete from public.payments p where p.reservation_id=v_reservation_id;',fnIndex);
-  const insertIndex=sql.indexOf('insert into public.payments',deleteIndex);
-  assert.ok(fnIndex>=0&&deleteIndex>fnIndex&&insertIndex>deleteIndex);
+  const fn=sql.slice(fnIndex);
+  assert.ok(fnIndex>=0);
+  assert.doesNotMatch(fn,/delete\s+from\s+public\.payments/i);
+  assert.match(fn,/on conflict \(reservation_id, legacy_payment_id\) do nothing/);
 });
 
-test('v2 reservation and payment RLS is restricted to manager account',async()=>{
-  const sql=await read('supabase/migrations/20260916060000_booking_storage_v2.sql');
+test('existing payment movements are immutable during booking edits',async()=>{
+  const sql=await read(ledgerHardening);
+  assert.match(sql,/payment_history_is_immutable/);
+  assert.match(sql,/p\.source_hash is distinct from md5\(incoming::text\)/);
+  assert.match(sql,/payment_id_required/);
+});
+
+test('final payment RLS allows manager read and append but no update or delete policy',async()=>{
+  const sql=await read(ledgerHardening);
+  assert.match(sql,/create policy "manager payments v2 select"/);
+  assert.match(sql,/create policy "manager payments v2 insert"/);
+  assert.doesNotMatch(sql,/for\s+update\s+to authenticated/i);
+  assert.doesNotMatch(sql,/for\s+delete\s+to authenticated/i);
+});
+
+test('v2 reservation access remains restricted to manager account',async()=>{
+  const sql=await read(baseMigration);
   assert.match(sql,/drop policy if exists "manager reservations"/);
-  assert.match(sql,/drop policy if exists "manager payments"/);
   assert.match(sql,/asm114@hotmail\.com/);
 });
