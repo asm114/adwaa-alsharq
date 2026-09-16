@@ -7,6 +7,8 @@ const PORTAL_PROJECT_REF='ztqqdjryvecscidxxbfe';
 const PORTAL_SUPABASE_URL=`https://${PORTAL_PROJECT_REF}.supabase.co`;
 const PORTAL_SUPABASE_PUBLISHABLE_KEY='sb_publishable_M3MQwFfxiMMKt_-tq-KAjQ_OQTtg2MD';
 const PORTAL_AUTH_STORAGE_KEY=`adwaa-portal-auth-${PORTAL_PROJECT_REF}`;
+const PORTAL_SESSION_FUNCTION_URL=`${PORTAL_SUPABASE_URL}/functions/v1/customer-portal-admin-session`;
+let portalSessionPromise=null;
 
 function makeCredentialSaveNonBlocking(){
   const original=window.saveManagerCredentialPreference;
@@ -73,10 +75,21 @@ function install(){
     }
   }
 
+  function reloadPortalAdminData(){
+    setTimeout(()=>{
+      try{
+        const loader=window.loadProtectedPortalAdminData;
+        if(typeof loader==='function')Promise.resolve(loader()).catch(err=>console.warn('تعذر تحديث بيانات بوابة العملاء بعد الربط.',err));
+      }catch(err){console.warn('تعذر تحديث واجهة بوابة العملاء بعد الربط.',err)}
+    },0);
+  }
   function setReady(userId=''){
     const wasReady=window.portalAdminAuthState?.ready===true;
     window.portalAdminAuthState={ready:true,error:'',userId:String(userId||'')};
-    if(!wasReady)window.dispatchEvent(new CustomEvent('adwaa-portal-admin-ready'));
+    if(!wasReady){
+      window.dispatchEvent(new CustomEvent('adwaa-portal-admin-ready'));
+      reloadPortalAdminData();
+    }
   }
   async function verify(){
     const {data:sessionData,error:sessionError}=await dedicatedClient.auth.getSession();
@@ -94,8 +107,45 @@ function install(){
     if(!valid){try{await dedicatedClient.auth.signOut({scope:'local'})}catch(_){}}
     return valid;
   }
+  async function establishFromPrimarySession(){
+    const primaryAuth=window.supabaseClient?.auth;
+    if(!primaryAuth?.getSession){window.portalAdminAuthState={ready:false,error:'جلسة مدير النظام الأساسية غير متاحة',userId:''};return false}
+    const {data,error}=await primaryAuth.getSession();
+    const primarySession=data?.session||null;
+    if(error||!primarySession?.access_token){window.portalAdminAuthState={ready:false,error:error?.message||'لا توجد جلسة مدير أساسية نشطة',userId:''};return false}
+    let response;
+    try{
+      response=await fetch(PORTAL_SESSION_FUNCTION_URL,{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'apikey':PORTAL_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization':`Bearer ${primarySession.access_token}`
+        },
+        body:'{}'
+      });
+    }catch(err){
+      window.portalAdminAuthState={ready:false,error:'تعذر الوصول إلى خدمة ربط بوابة العملاء',userId:''};
+      console.warn('تعذر استدعاء خدمة ربط بوابة العملاء.',err);return false;
+    }
+    const payload=await response.json().catch(()=>({}));
+    if(!response.ok||!payload?.access_token||!payload?.refresh_token){
+      window.portalAdminAuthState={ready:false,error:String(payload?.error||`تعذر إنشاء جلسة بوابة العملاء (${response.status})`),userId:''};
+      return false;
+    }
+    const {error:setError}=await dedicatedClient.auth.setSession({access_token:payload.access_token,refresh_token:payload.refresh_token});
+    if(setError){window.portalAdminAuthState={ready:false,error:setError.message||'تعذر تثبيت جلسة بوابة العملاء',userId:''};return false}
+    return verify();
+  }
+  async function ensurePortalAdminSession(){
+    if(await verify())return true;
+    if(portalSessionPromise)return portalSessionPromise;
+    portalSessionPromise=establishFromPrimarySession();
+    try{return await portalSessionPromise}finally{portalSessionPromise=null}
+  }
   window.verifyPortalAdminSession=verify;
   window.signInPortalAdminWithCredentials=signIn;
+  window.ensurePortalAdminSession=ensurePortalAdminSession;
 
   const previousLogin=window.loginManager;
   if(typeof previousLogin==='function'&&!previousLogin.__dedicatedPortalWrapped){
@@ -105,7 +155,10 @@ function install(){
       const result=await previousLogin.call(this,event);
       try{
         const {data}=await window.supabaseClient?.auth?.getSession?.();
-        if(data?.session?.user&&email&&password)await signIn(email,password);
+        if(data?.session?.user){
+          const linked=await ensurePortalAdminSession();
+          if(!linked&&email&&password)await signIn(email,password);
+        }
       }catch(err){console.warn('تعذر ربط جلسة بوابة العملاء المخصصة.',err)}
       return result;
     };
@@ -113,13 +166,17 @@ function install(){
     window.loginManager=wrapped;
   }
 
-  window.supabaseClient?.auth?.onAuthStateChange?.(event=>{
+  window.supabaseClient?.auth?.onAuthStateChange?.((event,session)=>{
     if(event==='SIGNED_OUT'){
       window.portalAdminAuthState={ready:false,error:'تم تسجيل الخروج',userId:''};
       dedicatedClient.auth.signOut({scope:'local'}).catch(()=>{});
+      return;
+    }
+    if(session?.user&&(event==='SIGNED_IN'||event==='TOKEN_REFRESHED'||event==='INITIAL_SESSION')){
+      setTimeout(()=>ensurePortalAdminSession().catch(()=>{}),0);
     }
   });
-  verify().catch(()=>{});
+  ensurePortalAdminSession().catch(()=>{});
   return true;
 }
 
