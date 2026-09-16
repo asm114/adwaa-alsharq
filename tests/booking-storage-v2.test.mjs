@@ -51,6 +51,13 @@ test('migration preserves full legacy booking and payment JSON',async()=>{
   assert.match(sql,/p\.payment,\n  md5\(p\.payment::text\)/);
 });
 
+test('payment hardening is ordered after the base v2 migration',()=>{
+  const baseStamp=Number(baseMigration.match(/migrations\/(\d+)_/)?.[1]);
+  const hardeningStamp=Number(ledgerHardening.match(/migrations\/(\d+)_/)?.[1]);
+  assert.ok(Number.isFinite(baseStamp)&&Number.isFinite(hardeningStamp));
+  assert.ok(hardeningStamp>baseStamp);
+});
+
 test('migration protects concurrent booking edits with revisions',async()=>{
   const sql=await read(ledgerHardening);
   assert.match(sql,/p_expected_revision bigint/);
