@@ -24,10 +24,13 @@ test('جسر بوابة العملاء لا يعيد توجيه createClient إ�
   assert.equal(context.window.__adwaaCustomerPortalBackendRef,portalRef);
 });
 
-test('Production لا يحمل عميل البوابة القديم الذي يشارك جلسة الإدارة',async()=>{
+test('Production لا يحمل عميل البوابة القديم ويحمّل الجسر المخصص بعد تهيئة التشغيل',async()=>{
   const subscription=await read('subscription-booking-type.js');
   assert.match(subscription,/runtimeEnvironment==='production'\)return;window\.__adwaaPortalCalendarConsistencyInstalled=true;const script=document\.createElement\('script'\);script\.async=false;script\.src='portal-admin-client\.js\?v=20260819-3'/);
-  assert.match(subscription,/portal-dedicated-backend-compat\.js\?v=20260819-3/);
+  assert.match(subscription,/setTimeout\(\(\)=>\{const script=document\.createElement\('script'\);script\.async=false;script\.src='portal-dedicated-backend-compat\.js\?v=20260916-4'/);
+  const dedicatedIndex=subscription.indexOf("portal-dedicated-backend-compat.js?v=20260916-4");
+  const depositIndex=subscription.indexOf("deposit-input-stability.js?v=20260916-1");
+  assert.ok(dedicatedIndex>depositIndex,'dedicated portal bridge must load after runtime feature wrappers');
 });
 
 test('Staging يعطل reconciler القديم قبل تحميل عميل البوابة',async()=>{
