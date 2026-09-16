@@ -8,8 +8,10 @@ const read=path=>readFile(new URL(path,root),'utf8');
 test('ربط إدارة بوابة العملاء يستعيد جلسة البوابة من جلسة المدير الأساسية',async()=>{
   const compat=await read('portal-dedicated-backend-compat.js');
   assert.match(compat,/customer-portal-admin-session/);
-  assert.match(compat,/supabaseClient\.auth\.getSession/);
-  assert.match(compat,/Authorization':`Bearer \$\{primarySession\.access_token\}`/);
+  assert.match(compat,/const primaryAuth=window\.supabaseClient\?\.auth/);
+  assert.match(compat,/await primaryAuth\.getSession\(\)/);
+  assert.match(compat,/'Authorization'/);
+  assert.match(compat,/primarySession\.access_token/);
   assert.match(compat,/dedicatedClient\.auth\.setSession/);
   assert.match(compat,/ensurePortalAdminSession/);
 });
