@@ -19,7 +19,7 @@
       copy.sourceBookingCode=String(copy.sourceBookingCode||'');
       copy.targetBookingId=String(copy.targetBookingId||'');
       copy.targetBookingCode=String(copy.targetBookingCode||'');
-      copy.createdAt=copy.createdAt||new Date().toISOString();
+      copy.createdAt=String(copy.createdAt||'');
       return copy;
     });
   }
