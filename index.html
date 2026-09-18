@@ -1497,7 +1497,7 @@ function normalizeDB(value){
     cleaningTasks:Array.isArray(x.cleaningTasks)?x.cleaningTasks:[],
     notifications:Array.isArray(x.notifications)?x.notifications:[],
     customerNotes:x.customerNotes&&typeof x.customerNotes==='object'?x.customerNotes:{},
-    customerCredits:Array.isArray(x.customerCredits)?x.customerCredits:[],
+    customerCredits:window.CustomerCreditCore?.recalculateBalances(Array.isArray(x.customerCredits)?x.customerCredits:[])||(Array.isArray(x.customerCredits)?x.customerCredits:[]),
     backupHistory:Array.isArray(x.backupHistory)?x.backupHistory:[],
     auditLog:Array.isArray(x.auditLog)?x.auditLog:[],
     settings:normalizedSettings,
