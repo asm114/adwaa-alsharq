@@ -35,6 +35,7 @@ jobs:
             portal-final-admin.js
             booking-payment-history.js
             deposit-refund-policy.js
+            customer-credit-core.js
             remaining-payment-flow.js
             subscription-booking-type.js
             subscription-customer-finance.js
@@ -62,4 +63,4 @@ jobs:
           done
 
       - name: Stability tests
-        run: node --test tests/*.test.mjs
+        run: node --test tests/*.test.mjs tests/*.test.js

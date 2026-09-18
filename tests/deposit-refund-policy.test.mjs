@@ -6,68 +6,63 @@ import test from 'node:test';
 const root=new URL('../',import.meta.url);
 const read=path=>readFile(new URL(path,root),'utf8');
 
-test('ملف سياسة العربون صالح نحويًا ومحمل من المسار الرسمي',async()=>{
+test('ملف سياسة العربون صالح نحويًا ومحمل بالنسخة الحالية',async()=>{
   const policy=await read('deposit-refund-policy.js');
   const loader=await read('subscription-booking-type.js');
+  const index=await read('index.html');
   assert.doesNotThrow(()=>new vm.Script(policy));
-  assert.match(loader,/deposit-refund-policy\.js\?v=20260914-1/);
+  assert.match(loader,/deposit-refund-policy\.js\?v=20260918-2/);
+  assert.match(index,/deposit-refund-policy\.js\?v=20260918-2/);
 });
 
-test('إلغاء حجز بعربون يدعم غير مسترد وكامل وجزئي ويحفظ سجل الإرجاع',async()=>{
+test('السياسة المعتمدة تحول إلغاء العميل إلى رصيد وتمنع وصف الاسترداد النقدي له',async()=>{
   const js=await read('deposit-refund-policy.js');
-  assert.match(js,/retained:'العربون غير مسترد'/);
-  assert.match(js,/refunded:'تم إرجاع العربون كاملًا'/);
-  assert.match(js,/partial:'تم إرجاع جزء من العربون'/);
-  assert.match(js,/function buildCancellationRecord\(state,amount\)/);
-  assert.match(js,/booking\.depositCancellation=next/);
-  assert.match(js,/refundDate:/);
-  assert.match(js,/refundMethod:/);
-  assert.match(js,/note:/);
-  assert.match(js,/recordedAt:new Date\(\)\.toISOString\(\)/);
+  assert.match(js,/العربون غير مسترد نقدًا، وفي حال إلغاء الحجز يُحفظ كامل مبلغ العربون كرصيد للعميل لاستخدامه في حجز لاحق/);
+  assert.match(js,/إذا ألغى المنتجع الحجز، يكون للعميل خيار استرجاع المبلغ أو إبقائه رصيدًا/);
+  assert.doesNotMatch(js,/إرجاع جزئي/);
 });
 
-test('حالة إرجاع العربون تدخل في نفس عملية حفظ الحجز ولا تنفذ persist ثانية بعدها',async()=>{
-  const js=await read('deposit-refund-policy.js');
-  assert.match(js,/window\.persist=interceptedPersist/);
-  assert.match(js,/applyCancellationState\(snapshot\)/);
-  assert.match(js,/return originalPersist\.apply\(this,arguments\)/);
-  assert.doesNotMatch(js,/persistCancellationState/);
-  assert.doesNotMatch(js,/await window\.persist\(\)/);
+test('واجهة الإلغاء تفرض الرصيد لإلغاء العميل وتعرض خيار الاسترجاع فقط لإلغاء المنتجع',async()=>{
+  const index=await read('index.html');
+  assert.match(index,/id="depositCancellationBy"/);
+  assert.match(index,/value="customer">العميل/);
+  assert.match(index,/value="resort">المنتجع/);
+  assert.match(index,/cancellationAction\.disabled=cancelledBy!=='resort'/);
+  assert.match(index,/if\(cancelledBy!=='resort'\)cancellationAction\.value='credit'/);
+  assert.match(index,/const action=cancelledBy==='resort'\?\(document\.getElementById\('depositCancellationAction'\)\?\.value\|\|'credit'\):'credit'/);
 });
 
-test('لا يسمح بإرجاع أكثر من العربون والإرجاع الكامل يجب أن يساويه',async()=>{
-  const js=await read('deposit-refund-policy.js');
-  assert.match(js,/state\.refundAmount>amount/);
-  assert.match(js,/Math\.abs\(state\.refundAmount-amount\)>0\.009/);
-  assert.match(js,/مبلغ الإرجاع لا يمكن أن يتجاوز العربون/);
-  assert.match(js,/في الإرجاع الكامل يجب أن يساوي مبلغ الإرجاع قيمة العربون/);
+test('تحويل العربون إلى رصيد يتم داخل حفظ الحجز ويحتفظ بجهة الإلغاء',async()=>{
+  const index=await read('index.html');
+  assert.match(index,/function creditCancelledDeposit\(booking,oldBooking,action,cancelledBy='customer'\)/);
+  assert.match(index,/const finalAction=cancelledBy==='resort'&&action==='refund'\?'refund':'credit'/);
+  assert.match(index,/booking\.depositCancellation=\{status:finalAction==='refund'\?'refunded':'credit',cancelledBy/);
+  assert.match(index,/db\.customerCredits=core\.addCreditOnce/);
 });
 
-test('سجل الدفع الأصلي لا يُحذف أو يُنقص عند تسجيل حالة الإرجاع',async()=>{
-  const js=await read('deposit-refund-policy.js');
-  assert.doesNotMatch(js,/booking\.paid\s*=/);
-  assert.doesNotMatch(js,/payments\.splice/);
-  assert.doesNotMatch(js,/booking\.payments\s*=/);
-  assert.match(js,/depositCancellation/);
+test('سجل الدفع الأصلي لا يُحذف أو يُنقص عند إنشاء رصيد العميل',async()=>{
+  const core=await read('customer-credit-core.js');
+  const index=await read('index.html');
+  assert.doesNotMatch(core,/booking\.paid\s*=/);
+  assert.doesNotMatch(core,/payments\.splice/);
+  assert.match(index,/customerCreditApplied/);
+  assert.match(index,/customerCredits/);
 });
 
-test('سياسة عدم استرداد العربون تضاف لرسالة التأكيد فقط عند وجود مبلغ مدفوع',async()=>{
-  const js=await read('booking-welcome-confirmation.js');
-  assert.match(js,/DEPOSIT_POLICY_TEXT='سياسة العربون: العربون المدفوع غير مسترد في حال إلغاء الحجز من قبل العميل\. وفي حال تعذر تنفيذ الحجز من جهة المنتجع يُعاد العربون كاملًا\.'/);
-  assert.match(js,/const b=booking\|\|resolvedBooking\(\),times=bookingTimesSafe\(b\),hasDeposit=paidDepositAmount\(b\)>0/);
-  assert.match(js,/if\(hasDeposit\)lines\.push\('',DEPOSIT_POLICY_TEXT\)/);
-});
-
-test('واجهة حالة العربون لا تظهر إلا للحجز الملغي الذي لديه عربون',async()=>{
-  const js=await read('deposit-refund-policy.js');
-  assert.match(js,/const cancelled=document\.getElementById\('bStatus'\)\?\.value==='ملغي'/);
-  assert.match(js,/box\?\.classList\.toggle\('show',cancelled&&amount>0\)/);
+test('استخدام رصيد العميل لا يُحسب كتحصيل نقدي جديد',async()=>{
+  const core=await read('customer-credit-core.js');
+  const index=await read('index.html');
+  assert.match(core,/return Math\.max\(0,safeNumber\(booking\?\.paid\)-safeNumber\(booking\?\.customerCreditApplied\)\)/);
+  assert.match(index,/const cashCollected=activeBookings\.reduce/);
+  assert.match(index,/finCashCollected/);
+  assert.match(index,/finCustomerCredits/);
 });
 
 test('التغيير لا يحتوي SQL أو schema أو كتابة Supabase مباشرة',async()=>{
   const js=await read('deposit-refund-policy.js');
+  const core=await read('customer-credit-core.js');
   assert.doesNotMatch(js,/supabase\.from/i);
+  assert.doesNotMatch(core,/supabase\.from/i);
   assert.doesNotMatch(js,/create table/i);
-  assert.doesNotMatch(js,/alter table/i);
-  assert.doesNotMatch(js,/schema/i);
+  assert.doesNotMatch(core,/alter table/i);
 });
