@@ -14,6 +14,8 @@ test('رسالة الترحيب تعتمد صيغة ضيفنا الكريم وت
   assert.match(js,/التاريخ:/);
   assert.match(js,/الدخول:/);
   assert.match(js,/الخروج:/);
+  assert.match(js,/العربون غير مسترد نقدًا، وفي حال إلغاء الحجز يُحفظ كامل مبلغ العربون كرصيد للعميل لاستخدامه في حجز لاحق/);
+  assert.match(js,/إذا ألغى المنتجع الحجز، يكون للعميل خيار استرجاع المبلغ أو إبقائه رصيدًا/);
 });
 
 test('مركز الإرسال يضيف زر الترحيب ويخفي الفاتورة من المسار اليومي',async()=>{
@@ -34,5 +36,22 @@ test('الرسالة تستخدم مسار واتساب اليدوي الحال�
 
 test('محمل تحسين المستندات يحمل تدفق الترحيب الجديد',async()=>{
   const js=await read('document-preview-controls.js');
-  assert.match(js,/booking-welcome-confirmation\.js\?v=20260819-1/);
+  assert.match(js,/booking-welcome-confirmation\.js\?v=20260918-2/);
+});
+
+
+test('بعد حفظ حجز جديد مؤكد يتم تجهيز رسالة الترحيب تلقائيًا مرة واحدة فقط',async()=>{
+  const js=await read('booking-welcome-confirmation.js');
+  assert.match(js,/function installAutoWelcomeHook\(\)/);
+  assert.match(js,/snapshot\.isNew&&snapshot\.recordType!=='family'/);
+  assert.match(js,/booking\.status!=='مؤكد'/);
+  assert.match(js,/manualOperations\?\.welcome\?\.sentAt/);
+  assert.match(js,/autoWelcomePrepared\.has\(key\)/);
+  assert.match(js,/sendManualWhatsApp\('welcome'\)/);
+});
+
+test('الحجز غير المؤكد وتواجد العائلة لا يجهزان رسالة تأكيد تلقائية',async()=>{
+  const js=await read('booking-welcome-confirmation.js');
+  assert.match(js,/booking\.status!=='مؤكد'\|\|booking\.recordType==='family'/);
+  assert.match(js,/recordType:String\(document\.getElementById\('bRecordType'\)\?\.value\|\|'customer'\)/);
 });
