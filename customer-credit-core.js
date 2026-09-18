@@ -5,12 +5,30 @@
   const normalizeName=v=>String(v||'').trim().toLowerCase();
   const customerKey=(name,phone)=>normalizePhone(phone)||normalizeName(name);
   const creditRows=ledger=>Array.isArray(ledger)?ledger:[];
+  function recalculateBalances(ledger){
+    const balances=new Map();
+    return creditRows(ledger).map(row=>{
+      const copy={...row};
+      const key=String(copy.customerKey||'');
+      const before=balances.get(key)||0;
+      const amount=safeNumber(copy.amount);
+      const after=Math.max(0,before+(copy.type==='credit'?amount:copy.type==='debit'?-amount:0));
+      balances.set(key,after);
+      copy.balanceAfter=after;
+      copy.sourceBookingId=String(copy.sourceBookingId||'');
+      copy.sourceBookingCode=String(copy.sourceBookingCode||'');
+      copy.targetBookingId=String(copy.targetBookingId||'');
+      copy.targetBookingCode=String(copy.targetBookingCode||'');
+      copy.createdAt=copy.createdAt||new Date().toISOString();
+      return copy;
+    });
+  }
   function balanceFor(ledger,key,{excludeTargetBookingId=''}={}){
-    return creditRows(ledger).reduce((sum,row)=>{
-      if(String(row?.customerKey||'')!==String(key||''))return sum;
-      if(excludeTargetBookingId&&row?.type==='debit'&&String(row?.targetBookingId||'')===String(excludeTargetBookingId))return sum;
-      const amount=safeNumber(row?.amount);
-      return sum+(row?.type==='credit'?amount:row?.type==='debit'?-amount:0);
+    return recalculateBalances(ledger).reduce((sum,row)=>{
+      if(String(row.customerKey||'')!==String(key||''))return sum;
+      if(excludeTargetBookingId&&row.type==='debit'&&String(row.targetBookingId||'')===String(excludeTargetBookingId))return sum;
+      const amount=safeNumber(row.amount);
+      return sum+(row.type==='credit'?amount:row.type==='debit'?-amount:0);
     },0);
   }
   function depositAmount(booking){
@@ -22,32 +40,36 @@
   function cashCollected(booking){
     return Math.max(0,safeNumber(booking?.paid)-safeNumber(booking?.customerCreditApplied));
   }
-  function addCreditOnce(ledger,{customerKey:key,name='',phone='',amount=0,sourceBookingId='',sourceBookingCode='',createdAt=''}){
-    const rows=creditRows(ledger).map(row=>({...row}));
+  function addCreditOnce(ledger,{customerKey:key,name='',phone='',amount=0,sourceBookingId='',sourceBookingCode='',createdAt=''}) {
+    let rows=creditRows(ledger).map(row=>({...row}));
     const normalizedAmount=safeNumber(amount);
-    if(!key||!normalizedAmount)return rows;
+    if(!key||!normalizedAmount)return recalculateBalances(rows);
     const exists=rows.some(row=>row?.type==='credit'&&String(row?.sourceBookingId||'')===String(sourceBookingId||'')&&String(row?.customerKey||'')===String(key));
-    if(exists)return rows;
+    if(exists)return recalculateBalances(rows);
     rows.push({
       id:'credit-'+String(sourceBookingId||Date.now()),
       type:'credit',customerKey:String(key),name:String(name||''),phone:String(phone||''),amount:normalizedAmount,
       sourceBookingId:String(sourceBookingId||''),sourceBookingCode:String(sourceBookingCode||''),
-      note:'تحويل عربون حجز ملغي إلى رصيد عميل',createdAt:createdAt||new Date().toISOString()
+      targetBookingId:'',targetBookingCode:'',
+      note:'تحويل عربون حجز ملغي إلى رصيد عميل',createdAt:createdAt||new Date().toISOString(),balanceAfter:0
     });
-    return rows;
+    return recalculateBalances(rows);
   }
-  function setDebitForBooking(ledger,{customerKey:key,name='',phone='',amount=0,targetBookingId='',targetBookingCode='',createdAt=''}){
-    const rows=creditRows(ledger).filter(row=>!(row?.type==='debit'&&String(row?.targetBookingId||'')===String(targetBookingId||''))).map(row=>({...row}));
+  function setDebitForBooking(ledger,{customerKey:key,name='',phone='',amount=0,targetBookingId='',targetBookingCode='',createdAt=''}) {
+    let rows=creditRows(ledger).filter(row=>!(row?.type==='debit'&&String(row?.targetBookingId||'')===String(targetBookingId||''))).map(row=>({...row}));
     const normalizedAmount=safeNumber(amount);
-    if(!key||!normalizedAmount)return rows;
+    if(!key||!normalizedAmount)return recalculateBalances(rows);
+    const available=balanceFor(rows,key);
+    if(normalizedAmount>available+0.009)throw new Error('رصيد العميل غير كافٍ لهذه التسوية.');
     rows.push({
       id:'debit-'+String(targetBookingId||Date.now()),
       type:'debit',customerKey:String(key),name:String(name||''),phone:String(phone||''),amount:normalizedAmount,
+      sourceBookingId:'',sourceBookingCode:'',
       targetBookingId:String(targetBookingId||''),targetBookingCode:String(targetBookingCode||''),
-      note:'استخدام رصيد العميل في حجز',createdAt:createdAt||new Date().toISOString()
+      note:'استخدام رصيد العميل في حجز',createdAt:createdAt||new Date().toISOString(),balanceAfter:0
     });
-    return rows;
+    return recalculateBalances(rows);
   }
-  const api={safeNumber,normalizePhone,customerKey,balanceFor,depositAmount,cashCollected,addCreditOnce,setDebitForBooking};
+  const api={safeNumber,normalizePhone,customerKey,recalculateBalances,balanceFor,depositAmount,cashCollected,addCreditOnce,setDebitForBooking};
   root.CustomerCreditCore=api;
 })(typeof window!=='undefined'?window:globalThis);
