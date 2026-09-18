@@ -2858,7 +2858,14 @@ function getCustomers(){
     if(!c.phone&&b.phone)c.phone=b.phone;
     if(!c.name&&b.name)c.name=b.name;
   });
-  customerCache=[...map.values()].sort((a,b)=>b.lastVisit.localeCompare(a.lastVisit));
+  (db.customerCredits||[]).forEach(row=>{
+    const key=String(row?.customerKey||'');if(!key)return;
+    if(!map.has(key))map.set(key,{key,name:row.name||'',phone:row.phone||'',bookings:[],totalPaid:0,totalValue:0,totalDue:0,lastVisit:'',messageCount:0});
+    const c=map.get(key);
+    if(!c.phone&&row.phone)c.phone=row.phone;
+    if(!c.name&&row.name)c.name=row.name;
+  });
+  customerCache=[...map.values()].sort((a,b)=>(b.lastVisit||'').localeCompare(a.lastVisit||''));
   return customerCache;
 }
 
@@ -2965,6 +2972,7 @@ function selectCustomerSuggestion(index){
   if(!c)return;
   bName.value=c.name||'';
   bPhone.value=c.phone||'';
+  refreshCustomerCreditUI();
   customerSuggestions.style.display='none';
   customerSuggestions.innerHTML='';
 }
