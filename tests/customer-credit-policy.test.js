@@ -1,13 +1,8 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
-import vm from 'node:vm';
-
-const source=await readFile(new URL('../customer-credit-core.js',import.meta.url),'utf8');
-const context={globalThis:{},Date};
-context.globalThis=context;
-vm.runInNewContext(source,context);
-const core=context.CustomerCreditCore;
+'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+require('../customer-credit-core.js');
+const core=globalThis.CustomerCreditCore;
 
 test('cancellation converts a 200 SAR deposit into customer credit once',()=>{
   const key=core.customerKey('عميل','0500000000');
@@ -21,6 +16,7 @@ test('cancellation converts a 200 SAR deposit into customer credit once',()=>{
   });
   assert.equal(core.balanceFor(ledger,key),200);
   assert.equal(ledger.length,1);
+  assert.equal(ledger[0].balanceAfter,200);
 });
 
 test('600/200 cancellation then 500 booking using 150 leaves 50 credit and no second cash revenue',()=>{
@@ -36,6 +32,7 @@ test('600/200 cancellation then 500 booking using 150 leaves 50 credit and no se
     targetBookingId:'new',targetBookingCode:'AD-NEW'
   });
   assert.equal(core.balanceFor(ledger,key),50);
+  assert.equal(ledger.at(-1).balanceAfter,50);
 
   const booking={total:500,paid:150,customerCreditApplied:150};
   assert.equal(core.cashCollected(booking),0);
