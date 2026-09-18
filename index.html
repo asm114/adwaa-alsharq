@@ -1047,18 +1047,33 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <fieldset class="booking-form-section booking-customer-section"><legend>بيانات العميل</legend><div class="booking-section-grid">
 <div><label class="label" for="bRecordType">نوع السجل</label><select id="bRecordType" onchange="updateRecordTypeUI()"><option value="customer">حجز عميل</option><option value="family">تواجد العائلة</option></select></div>
 <div class="field-wrap"><label class="label" for="bName">اسم العميل <span class="booking-required" aria-hidden="true">مطلوب</span></label><input id="bName" required autocomplete="off" autocapitalize="words" oninput="scheduleCustomerSuggestions()"><div id="customerSuggestions" class="suggestions" style="display:none"></div></div>
-<div><label class="label" for="bPhone">رقم الجوال</label><input id="bPhone" inputmode="tel" autocomplete="tel"></div>
+<div><label class="label" for="bPhone">رقم الجوال</label><input id="bPhone" inputmode="tel" autocomplete="tel" oninput="refreshCustomerCreditUI()"></div>
 </div></fieldset>
 <fieldset class="booking-form-section booking-stay-section"><legend>تفاصيل الحجز/الإقامة</legend><div class="booking-section-grid">
 <div><label class="label" for="bDate">تاريخ الحجز <span class="booking-required" aria-hidden="true">مطلوب</span></label><input id="bDate" type="date" required onchange="updateStayFields();checkSelectedDate()"><div id="dateHint" class="meta" style="margin-top:5px"></div></div>
 <div><label class="label" for="bType">نوع الحجز</label><select id="bType" onchange="updateStayFields()"><option>يومي</option><option>مبيت</option></select></div>
 <div id="stayDaysWrap" style="display:none"><label class="label" for="bStayDays">عدد أيام المبيت</label><input id="bStayDays" type="number" min="1" max="30" value="1" oninput="updateStayFields()"><div id="stayDateHint" class="meta" style="margin-top:5px"></div></div>
-<div><label class="label help-inline" for="bStatus">الحالة <span data-help="confirmBooking"></span><span data-help="cancelBooking"></span></label><select id="bStatus"><option>مؤكد</option><option>غير مؤكد</option><option>تم الدخول</option><option>تم الخروج</option><option>ملغي</option></select></div>
+<div><label class="label help-inline" for="bStatus">الحالة <span data-help="confirmBooking"></span><span data-help="cancelBooking"></span></label><select id="bStatus" onchange="refreshCustomerCreditUI()"><option>مؤكد</option><option>غير مؤكد</option><option>تم الدخول</option><option>تم الخروج</option><option>ملغي</option></select></div>
 <div><label class="label" for="bCode">رقم الحجز</label><input id="bCode" readonly></div>
 </div></fieldset>
 <fieldset class="booking-form-section booking-payment-section"><legend>الدفع</legend><div class="booking-section-grid">
 <div><label class="label help-inline" for="bPaid">العربون/المدفوع <span data-help="depositReceipt"></span></label><input id="bPaid" type="number" min="0" value="0"></div>
-<div><label class="label" for="bTotal">المبلغ الإجمالي</label><input id="bTotal" type="number" min="0" value="0"></div>
+<div><label class="label" for="bTotal">المبلغ الإجمالي</label><input id="bTotal" type="number" min="0" value="0" oninput="refreshCustomerCreditUI()"></div>
+<div class="full" id="customerCreditBox" style="border:1px solid #d8e1dc;background:#f8fbf9;border-radius:14px;padding:12px">
+  <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><b>رصيد العميل</b><span id="customerCreditAvailable" class="money">0 ر.س</span></div>
+  <div class="meta" style="margin:6px 0 10px">يمكن استخدام الرصيد في حجز جديد كليًا أو جزئيًا، ولا يُحسب كتحصيل نقدي جديد.</div>
+  <label class="label" for="customerCreditUse">استخدام من الرصيد في هذا الحجز</label>
+  <input id="customerCreditUse" type="number" min="0" step="0.01" value="0" oninput="refreshCustomerCreditUI()">
+  <div id="customerCreditHint" class="meta" style="margin-top:6px"></div>
+</div>
+<div class="full" id="depositCancellationCreditBox" style="display:none;border:1px solid #ead9ae;background:#fffaf0;border-radius:14px;padding:12px">
+  <b>مصير العربون عند الإلغاء</b>
+  <div class="meta" style="margin:6px 0 10px">الافتراضي: لا يُرد نقدًا ويُحفظ كامل العربون رصيدًا للعميل. إذا كان الإلغاء من جهة المنتجع يمكنك اختيار الاسترداد النقدي.</div>
+  <select id="depositCancellationAction"><option value="credit">حفظ العربون رصيدًا للعميل</option><option value="refund">إرجاع العربون للعميل</option></select>
+</div>
+<div class="full" style="font-size:12px;line-height:1.8;color:#76520b;background:#fff6dd;border:1px solid #f0d494;border-radius:12px;padding:9px 11px">
+  سياسة العربون: العربون غير مسترد نقدًا عند إلغاء العميل، ويُحفظ كامل المبلغ رصيدًا له لاستخدامه في حجز لاحق. وإذا تعذر تنفيذ الحجز من جهة المنتجع فيمكن إرجاع العربون أو إبقاؤه رصيدًا حسب اختيار العميل.
+</div>
 </div></fieldset>
 <fieldset class="booking-form-section booking-notes-section"><legend>الملاحظات والصور</legend><div class="booking-section-grid">
 <div class="full"><label class="label" for="bNotes">ملاحظات</label><textarea id="bNotes"></textarea></div>
@@ -1156,6 +1171,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
     <div class="customer-profile-stat"><span class="meta">عدد الحجوزات</span><b id="cpBookings">0</b></div>
     <div class="customer-profile-stat"><span class="meta">إجمالي المدفوع</span><b id="cpPaid">0</b></div>
     <div class="customer-profile-stat"><span class="meta">المبالغ المتبقية</span><b id="cpDue">0</b></div>
+    <div class="customer-profile-stat"><span class="meta">رصيد العميل</span><b id="cpCredit">0</b></div>
     <div class="customer-profile-stat"><span class="meta">آخر زيارة</span><b id="cpLastVisit" style="font-size:14px">-</b></div>
   </div>
   <div class="section" style="margin-top:12px">
@@ -1206,6 +1222,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <script src="supabase-config.staging.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="customer-credit-core.js?v=20260918-1"></script>
 <script>
 const {url:SUPABASE_URL,publishableKey:SUPABASE_PUBLISHABLE_KEY,projectRef:SUPABASE_PROJECT_REF,environment:APP_ENVIRONMENT}=window.ADWAA_SUPABASE_CONFIG;
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
@@ -1263,7 +1280,7 @@ const DEFAULT_WELCOME_STAY=`يسرّنا استقبالكم في منتجع أض
 
 نسعد بخدمتكم، ونتمنى لكم إقامة طيبة.`;
 function readLocalDB(){try{return JSON.parse(localStorage.getItem('adwaaDB')||'null')}catch(err){console.warn('تعذر قراءة النسخة المحلية',err);return null}}
-let db=readLocalDB()||{bookings:[],expenses:[],cleaningTasks:[],notifications:[],customerNotes:{},backupHistory:[],auditLog:[],settings:{waNumber:'',welcomeMsgDaily:DEFAULT_WELCOME_DAILY,welcomeMsgStay:DEFAULT_WELCOME_STAY,resortStatus:'ready',resortStatusUpdated:'',calendarMode:'both',commissionEnabled:true,commissionMethod:'per_day',commissionRate:100},seq:1};
+let db=readLocalDB()||{bookings:[],expenses:[],cleaningTasks:[],notifications:[],customerNotes:{},customerCredits:[],backupHistory:[],auditLog:[],settings:{waNumber:'',welcomeMsgDaily:DEFAULT_WELCOME_DAILY,welcomeMsgStay:DEFAULT_WELCOME_STAY,resortStatus:'ready',resortStatusUpdated:'',calendarMode:'both',commissionEnabled:true,commissionMethod:'per_day',commissionRate:100},seq:1};
 const HELP_CONTENT={
   contract:{title:'متى يُستخدم العقد؟',text:'يُرسل العقد بعد الاتفاق مع العميل على التاريخ والسعر، وقبل تأكيد الحجز نهائيًا. يوضح العقد الشروط وأوقات الدخول والخروج ومسؤولية الأضرار.'},
   invoice:{title:'متى تُرسل الفاتورة النهائية؟',text:'تُرسل الفاتورة النهائية بعد استلام كامل مبلغ الحجز. يجب أن يظهر المتبقي صفرًا وحالة الدفع: مدفوع بالكامل.'},
@@ -1474,6 +1491,7 @@ function normalizeDB(value){
     cleaningTasks:Array.isArray(x.cleaningTasks)?x.cleaningTasks:[],
     notifications:Array.isArray(x.notifications)?x.notifications:[],
     customerNotes:x.customerNotes&&typeof x.customerNotes==='object'?x.customerNotes:{},
+    customerCredits:Array.isArray(x.customerCredits)?x.customerCredits:[],
     backupHistory:Array.isArray(x.backupHistory)?x.backupHistory:[],
     auditLog:Array.isArray(x.auditLog)?x.auditLog:[],
     settings:normalizedSettings,
@@ -2080,7 +2098,7 @@ function findBookingConflict(candidate,editingId=''){
 function openBooking(id,presetDate){if(!id&&['maintenance','closed'].includes(db.settings?.resortStatus)){alert('لا يمكن إضافة حجز جديد وحالة المنتجع: '+(RESORT_STATUSES[db.settings.resortStatus]?.label||''));return;}
   bookingForm.reset();
   editingBookingPhotos=[];
-  bPaid.value=0;bTotal.value=0;bDate.value=presetDate||isoToday();bStatus.value='مؤكد';bType.value='يومي';bStayDays.value=1;bId.value='';if(document.getElementById('bRecordType'))bRecordType.value='customer';
+  bPaid.value=0;bTotal.value=0;bDate.value=presetDate||isoToday();bStatus.value='مؤكد';bType.value='يومي';bStayDays.value=1;bId.value='';if(document.getElementById('bRecordType'))bRecordType.value='customer';if(document.getElementById('customerCreditUse'))customerCreditUse.value='0';if(document.getElementById('depositCancellationAction'))depositCancellationAction.value='credit';
   bCode.value='AD-'+String(db.seq).padStart(4,'0');
   deleteBookingBtn.style.display='none';if(document.getElementById('deleteBookingHelp'))document.getElementById('deleteBookingHelp').style.display='none';
   bookingModalTitle.textContent='إضافة حجز';
@@ -2088,7 +2106,7 @@ function openBooking(id,presetDate){if(!id&&['maintenance','closed'].includes(db
     let b=db.bookings.find(x=>x.id===id);
     if(!b)return;
     bId.value=b.id;bName.value=b.name;bPhone.value=b.phone;bDate.value=b.date;bType.value=b.type;bStayDays.value=b.stayDays||1;if(document.getElementById('bRecordType'))bRecordType.value=b.recordType||'customer';
-    bPaid.value=b.paid;bTotal.value=b.total;bStatus.value=b.status;bNotes.value=b.notes||'';bCode.value=b.code;
+    bPaid.value=b.paid;bTotal.value=b.total;bStatus.value=b.status;bNotes.value=b.notes||'';bCode.value=b.code;if(document.getElementById('customerCreditUse'))customerCreditUse.value=String(Number(b.customerCreditApplied||0));if(document.getElementById('depositCancellationAction'))depositCancellationAction.value=b.depositCancellation?.status==='refunded'?'refund':'credit';
     editingBookingPhotos=Array.isArray(b.photos)?b.photos.map(p=>({...p})):[];
     bookingPhotosExpanded=false;
     deleteBookingBtn.style.display='inline-block';if(document.getElementById('deleteBookingHelp'))document.getElementById('deleteBookingHelp').style.display='inline-flex';
@@ -2103,6 +2121,7 @@ function openBooking(id,presetDate){if(!id&&['maintenance','closed'].includes(db
   renderBookingPhotos();
   updateStayFields();
   updateRecordTypeUI();
+  refreshCustomerCreditUI();
 }
 function closeModal(id){document.getElementById(id).classList.remove('open');if(!document.querySelector('.modal.open'))document.body.classList.remove('modal-open')}
 function nextAvailableDate(fromDate){
@@ -2313,7 +2332,7 @@ function manualMessageText(type,b){
   const payment=getPaymentStatus(b),due=payment.remaining;
   const base=`رقم الحجز: ${b.code||'-'}\nتاريخ الحجز: ${b.date||'-'}\nنوع الحجز: ${b.type||'-'}`;
   const messages={
-    contract:`مرحبًا ${b.name}\nمرفق لكم عقد حجز منتجع أضواء الشرق بصيغة PDF.\n${base}\nنأمل الاطلاع عليه والاحتفاظ بنسخة منه. ويُعد تأكيد الحجز أو سداد العربون موافقة على الشروط الواردة فيه.`,
+    contract:`مرحبًا ${b.name}\nمرفق لكم عقد حجز منتجع أضواء الشرق بصيغة PDF.\n${base}\nنأمل الاطلاع عليه والاحتفاظ بنسخة منه. ويُعد تأكيد الحجز أو سداد العربون موافقة على الشروط الواردة فيه.\n\nسياسة العربون: العربون غير مسترد نقدًا عند إلغاء العميل، ويُحفظ كامل المبلغ رصيدًا له لاستخدامه في حجز لاحق. وإذا تعذر تنفيذ الحجز من جهة المنتجع فيمكن إرجاع العربون أو إبقاؤه رصيدًا حسب اختيار العميل.`,
     invoice:`مرحبًا ${b.name}\nمرفق لكم فاتورة حجز منتجع أضواء الشرق بصيغة PDF.\n${base}\nالإجمالي: ${money(b.total)}\nالمدفوع: ${money(b.paid)}\nحالة السداد: ${payment.label}`,
     welcome:welcomeMessageText(b),
     reminder:`مرحبًا ${b.name}\nنذكركم بموعد حجزكم في منتجع أضواء الشرق.\n${base}\nوقت الدخول الساعة 3:30 عصرًا. نتشرف بخدمتكم.`,
@@ -2454,16 +2473,29 @@ async function saveBooking(e){
   const oldBooking=id?db.bookings.find(x=>x.id===id):null;
   const previousStatus=oldBooking?.status||'';
   const selectedRecordType=document.getElementById('bRecordType')?.value||oldBooking?.recordType||'customer';
-  let obj={...(oldBooking||{}),id:id||crypto.randomUUID(),code:bCode.value,name:selectedRecordType==='family'?'تواجد العائلة':bName.value.trim(),phone:selectedRecordType==='family'?'':bPhone.value.trim(),date:bDate.value,type:bType.value,stayDays:bType.value==='مبيت'?Math.max(1,Number(bStayDays.value||1)):1,paid:selectedRecordType==='family'?0:Number(bPaid.value||0),total:selectedRecordType==='family'?0:Number(bTotal.value||0),status:bStatus.value,notes:bNotes.value.trim(),photos:editingBookingPhotos,recordType:selectedRecordType,createdAt:oldBooking?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+  const requestedCredit=selectedRecordType==='family'?0:Math.max(0,Number(document.getElementById('customerCreditUse')?.value||0));
+  const creditKey=customerCreditKey(bName.value.trim(),bPhone.value.trim());
+  const availableCredit=customerCreditBalance(creditKey,id||'');
+  if(requestedCredit>availableCredit+0.009){alert('رصيد العميل المتاح '+money(availableCredit)+' فقط.');refreshCustomerCreditUI();return}
+  const priorApplied=Math.max(0,Number(oldBooking?.customerCreditApplied||0));
+  const enteredPaid=selectedRecordType==='family'?0:Math.max(0,Number(bPaid.value||0));
+  const cashPaid=Math.max(0,enteredPaid-priorApplied);
+  const effectiveCredit=bStatus.value==='ملغي'?0:requestedCredit;
+  let obj={...(oldBooking||{}),id:id||crypto.randomUUID(),code:bCode.value,name:selectedRecordType==='family'?'تواجد العائلة':bName.value.trim(),phone:selectedRecordType==='family'?'':bPhone.value.trim(),date:bDate.value,type:bType.value,stayDays:bType.value==='مبيت'?Math.max(1,Number(bStayDays.value||1)):1,paid:selectedRecordType==='family'?0:cashPaid+effectiveCredit,total:selectedRecordType==='family'?0:Number(bTotal.value||0),status:bStatus.value,notes:bNotes.value.trim(),photos:editingBookingPhotos,recordType:selectedRecordType,customerCreditApplied:selectedRecordType==='family'?0:effectiveCredit,createdAt:oldBooking?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
   obj=normalizeBookingCommission(obj,db.settings);
   if(oldBooking?.commissionSnapshot?.status==='received'&&obj.status==='ملغي')alert('تنبيه: عمولة هذا الحجز مستلمة بالفعل. بقي سجلها محفوظًا ويجب على المدير مراجعته يدويًا.');
   let conflict=findBookingConflict(obj,obj.id);
   if(conflict){
     const alt=nextAvailableDate(obj.date);
-    alert(`يوجد تعارض مع حجز ${conflict.name} خلال فترة الحجز المطلوبة. غيّر تاريخ الدخول أو عدد أيام المبيت.${alt?`\nأقرب تاريخ متاح مبدئيًا: ${alt}`:''}`);
+    alert('يوجد تعارض مع حجز '+conflict.name+' خلال فترة الحجز المطلوبة. غيّر تاريخ الدخول أو عدد أيام المبيت.'+(alt?'\nأقرب تاريخ متاح مبدئيًا: '+alt:''));
     return;
   }
-  if(id){let i=db.bookings.findIndex(x=>x.id===id);db.bookings[i]=obj;addAudit('تعديل','حجز',`${obj.name} — #${obj.code}`,oldBooking,obj)}else{db.bookings.push(obj);db.seq++;addAudit('إضافة','حجز',`${obj.name} — #${obj.code}`,null,obj)}
+  syncCustomerCreditDebit(obj,effectiveCredit);
+  if(obj.status==='ملغي'&&previousStatus!=='ملغي'&&oldBooking){
+    const action=document.getElementById('depositCancellationAction')?.value||'credit';
+    creditCancelledDeposit(obj,oldBooking,action);
+  }
+  if(id){let i=db.bookings.findIndex(x=>x.id===id);db.bookings[i]=obj;addAudit('تعديل','حجز',obj.name+' — #'+obj.code,oldBooking,obj)}else{db.bookings.push(obj);db.seq++;addAudit('إضافة','حجز',obj.name+' — #'+obj.code,null,obj)}
   invalidateCaches();
   ensureCleaningTaskForBooking(obj,previousStatus);
   await persist();
@@ -2698,7 +2730,7 @@ function renderFinanceChart(){
   const now=new Date(), months=[];
   for(let i=11;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({key:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,label:d.toLocaleDateString('ar-SA',{month:'short'})})}
   const rows=months.map(m=>{
-    const revenue=db.bookings.filter(b=>b.status!=='ملغي'&&String(b.date||'').slice(0,7)===m.key).reduce((s,b)=>s+Number(b.paid||0),0);
+    const revenue=db.bookings.filter(b=>b.status!=='ملغي'&&String(b.date||'').slice(0,7)===m.key).reduce((s,b)=>s+Math.max(0,Number(b.paid||0)-Number(b.customerCreditApplied||0)),0);
     const expense=db.expenses.filter(e=>String(e.date||'').slice(0,7)===m.key).reduce((s,e)=>s+Number(e.amount||0),0);
     return {...m,revenue,expense};
   });
@@ -2711,7 +2743,7 @@ function renderExpenses(){
   const activeBookings=db.bookings.filter(b=>b.recordType!=='family'&&b.status!=='ملغي'&&financeDateMatch(b.date,period));
   const filteredExpenses=db.expenses.filter(e=>financeDateMatch(e.date,period)&&(!cat||e.cat===cat)&&(!payment||e.paymentMethod===payment));
   const allPeriodExpenses=db.expenses.filter(e=>financeDateMatch(e.date,period));
-  const revenue=activeBookings.reduce((sum,b)=>sum+Number(b.paid||0),0);
+  const revenue=activeBookings.reduce((sum,b)=>sum+Math.max(0,Number(b.paid||0)-Number(b.customerCreditApplied||0)),0);
   const due=activeBookings.reduce((sum,b)=>sum+Math.max(0,Number(b.total||0)-Number(b.paid||0)),0);
   const expensesSum=allPeriodExpenses.reduce((sum,e)=>sum+Number(e.amount||0),0);
   const periodCommissionBookings=db.bookings.filter(b=>financeDateMatch(b.date,period)&&b.commissionSnapshot);
@@ -2766,6 +2798,47 @@ function removeExpense(id){openExpense(id)}
 
 function normalizePhone(v){return String(v||'').replace(/\D/g,'')}
 
+function customerCreditKey(name,phone){return window.CustomerCreditCore?.customerKey(name,phone)||normalizePhone(phone)||String(name||'').trim().toLowerCase()}
+function customerCreditBalance(key,excludeTargetBookingId=''){return window.CustomerCreditCore?.balanceFor(db.customerCredits||[],key,{excludeTargetBookingId})||0}
+function customerCreditForForm(){
+  const key=customerCreditKey(bName?.value||'',bPhone?.value||'');
+  const id=bId?.value||'';
+  return {key,available:Math.max(0,customerCreditBalance(key,id))};
+}
+function refreshCustomerCreditUI(){
+  const availableEl=document.getElementById('customerCreditAvailable'),useEl=document.getElementById('customerCreditUse'),hint=document.getElementById('customerCreditHint');
+  const cancellationBox=document.getElementById('depositCancellationCreditBox');
+  if(cancellationBox)cancellationBox.style.display=document.getElementById('bStatus')?.value==='ملغي'?'block':'none';
+  if(!availableEl||!useEl)return;
+  const data=customerCreditForForm();
+  const total=Math.max(0,Number(document.getElementById('bTotal')?.value||0));
+  const max=Math.max(0,Math.min(data.available,total||data.available));
+  const requested=Math.max(0,Number(useEl.value||0));
+  if(requested>max)useEl.value=max?String(max):'0';
+  useEl.max=String(max);
+  availableEl.textContent=money(data.available);
+  if(hint)hint.textContent=data.available>0?'متاح '+money(data.available)+' — الحد الأقصى لهذا الحجز '+money(max)+'.':'لا يوجد رصيد متاح لهذا العميل.';
+}
+function syncCustomerCreditDebit(booking,useAmount){
+  const core=window.CustomerCreditCore;if(!core)return;
+  const key=customerCreditKey(booking.name,booking.phone);
+  db.customerCredits=core.setDebitForBooking(db.customerCredits||[],{
+    customerKey:key,name:booking.name,phone:booking.phone,amount:useAmount,
+    targetBookingId:booking.id,targetBookingCode:booking.code
+  });
+}
+function creditCancelledDeposit(booking,oldBooking,action){
+  const core=window.CustomerCreditCore;if(!core||!oldBooking)return;
+  const amount=core.depositAmount(oldBooking);
+  const key=customerCreditKey(oldBooking.name,oldBooking.phone);
+  booking.depositCancellation={status:action==='refund'?'refunded':'credit',depositAmount:amount,refundAmount:action==='refund'?amount:0,recordedAt:new Date().toISOString()};
+  if(action==='credit'&&amount>0){
+    db.customerCredits=core.addCreditOnce(db.customerCredits||[],{
+      customerKey:key,name:oldBooking.name,phone:oldBooking.phone,amount:amount,
+      sourceBookingId:oldBooking.id,sourceBookingCode:oldBooking.code
+    });
+  }
+}
 
 function getCustomers(){
   if(customerCache)return customerCache;
@@ -2834,6 +2907,7 @@ function openCustomerProfile(value){
   cpBookings.textContent=c.bookings.length;
   cpPaid.textContent=money(c.totalPaid);
   cpDue.textContent=money(c.totalDue);
+  if(typeof cpCredit!=='undefined'&&cpCredit)cpCredit.textContent=money(customerCreditBalance(c.key));
   cpLastVisit.textContent=c.lastVisit||'-';
   cpMessages.textContent=`تم تسجيل ${c.messageCount} عملية إرسال يدوي عبر واتساب`;
   customerAdminNotes.value=db.customerNotes?.[c.key]||'';
