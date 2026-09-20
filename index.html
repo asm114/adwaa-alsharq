@@ -1286,7 +1286,7 @@ const DEFAULT_WELCOME_STAY=`يسرّنا استقبالكم في منتجع أض
 
 نسعد بخدمتكم، ونتمنى لكم إقامة طيبة.`;
 function readLocalDB(){try{return JSON.parse(localStorage.getItem('adwaaDB')||'null')}catch(err){console.warn('تعذر قراءة النسخة المحلية',err);return null}}
-let db=readLocalDB()||{bookings:[],expenses:[],cleaningTasks:[],notifications:[],customerNotes:{},customerCredits:[],backupHistory:[],auditLog:[],settings:{waNumber:'',welcomeMsgDaily:DEFAULT_WELCOME_DAILY,welcomeMsgStay:DEFAULT_WELCOME_STAY,resortStatus:'ready',resortStatusUpdated:'',calendarMode:'both',commissionEnabled:true,commissionMethod:'per_day',commissionRate:100},seq:1};
+let db=readLocalDB()||{bookings:[],expenses:[],cleaningTasks:[],notifications:[],customerNotes:{},customerCredits:[],accountingNotes:[],backupHistory:[],auditLog:[],settings:{waNumber:'',welcomeMsgDaily:DEFAULT_WELCOME_DAILY,welcomeMsgStay:DEFAULT_WELCOME_STAY,resortStatus:'ready',resortStatusUpdated:'',calendarMode:'both',commissionEnabled:true,commissionMethod:'per_day',commissionRate:100},seq:1};
 const HELP_CONTENT={
   contract:{title:'متى يُستخدم العقد؟',text:'يُرسل العقد بعد الاتفاق مع العميل على التاريخ والسعر، وقبل تأكيد الحجز نهائيًا. يوضح العقد الشروط وأوقات الدخول والخروج ومسؤولية الأضرار.'},
   invoice:{title:'متى تُرسل الفاتورة النهائية؟',text:'تُرسل الفاتورة النهائية بعد استلام كامل مبلغ الحجز. يجب أن يظهر المتبقي صفرًا وحالة الدفع: مدفوع بالكامل.'},
@@ -1498,6 +1498,7 @@ function normalizeDB(value){
     notifications:Array.isArray(x.notifications)?x.notifications:[],
     customerNotes:x.customerNotes&&typeof x.customerNotes==='object'?x.customerNotes:{},
     customerCredits:window.CustomerCreditCore?.recalculateBalances(Array.isArray(x.customerCredits)?x.customerCredits:[])||(Array.isArray(x.customerCredits)?x.customerCredits:[]),
+    accountingNotes:Array.isArray(x.accountingNotes)?x.accountingNotes:[],
     backupHistory:Array.isArray(x.backupHistory)?x.backupHistory:[],
     auditLog:Array.isArray(x.auditLog)?x.auditLog:[],
     settings:normalizedSettings,
@@ -3961,6 +3962,7 @@ const v95RenderDashboardBase=renderDashboard;renderDashboard=function(){v95Rende
 const v95RenderAllBase=renderAll;renderAll=function(){v95RenderAllBase();renderTodayBoard()};
 document.addEventListener('DOMContentLoaded',()=>{renderHelpIcons();applyHelpVisibility();fillCalendarPickers();renderTodayBoard()});
 </script>
+<script src="accounting-notes.js?v=20260920-1"></script>
 <script src="customer-special-request-reminders.js?v=20260829-3"></script>
 <script src="portal-admin.js"></script>
 <script src="portal-final-admin.js"></script>
