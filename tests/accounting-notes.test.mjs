@@ -9,7 +9,7 @@ test('app_state preserves resort accounting notes',async()=>{
   const html=await read('index.html');
   assert.match(html,/accountingNotes:\[\]/);
   assert.match(html,/accountingNotes:Array\.isArray\(x\.accountingNotes\)\?x\.accountingNotes:\[\]/);
-  assert.match(html,/accounting-notes\\.js\\?v=20260920-2/);
+  assert.match(html,/accounting-notes\.js\?v=20260920-2/);
 });
 
 test('accounting notes are separate from resort expenses and profit',async()=>{
