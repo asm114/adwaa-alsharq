@@ -59,3 +59,11 @@ test('finance loader brings the resort balance after commission workflow',async(
   assert.ok(commission>=0);
   assert.ok(account>commission);
 });
+
+
+test('resort cancellation settles all cash actually paid while customer cancellation remains deposit-policy based',async()=>{
+  const html=await read('index.html');
+  assert.match(html,/const cashPaid=core\.cashCollected\(oldBooking\)/);
+  assert.match(html,/const settlementAmount=cancelledBy==='resort'\?cashPaid:depositAmount/);
+  assert.match(html,/refundAmount:finalAction==='refund'\?settlementAmount:0/);
+});
