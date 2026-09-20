@@ -14,7 +14,9 @@ test('app_state preserves resort accounting notes',async()=>{
 
 test('accounting notes are separate from resort expenses and profit',async()=>{
   const js=await read('accounting-notes.js');
-  assert.match(js,/لا تُسجل كمصروف ولا تؤثر على صافي ربح المنتجع/);
+  assert.match(js,/ليست مصروفًا ولا تغيّر صافي الربح/);
+  assert.match(js,/تخصم من رصيد حساب المنتجع/);
+  assert.match(js,/كل سداد يعيد المبلغ إلى الرصيد تلقائيًا/);
   assert.doesNotMatch(js,/db\.expenses\.push/);
   assert.doesNotMatch(js,/finProfit/);
 });
