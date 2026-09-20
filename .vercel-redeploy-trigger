@@ -1,1 +1,2 @@
-Redeploy trigger for production sync after PR #123. No runtime logic.
+Redeploy trigger for Arabic numeric input fix on iPad Safari.
+Triggered after PR #144. No runtime logic or data changes.
