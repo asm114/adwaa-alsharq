@@ -18,3 +18,13 @@ test('normalized Arabic values parse as real numbers',()=>{
   assert.equal(numbers.parseNumber('١٬٨٥٧'),1857);
   assert.equal(numbers.parseNumber('٢٦٣٫٧٥'),263.75);
 });
+
+
+test('browser helper uses text input plus beforeinput interception for iPad Safari',async()=>{
+  const {readFile}=await import('node:fs/promises');
+  const js=await readFile(new URL('../arabic-number-input.js',import.meta.url),'utf8');
+  assert.match(js,/input\.type='text'/);
+  assert.match(js,/input\.inputMode='text'/);
+  assert.match(js,/addEventListener\('beforeinput'/);
+  assert.match(js,/insertNormalizedText/);
+});

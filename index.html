@@ -1230,7 +1230,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <script src="arabic-number-inputs.js?v=20260920-1"></script>
 <script src="customer-credit-core.js?v=20260920-3"></script>
 <script src="resort-account-core.js?v=20260920-1"></script>
-<script src="arabic-number-input.js?v=20260920-1"></script>
+<script src="arabic-number-input.js?v=20260920-2"></script>
 <script src="deposit-refund-policy.js?v=20260918-2"></script>
 <script>
 const {url:SUPABASE_URL,publishableKey:SUPABASE_PUBLISHABLE_KEY,projectRef:SUPABASE_PROJECT_REF,environment:APP_ENVIRONMENT}=window.ADWAA_SUPABASE_CONFIG;
@@ -1289,7 +1289,7 @@ const DEFAULT_WELCOME_STAY=`يسرّنا استقبالكم في منتجع أض
 
 نسعد بخدمتكم، ونتمنى لكم إقامة طيبة.`;
 function readLocalDB(){try{return JSON.parse(localStorage.getItem('adwaaDB')||'null')}catch(err){console.warn('تعذر قراءة النسخة المحلية',err);return null}}
-let db=readLocalDB()||{bookings:[],expenses:[],expenseSeq:0,cleaningTasks:[],notifications:[],customerNotes:{},customerCredits:[],accountingNotes:[],resortAccount:{calibration:null,financialRepairVersion:0,manualMovements:[]},backupHistory:[],auditLog:[],settings:{waNumber:'',welcomeMsgDaily:DEFAULT_WELCOME_DAILY,welcomeMsgStay:DEFAULT_WELCOME_STAY,resortStatus:'ready',resortStatusUpdated:'',calendarMode:'both',commissionEnabled:true,commissionMethod:'per_day',commissionRate:100},seq:1};
+let db=readLocalDB()||{bookings:[],expenses:[],cleaningTasks:[],notifications:[],customerNotes:{},customerCredits:[],accountingNotes:[],resortAccount:{calibration:null,financialRepairVersion:0,manualMovements:[]},backupHistory:[],auditLog:[],settings:{waNumber:'',welcomeMsgDaily:DEFAULT_WELCOME_DAILY,welcomeMsgStay:DEFAULT_WELCOME_STAY,resortStatus:'ready',resortStatusUpdated:'',calendarMode:'both',commissionEnabled:true,commissionMethod:'per_day',commissionRate:100},seq:1};
 const HELP_CONTENT={
   contract:{title:'متى يُستخدم العقد؟',text:'يُرسل العقد بعد الاتفاق مع العميل على التاريخ والسعر، وقبل تأكيد الحجز نهائيًا. يوضح العقد الشروط وأوقات الدخول والخروج ومسؤولية الأضرار.'},
   invoice:{title:'متى تُرسل الفاتورة النهائية؟',text:'تُرسل الفاتورة النهائية بعد استلام كامل مبلغ الحجز. يجب أن يظهر المتبقي صفرًا وحالة الدفع: مدفوع بالكامل.'},
@@ -1497,7 +1497,6 @@ function normalizeDB(value){
   return {
     bookings,
     expenses:Array.isArray(x.expenses)?x.expenses:[],
-    expenseSeq:Math.max(0,Number(x.expenseSeq||0)||0),
     cleaningTasks:Array.isArray(x.cleaningTasks)?x.cleaningTasks:[],
     notifications:Array.isArray(x.notifications)?x.notifications:[],
     customerNotes:x.customerNotes&&typeof x.customerNotes==='object'?x.customerNotes:{},
@@ -2707,14 +2706,9 @@ async function sendCleaningTaskById(taskId){
 }
 
 
-function expenseRefNumber(value){const m=String(value||'').match(/EXP-(\d+)/i);return Number(m?.[1]||0)||0}
-function expenseSequenceFloor(){
-  const current=(db.expenses||[]).reduce((max,e)=>Math.max(max,expenseRefNumber(e.ref)),0);
-  const audited=(db.auditLog||[]).filter(x=>x?.entity==='مصروف').reduce((max,x)=>Math.max(max,expenseRefNumber(x.details)),0);
-  return Math.max(0,Number(db.expenseSeq||0)||0,current,audited);
-}
 function expenseReference(){
-  return 'EXP-'+String(expenseSequenceFloor()+1).padStart(4,'0');
+  const nums=(db.expenses||[]).map(e=>Number(String(e.ref||'').replace(/\D/g,''))||0);
+  return 'EXP-'+String(Math.max(0,...nums)+1).padStart(4,'0');
 }
 function openExpense(id){
   eId.value=id||'';
@@ -2733,7 +2727,7 @@ async function saveExpense(e){
   const item={id:eId.value||crypto.randomUUID(),ref:eRef.value||expenseReference(),title:eTitle.value.trim(),amount,date:eDate.value,cat:eCat.value,paymentMethod:ePayment.value,externalRef:eExternalRef.value.trim(),notes:eNotes.value.trim(),updatedAt:new Date().toISOString()};
   const i=db.expenses.findIndex(x=>x.id===item.id);
   const before=i>=0?safeClone(db.expenses[i]):null;
-  if(i>=0){db.expenses[i]={...db.expenses[i],...item};addAudit('تعديل','مصروف',`${item.ref} — ${item.title}`,before,db.expenses[i])}else{const created={...item,createdAt:new Date().toISOString()};db.expenses.push(created);db.expenseSeq=Math.max(Number(db.expenseSeq||0),expenseRefNumber(item.ref));addAudit('إضافة','مصروف',`${item.ref} — ${item.title}`,null,created)}
+  if(i>=0){db.expenses[i]={...db.expenses[i],...item};addAudit('تعديل','مصروف',`${item.ref} — ${item.title}`,before,db.expenses[i])}else{const created={...item,createdAt:new Date().toISOString()};db.expenses.push(created);addAudit('إضافة','مصروف',`${item.ref} — ${item.title}`,null,created)}
   await persist();closeModal('expenseModal');
 }
 function financeDateMatch(date,period){
@@ -2777,7 +2771,7 @@ function renderExpenses(){
   if(document.getElementById('finCommissionReceived'))finCommissionReceived.textContent=money(commissionReceived);
   commissionTotal.textContent=money(commissionOutstanding);fullyPaidCount.textContent=fullyPaidBookings.length;expenseCount.textContent=filteredExpenses.length;expenseAverage.textContent=money(filteredExpenses.length?filteredExpenses.reduce((sum,e)=>sum+Number(e.amount||0),0)/filteredExpenses.length:0);
 
-  expenseTableBody.innerHTML=[...filteredExpenses].sort((a,b)=>String(b.date).localeCompare(String(a.date))||expenseRefNumber(b.ref)-expenseRefNumber(a.ref)||String(b.createdAt||'').localeCompare(String(a.createdAt||''))).map(e=>`<tr><td>${escapeHtml(e.ref||'-')}</td><td>${escapeHtml(e.date||'-')}</td><td><b>${escapeHtml(e.title||'')}</b>${e.notes?`<div class="meta">${escapeHtml(e.notes)}</div>`:''}</td><td>${escapeHtml(e.cat||'-')}</td><td>${escapeHtml(e.paymentMethod||'غير محدد')}${e.externalRef?`<div class="meta">${escapeHtml(e.externalRef)}</div>`:''}</td><td><b>${money(e.amount)}</b></td><td><button class="secondary small" onclick="openExpense('${e.id}')">تعديل</button></td></tr>`).join('')||'<tr><td colspan="7" class="empty">لا توجد مصروفات مطابقة</td></tr>';
+  expenseTableBody.innerHTML=[...filteredExpenses].sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(e=>`<tr><td>${escapeHtml(e.ref||'-')}</td><td>${escapeHtml(e.date||'-')}</td><td><b>${escapeHtml(e.title||'')}</b>${e.notes?`<div class="meta">${escapeHtml(e.notes)}</div>`:''}</td><td>${escapeHtml(e.cat||'-')}</td><td>${escapeHtml(e.paymentMethod||'غير محدد')}${e.externalRef?`<div class="meta">${escapeHtml(e.externalRef)}</div>`:''}</td><td><b>${money(e.amount)}</b></td><td><button class="secondary small" onclick="openExpense('${e.id}')">تعديل</button></td></tr>`).join('')||'<tr><td colspan="7" class="empty">لا توجد مصروفات مطابقة</td></tr>';
 
   const commissionBookings=periodCommissionBookings;
   commissionList.innerHTML=[...commissionBookings].sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(b=>{
@@ -3638,7 +3632,7 @@ function renderAuditLog(){
 function exportAuditLog(){download(`Adwaa-audit-log-${isoToday()}.json`,JSON.stringify(db.auditLog||[],null,2),'application/json')}
 function exportCSV(){let rows=[['رقم الحجز','العميل','الجوال','التاريخ','النوع','المدفوع','الإجمالي','المتبقي','الحالة','ملاحظات'],...db.bookings.map(b=>[b.code,b.name,b.phone,b.date,b.type,b.paid,b.total,b.total-b.paid,b.status,b.notes])];let csv='\ufeff'+rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n');download(`bookings-${isoToday()}.csv`,csv,'text/csv;charset=utf-8')}
 function download(name,content,type){const a=document.createElement('a'),url=URL.createObjectURL(new Blob([content],{type}));a.href=url;a.download=name;a.rel='noopener';document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},1500)}
-async function resetAll(){if(!confirm('سيتم مسح كل الحجوزات والمصروفات والسلف وحركات رصيد المنتجع من جميع الأجهزة. سيُنشئ النظام نسخة أمان أولًا. هل أنت متأكد؟'))return;await createBackup('قبل المسح',{downloadFile:true,silent:true,note:'نسخة أمان قبل مسح جميع البيانات'});const history=[...(db.backupHistory||[])],audit=[...(db.auditLog||[])];db={bookings:[],expenses:[],expenseSeq:0,cleaningTasks:[],notifications:[],customerNotes:{},customerCredits:[],accountingNotes:[],resortAccount:{calibration:null,financialRepairVersion:0,manualMovements:[]},backupHistory:history,auditLog:audit,settings:{waNumber:'',welcomeMsgDaily:DEFAULT_WELCOME_DAILY,welcomeMsgStay:DEFAULT_WELCOME_STAY,resortStatus:'ready',resortStatusUpdated:'',calendarMode:'both'},seq:1};addAudit('مسح','جميع البيانات','تم مسح الحجوزات والمصروفات والسلف وحركات الرصيد بعد إنشاء نسخة أمان');await persist();alert('تم مسح البيانات من جميع الأجهزة')}
+async function resetAll(){if(!confirm('سيتم مسح كل الحجوزات والمصروفات والسلف وحركات رصيد المنتجع من جميع الأجهزة. سيُنشئ النظام نسخة أمان أولًا. هل أنت متأكد؟'))return;await createBackup('قبل المسح',{downloadFile:true,silent:true,note:'نسخة أمان قبل مسح جميع البيانات'});const history=[...(db.backupHistory||[])],audit=[...(db.auditLog||[])];db={bookings:[],expenses:[],cleaningTasks:[],notifications:[],customerNotes:{},customerCredits:[],accountingNotes:[],resortAccount:{calibration:null,financialRepairVersion:0,manualMovements:[]},backupHistory:history,auditLog:audit,settings:{waNumber:'',welcomeMsgDaily:DEFAULT_WELCOME_DAILY,welcomeMsgStay:DEFAULT_WELCOME_STAY,resortStatus:'ready',resortStatusUpdated:'',calendarMode:'both'},seq:1};addAudit('مسح','جميع البيانات','تم مسح الحجوزات والمصروفات والسلف وحركات الرصيد بعد إنشاء نسخة أمان');await persist();alert('تم مسح البيانات من جميع الأجهزة')}
 function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function startVoice(){let SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert('الإدخال الصوتي غير مدعوم في هذا المتصفح. استخدم Chrome أو Safari الحديث.');return}let r=new SR();r.lang='ar-SA';r.interimResults=false;r.onresult=e=>parseVoice(e.results[0][0].transcript);r.onerror=()=>alert('تعذر التقاط الصوت');r.start();voiceHint.textContent='جاري الاستماع...'}
 function parseVoice(t){voiceHint.textContent='تم سماع: '+t;let paid=t.match(/(?:عربون|دفع|مدفوع)\s*(\d+)/),total=t.match(/(?:الإجمالي|اجمالي|المبلغ)\s*(\d+)/),phone=t.match(/05\d{8}/),day=t.match(/(?:يوم|بتاريخ)\s*(\d{1,2})\s*(?:\/|-|\s)\s*(\d{1,2})?/);let name=t.split(/يوم|بتاريخ|عربون|دفع|مدفوع|الإجمالي|اجمالي|المبلغ/)[0].replace(/سجل|حجز|جديد|للعميل/g,'').trim();if(name)bName.value=name;if(paid)bPaid.value=paid[1];if(total)bTotal.value=total[1];if(phone)bPhone.value=phone[0];if(/مبيت/.test(t)){bType.value='مبيت';const dm=t.match(/(\d+)\s*(?:يوم|أيام)/);if(dm)bStayDays.value=dm[1];updateStayFields();}if(day){let y=new Date().getFullYear(),m=day[2]?Number(day[2]):new Date().getMonth()+1,d=Number(day[1]);bDate.value=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`}}
