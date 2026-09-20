@@ -13,6 +13,7 @@ function normalizeAccount(value){
     :null;
   return {
     calibration,
+    financialRepairVersion:Math.max(0,Number(source.financialRepairVersion||0)||0),
     manualMovements:arr(source.manualMovements).map(row=>({
       id:text(row?.id),direction:row?.direction==='out'?'out':'in',amount:num(row?.amount),
       date:text(row?.date),note:text(row?.note),createdAt:text(row?.createdAt),updatedAt:text(row?.updatedAt)
