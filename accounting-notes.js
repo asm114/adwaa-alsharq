@@ -6,8 +6,8 @@ const NOTE_MODAL_ID='accountingNoteModal';
 const PAYMENT_MODAL_ID='accountingPaymentModal';
 
 function notes(){
-  if(!Array.isArray(window.db?.accountingNotes)) window.db.accountingNotes=[];
-  return window.db.accountingNotes;
+  if(!Array.isArray(db?.accountingNotes)) db.accountingNotes=[];
+  return db.accountingNotes;
 }
 function payments(note){
   return (Array.isArray(note?.payments)?note.payments:[]).map(row=>({
@@ -242,7 +242,7 @@ async function deleteNote(id){
     :'حذف هذه الملاحظة الحسابية وسجل سدادها؟';
   if(!confirm(warning))return;
   const before=JSON.parse(JSON.stringify(note));
-  window.db.accountingNotes=notes().filter(n=>n.id!==id);
+  db.accountingNotes=notes().filter(n=>n.id!==id);
   if(typeof window.addAudit==='function') window.addAudit('حذف','ملاحظة حسابية',note.title||'',before,null);
   if(typeof window.persist==='function') await window.persist();
   render();
