@@ -15,8 +15,8 @@
   function normalizePayments(booking){
     const rows=Array.isArray(booking?.payments)?booking.payments:[];
     if(rows.length)return rows.map((item,index)=>({id:String(item.id||paymentId()),amount:safeNumber(item.amount),type:String(item.type||'partial'),method:String(item.method||'unknown'),date:String(item.date||booking?.date||todayIso()),note:String(item.note||''),createdAt:String(item.createdAt||new Date().toISOString()),order:Number(item.order??index)})).filter(item=>item.amount>0);
-    const paid=safeNumber(booking?.paid);
-    return paid>0?[{id:paymentId(),amount:paid,type:'legacy',method:'unknown',date:String(booking?.date||todayIso()),note:'مبلغ مسجل قبل إضافة سجل الدفعات',createdAt:new Date().toISOString(),order:0}]:[];
+    const paid=Math.max(0,safeNumber(booking?.paid)-safeNumber(booking?.customerCreditApplied));
+    return paid>0?[{id:paymentId(),amount:paid,type:'legacy',method:'unknown',date:String(booking?.date||todayIso()),note:'مبلغ نقدي مسجل قبل إضافة سجل الدفعات',createdAt:new Date().toISOString(),order:0}]:[];
   }
 
   function installStyles(){
@@ -72,7 +72,7 @@
     const toggle=document.createElement('button');toggle.type='button';toggle.className='secondary payment-add-toggle';toggle.id='bookingPaymentAddToggle';toggle.textContent='➕ دفعة إضافية';toggle.addEventListener('click',()=>{paymentPanelOpen=!paymentPanelOpen;renderPayments();if(paymentPanelOpen)setTimeout(()=>document.getElementById('paymentAmount')?.focus(),0)});paidRow.appendChild(toggle);
     const card=document.createElement('section');card.id='bookingPaymentHistoryCard';card.className='payment-history-card full';card.innerHTML=`
       <div class="payment-history-head"><div><h3>💳 سجل دفعات الحجز</h3><div class="meta">العربون يُسجل من الخانة الأساسية أعلاه. استخدم هذه الشاشة للدفعات اللاحقة فقط.</div></div><button class="secondary small" type="button" id="paymentCloseButton">إغلاق</button></div>
-      <div class="payment-summary"><div><span>إجمالي الحجز</span><b id="paymentTotalSummary">0 ر.س</b></div><div><span>مجموع المدفوع</span><b id="paymentPaidSummary">0 ر.س</b></div><div><span>المتبقي</span><b id="paymentRemainingSummary">0 ر.س</b></div></div>
+      <div class="payment-summary"><div><span>إجمالي الحجز</span><b id="paymentTotalSummary">0 ر.س</b></div><div><span>إجمالي المسدد</span><b id="paymentPaidSummary">0 ر.س</b></div><div><span>المتبقي</span><b id="paymentRemainingSummary">0 ر.س</b></div></div>
       <div class="payment-entry-form">
         <label><span class="label">مبلغ الدفعة</span><input id="paymentAmount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="مثال: 500"></label>
         <label><span class="label">نوع الدفعة</span><select id="paymentType"><option value="partial" selected>دفعة إضافية</option><option value="final">سداد نهائي</option></select></label>
@@ -106,7 +106,7 @@
   window.deleteBookingPayment=deletePayment;
 
   function updatePaymentSummary(){
-    const total=safeNumber(document.getElementById('bTotal')?.value),paid=paymentSum(paymentDraft),remaining=Math.max(0,total-paid),over=Math.max(0,paid-total);
+    const total=safeNumber(document.getElementById('bTotal')?.value),cashPaid=paymentSum(paymentDraft),credit=safeNumber(document.getElementById('customerCreditUse')?.value),paid=cashPaid+credit,remaining=Math.max(0,total-paid),over=Math.max(0,paid-total);
     const paidInput=document.getElementById('bPaid');if(paidInput)paidInput.value=String(paid);
     const totalEl=document.getElementById('paymentTotalSummary'),paidEl=document.getElementById('paymentPaidSummary'),remainingEl=document.getElementById('paymentRemainingSummary');if(totalEl)totalEl.textContent=money(total);if(paidEl)paidEl.textContent=money(paid);if(remainingEl){remainingEl.textContent=over?`زيادة ${money(over)}`:remaining===0&&total>0?'مكتمل السداد':money(remaining);remainingEl.classList.toggle('payment-overpaid',over>0)}
   }
@@ -142,7 +142,7 @@
       if(formCode&&String(booking.code||'')!==formCode)return booking;
       const payments=normalizedDraftPayments();
       booking.payments=payments;
-      booking.paid=paymentSum(payments);
+      booking.paid=paymentSum(payments)+safeNumber(booking.customerCreditApplied);
       return booking;
     };
     wrapped.__paymentHistorySaveBridge=true;wrapped.__base=current;
@@ -156,6 +156,7 @@
     installPaymentSaveBridge();
   }
 
-  function initialize(){if(injectUi())renderPayments();installWrappers();setTimeout(()=>{if(injectUi())renderPayments();installWrappers()},500)}
+  function bindCreditRefresh(){const credit=document.getElementById('customerCreditUse');if(credit&&credit.dataset.paymentHistoryBound!=='1'){credit.dataset.paymentHistoryBound='1';credit.addEventListener('input',renderPayments);credit.addEventListener('change',renderPayments)}}
+  function initialize(){if(injectUi())renderPayments();bindCreditRefresh();installWrappers();setTimeout(()=>{if(injectUi())renderPayments();bindCreditRefresh();installWrappers()},500)}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize);else initialize();
 })();
