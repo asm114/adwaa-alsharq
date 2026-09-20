@@ -1,7 +1,8 @@
 (()=>{
 'use strict';
-if(window.__adwaaArabicNumberInputsInstalled)return;
-window.__adwaaArabicNumberInputsInstalled=true;
+const root=typeof window!=='undefined'?window:globalThis;
+if(root.__adwaaArabicNumberInputsInstalled)return;
+root.__adwaaArabicNumberInputsInstalled=true;
 
 const ARABIC='٠١٢٣٤٥٦٧٨٩';
 const PERSIAN='۰۱۲۳۴۵۶۷۸۹';
@@ -38,6 +39,14 @@ function normalizeInput(input){
   const next=normalizeNumericText(input.value,{allowDecimal:decimalAllowed(input),allowNegative:negativeAllowed(input)});
   if(input.value!==next)input.value=next;
 }
+function enforceRange(input){
+  if(input.value===''||input.value==='-'||input.value==='.')return;
+  const value=Number(input.value);if(!Number.isFinite(value))return;
+  const minRaw=input.dataset.numericMin,maxRaw=input.dataset.numericMax;
+  const min=minRaw===''?null:Number(minRaw),max=maxRaw===''?null:Number(maxRaw);
+  if(min!==null&&Number.isFinite(min)&&value<min)input.value=String(min);
+  if(max!==null&&Number.isFinite(max)&&value>max)input.value=String(max);
+}
 function enhance(input){
   if(!(input instanceof HTMLInputElement)||input.dataset.arabicNumericReady==='1')return;
   if(input.type!=='number'&&input.dataset.numericInput!=='1')return;
@@ -53,7 +62,7 @@ function enhance(input){
 
   const handle=()=>normalizeInput(input);
   input.addEventListener('input',handle);
-  input.addEventListener('change',handle);
+  input.addEventListener('change',()=>{handle();enforceRange(input)});
   input.addEventListener('compositionend',handle);
   input.addEventListener('paste',()=>setTimeout(handle,0));
 }
@@ -69,10 +78,13 @@ function install(){
   observer.observe(document.documentElement,{childList:true,subtree:true});
 }
 
-window.normalizeArabicNumber=normalizeDigits;
-window.normalizeNumericInputValue=value=>normalizeNumericText(value,{allowDecimal:true,allowNegative:true});
-window.enhanceArabicNumericInputs=enhanceTree;
+root.normalizeArabicNumber=normalizeDigits;
+root.normalizeNumericInputValue=value=>normalizeNumericText(value,{allowDecimal:true,allowNegative:true});
+root.enhanceArabicNumericInputs=enhanceTree;
 
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
-else install();
+if(typeof module!=='undefined'&&module.exports)module.exports={normalizeDigits,normalizeNumericText};
+if(typeof document!=='undefined'){
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
+  else install();
+}
 })();
