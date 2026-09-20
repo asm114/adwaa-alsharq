@@ -36,6 +36,9 @@ assert.strictEqual(core.cashCollected(newBooking),0,'استخدام 150 من ا�
 const fullySettled={total:500,paid:500,customerCreditApplied:150};
 assert.strictEqual(core.cashCollected(fullySettled),350,'التحصيل النقدي الجديد يجب أن يكون 350 فقط');
 
+const settledWithPaymentLedger={total:500,paid:500,customerCreditApplied:150,payments:[{amount:350,type:'final'}]};
+assert.strictEqual(core.cashCollected(settledWithPaymentLedger),350,'سجل الدفعات النقدية هو المصدر الأدق عند وجوده');
+
 ledger=core.setDebitForBooking(ledger,{
   customerKey:key,name:'عميل تجريبي',phone:'0500000000',amount:100,
   targetBookingId:'B2',targetBookingCode:'1002',createdAt:'2026-09-18T12:00:00.000Z'

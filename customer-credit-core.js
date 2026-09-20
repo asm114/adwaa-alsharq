@@ -38,6 +38,8 @@
     return Math.max(0,safeNumber(booking?.paid)-safeNumber(booking?.customerCreditApplied));
   }
   function cashCollected(booking){
+    const payments=Array.isArray(booking?.payments)?booking.payments:[];
+    if(payments.length)return payments.reduce((sum,row)=>sum+safeNumber(row?.amount),0);
     return Math.max(0,safeNumber(booking?.paid)-safeNumber(booking?.customerCreditApplied));
   }
   function addCreditOnce(ledger,{customerKey:key,name='',phone='',amount=0,sourceBookingId='',sourceBookingCode='',createdAt=''}) {

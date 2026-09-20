@@ -9,12 +9,14 @@ test('app_state preserves resort accounting notes',async()=>{
   const html=await read('index.html');
   assert.match(html,/accountingNotes:\[\]/);
   assert.match(html,/accountingNotes:Array\.isArray\(x\.accountingNotes\)\?x\.accountingNotes:\[\]/);
-  assert.match(html,/accounting-notes\.js\?v=20260920-1/);
+  assert.match(html,/accounting-notes\.js\?v=20260920-2/);
 });
 
 test('accounting notes are separate from resort expenses and profit',async()=>{
   const js=await read('accounting-notes.js');
-  assert.match(js,/لا تُسجل كمصروف ولا تؤثر على صافي ربح المنتجع/);
+  assert.match(js,/ليست مصروفًا ولا تغيّر صافي الربح/);
+  assert.match(js,/تخصم من رصيد حساب المنتجع/);
+  assert.match(js,/كل سداد يعيد المبلغ إلى الرصيد تلقائيًا/);
   assert.doesNotMatch(js,/db\.expenses\.push/);
   assert.doesNotMatch(js,/finProfit/);
 });
