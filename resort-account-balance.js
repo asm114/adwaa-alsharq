@@ -182,11 +182,11 @@ function openManual(id=''){
 async function saveManualMovement(event){
   event.preventDefault();const form=event.currentTarget,id=form.elements.id.value,amount=Math.max(0,Number(form.elements.amount.value||0));
   if(!(amount>0)){alert('أدخل مبلغًا أكبر من صفر.');return}
-  const rows=account().manualMovements,old=rows.find(x=>x.id===id)||null;
+  const rows=account().manualMovements,old=rows.find(x=>x.id===id)||null,before=old?{...old}:null;
   const next={id:old?.id||uuid(),direction:form.elements.direction.value==='out'?'out':'in',amount,date:form.elements.date.value||today(),note:String(form.elements.note.value||'').trim(),createdAt:old?.createdAt||now(),updatedAt:now()};
   if(!next.note){alert('اكتب بيان الحركة.');return}
   if(old)Object.assign(old,next);else rows.push(next);
-  if(typeof window.addAudit==='function')window.addAudit(old?'تعديل':'إضافة','حركة رصيد المنتجع',`${next.direction==='out'?'سحب':'إيداع'} ${money(amount)} — ${next.note}`,old?{...old}:null,next);
+  if(typeof window.addAudit==='function')window.addAudit(old?'تعديل':'إضافة','حركة رصيد المنتجع',`${next.direction==='out'?'سحب':'إيداع'} ${money(amount)} — ${next.note}`,before,next);
   if(typeof window.persist==='function')await window.persist();window.closeModal?.('resortManualMovementModal');render();
 }
 async function deleteManual(id){
