@@ -2851,13 +2851,15 @@ function syncCustomerCreditDebit(booking,useAmount){
 }
 function creditCancelledDeposit(booking,oldBooking,action,cancelledBy='customer'){
   const core=window.CustomerCreditCore;if(!core||!oldBooking)return;
-  const amount=core.depositAmount(oldBooking);
+  const depositAmount=core.depositAmount(oldBooking);
+  const cashPaid=core.cashCollected(oldBooking);
+  const settlementAmount=cancelledBy==='resort'?cashPaid:depositAmount;
   const key=customerCreditKey(oldBooking.name,oldBooking.phone);
   const finalAction=cancelledBy==='resort'&&action==='refund'?'refund':'credit';
-  booking.depositCancellation={status:finalAction==='refund'?'refunded':'credit',cancelledBy,depositAmount:amount,refundAmount:finalAction==='refund'?amount:0,recordedAt:new Date().toISOString()};
-  if(finalAction==='credit'&&amount>0){
+  booking.depositCancellation={status:finalAction==='refund'?'refunded':'credit',cancelledBy,depositAmount,settlementAmount,refundAmount:finalAction==='refund'?settlementAmount:0,recordedAt:new Date().toISOString()};
+  if(finalAction==='credit'&&settlementAmount>0){
     db.customerCredits=core.addCreditOnce(db.customerCredits||[],{
-      customerKey:key,name:oldBooking.name,phone:oldBooking.phone,amount:amount,
+      customerKey:key,name:oldBooking.name,phone:oldBooking.phone,amount:settlementAmount,
       sourceBookingId:oldBooking.id,sourceBookingCode:oldBooking.code
     });
   }
