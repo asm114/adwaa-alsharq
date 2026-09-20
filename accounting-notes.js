@@ -93,7 +93,7 @@ function installSection(){
       <button class="primary" type="button" onclick="openAccountingNote()">+ ملاحظة حسابية</button>
     </div>
     <div class="notice accounting-note-explanation">
-      هذه المبالغ <b>لا تُسجل كمصروف ولا تؤثر على صافي ربح المنتجع</b>؛ هي سجل ذمة مستقل للمتابعة والسداد فقط.
+      هذه المبالغ <b>ليست مصروفًا ولا تغيّر صافي الربح</b>، لكنها تخصم من رصيد حساب المنتجع عند تسجيل السلفة، وكل سداد يعيد المبلغ إلى الرصيد تلقائيًا.
     </div>
     <div class="accounting-notes-summary">
       <div class="accounting-note-summary-card"><span>إجمالي المبالغ المسجلة</span><b class="money" id="accountingPrincipalTotal">0 ر.س</b></div>
@@ -231,6 +231,7 @@ async function saveAccountingNote(event){
   if(note) Object.assign(note,next); else notes().push(next);
   if(typeof window.addAudit==='function') window.addAudit(note?'تعديل':'إضافة','ملاحظة حسابية',`${next.title} — ${moneyValue(principalAmount)}`,before,next);
   if(typeof window.persist==='function') await window.persist();
+  window.renderResortAccount?.();
   if(typeof window.closeModal==='function') window.closeModal(NOTE_MODAL_ID);
   render();
 }
@@ -245,6 +246,7 @@ async function deleteNote(id){
   db.accountingNotes=notes().filter(n=>n.id!==id);
   if(typeof window.addAudit==='function') window.addAudit('حذف','ملاحظة حسابية',note.title||'',before,null);
   if(typeof window.persist==='function') await window.persist();
+  window.renderResortAccount?.();
   render();
 }
 
@@ -289,6 +291,7 @@ async function saveAccountingPayment(event){
   note.updatedAt=now();
   if(typeof window.addAudit==='function') window.addAudit(existing?'تعديل':'إضافة','سداد ملاحظة حسابية',`${note.title||'ملاحظة'} — ${moneyValue(amount)}`,before,row);
   if(typeof window.persist==='function') await window.persist();
+  window.renderResortAccount?.();
   if(typeof window.closeModal==='function') window.closeModal(PAYMENT_MODAL_ID);
   render();
 }
@@ -301,6 +304,7 @@ async function deletePayment(noteId,paymentId){
   note.updatedAt=now();
   if(typeof window.addAudit==='function') window.addAudit('حذف','سداد ملاحظة حسابية',`${note.title||'ملاحظة'} — ${moneyValue(row.amount)}`,before,null);
   if(typeof window.persist==='function') await window.persist();
+  window.renderResortAccount?.();
   render();
 }
 
