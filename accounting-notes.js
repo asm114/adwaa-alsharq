@@ -213,6 +213,10 @@ async function saveAccountingNote(event){
   const principalAmount=Math.max(0,Number(form.elements.principalAmount.value||0));
   if(principalAmount<=0){alert('أدخل أصل المبلغ.');return;}
   const alreadyPaid=note?summary(note).paid:0;
+  if(!note&&window.ResortAccountCore&&db?.resortAccount?.calibration){
+    const available=window.ResortAccountCore.currentBalance(db);
+    if(principalAmount>available+0.009&&!confirm(`الرصيد المتاح في حساب المنتجع ${moneyValue(available)} فقط، وتسجيل هذه السلفة سيجعل الرصيد سالبًا. هل تريد المتابعة؟`))return;
+  }
   if(principalAmount+0.009<alreadyPaid){
     alert(`لا يمكن جعل أصل المبلغ أقل من إجمالي ما تم سداده (${moneyValue(alreadyPaid)}).`);
     return;
