@@ -37,6 +37,8 @@ jobs:
             deposit-refund-policy.js
             customer-credit-core.js
             accounting-notes.js
+            resort-account-core.js
+            resort-account-balance.js
             remaining-payment-flow.js
             subscription-booking-type.js
             subscription-customer-finance.js
