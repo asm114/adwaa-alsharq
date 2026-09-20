@@ -1,7 +1,8 @@
 (()=>{
 'use strict';
-if(window.__adwaaArabicNumberInputInstalled)return;
-window.__adwaaArabicNumberInputInstalled=true;
+const root=typeof window!=='undefined'?window:globalThis;
+if(root.__adwaaArabicNumberInputInstalled)return;
+root.__adwaaArabicNumberInputInstalled=true;
 
 const ARABIC_ZERO='٠'.charCodeAt(0);
 const PERSIAN_ZERO='۰'.charCodeAt(0);
@@ -60,6 +61,7 @@ function scan(root=document){
   root.querySelectorAll?.('input[type="number"],input[data-numeric-input="1"]').forEach(normalizeInput);
 }
 
+if(typeof document!=='undefined'&&typeof HTMLInputElement!=='undefined'){
 document.addEventListener('focusin',event=>{normalizeInput(event.target);normalizeValue(event.target)},true);
 document.addEventListener('input',event=>{normalizeInput(event.target);normalizeValue(event.target)},true);
 document.addEventListener('change',event=>{normalizeInput(event.target);normalizeValue(event.target)},true);
@@ -85,5 +87,7 @@ function start(){
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 
-window.AdwaaNumberInput={normalizeNumericText,parseNumber,normalizeInput,scan};
+root.AdwaaNumberInput={normalizeNumericText,parseNumber,normalizeInput,scan};
+}
+if(typeof module!=='undefined'&&module.exports)module.exports={normalizeNumericText,parseNumber};
 })();
