@@ -180,8 +180,10 @@ function integrityIssues(state){
       const cash=payments.reduce((sum,row)=>sum+num(row.amount),0),expected=cash+credit,paid=num(booking?.paid);
       if(Math.abs(expected-paid)>0.01)issues.push({type:'booking_payment_total',id:text(booking?.id),message:`الحجز #${booking?.code||''}: المدفوع لا يطابق الدفعات + رصيد العميل`});
     }
-    const refund=num(booking?.depositCancellation?.refundAmount);
-    if(refund>0&&refund>bookingCashRows(booking).reduce((sum,row)=>sum+Math.max(0,row.amount),0)+0.01)issues.push({type:'refund',id:text(booking?.id),message:`الحجز #${booking?.code||''}: الاسترداد أكبر من النقد المسجل`});
+    const cashTotal=bookingCashRows(booking).reduce((sum,row)=>sum+Math.max(0,row.amount),0);
+    const cancellation=booking?.depositCancellation||{},refund=num(cancellation.refundAmount);
+    if(refund>0&&refund>cashTotal+0.01)issues.push({type:'refund',id:text(booking?.id),message:`الحجز #${booking?.code||''}: الاسترداد أكبر من النقد المسجل`});
+    if(cancellation.status==='credit'&&cancellation.cancelledBy==='customer'&&cashTotal>num(cancellation.depositAmount)+0.01)issues.push({type:'customer_cancel_extra_cash',id:text(booking?.id),message:`الحجز #${booking?.code||''}: توجد دفعات نقدية أعلى من العربون في إلغاء العميل وتحتاج مراجعة يدوية`});
   }
   for(const note of arr(db.accountingNotes)){
     const principal=num(note?.principalAmount),paid=arr(note?.payments).reduce((sum,row)=>sum+num(row?.amount),0);
