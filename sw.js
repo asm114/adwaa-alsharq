@@ -1,9 +1,9 @@
 // Keep this app's cache isolated from other projects sharing the same GitHub Pages origin.
 const SCOPE_PATH=new URL(self.registration.scope).pathname.replace(/\/+$/,'')||'/';
 const CACHE_NAMESPACE=`adwaa-alsharq:${SCOPE_PATH}:`;
-const CACHE=`${CACHE_NAMESPACE}app-state-20260821`;
+const CACHE=`${CACHE_NAMESPACE}app-state-20260920-arabic-numbers-1`;
 const FALLBACK='./index.html';
-const ASSETS=['./index.html','./manifest.json','./supabase-config.staging.js'];
+const ASSETS=['./index.html','./manifest.json','./supabase-config.staging.js','./arabic-number-input.js?v=20260920-2'];
 
 function isAppShellRequest(request){
   const requestUrl=new URL(request.url);
