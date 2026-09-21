@@ -56,3 +56,18 @@ test('الملف محمل بعد سياسة إرجاع العربون',async()=>
   assert.ok(refundIndex>=0,'سياسة العربون يجب أن تكون محملة');
   assert.ok(stabilityIndex>refundIndex,'حماية الحفظ يجب أن تحمل بعد سياسة العربون');
 });
+
+
+test('تعديل الحجز لا يسقط رصيد العميل من إجمالي المدفوع',async()=>{
+  const source=await read('booking-save-stability.js');
+  assert.match(source,/const cashPaid=payments\.reduce/);
+  assert.match(source,/const appliedCredit=moneyValue\(booking\.customerCreditApplied\)/);
+  assert.match(source,/booking\.paid=cashPaid\+appliedCredit/);
+});
+
+test('الحفظ يثبت التاريخ الذي اختاره المستخدم ويوقف النجاح عند عدم مطابقته',async()=>{
+  const source=await read('booking-save-stability.js');
+  assert.match(source,/const requestedDate=String\(document\.getElementById\('bDate'\)/);
+  assert.match(source,/String\(localSaved\.date\|\|''\)!==requestedDate/);
+  assert.match(source,/لم يتم تثبيت تاريخ الحجز المطلوب/);
+});
