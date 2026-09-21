@@ -197,7 +197,7 @@ async function deleteManual(id){
 }
 
 async function repairFinanceOnce(){
-  const db=dbState();if(!db)return false;const acc=account();if(acc.financialRepairVersion>=1)return false;
+  const db=dbState();if(!db)return false;const acc=account();if(acc.financialRepairVersion>=2)return false;
   let changed=false;
   for(const booking of (db.bookings||[])){
     const payments=Array.isArray(booking?.payments)?booking.payments:[];
@@ -216,8 +216,8 @@ async function repairFinanceOnce(){
       }
     }
   }
-  acc.financialRepairVersion=1;
-  if(typeof window.addAudit==='function')window.addAudit('فحص','المنظومة المالية',changed?'تم تصحيح توافق الدفعات مع أرصدة العملاء':'تم التحقق من توافق الدفعات مع أرصدة العملاء',null,{financialRepairVersion:1});
+  acc.financialRepairVersion=2;
+  if(typeof window.addAudit==='function')window.addAudit('فحص','المنظومة المالية',changed?'تم تصحيح توافق الدفعات مع أرصدة العملاء':'تم التحقق من توافق الدفعات مع أرصدة العملاء',null,{financialRepairVersion:2});
   if(typeof window.persist==='function')await window.persist();
   window.dispatchEvent(new Event('adwaa-finance-repaired'));
   return true;
