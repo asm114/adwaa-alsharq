@@ -36,7 +36,6 @@ jobs:
             booking-payment-history.js
             deposit-refund-policy.js
             customer-credit-core.js
-            arabic-number-inputs.js
             arabic-number-input.js
             accounting-notes.js
             resort-account-core.js
