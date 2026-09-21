@@ -1052,7 +1052,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <div><label class="label" for="bPhone">رقم الجوال</label><input id="bPhone" inputmode="tel" autocomplete="tel" oninput="refreshCustomerCreditUI()"></div>
 </div></fieldset>
 <fieldset class="booking-form-section booking-stay-section"><legend>تفاصيل الحجز/الإقامة</legend><div class="booking-section-grid">
-<div><label class="label" for="bDate">تاريخ الحجز <span class="booking-required" aria-hidden="true">مطلوب</span></label><input id="bDate" type="date" required onchange="updateStayFields();checkSelectedDate()"><div id="dateHint" class="meta" style="margin-top:5px"></div></div>
+<div><label class="label" for="bDate">تاريخ الحجز <span class="booking-required" aria-hidden="true">مطلوب</span></label><input id="bDate" type="date" required onchange="window.BookingDateStability?.finalize();updateStayFields();checkSelectedDate()"><div id="dateHint" class="meta" style="margin-top:5px"></div></div>
 <div><label class="label" for="bType">نوع الحجز</label><select id="bType" onchange="updateStayFields()"><option>يومي</option><option>مبيت</option></select></div>
 <div id="stayDaysWrap" style="display:none"><label class="label" for="bStayDays">عدد أيام المبيت</label><input id="bStayDays" type="number" min="1" max="30" value="1" oninput="updateStayFields()"><div id="stayDateHint" class="meta" style="margin-top:5px"></div></div>
 <div><label class="label help-inline" for="bStatus">الحالة <span data-help="confirmBooking"></span><span data-help="cancelBooking"></span></label><select id="bStatus" onchange="refreshCustomerCreditUI()"><option>مؤكد</option><option>غير مؤكد</option><option>تم الدخول</option><option>تم الخروج</option><option>ملغي</option></select></div>
