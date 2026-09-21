@@ -34,6 +34,8 @@ jobs:
             portal-booking-sync-stable.js
             portal-final-admin.js
             booking-payment-history.js
+            booking-save-stability.js
+            booking-date-stability.js
             deposit-refund-policy.js
             customer-credit-core.js
             arabic-number-inputs.js

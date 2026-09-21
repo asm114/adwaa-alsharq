@@ -91,7 +91,7 @@ test('تقويم بوابة العملاء على الجوال يستخدم شب
 test('Service Worker يستخدم كاش الإصدار الحالي ويحدث fallback عند نجاح فتح التطبيق',async()=>{
   const sw=await read('sw.js');
   assert.match(sw,/CACHE_NAMESPACE=`adwaa-alsharq:\$\{SCOPE_PATH\}:`/);
-  assert.match(sw,/CACHE=`\$\{CACHE_NAMESPACE\}app-state-20260920-arabic-numbers-1`/);
+  assert.match(sw,/CACHE=`\$\{CACHE_NAMESPACE\}app-state-20260921-booking-fix-1`/);
   assert.match(sw,/supabase-config\.staging\.js/);
   assert.match(sw,/isAppShellRequest/);
   assert.match(sw,/cache\.put\(FALLBACK,response\.clone\(\)\)/);
@@ -103,7 +103,7 @@ test('لودرات التدقيق النهائي تستخدم أرقام كاش 
   const subscription=await read('subscription-booking-type.js');
   const portalHtml=await read('resort/index.html');
   assert.match(finalAdmin,/booking-payment-history\.js\?v=20260920-3/);
-  assert.match(finalAdmin,/subscription-booking-type\.js\?v=20260920-5/);
+  assert.match(finalAdmin,/subscription-booking-type\.js\?v=20260921-1/);
   assert.match(finalAdmin,/portal-booking-sync-stable\.js\?v=20260831-1/);
   assert.match(subscription,/portal-admin-client\.js\?v=20260819-3/);
   assert.match(subscription,/subscription-commission-core\.js\?v=20260813-1/);
