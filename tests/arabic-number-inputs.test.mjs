@@ -20,12 +20,13 @@ test('numeric text normalization keeps one decimal and strips thousands separato
   assert.equal(core.normalizeNumericText('٣٠',{allowDecimal:false,allowNegative:false}),'30');
 });
 
-test('main app loads Arabic numeric support before finance helpers',async()=>{
+test('main app loads only the current Arabic numeric handler before finance helpers',async()=>{
   const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
-  const numeric=html.indexOf('arabic-number-inputs.js?v=20260920-1');
+  const numeric=html.indexOf('arabic-number-input.js?v=20260921-1');
   const credit=html.indexOf('customer-credit-core.js?v=20260920-3');
   assert.ok(numeric>=0);
   assert.ok(credit>numeric);
+  assert.doesNotMatch(html,/arabic-number-inputs\.js\?v=/);
 });
 
 test('numeric support converts number inputs to text so Arabic keyboard input is not rejected by the browser',async()=>{
