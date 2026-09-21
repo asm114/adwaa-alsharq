@@ -1,7 +1,8 @@
 (()=>{
 'use strict';
-if(window.__adwaaBookingDateStabilityInstalled)return;
-window.__adwaaBookingDateStabilityInstalled=true;
+const root=typeof window!=='undefined'?window:globalThis;
+if(root.__adwaaBookingDateStabilityInstalled)return;
+root.__adwaaBookingDateStabilityInstalled=true;
 
 const AR='٠١٢٣٤٥٦٧٨٩',FA='۰۱۲۳۴۵۶۷۸۹';
 function ascii(value){
@@ -30,8 +31,8 @@ function normalizeDate(value){
   const iso=`${String(y).padStart(4,'0')}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
   return validIso(iso)?iso:'';
 }
-function field(){return document.getElementById('bDate')}
-function picker(){return document.getElementById('bDateNativePicker')}
+function field(){return typeof document!=='undefined'?document.getElementById('bDate'):null}
+function picker(){return typeof document!=='undefined'?document.getElementById('bDateNativePicker'):null}
 function syncPicker(){
   const input=field(),native=picker();if(!input||!native)return;
   const iso=normalizeDate(input.value);
@@ -107,16 +108,18 @@ function syncAfterOpen(){
   if(iso){input.value=iso;input.dataset.requestedBookingDate=iso;syncPicker();}
 }
 function wrapOpen(){
-  const current=window.openBooking;if(typeof current!=='function'||current.__bookingDateStabilityWrapped)return false;
+  const current=root.openBooking;if(typeof current!=='function'||current.__bookingDateStabilityWrapped)return false;
   const wrapped=function(...args){const result=current.apply(this,args);setTimeout(syncAfterOpen,0);return result};
-  wrapped.__bookingDateStabilityWrapped=true;wrapped.__base=current;window.openBooking=wrapped;try{openBooking=wrapped}catch(_){}
+  wrapped.__bookingDateStabilityWrapped=true;wrapped.__base=current;root.openBooking=wrapped;try{openBooking=wrapped}catch(_){}
   return true;
 }
 function install(){
   enhance();wrapOpen();syncAfterOpen();
   let tries=0;const timer=setInterval(()=>{tries++;enhance();wrapOpen();if(tries>=24)clearInterval(timer)},250);
 }
-window.BookingDateStability={normalizeDate,validIso,finalize,syncAfterOpen};
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
+root.BookingDateStability={normalizeDate,validIso,finalize,syncAfterOpen};
+if(typeof document!=='undefined'){
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
+}
 if(typeof module!=='undefined'&&module.exports)module.exports={normalizeDate,validIso};
 })();
