@@ -89,7 +89,9 @@ function wrapNormalizeBookingCommission(){
       else payments.unshift({id:window.crypto?.randomUUID?.()||`deposit-${Date.now()}`,amount:requested,type:'deposit',method:document.getElementById('bookingDepositMethod')?.value||'transfer',date:new Date().toISOString().slice(0,10),note:'عربون الحجز',createdAt:new Date().toISOString(),order:0});
     }else if(index>=0)payments.splice(index,1);
     booking.payments=payments;
-    booking.paid=payments.reduce((sum,item)=>sum+moneyValue(item.amount),0);
+    const cashPaid=payments.reduce((sum,item)=>sum+moneyValue(item.amount),0);
+    const appliedCredit=moneyValue(booking.customerCreditApplied);
+    booking.paid=cashPaid+appliedCredit;
     const paid=document.getElementById('bPaid');if(paid)paid.value=String(booking.paid);
     restoreRequestedDeposit();
     return booking;
@@ -139,10 +141,14 @@ function wrapSaveBooking(){
     const requested=requestedDeposit();
     const beforeIds=new Set((window.db?.bookings||[]).map(row=>String(row?.id||'')));
     const code=String(document.getElementById('bCode')?.value||'').trim();
+    const requestedDate=String(document.getElementById('bDate')?.value||'').trim();
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)){showStatus('error','تاريخ الحجز غير صالح','اختر تاريخ الحجز بصيغة صحيحة قبل الحفظ.');return false}
     saveInFlight=true;setSavingDisabled(true);showStatus('saving','جاري حفظ الحجز…','يتم الآن حفظ البيانات ثم قراءتها من Supabase للتأكد من نجاح الحفظ.');
     try{
       const result=await current.apply(this,arguments);
       const savedId=preserveNewBookingId(beforeIds);
+      const localSaved=localSavedBooking(savedId,code);
+      if(!localSaved||String(localSaved.date||'')!==requestedDate)throw new Error(`لم يتم تثبيت تاريخ الحجز المطلوب (${requestedDate}). بقيت الشاشة مفتوحة لحماية التعديل.`);
       await verifySavedBookingInSupabase(savedId,code,requested);
       window.__adwaaLastBookingSaveConfirmed={ok:true,id:savedId,at:new Date().toISOString()};
       showStatus('success','تم حفظ الحجز بنجاح','تمت قراءة الحجز من Supabase وتأكيد آخر البيانات. العقد أصبح متاحًا عند فتح الحجز.',4200);
