@@ -77,4 +77,5 @@
   }
   const api={safeNumber,normalizePhone,customerKey,recalculateBalances,balanceFor,depositAmount,cashCollected,cancellationSettlement,addCreditOnce,setDebitForBooking};
   root.CustomerCreditCore=api;
+  if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
