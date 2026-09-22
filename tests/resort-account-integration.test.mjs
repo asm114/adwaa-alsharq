@@ -9,7 +9,7 @@ test('app state preserves the resort account and loads the cash ledger core',asy
   const html=await read('index.html');
   assert.match(html,/resortAccount:\{calibration:null,financialRepairVersion:0,manualMovements:\[\]\}/);
   assert.match(html,/ResortAccountCore\?\.normalizeAccount\(x\.resortAccount\)/);
-  assert.match(html,/resort-account-core\.js\?v=20260920-1/);
+  assert.match(html,/resort-account-core\.js\?v=20260922-2/);
 });
 
 test('every saved expense is positive and expense categories cover resort operations',async()=>{

@@ -1230,7 +1230,8 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <script src="booking-financial-core.js?v=20260922-1"></script>
 <script src="booking-postponement.js?v=20260922-1"></script>
 <script src="customer-credit-core.js?v=20260920-3"></script>
-<script src="resort-account-core.js?v=20260920-1"></script>
+<script src="resort-account-core.js?v=20260922-2"></script>
+<script src="booking-financial-reconciliation.js?v=20260922-1"></script>
 <script src="arabic-number-input.js?v=20260921-1"></script>
 <script src="booking-date-stability.js?v=20260921-1"></script>
 <script src="deposit-refund-policy.js?v=20260921-2"></script>
@@ -1593,6 +1594,7 @@ async function persist(){
     alert('تعذر مزامنة آخر تعديل. تحقق من الاتصال وصلاحيات حساب المدير.');
   }
 }
+window.__adwaaReconciliationContext=()=>({db,currentUser,persist});
 
 function setSyncStatus(text,type){
   const el=document.getElementById('syncStatus');

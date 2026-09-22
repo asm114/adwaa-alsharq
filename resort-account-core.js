@@ -14,6 +14,9 @@ function normalizeAccount(value){
   return {
     calibration,
     financialRepairVersion:Math.max(0,Number(source.financialRepairVersion||0)||0),
+    bookingReconciliationVersion:Math.max(0,Number(source.bookingReconciliationVersion||0)||0),
+    bookingReconciliationAt:text(source.bookingReconciliationAt),
+    bookingReconciliationIssues:arr(source.bookingReconciliationIssues).map(row=>({code:text(row?.code),reason:text(row?.reason)})).slice(0,50),
     manualMovements:arr(source.manualMovements).map(row=>({
       id:text(row?.id),direction:row?.direction==='out'?'out':'in',amount:num(row?.amount),
       date:text(row?.date),note:text(row?.note),createdAt:text(row?.createdAt),updatedAt:text(row?.updatedAt)
