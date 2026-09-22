@@ -54,7 +54,7 @@ test('refunds commissions expenses and advances feed the balance without changin
 
 test('finance loader brings the resort balance after commission workflow',async()=>{
   const loader=await read('subscription-booking-type.js');
-  const commission=loader.indexOf('commission-transfer-workflow.js?v=20260813-2');
+  const commission=loader.indexOf('commission-transfer-workflow.js?v=20260922-1');
   const account=loader.indexOf('resort-account-balance.js?v=20260921-1');
   assert.ok(commission>=0);
   assert.ok(account>commission);

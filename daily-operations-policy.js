@@ -4,7 +4,7 @@ if(window.__adwaaDailyOperationsPolicyInstalled)return;
 window.__adwaaDailyOperationsPolicyInstalled=true;
 
 function fullyPaidCommissionBooking(booking){
-  if(!booking||booking.recordType==='family'||booking.status==='ملغي')return false;
+  if(!booking||booking.recordType==='family'||booking.status==='ملغي'||booking.status==='مؤجل')return false;
   const total=Number(booking.total||0),paid=Number(booking.paid||0);
   return Number.isFinite(total)&&Number.isFinite(paid)&&total>0&&paid>=total;
 }

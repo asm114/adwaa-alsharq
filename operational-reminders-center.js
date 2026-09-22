@@ -17,7 +17,7 @@ const isoDate=date=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(
 const nowIso=()=>new Date().toISOString();
 const money=value=>typeof window.money==='function'?window.money(value):`${Math.max(0,Number(value||0)).toLocaleString('ar-SA')} ر.س`;
 const remaining=booking=>window.BookingFinancialCore?.remainingAmount(booking)??Math.max(0,Number(booking?.total||0)-Number(booking?.paid||0));
-const activeBooking=booking=>booking&&booking.recordType!=='family'&&booking.status!=='ملغي';
+const activeBooking=booking=>booking&&booking.recordType!=='family'&&!['ملغي','مؤجل'].includes(booking.status);
 const reminderKey=(type,booking)=>`ops:${type}:${booking.id}`;
 
 function parseArabicTime(label){
@@ -98,7 +98,7 @@ function resolveObsoleteReminders(){
   notifications().forEach(item=>{
     if(item?.type!=='operational'||item.resolvedAt)return;
     const booking=bookings().find(row=>row.id===item.bookingId);
-    if(!booking||booking.status==='ملغي'){resolveReminder(item);return}
+    if(!booking||['ملغي','مؤجل'].includes(booking.status)){resolveReminder(item);return}
     if(item.operationalType==='entry'&&['تم الدخول','تم الخروج'].includes(booking.status))resolveReminder(item);
     if(item.operationalType==='exit'){
       const exitAt=bookingExitMoment(booking);

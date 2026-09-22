@@ -59,7 +59,7 @@ function dateMatch(value,period=periodValue()){
   return true;
 }
 function isSubscriptionVisit(row){return !!(row?.subscriptionPaymentManaged||row?.subscriptionId)}
-function periodBookings(){return bookings().filter(row=>row.status!=='ملغي'&&row.recordType!=='family'&&!isSubscriptionVisit(row)&&dateMatch(row.date))}
+function periodBookings(){return bookings().filter(row=>!['ملغي','مؤجل'].includes(row.status)&&row.recordType!=='family'&&!isSubscriptionVisit(row)&&dateMatch(row.date))}
 function subscriptionPayments(){
   const rows=[];
   subscriptions().filter(s=>s?.paymentManaged===true&&s?.status!=='ملغي').forEach(sub=>{
@@ -93,7 +93,7 @@ function showDue(){
 }
 function showExpenses(){const rows=expenses().filter(r=>dateMatch(r.date));openDetails('تفاصيل المصروفات',detailList(rows.map(expenseRow),'لا توجد مصروفات في الفترة المحددة'))}
 function showCommission(mode){
-  const rows=bookings().filter(r=>r.status!=='ملغي'&&r.recordType!=='family'&&!isSubscriptionVisit(r)&&dateMatch(r.date));
+  const rows=bookings().filter(r=>!['ملغي','مؤجل'].includes(r.status)&&r.recordType!=='family'&&!isSubscriptionVisit(r)&&dateMatch(r.date));
   if(mode==='received'){
     const received=rows.filter(r=>commissionStatus(r)==='received').map(r=>bookingRow(r,`✅ تم تأكيد استلام العمولة • ${esc(money(commissionAmount(r)))}`));
     openDetails('العمولات المستلمة',detailList(received,'لا توجد عمولات مستلمة في الفترة المحددة'));return;
@@ -114,7 +114,7 @@ function enhanceFinance(){
 function sortCustomerCards(){
   const root=document.getElementById('customerList');if(!root||root.children.length<2)return;
   const start=new Date();start.setHours(0,0,0,0);
-  const score=card=>{const heading=norm(card.querySelector('h4')?.textContent||''),matches=bookings().filter(b=>heading.includes(norm(b.name))&&b.status!=='ملغي'),future=matches.map(b=>String(b.date||'')).filter(d=>d&&new Date(`${d}T00:00:00`)>=start).sort();if(future.length)return new Date(`${future[0]}T00:00:00`).getTime();return Number.MAX_SAFE_INTEGER};
+  const score=card=>{const heading=norm(card.querySelector('h4')?.textContent||''),matches=bookings().filter(b=>heading.includes(norm(b.name))&&!['ملغي','مؤجل'].includes(b.status)),future=matches.map(b=>String(b.date||'')).filter(d=>d&&new Date(`${d}T00:00:00`)>=start).sort();if(future.length)return new Date(`${future[0]}T00:00:00`).getTime();return Number.MAX_SAFE_INTEGER};
   [...root.children].sort((a,b)=>score(a)-score(b)).forEach(node=>root.appendChild(node));
 }
 function watchView(){scopeAddBooking();cleanVoiceUi();clarifyBookingActions();if(activeViewId()==='expenses'){setFinanceAllPeriods();enhanceFinance()}if(activeViewId()==='customers')sortCustomerCards()}

@@ -3,6 +3,7 @@
 
   const safeNumber=value=>Math.max(0,Number(value||0));
   const isCancelled=booking=>/ملغي|cancel/i.test(String(booking?.status||''));
+  const isPostponed=booking=>/مؤجل|postpon/i.test(String(booking?.status||''));
   const isFamily=booking=>String(booking?.recordType||'').toLowerCase()==='family';
   const paymentRows=booking=>(Array.isArray(booking?.payments)?booking.payments:[]).filter(row=>safeNumber(row?.amount)>0);
   const paymentSum=booking=>paymentRows(booking).reduce((sum,row)=>sum+safeNumber(row.amount),0);
@@ -21,13 +22,14 @@
   }
 
   function remainingAmount(booking){
-    if(!booking||isFamily(booking)||isCancelled(booking))return 0;
+    if(!booking||isFamily(booking)||isCancelled(booking)||isPostponed(booking))return 0;
     return Math.max(0,safeNumber(booking.total)-settledAmount(booking));
   }
 
   function paymentStatus(booking){
     if(isFamily(booking))return{code:'not_applicable',remaining:0};
     if(isCancelled(booking))return{code:'cancelled',remaining:0};
+    if(isPostponed(booking))return{code:'postponed',remaining:0};
     const total=safeNumber(booking?.total),paid=settledAmount(booking),remaining=remainingAmount(booking);
     if(!(total>0))return{code:'unset',remaining:0};
     if(remaining<=0)return{code:'paid',remaining:0};
@@ -52,7 +54,7 @@
   }
   const isFormSaveActive=()=>formSaveDepth>0;
 
-  const api={safeNumber,isCancelled,isFamily,paymentRows,paymentSum,appliedCredit,cashReceived,settledAmount,remainingAmount,paymentStatus,normalizePaymentRows,applyPaymentLedger,withFormSaveScope,isFormSaveActive};
+  const api={safeNumber,isCancelled,isPostponed,isFamily,paymentRows,paymentSum,appliedCredit,cashReceived,settledAmount,remainingAmount,paymentStatus,normalizePaymentRows,applyPaymentLedger,withFormSaveScope,isFormSaveActive};
   root.BookingFinancialCore=api;
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

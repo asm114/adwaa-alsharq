@@ -13,7 +13,7 @@ const todayStart=()=>{const d=new Date();return new Date(d.getFullYear(),d.getMo
 function subscriptions(){return Array.isArray(window.db?.subscriptions)?window.db.subscriptions:[]}
 function linkedBookings(subscriptionId){
  return (Array.isArray(window.db?.bookings)?window.db.bookings:[])
-  .filter(booking=>booking?.subscriptionId===subscriptionId&&booking.status!=='ملغي');
+  .filter(booking=>booking?.subscriptionId===subscriptionId&&!['ملغي','مؤجل'].includes(booking.status));
 }
 function isConsumedVisit(booking){return booking?.status==='تم الخروج'}
 function visitStats(subscription){

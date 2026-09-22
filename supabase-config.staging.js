@@ -8,7 +8,7 @@ const PRODUCTION_PUBLISHABLE_KEY='sb_publishable_BFTIR_8VK2qQuKnl2c-jDA_cMnWz0E-
 const PRODUCTION_GITHUB_HOST='asm114.github.io';
 const PRODUCTION_GITHUB_PATH='/adwaa-alsharq';
 const PRODUCTION_VERCEL_HOST='adwaa-alsharq.vercel.app';
-const BOOKING_SAVE_VERSION='20260921-2';
+const BOOKING_SAVE_VERSION='20260922-1';
 const hostname=String(window.location?.hostname||'').toLowerCase();
 const pathname=String(window.location?.pathname||'');
 const isProductionGithubPages=hostname===PRODUCTION_GITHUB_HOST&&(
@@ -162,6 +162,7 @@ async function saveBookingAuthoritatively(event){
       createdAt:oldBooking?.createdAt||new Date().toISOString(),
       updatedAt:new Date().toISOString()
     };
+    obj=window.BookingPostponement?.prepareForSave(oldBooking,obj)??obj;
     const prepareBookingForSave=()=>{
       if(selectedRecordType!=='family'){
         if(!window.BookingPaymentHistory?.prepareBookingForSave)throw new Error('تعذر تحميل سجل الدفعات. حدّث الصفحة قبل حفظ الحجز لحماية المبالغ.');

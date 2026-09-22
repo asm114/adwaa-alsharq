@@ -9,7 +9,7 @@ function safe(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp
 function moneyText(value){if(typeof money==='function')return money(Number(value||0));return `${new Intl.NumberFormat('ar-SA').format(Number(value||0))} ر.س`}
 function todayIso(){if(typeof isoToday==='function')return isoToday();const now=new Date();return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`}
 function dateIso(date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`}
-function activeBookings(){if(typeof db==='undefined'||!Array.isArray(db?.bookings))return [];return db.bookings.filter(b=>b.status!=='ملغي'&&b.recordType!=='family')}
+function activeBookings(){if(typeof db==='undefined'||!Array.isArray(db?.bookings))return [];return db.bookings.filter(b=>!['ملغي','مؤجل'].includes(b.status)&&b.recordType!=='family')}
 function remainingAmount(booking){if(typeof getRemainingAmount==='function')return Math.max(0,Number(getRemainingAmount(booking)||0));return Math.max(0,Number(booking?.total||0)-Number(booking?.paid||0))}
 function paidAmount(booking){return window.BookingFinancialCore?.settledAmount(booking)??Math.max(0,Number(booking?.paid||0))}
 function fullyPaid(booking){if(typeof isFullyPaid==='function')return !!isFullyPaid(booking);const total=Number(booking?.total||0),paid=paidAmount(booking);return total>0&&paid>=total}
@@ -28,7 +28,7 @@ function sortByDateAsc(list){return [...list].sort((a,b)=>String(a.date||'').loc
 function sortByDateDesc(list){return [...list].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.code||'').localeCompare(String(a.code||'')))}
 function currentUpcoming(active,today){
   if(typeof upcoming==='function'){
-    try{return (upcoming()||[]).filter(b=>b&&b.status!=='ملغي'&&b.recordType!=='family')}catch{}
+    try{return (upcoming()||[]).filter(b=>b&&!['ملغي','مؤجل'].includes(b.status)&&b.recordType!=='family')}catch{}
   }
   return sortByDateAsc(active.filter(b=>String(b.date||'')>=today&&!['تم الخروج'].includes(b.status)));
 }

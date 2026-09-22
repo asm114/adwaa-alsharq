@@ -30,15 +30,27 @@ test('الحفظ المباشر يجهز سجل الدفعات ويتحقق من
   assert.match(config,/سجل الدفعات في Supabase لا يطابق/);
 });
 
-test('كل مخارج الحجوزات الرئيسية تستخدم المتبقي الموحد وتستثني الملغي',async()=>{
+test('كل مخارج الحجوزات الرئيسية تستخدم المتبقي الموحد وتستثني الملغي والمؤجل',async()=>{
   const [index,groups,excel,reminders,professional]=await Promise.all([
     read('index.html'),read('booking-customer-groups.js'),read('bookings-excel-export.js'),read('remaining-payment-flow.js'),read('professional-ui-stable.js')
   ]);
   assert.match(index,/function getRemainingAmount\(booking\).*BookingFinancialCore\?\.remainingAmount/);
   assert.match(groups,/ملغي — لا يوجد مبلغ للتحصيل/);
-  assert.match(excel,/if\(isCancelled\(b\)\)return 0/);
+  assert.match(excel,/if\(isCancelled\(b\)\|\|isPostponed\(b\)\)return 0/);
   assert.match(reminders,/BookingFinancialCore\?\.remainingAmount/);
   assert.match(professional,/const dueAmount=row=>window\.BookingFinancialCore\?\.remainingAmount/);
+});
+
+test('الحجز المؤجل له حالة مستقلة ويحفظ الدفعات ويخرج من التقويم والتحصيل',async()=>{
+  const [index,postponement,portal,excel]=await Promise.all([
+    read('index.html'),read('booking-postponement.js'),read('portal-booking-sync-stable.js'),read('bookings-excel-export.js')
+  ]);
+  assert.match(index,/<option>مؤجل<\/option>/);
+  assert.match(postponement,/booking\.date=''/);
+  assert.match(postponement,/postponedFromDate/);
+  assert.match(postponement,/حدد موعدًا جديدًا قبل إعادة تفعيل الحجز المؤجل/);
+  assert.match(portal,/\['ملغي','مؤجل'\]/);
+  assert.match(excel,/مؤجل — لا يوجد تحصيل حتى تحديد موعد/);
 });
 
 test('إلغاء الحجز يحفظ كامل النقد المستلم كرصيد مرة واحدة',async()=>{

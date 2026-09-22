@@ -40,6 +40,9 @@ function syncPicker(){
 }
 function finalize({alertOnError=false}={}){
   const input=field();if(!input)return false;
+  const postponed=document.getElementById('bStatus')?.value==='مؤجل';
+  if(postponed){input.value='';input.required=false;input.setCustomValidity('');return true}
+  input.required=true;
   const iso=normalizeDate(input.value);
   if(!iso){
     input.setCustomValidity('أدخل تاريخ حجز صحيح.');

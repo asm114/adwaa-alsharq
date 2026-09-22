@@ -64,7 +64,7 @@ function dateMatch(value,period=periodValue()){
   return true;
 }
 function isSubscriptionVisit(row){return !!(row?.subscriptionPaymentManaged||row?.subscriptionId)}
-function periodBookings(){return bookings().filter(row=>row.status!=='ملغي'&&row.recordType!=='family'&&!isSubscriptionVisit(row)&&dateMatch(row.date))}
+function periodBookings(){return bookings().filter(row=>!['ملغي','مؤجل'].includes(row.status)&&row.recordType!=='family'&&!isSubscriptionVisit(row)&&dateMatch(row.date))}
 function periodSubscriptions(){return subscriptions().filter(row=>row?.paymentManaged===true&&!/ملغي|cancel/i.test(String(row?.status||''))&&dateMatch(row.createdAt||row.updatedAt))}
 function subscriptionPayments(){
   const rows=[];
@@ -135,7 +135,7 @@ function enhanceFinance(){
 function sortCustomerCards(){
   const root=document.getElementById('customerList');if(!root||root.children.length<2)return;
   const start=new Date();start.setHours(0,0,0,0);
-  const score=card=>{const heading=norm(card.querySelector('h4')?.textContent||''),matches=bookings().filter(b=>heading.includes(norm(b.name))&&b.status!=='ملغي'),future=matches.map(b=>String(b.date||'')).filter(d=>d&&new Date(`${d}T00:00:00`)>=start).sort();return future.length?new Date(`${future[0]}T00:00:00`).getTime():Number.MAX_SAFE_INTEGER};
+  const score=card=>{const heading=norm(card.querySelector('h4')?.textContent||''),matches=bookings().filter(b=>heading.includes(norm(b.name))&&!['ملغي','مؤجل'].includes(b.status)),future=matches.map(b=>String(b.date||'')).filter(d=>d&&new Date(`${d}T00:00:00`)>=start).sort();return future.length?new Date(`${future[0]}T00:00:00`).getTime():Number.MAX_SAFE_INTEGER};
   [...root.children].sort((a,b)=>score(a)-score(b)).forEach(node=>root.appendChild(node));
 }
 function refreshView(){scopeAddBooking();cleanVoiceUi();clarifyBookingActions();if(activeViewId()==='expenses'){setFinanceAllPeriods();enhanceFinance()}if(activeViewId()==='customers')sortCustomerCards()}

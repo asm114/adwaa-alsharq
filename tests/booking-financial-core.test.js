@@ -42,6 +42,13 @@ test('الحجز الملغي لا يظهر تحصيلًا مستحقًا مع �
   assert.equal(core.cashReceived(booking),500);
 });
 
+test('الحجز المؤجل يحفظ النقد ولا يظهر تحصيلًا حتى تحديد موعد',()=>{
+  const booking={status:'مؤجل',total:600,paid:600,payments:[payment(600)]};
+  assert.equal(core.cashReceived(booking),600);
+  assert.equal(core.remainingAmount(booking),0);
+  assert.equal(core.paymentStatus(booking).code,'postponed');
+});
+
 test('رصيد العميل يدخل في التسوية ولا يدخل في النقد مرتين',()=>{
   const booking={total:1000,customerCreditApplied:200,payments:[payment(300)]};
   assert.equal(core.cashReceived(booking),300);

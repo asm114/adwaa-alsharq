@@ -10,6 +10,7 @@ const xml=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>
 function appDb(){try{if(typeof db!=='undefined'&&db)return db;return JSON.parse(localStorage.getItem('adwaaDB')||'{}')||{}}catch(_){return {}}}
 function bookings(){return (Array.isArray(appDb().bookings)?appDb().bookings:[]).filter(b=>b?.recordType!=='family')}
 function isCancelled(b){return /ملغي|cancel/i.test(norm(b.status??b.bookingStatus))}
+function isPostponed(b){return /مؤجل|postpon/i.test(norm(b.status??b.bookingStatus))}
 function dateValue(b){return b.date??b.checkIn??b.checkin??b.startDate??b.bookingDate??b.arrivalDate??''}
 function dateObj(b){const d=new Date(dateValue(b));return Number.isNaN(d.getTime())?null:d}
 function endValue(b){return b.checkOut??b.checkout??b.endDate??b.departureDate??''}
@@ -23,7 +24,7 @@ function paidOf(b){
   const h=history(b);if(h.length)return h.reduce((s,p)=>s+num(p.amount??p.value??p.paid),0);
   return num(b.deposit??b.received??b.amountPaid);
 }
-function dueOf(b){if(isCancelled(b))return 0;return window.BookingFinancialCore?.remainingAmount(b)??Math.max(0,totalOf(b)-paidOf(b))}
+function dueOf(b){if(isCancelled(b)||isPostponed(b))return 0;return window.BookingFinancialCore?.remainingAmount(b)??Math.max(0,totalOf(b)-paidOf(b))}
 function customer(b){return norm(b.name??b.customerName??b.clientName)||'بدون اسم'}
 function phone(b){return norm(b.phone??b.mobile??b.customerPhone)||''}
 function code(b){return norm(b.code??b.bookingCode??b.id)||''}
@@ -31,15 +32,15 @@ function type(b){return norm(b.type??b.bookingType)||''}
 function status(b){return norm(b.status??b.bookingStatus)||''}
 function notes(b){return norm(b.notes??b.note??b.bookingNotes)||''}
 function stayDays(b){return num(b.stayDays??b.nights??b.days)||1}
-function payStatus(b){if(isCancelled(b))return 'ملغي — لا يوجد تحصيل';const t=totalOf(b),p=paidOf(b),d=dueOf(b);if(t<=0)return 'بدون مبلغ';if(d<=0)return 'مدفوع بالكامل';if(p>0)return 'مدفوع جزئيًا';return 'غير مدفوع'}
+function payStatus(b){if(isCancelled(b))return 'ملغي — لا يوجد تحصيل';if(isPostponed(b))return 'مؤجل — لا يوجد تحصيل حتى تحديد موعد';const t=totalOf(b),p=paidOf(b),d=dueOf(b);if(t<=0)return 'بدون مبلغ';if(d<=0)return 'مدفوع بالكامل';if(p>0)return 'مدفوع جزئيًا';return 'غير مدفوع'}
 function fmtDate(v){if(!v)return '';const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleDateString('ar-SA')}
 function fmtDateTime(v){if(!v)return '';const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString('ar-SA')}
 
 function choose(mode){
   const all=bookings().slice(),now=new Date(),today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
   if(mode==='month')return all.filter(b=>{const d=dateObj(b);return d&&d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()});
-  if(mode==='upcoming')return all.filter(b=>{const d=dateObj(b);return d&&d>=today&&!isCancelled(b)});
-  if(mode==='due')return all.filter(b=>dueOf(b)>0&&!isCancelled(b));
+  if(mode==='upcoming')return all.filter(b=>{const d=dateObj(b);return d&&d>=today&&!isCancelled(b)&&!isPostponed(b)});
+  if(mode==='due')return all.filter(b=>dueOf(b)>0&&!isCancelled(b)&&!isPostponed(b));
   return all;
 }
 function title(mode){return ({all:'جميع الحجوزات',month:'حجوزات هذا الشهر',upcoming:'الحجوزات القادمة',due:'الحجوزات ذات المبالغ المتبقية'})[mode]||'الحجوزات'}
@@ -53,7 +54,7 @@ function moneyCell(v){return `<Cell ss:StyleID="Money"><Data ss:Type="Number">${
 function summaryRow(label,value,money=false){return `<Row>${cell(label,'String','SummaryLabel')}${money?moneyCell(value):cell(value,typeof value==='number'?'Number':'String','SummaryValue')}</Row>`}
 
 function workbookXml(rows,mode){
-  const totals=rows.reduce((s,b)=>{if(isCancelled(b))return s;s.total+=totalOf(b);s.paid+=paidOf(b);s.due+=dueOf(b);return s},{total:0,paid:0,due:0});
+  const totals=rows.reduce((s,b)=>{if(isCancelled(b)||isPostponed(b))return s;s.total+=totalOf(b);s.paid+=paidOf(b);s.due+=dueOf(b);return s},{total:0,paid:0,due:0});
   const bookingHeaders=['رقم الحجز','اسم العميل','الجوال','نوع الحجز','الحالة','تاريخ الدخول','تاريخ الخروج','عدد الأيام','الإجمالي','المدفوع','المتبقي','حالة السداد','الملاحظات'];
   const bookingRows=rows.map(b=>`<Row>${cell(code(b))}${cell(customer(b))}${cell(phone(b))}${cell(type(b))}${cell(status(b))}${cell(fmtDate(dateValue(b)))}${cell(fmtDate(endValue(b)))}${cell(stayDays(b),'Number')}${moneyCell(totalOf(b))}${moneyCell(paidOf(b))}${moneyCell(dueOf(b))}${cell(payStatus(b))}${cell(notes(b))}</Row>`).join('');
   const paymentHeaders=['رقم الحجز','اسم العميل','تاريخ الدفعة','المبلغ','طريقة الدفع','الملاحظة'];

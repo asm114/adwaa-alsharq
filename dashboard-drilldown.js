@@ -20,6 +20,7 @@ function nameOf(b){return norm(b.name??b.customerName??b.clientName)||'بدون 
 function phoneOf(b){return norm(b.phone??b.mobile??b.customerPhone)}
 function codeOf(b){return norm(b.code??b.bookingCode??b.id)}
 function isCancelled(b){return /ملغي|cancel/i.test(statusOf(b))}
+function isPostponed(b){return /مؤجل|postpon/i.test(statusOf(b))}
 function dateValue(b){return b.date??b.checkIn??b.checkin??b.startDate??b.bookingDate??b.arrivalDate??''}
 function dateOf(b){const d=new Date(dateValue(b));return Number.isNaN(d.getTime())?null:d}
 function sameDay(a,b){return a&&b&&a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate()}
@@ -30,18 +31,18 @@ function inCurrentWeek(d,now){
   const end=new Date(start);end.setDate(end.getDate()+7);
   return d>=start&&d<end;
 }
-function isUpcoming(b,now){const d=dateOf(b);if(!d||isCancelled(b))return false;const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());return d>=today}
+function isUpcoming(b,now){const d=dateOf(b);if(!d||isCancelled(b)||isPostponed(b))return false;const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());return d>=today}
 function commissionDue(b){
   const raw=norm(b.commissionStatus??b.commission?.status??b.commissionSnapshot?.status??'');
   if(/مستحقة/.test(raw))return true;
   if(/مستلمة|بدون عمولة|received|none/i.test(raw))return false;
   const snap=b.commissionSnapshot||b.commission||{};
   if(snap.received===true||snap.isReceived===true)return false;
-  return num(snap.amount??b.commissionAmount)>0 && paidOf(b)>=totalOf(b) && !isCancelled(b);
+  return num(snap.amount??b.commissionAmount)>0 && paidOf(b)>=totalOf(b) && !isCancelled(b) && !isPostponed(b);
 }
 
 function metricFor(label){
-  const t=norm(label),now=new Date(),all=bookings().filter(b=>b.recordType!=='family'),active=all.filter(b=>!isCancelled(b));
+  const t=norm(label),now=new Date(),all=bookings().filter(b=>b.recordType!=='family'),active=all.filter(b=>!isCancelled(b)&&!isPostponed(b));
   if(/إجمالي الحجوزات/.test(t))return {title:'إجمالي الحجوزات',rows:all,kind:'booking'};
   if(/حجوزات اليوم/.test(t))return {title:'حجوزات اليوم',rows:active.filter(b=>sameDay(dateOf(b),now)),kind:'booking'};
   if(/حجوزات هذا الأسبوع/.test(t))return {title:'حجوزات هذا الأسبوع',rows:active.filter(b=>inCurrentWeek(dateOf(b),now)),kind:'booking'};
