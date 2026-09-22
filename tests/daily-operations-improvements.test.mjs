@@ -60,7 +60,7 @@ test('عمولة الاشتراك تُحسب مرة واحدة على الباق
   const core=await read('subscription-commission-core.js');
   const workflow=await read('commission-transfer-workflow.js');
   const revenue=await read('subscription-revenue-integration.js');
-  assert.match(core,/num\(sub\.paid\)>=num\(sub\.total\)/);
+  assert.match(core,/SubscriptionFinancialCore\?\.stats\(sub\)\.fullyPaid/);
   assert.match(core,/days=visits\(sub\)/);
   assert.match(core,/status:'earned'/);
   assert.match(workflow,/subscriptionStatus\(row\)==='earned'&&subscriptionFullyPaid\(row\)/);

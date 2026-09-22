@@ -10,7 +10,7 @@ const nowIso=()=>new Date().toISOString();
 
 function subscriptions(){return Array.isArray(window.db?.subscriptions)?window.db.subscriptions:[]}
 function active(sub){return !!sub&&sub.paymentManaged===true&&!/ملغي|cancel/i.test(String(sub.status||''))}
-function fullyPaid(sub){return active(sub)&&num(sub.total)>0&&num(sub.paid)>=num(sub.total)}
+function fullyPaid(sub){return active(sub)&&(window.SubscriptionFinancialCore?.stats(sub).fullyPaid??(num(sub.total)>0&&num(sub.paid)===num(sub.total)))}
 function settings(){return window.db?.settings||{}}
 function commissionEnabled(){return settings().commissionEnabled!==false}
 function method(){return ['per_booking','per_day','percentage'].includes(settings().commissionMethod)?settings().commissionMethod:'per_day'}

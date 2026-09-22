@@ -18,7 +18,7 @@ const bookingFullyPaid=row=>{
   const total=Number(row?.total||0),paid=Number(row?.paid||0);
   return row?.recordType!=='family'&&!['ملغي','مؤجل'].includes(row?.status)&&Number.isFinite(total)&&Number.isFinite(paid)&&total>0&&paid>=total;
 };
-const subscriptionFullyPaid=row=>typeof window.subscriptionCommissionFullyPaid==='function'?window.subscriptionCommissionFullyPaid(row):Number(row?.total||0)>0&&Number(row?.paid||0)>=Number(row?.total||0);
+const subscriptionFullyPaid=row=>typeof window.subscriptionCommissionFullyPaid==='function'?window.subscriptionCommissionFullyPaid(row):(window.SubscriptionFinancialCore?.stats(row).fullyPaid===true);
 
 function bookings(){return Array.isArray(window.db?.bookings)?window.db.bookings:[]}
 function subscriptions(){return Array.isArray(window.db?.subscriptions)?window.db.subscriptions:[]}
@@ -106,7 +106,7 @@ function showPrompt(item){
   if(document.querySelector('.modal.open:not(#commissionTransferPrompt)')){setTimeout(checkOutstanding,700);return}
   modalOpen=true;
   const modal=ensureModal(),body=modal.querySelector('#commissionTransferPromptBody'),count=outstandingItems().length,typeLabel=item.kind==='subscription'?'الاشتراك الرئيسي':'الحجز';
-  body.innerHTML=`<div class="notice" style="line-height:1.9"><b>عمولة مستحقة بعد اكتمال السداد: ${moneyText(itemAmount(item))}</b><br>${typeLabel}: ${escapeHtml(itemName(item))}${item.kind==='booking'?` #${escapeHtml(item.row.code||'')}`:''}<br>هل تم تحويل مبلغ العمولة من حساب التشغيل إلى حسابك الخاص؟</div>${count>1?`<div class="meta" style="margin-bottom:12px">يوجد ${count} عمولات مستحقة حاليًا.</div>`:''}<div class="actions"><button class="primary" type="button" data-commission-yes>نعم، تم تحويلها لحسابي الخاص</button><button class="secondary" type="button" data-commission-no>لا، ذكّرني لاحقًا</button><button class="secondary" type="button" data-commission-old>مستلمة سابقًا قبل النظام</button></div>`;
+  body.innerHTML=`<div class="notice" style="line-height:1.9"><b>هل تم استلام العمولة؟</b><br>عمولة مستحقة بعد اكتمال السداد: ${moneyText(itemAmount(item))}<br>${typeLabel}: ${escapeHtml(itemName(item))}${item.kind==='booking'?` #${escapeHtml(item.row.code||'')}`:''}<br>لا تُسجل العمولة كمستلمة إلا بعد تأكيدك.</div>${count>1?`<div class="meta" style="margin-bottom:12px">يوجد ${count} عمولات مستحقة حاليًا.</div>`:''}<div class="actions"><button class="primary" type="button" data-commission-yes>نعم، تم تحويلها لحسابي الخاص</button><button class="secondary" type="button" data-commission-no>لا، ذكّرني لاحقًا</button><button class="secondary" type="button" data-commission-old>مستلمة سابقًا قبل النظام</button></div>`;
   body.querySelector('[data-commission-yes]')?.addEventListener('click',()=>markReceived(item.kind,item.row.id));
   body.querySelector('[data-commission-no]')?.addEventListener('click',()=>deferCommission(item.kind,item.row.id));
   body.querySelector('[data-commission-old]')?.addEventListener('click',()=>markReceivedBeforeSystem(item.kind,item.row.id));

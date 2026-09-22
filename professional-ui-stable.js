@@ -66,13 +66,12 @@ function dateMatch(value,period=periodValue()){
 function isSubscriptionVisit(row){return !!(row?.subscriptionPaymentManaged||row?.subscriptionId)}
 function periodBookings(){return bookings().filter(row=>!['ملغي','مؤجل'].includes(row.status)&&row.recordType!=='family'&&!isSubscriptionVisit(row)&&dateMatch(row.date))}
 function periodSubscriptions(){return subscriptions().filter(row=>row?.paymentManaged===true&&!/ملغي|cancel/i.test(String(row?.status||''))&&dateMatch(row.createdAt||row.updatedAt))}
+function subscriptionFinance(row){return window.SubscriptionFinancialCore?.stats(row)||{total:Math.max(0,Number(row?.total||0)),paid:Math.max(0,Number(row?.paid||0)),due:Math.max(0,Number(row?.total||0)-Number(row?.paid||0))}}
 function subscriptionPayments(){
   const rows=[];
   subscriptions().filter(s=>s?.paymentManaged===true&&s?.status!=='ملغي').forEach(sub=>{
-    const history=Array.isArray(sub.paymentHistory)?sub.paymentHistory:[];
-    let recorded=0;
-    history.forEach(p=>{const amount=Math.max(0,Number(p?.amount||0));if(amount){recorded+=amount;rows.push({name:sub.customerName||sub.name||'اشتراك دوري',date:p?.date||p?.createdAt||sub.createdAt||'',amount})}});
-    const paid=Math.max(0,Number(sub.paid||0));if(paid>recorded)rows.push({name:sub.customerName||sub.name||'اشتراك دوري',date:sub.createdAt||sub.updatedAt||'',amount:paid-recorded});
+    const movements=window.SubscriptionFinancialCore?.paymentMovements(sub)||[];
+    movements.forEach(p=>rows.push({name:sub.customerName||sub.name||'اشتراك دوري',date:p.date||sub.createdAt||'',amount:p.amount}));
   });
   return rows.filter(r=>dateMatch(r.date));
 }
@@ -88,15 +87,15 @@ function bookingRow(row,extra=''){
   return `<div class="item"><div><h4>${esc(row.name||'بدون اسم')} <span class="small">#${esc(row.code||'')}</span></h4><div class="meta">${esc(row.date||'')} • ${esc(row.type||'')}<br>الإجمالي ${esc(money(row.total))} • المدفوع ${esc(money(paid))} • المتبقي ${esc(money(due))}${extra?`<br>${extra}`:''}</div></div></div>`;
 }
 function subscriptionRow(row,extra=''){
-  const due=Math.max(0,Number(row.total||0)-Number(row.paid||0));
-  return `<div class="item"><div><h4>${esc(row.name||row.customerName||'اشتراك دوري')} <span class="small">اشتراك رئيسي</span></h4><div class="meta">${esc(String(row.createdAt||row.updatedAt||'').slice(0,10))} • ${Number(row.visits||row.dates?.length||0)} زيارة<br>الإجمالي ${esc(money(row.total))} • المدفوع ${esc(money(row.paid))} • المتبقي ${esc(money(due))}${extra?`<br>${extra}`:''}</div></div></div>`;
+  const finance=subscriptionFinance(row);
+  return `<div class="item"><div><h4>${esc(row.name||row.customerName||'اشتراك دوري')} <span class="small">اشتراك رئيسي</span></h4><div class="meta">${esc(String(row.createdAt||row.updatedAt||'').slice(0,10))} • ${Number(row.visits||row.dates?.length||0)} زيارة<br>الإجمالي ${esc(money(finance.total))} • المدفوع ${esc(money(finance.paid))} • المتبقي ${esc(money(finance.due))}${extra?`<br>${extra}`:''}</div></div></div>`;
 }
 function expenseRow(row){return `<div class="item"><div><h4>${esc(row.title||row.cat||'مصروف')}</h4><div class="meta">${esc(row.date||'')} • ${esc(row.cat||'غير مصنف')} • ${esc(row.paymentMethod||'طريقة غير محددة')}${row.notes?`<br>${esc(row.notes)}`:''}</div></div><b>${esc(money(row.amount))}</b></div>`}
 function subscriptionPaymentRow(row){return `<div class="item"><div><h4>${esc(row.name)} <span class="small">اشتراك دوري</span></h4><div class="meta">${esc(String(row.date||'').slice(0,10))}<br>دفعة اشتراك رئيسي — لا تتكرر على الزيارات</div></div><b>${esc(money(row.amount))}</b></div>`}
 function showRevenue(){openDetails('تفاصيل الإيرادات',detailList([...periodBookings().filter(r=>paidAmount(r)>0).map(r=>bookingRow(r)),...subscriptionPayments().map(subscriptionPaymentRow)]))}
 function showDue(){
   const ordinary=periodBookings().filter(r=>dueAmount(r)>0).map(r=>bookingRow(r,'⚠️ يوجد مبلغ لم يُستلم بعد'));
-  const subs=periodSubscriptions().filter(s=>Number(s.total||0)>Number(s.paid||0)).map(s=>subscriptionRow(s,'⚠️ يوجد مبلغ لم يُستلم بعد'));
+  const subs=periodSubscriptions().filter(s=>subscriptionFinance(s).due>0).map(s=>subscriptionRow(s,'⚠️ يوجد مبلغ لم يُستلم بعد'));
   openDetails('المبالغ المتبقية',detailList([...ordinary,...subs]));
 }
 function showExpenses(){openDetails('تفاصيل المصروفات',detailList(expenses().filter(r=>dateMatch(r.date)).map(expenseRow),'لا توجد مصروفات في الفترة المحددة'))}
@@ -113,7 +112,7 @@ function showCommission(mode){
   ];
   const waiting=[
     ...rows.filter(r=>commissionStatus(r)==='not_earned'&&Number(r.total||0)>0&&dueAmount(r)>0).map(r=>bookingRow(r,'🟡 لم تستحق بعد — العميل دفع عربون/جزئي ولم يكتمل السداد')),
-    ...subs.filter(r=>subscriptionCommissionStatus(r)==='not_earned'&&Number(r.total||0)>0&&Number(r.paid||0)<Number(r.total||0)).map(r=>subscriptionRow(r,'🟡 عمولة الاشتراك تنتظر اكتمال سداد قيمة الباقة'))
+    ...subs.filter(r=>subscriptionCommissionStatus(r)==='not_earned'&&subscriptionFinance(r).total>0&&subscriptionFinance(r).due>0).map(r=>subscriptionRow(r,'🟡 عمولة الاشتراك تنتظر اكتمال سداد قيمة الباقة'))
   ];
   openDetails('متابعة عمولات المدير',`${detailList(earned,'لا توجد عمولات مستحقة الآن')}${waiting.length?`<div class="notice" style="margin-top:14px"><b>بانتظار اكتمال السداد</b></div>${detailList(waiting)}`:''}`);
 }

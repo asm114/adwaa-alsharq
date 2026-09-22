@@ -123,10 +123,7 @@ async function renderWorkerPanel(bookingId){
 }
 
 function eligibleForMorningShare(booking){
-  if(!booking||booking.recordType==='family'||booking.status!=='تم الخروج')return false;
-  const exitDate=bookingExitDateValue(booking),today=isoTodayRiyadh();if(!exitDate||exitDate>today)return false;
-  if(exitDate===today&&riyadhHour()<6)return false;
-  return true;
+  return window.OperationalAlertCore?.workerShareEligible(booking,{exitDate:bookingExitDateValue(booking),today:isoTodayRiyadh(),hour:riyadhHour()})===true;
 }
 function renderWorkerAlerts(){
   const root=document.getElementById('alertsList');if(!root)return;

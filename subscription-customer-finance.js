@@ -4,6 +4,7 @@ if(window.__adwaaSubscriptionCustomerFinanceInstalled)return;
 window.__adwaaSubscriptionCustomerFinanceInstalled=true;
 
 const num=value=>Math.max(0,Number(value||0));
+const financeFor=subscription=>window.SubscriptionFinancialCore?.stats(subscription)||{total:num(subscription?.total),paid:num(subscription?.paid),due:Math.max(0,num(subscription?.total)-num(subscription?.paid))};
 function phone(value){
   let p=String(value||'').replace(/\D/g,'');
   if(p.startsWith('00'))p=p.slice(2);
@@ -44,13 +45,13 @@ function recalcCustomer(customer){
   }
 
   const subscriptions=managedSubscriptionsFor(customer);
-  for(const s of subscriptions){totalValue+=num(s.total);totalPaid+=num(s.paid)}
+  for(const s of subscriptions){const finance=financeFor(s);totalValue+=finance.total;totalPaid+=finance.paid}
 
   c.totalValue=totalValue;
   c.totalPaid=totalPaid;
   c.totalDue=Math.max(0,totalValue-totalPaid);
-  c.subscriptionPaid=subscriptions.reduce((sum,s)=>sum+num(s.paid),0);
-  c.subscriptionDue=subscriptions.reduce((sum,s)=>sum+Math.max(0,num(s.total)-num(s.paid)),0);
+  c.subscriptionPaid=subscriptions.reduce((sum,s)=>sum+financeFor(s).paid,0);
+  c.subscriptionDue=subscriptions.reduce((sum,s)=>sum+financeFor(s).due,0);
   c.paymentStatus=totalValue<=0?'غير محدد':totalPaid<=0?'غير مدفوع':c.totalDue>0?'مدفوع جزئيًا':'مدفوع بالكامل';
   return c;
 }

@@ -145,13 +145,14 @@ async function convertDraftToOfficial(){
 }
 async function saveOfficialEdit(){
  const sub=subscriptionById(state.id);if(!sub){alert('الاشتراك الرسمي غير موجود.');return false}
- const row=formData();row.paid=num(sub.paid);
+ const row=formData(),finance=window.SubscriptionFinancialCore?.stats(sub)||{paid:num(sub.paid)};row.paid=finance.paid;
  const error=validateEdit(row,{excludeSubscriptionId:sub.id});if(error){alert(error);return false}
  if(row.total<row.paid){alert(`الإجمالي الجديد لا يمكن أن يكون أقل من المدفوع (${money(row.paid)}).`);return false}
  if(!confirm(`حفظ تعديلات اشتراك ${sub.name||row.name}؟\n\nالزيارات: ${row.dates.length}\nالإجمالي: ${money(row.total)}\nالمدفوع يبقى: ${money(row.paid)}\nالمتبقي الجديد: ${money(Math.max(0,row.total-row.paid))}`))return false;
  const snap=snapshot();
  try{
-  Object.assign(sub,{name:row.name,phone:row.phone,type:row.type,typeLabel:row.typeLabel,visits:row.visits,dates:[...row.dates].sort(),total:row.total,note:row.note,remaining:Math.max(0,row.total-row.paid),paymentStatus:row.total-row.paid>0?'مدفوع جزئيًا':'مدفوع بالكامل',status:row.total-row.paid>0?'partial':'paid',updatedAt:new Date().toISOString()});
+  const updated=window.SubscriptionFinancialCore?.reconcile({...sub,name:row.name,phone:row.phone,type:row.type,typeLabel:row.typeLabel,visits:row.visits,dates:[...row.dates].sort(),total:row.total,note:row.note})||{...sub,name:row.name,phone:row.phone,type:row.type,typeLabel:row.typeLabel,visits:row.visits,dates:[...row.dates].sort(),total:row.total,note:row.note,remaining:Math.max(0,row.total-row.paid),paymentStatus:row.total-row.paid>0?'مدفوع جزئيًا':'مدفوع بالكامل',status:row.total-row.paid>0?'partial':'paid'};
+  Object.assign(sub,updated,{updatedAt:new Date().toISOString()});
   reconcileVisitBookings(sub,sub.dates);
   const linked=drafts().find(x=>x.id===sub.draftId||x.subscriptionId===sub.id);if(linked)Object.assign(linked,{name:sub.name,phone:sub.phone,type:sub.type,typeLabel:sub.typeLabel,visits:sub.visits,dates:[...sub.dates],total:sub.total,paid:sub.paid,note:sub.note,updatedAt:sub.updatedAt});
   await persistAndRender();closeEditor();alert('✅ تم حفظ تعديل الاشتراك وتحديث أيامه المرتبطة.');return true;
