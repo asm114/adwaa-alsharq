@@ -123,10 +123,8 @@ async function runBrowserRepair(){
   let tries=0;
   const timer=setInterval(async()=>{
     tries++;
-    let db=null,currentUser=null,persistFn=null;
-    try{db=root.db||eval('db')}catch(_){}
-    try{currentUser=root.currentUser||eval('currentUser')}catch(_){}
-    try{persistFn=root.persist||eval('persist')}catch(_){}
+    const context=typeof root.__adwaaReconciliationContext==='function'?root.__adwaaReconciliationContext():null;
+    const db=context?.db,currentUser=context?.currentUser,persistFn=context?.persist;
     if(!db||!currentUser||typeof persistFn!=='function'){if(tries>=40)clearInterval(timer);return}
     clearInterval(timer);
     db.resortAccount=root.ResortAccountCore?.normalizeAccount(db.resortAccount)||db.resortAccount||{};
