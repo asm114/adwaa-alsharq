@@ -1594,6 +1594,7 @@ async function persist(){
     alert('تعذر مزامنة آخر تعديل. تحقق من الاتصال وصلاحيات حساب المدير.');
   }
 }
+window.__adwaaReconciliationContext=()=>({db,currentUser,persist});
 
 function setSyncStatus(text,type){
   const el=document.getElementById('syncStatus');
