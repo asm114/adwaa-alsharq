@@ -14,7 +14,7 @@ function subscriptions(){if(!db())return[];db().subscriptions=Array.isArray(db()
 function drafts(){return Array.isArray(db()?.subscriptionDrafts)?db().subscriptionDrafts:[]}
 function bookings(){return Array.isArray(db()?.bookings)?db().bookings:[]}
 function officialById(id){return subscriptions().find(row=>row?.id===id)||null}
-function linkedVisits(id){return bookings().filter(row=>row?.subscriptionId===id&&row.status!=='ملغي').sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')))}
+function linkedVisits(id){return bookings().filter(row=>row?.subscriptionId===id&&!['ملغي','مؤجل'].includes(row.status)).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')))}
 function legacyDraftById(id){return drafts().find(row=>row?.subscriptionId===id||row?.id===id)||null}
 function subscriptionRecord(id){
  const official=officialById(id);if(official)return{...official,__official:true};

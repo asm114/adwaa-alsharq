@@ -13,7 +13,7 @@ const daysUntil=key=>{const d=parseKey(key);return d?Math.round((d.getTime()-tod
 function bookingForDate(key){
   const bookings=Array.isArray(window.db?.bookings)?window.db.bookings:[];
   for(const b of bookings){
-    if(b?.status==='ملغي')continue;
+    if(['ملغي','مؤجل'].includes(b?.status))continue;
     const start=parseKey(b?.date);if(!start)continue;
     const days=Math.max(1,Number(b?.stayDays||1));
     for(let i=0;i<days;i++){

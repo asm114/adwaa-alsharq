@@ -4,6 +4,9 @@
   window.__adwaaPaymentHistoryInstalled=true;
   let paymentDraft=[];
   let paymentPanelOpen=false;
+  let paymentDraftReady=false;
+  let paymentDraftBookingId='';
+  let paymentDraftBookingCode='';
   const safeNumber=value=>Math.max(0,Number(value||0));
   const todayIso=()=>typeof isoToday==='function'?isoToday():new Date().toISOString().slice(0,10);
   const paymentId=()=>window.crypto?.randomUUID?.()||`pay-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -126,24 +129,36 @@
     const list=document.getElementById('bookingPaymentHistoryList');if(!list)return;list.innerHTML=paymentDraft.length?paymentDraft.map((item,index)=>`<article class="payment-history-item"><div><h4>${index+1}. ${paymentTypeLabel(item.type)} — ${money(item.amount)}</h4><div class="meta">${paymentMethodLabel(item.method)} • ${escapeHtml(item.date||'—')}${item.note?`<br>${escapeHtml(item.note)}`:''}</div></div>${item.type==='deposit'?'':`<button class="danger small" type="button" onclick="deleteBookingPayment('${escapeHtml(item.id)}')">حذف</button>`}</article>`).join(''):'<div class="payment-history-empty">لا توجد دفعات مسجلة بعد.</div>';
   }
 
-  function loadBookingPayments(){const id=document.getElementById('bId')?.value||'',state=bookingState(),booking=id?(state?.bookings||[]).find(item=>item.id===id):null;paymentDraft=normalizePayments(booking);paymentPanelOpen=false;renderPayments()}
+  function loadBookingPayments(){
+    const id=String(document.getElementById('bId')?.value||''),code=String(document.getElementById('bCode')?.value||''),state=bookingState(),booking=id?(state?.bookings||[]).find(item=>String(item.id||'')===id):null;
+    paymentDraft=normalizePayments(booking);paymentPanelOpen=false;paymentDraftReady=true;paymentDraftBookingId=id;paymentDraftBookingCode=code;renderPayments();
+  }
 
   function normalizedDraftPayments(){syncDepositFromControls();return paymentDraft.map((item,index)=>({...item,amount:safeNumber(item.amount),order:index})).filter(item=>item.amount>0)}
+
+  function prepareBookingForSave(raw){
+    const booking={...(raw||{})};
+    if(booking.recordType==='family')return booking;
+    const formId=String(document.getElementById('bId')?.value||''),formCode=String(document.getElementById('bCode')?.value||'');
+    const sameDraft=(formId&&paymentDraftBookingId===formId)||(!formId&&paymentDraftBookingId===''&&paymentDraftBookingCode===formCode);
+    if(!paymentDraftReady||!sameDraft)throw new Error('لم يكتمل تحميل سجل دفعات هذا الحجز. أعد فتح الحجز ثم حاول الحفظ.');
+    const payments=normalizedDraftPayments();
+    if(window.BookingFinancialCore?.applyPaymentLedger)return window.BookingFinancialCore.applyPaymentLedger(booking,payments);
+    booking.payments=payments;booking.paid=paymentSum(payments)+safeNumber(booking.customerCreditApplied);return booking;
+  }
 
   function installPaymentSaveBridge(){
     const current=window.normalizeBookingCommission;
     if(typeof current!=='function'||current.__paymentHistorySaveBridge)return false;
     const wrapped=function(raw,settings){
       const booking=current.call(this,raw,settings);
+      if(!window.BookingFinancialCore?.isFormSaveActive?.())return booking;
       const modal=document.getElementById('bookingModal');
       if(!booking||!modal?.classList.contains('open')||booking.recordType==='family')return booking;
       const formId=String(document.getElementById('bId')?.value||''),formCode=String(document.getElementById('bCode')?.value||'');
       if(formId&&String(booking.id||'')!==formId)return booking;
       if(formCode&&String(booking.code||'')!==formCode)return booking;
-      const payments=normalizedDraftPayments();
-      booking.payments=payments;
-      booking.paid=paymentSum(payments)+safeNumber(booking.customerCreditApplied);
-      return booking;
+      return prepareBookingForSave(booking);
     };
     wrapped.__paymentHistorySaveBridge=true;wrapped.__base=current;
     try{normalizeBookingCommission=wrapped}catch(_){}
@@ -152,11 +167,12 @@
   }
 
   function installWrappers(){
-    if(typeof window.openBooking==='function'&&!window.openBooking.__paymentHistoryWrapped){const originalOpen=window.openBooking,wrapped=function(...args){const result=originalOpen.apply(this,args);setTimeout(loadBookingPayments,0);return result};wrapped.__paymentHistoryWrapped=true;window.openBooking=wrapped}
+    if(typeof window.openBooking==='function'&&!window.openBooking.__paymentHistoryWrapped){const originalOpen=window.openBooking,wrapped=function(...args){const result=originalOpen.apply(this,args);loadBookingPayments();return result};wrapped.__paymentHistoryWrapped=true;window.openBooking=wrapped}
     installPaymentSaveBridge();
   }
 
   function bindCreditRefresh(){const credit=document.getElementById('customerCreditUse');if(credit&&credit.dataset.paymentHistoryBound!=='1'){credit.dataset.paymentHistoryBound='1';credit.addEventListener('input',renderPayments);credit.addEventListener('change',renderPayments)}}
-  function initialize(){if(injectUi())renderPayments();bindCreditRefresh();installWrappers();setTimeout(()=>{if(injectUi())renderPayments();bindCreditRefresh();installWrappers()},500)}
+  function initialize(){if(injectUi())renderPayments();bindCreditRefresh();installWrappers();if(document.getElementById('bookingModal')?.classList.contains('open'))loadBookingPayments();setTimeout(()=>{if(injectUi())renderPayments();bindCreditRefresh();installWrappers()},500)}
+  window.BookingPaymentHistory={prepareBookingForSave,loadBookingPayments};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize);else initialize();
 })();

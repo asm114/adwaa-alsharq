@@ -11,7 +11,7 @@ let syncTimer=0;
 const pendingEdits=new Map();
 
 const state=()=>window.db;
-const activeBooking=booking=>booking&&booking.status!=='ملغي'&&booking.date;
+const activeBooking=booking=>booking&&!['ملغي','مؤجل'].includes(booking.status)&&booking.date;
 
 function addDays(iso,days){
   const date=new Date(`${iso}T12:00:00`);

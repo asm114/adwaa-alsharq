@@ -21,7 +21,7 @@ function esc(value){return typeof window.escapeHtml==='function'?window.escapeHt
 function amount(value){return typeof window.money==='function'?window.money(value):`${Number(value||0).toLocaleString('ar-SA')} ر.س`}
 function officialSubscription(id){return (window.db?.subscriptions||[]).find(s=>s?.id===id)||null}
 function draftSubscription(id){return (window.db?.subscriptionDrafts||[]).find(s=>s?.subscriptionId===id||s?.id===id)||null}
-function linkedSubscriptionRows(id){return (window.db?.bookings||[]).filter(b=>b?.subscriptionId===id&&b.status!=='ملغي')}
+function linkedSubscriptionRows(id){return (window.db?.bookings||[]).filter(b=>b?.subscriptionId===id&&!['ملغي','مؤجل'].includes(b.status))}
 function subscriptionRecord(id){
   const official=officialSubscription(id);if(official)return{...official,__source:'official'};
   const draft=draftSubscription(id);if(draft)return{...draft,id,__source:'draft'};
@@ -41,13 +41,15 @@ function subscriptionStats(sub){
   return{total,used,upcoming:reserved,remaining:Math.max(0,total-used),unallocated:Math.max(0,total-used-reserved)};
 }
 function bookingFinance(booking){
+  if(window.BookingFinancialCore?.isCancelled(booking))return{managed:false,known:true,total:0,paid:0,due:0,cancelled:true};
+  if(window.BookingFinancialCore?.isPostponed(booking))return{managed:false,known:true,total:Number(booking?.total||0),paid:window.BookingFinancialCore.settledAmount(booking),due:0,postponed:true};
   const managed=!!(booking?.subscriptionPaymentManaged||booking?.subscriptionVisit||booking?.subscriptionId);
   if(managed){
     const sub=subscriptionForBooking(booking),total=Math.max(0,Number(sub?.total??booking?.subscriptionValue??0));
     if(sub){const f=subscriptionFinance(sub);return{managed:true,known:f.known,total:f.total,paid:f.paid,due:f.due}}
     return{managed:true,known:false,total,paid:0,due:0};
   }
-  const total=Math.max(0,Number(booking?.total||0)),paid=Math.max(0,Number(booking?.paid||0));return{managed:false,known:true,total,paid,due:Math.max(0,total-paid)};
+  const total=Math.max(0,Number(booking?.total||0)),paid=window.BookingFinancialCore?.settledAmount(booking)??Math.max(0,Number(booking?.paid||0)),due=window.BookingFinancialCore?.remainingAmount(booking)??Math.max(0,total-paid);return{managed:false,known:true,total,paid,due};
 }
 function groupBookings(rows){
   const map=new Map();
@@ -81,7 +83,7 @@ function visitSequence(id){
 }
 function bookingCompactHTML(b,sequence){
   const f=bookingFinance(b),status=esc(b.status||''),managed=f.managed;let payment='لم يُحدد المبلغ';
-  if(managed)payment='زيارة مشمولة ضمن الاشتراك الرئيسي';else if(f.total>0)payment=f.due>0?`متبقي ${amount(f.due)}`:'مكتمل السداد';
+  if(f.cancelled)payment='ملغي — لا يوجد مبلغ للتحصيل';else if(f.postponed)payment=`مؤجل — محفوظ ${amount(f.paid)} بلا موعد`;else if(managed)payment='زيارة مشمولة ضمن الاشتراك الرئيسي';else if(f.total>0)payment=f.due>0?`متبقي ${amount(f.due)}`:'مكتمل السداد';
   const number=managed&&b.subscriptionId?(sequence?.map.get(b.id)||1):0,total=managed&&b.subscriptionId?(sequence?.total||1):0;
   const visitTitle=managed&&b.subscriptionId?`زيارة ${number} من ${total}`:esc(b.code||'-');
   return `<div class="customer-group-booking ${managed?'subscription-visit-booking':''}">

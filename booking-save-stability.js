@@ -58,6 +58,7 @@ function restoreRequestedDeposit(){
   const raw=input.dataset.requestedDeposit;if(raw!==undefined)input.value=raw;
 }
 function isCurrentFormBooking(booking){
+  if(!window.BookingFinancialCore?.isFormSaveActive?.())return false;
   if(!booking||booking.recordType==='family')return false;
   const modal=document.getElementById('bookingModal');
   if(!modal?.classList.contains('open'))return false;
@@ -110,6 +111,7 @@ function depositFromBooking(booking){
   const deposit=payments.find(item=>item?.type==='deposit');
   return deposit?moneyValue(deposit.amount):0;
 }
+function normalizedPayments(booking){return window.BookingFinancialCore?.normalizePaymentRows(booking?.payments)||[]}
 async function verifySavedBookingInSupabase(id,code,requested){
   let client=null,rowId='main';
   try{if(typeof supabaseClient!=='undefined')client=supabaseClient}catch(_){}
@@ -127,6 +129,7 @@ async function verifySavedBookingInSupabase(id,code,requested){
     for(const field of fields){if(String(remote?.[field]??'')!==String(local?.[field]??''))throw new Error(`Supabase لم يؤكد آخر قيمة للحقل ${field}. بقيت شاشة الحجز مفتوحة لحماية البيانات.`)}
     if(Math.abs(moneyValue(remote.total)-moneyValue(local.total))>0.009)throw new Error('إجمالي الحجز في Supabase لا يطابق آخر تعديل.');
     if(Math.abs(moneyValue(remote.paid)-moneyValue(local.paid))>0.009)throw new Error('المدفوع في Supabase لا يطابق آخر تعديل.');
+    if(JSON.stringify(normalizedPayments(remote))!==JSON.stringify(normalizedPayments(local)))throw new Error('سجل الدفعات في Supabase لا يطابق سجل الدفعات المحلي.');
   }
   if(requested>0&&Math.abs(depositFromBooking(remote)-requested)>0.009)throw new Error(`تم رفض تأكيد العربون: المطلوب ${requested} ر.س بينما المحفوظ في Supabase ${depositFromBooking(remote)} ر.س.`);
   return remote;
@@ -142,13 +145,17 @@ function wrapSaveBooking(){
     const beforeIds=new Set((window.db?.bookings||[]).map(row=>String(row?.id||'')));
     const code=String(document.getElementById('bCode')?.value||'').trim();
     const requestedDate=String(document.getElementById('bDate')?.value||'').trim();
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)){showStatus('error','تاريخ الحجز غير صالح','اختر تاريخ الحجز بصيغة صحيحة قبل الحفظ.');return false}
+    const postponed=document.getElementById('bStatus')?.value==='مؤجل';
+    if(!postponed&&!/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)){showStatus('error','تاريخ الحجز غير صالح','اختر تاريخ الحجز بصيغة صحيحة قبل الحفظ.');return false}
     saveInFlight=true;setSavingDisabled(true);showStatus('saving','جاري حفظ الحجز…','يتم الآن حفظ البيانات ثم قراءتها من Supabase للتأكد من نجاح الحفظ.');
     try{
       const result=await current.apply(this,arguments);
       const savedId=preserveNewBookingId(beforeIds);
       const localSaved=localSavedBooking(savedId,code);
-      if(!localSaved||String(localSaved.date||'')!==requestedDate)throw new Error(`لم يتم تثبيت تاريخ الحجز المطلوب (${requestedDate}). بقيت الشاشة مفتوحة لحماية التعديل.`);
+      const dateConfirmed=postponed
+        ? localSaved?.status==='مؤجل'&&String(localSaved?.date||'')===''
+        : String(localSaved?.date||'')===requestedDate;
+      if(!localSaved||!dateConfirmed)throw new Error(postponed?'لم يتم تثبيت حالة «مؤجل بلا موعد». بقيت الشاشة مفتوحة لحماية التعديل.':`لم يتم تثبيت تاريخ الحجز المطلوب (${requestedDate}). بقيت الشاشة مفتوحة لحماية التعديل.`);
       await verifySavedBookingInSupabase(savedId,code,requested);
       window.__adwaaLastBookingSaveConfirmed={ok:true,id:savedId,at:new Date().toISOString()};
       showStatus('success','تم حفظ الحجز بنجاح','تمت قراءة الحجز من Supabase وتأكيد آخر البيانات. العقد أصبح متاحًا عند فتح الحجز.',4200);

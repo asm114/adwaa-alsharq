@@ -34,16 +34,16 @@ test('تنبيه باقي المبلغ مرحلتان بعد دخول العمي
   assert.doesNotMatch(js,/setInterval\s*\(/);
 });
 
-test('التنبيه لا يبقى بعد السداد أو الإلغاء',async()=>{
+test('التنبيه لا يبقى بعد السداد أو الإلغاء أو التأجيل',async()=>{
   const js=await read('remaining-payment-flow.js');
   assert.match(js,/!booking\|\|!active\(booking\)\|\|remaining\(booking\)<=0/);
-  assert.match(js,/booking\.status!=='ملغي'/);
+  assert.match(js,/\['ملغي','مؤجل'\]\.includes\(booking\.status\)/);
 });
 
 test('اللودر يحمل مسار باقي المبلغ بعد سجل الدفعات',async()=>{
   const loader=await read('portal-final-admin.js');
-  const payments=loader.indexOf('booking-payment-history.js?v=20260920-3');
-  const remaining=loader.indexOf('remaining-payment-flow.js?v=20260818-2');
+  const payments=loader.indexOf('booking-payment-history.js?v=20260921-2');
+  const remaining=loader.indexOf('remaining-payment-flow.js?v=20260922-1');
   assert.ok(payments>=0);
   assert.ok(remaining>payments);
 });

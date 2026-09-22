@@ -2,7 +2,7 @@
 'use strict';
 if(window.__adwaaDepositRefundPolicyInstalled)return;
 window.__adwaaDepositRefundPolicyInstalled=true;
-const POLICY_TEXT='العربون غير مسترد نقدًا، وفي حال إلغاء الحجز يُحفظ كامل مبلغ العربون كرصيد للعميل لاستخدامه في حجز لاحق.';
+const POLICY_TEXT='المبالغ المستلمة غير مستردة نقدًا عند إلغاء العميل، ويُحفظ كامل ما استلمه المنتجع كرصيد للعميل لاستخدامه في حجز لاحق.';
 const RESORT_TEXT='إذا ألغى المنتجع الحجز، يكون للعميل خيار استرجاع المبلغ أو إبقائه رصيدًا.';
 function injectPolicy(){
   const host=document.getElementById('depositCancellationCreditBox');

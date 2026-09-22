@@ -17,6 +17,7 @@ function data(){return window.db||null}
 function subscriptions(){return Array.isArray(data()?.subscriptions)?data().subscriptions:[]}
 function bookings(){return Array.isArray(data()?.bookings)?data().bookings:[]}
 function isCancelled(row){return /ملغي|cancel/i.test(String(row?.status||''))}
+function isPostponed(row){return /مؤجل|postpon/i.test(String(row?.status||''))}
 function managedSubscriptions(){return subscriptions().filter(row=>row?.paymentManaged===true&&!isCancelled(row))}
 function managedIds(){return new Set(managedSubscriptions().map(row=>row.id).filter(Boolean))}
 function isManagedVisit(row,ids=managedIds()){
@@ -24,7 +25,7 @@ function isManagedVisit(row,ids=managedIds()){
 }
 function ordinaryActiveBookings(){
   const ids=managedIds();
-  return bookings().filter(row=>row?.recordType!=='family'&&!isCancelled(row)&&!isManagedVisit(row,ids));
+  return bookings().filter(row=>row?.recordType!=='family'&&!isCancelled(row)&&!isPostponed(row)&&!isManagedVisit(row,ids));
 }
 function paymentRows(sub){
   const history=Array.isArray(sub?.paymentHistory)?sub.paymentHistory:[];

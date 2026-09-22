@@ -20,7 +20,7 @@ main{padding:0 18px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1
 .stat .k{color:var(--muted);font-size:14px}.stat .v{font-size:26px;font-weight:900;margin-top:8px}.hero{margin-top:14px;background:linear-gradient(135deg,var(--green),var(--green2));color:#fff;border-radius:26px;padding:22px;display:flex;justify-content:space-between;align-items:center;gap:16px;box-shadow:0 10px 28px #0d4c3f2b}
 .hero small{color:#c5d9d2}.hero h2{margin:8px 0 12px;font-size:27px}.soft-btn{background:#ffffff12;color:#fff;border:1px solid #ffffff55;border-radius:16px;padding:12px 18px}
 .section{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:24px;overflow:hidden}.section-head{padding:18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line)}.section h3{margin:0}.link{color:#8c6515;font-weight:800;border:0;background:none}
-.list{display:flex;flex-direction:column}.item{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.item:last-child{border-bottom:0}.item h4{margin:0 0 5px}.meta{color:var(--muted);font-size:14px;line-height:1.7}.badge{padding:7px 10px;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap}.confirmed{background:#e4f4ee;color:#14785f}.pending{background:#fff3d9;color:#996a00}.entered{background:#e8eefb;color:#315ea8}.cancelled{background:#fde5e5;color:#a63c3c}.paid-badge{background:#e4f4ee;color:#14785f}.due-badge{background:#fff3d9;color:#996a00}
+.list{display:flex;flex-direction:column}.item{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.item:last-child{border-bottom:0}.item h4{margin:0 0 5px}.meta{color:var(--muted);font-size:14px;line-height:1.7}.badge{padding:7px 10px;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap}.confirmed{background:#e4f4ee;color:#14785f}.pending{background:#fff3d9;color:#996a00}.postponed{background:#eee9ff;color:#6750a4}.entered{background:#e8eefb;color:#315ea8}.cancelled{background:#fde5e5;color:#a63c3c}.paid-badge{background:#e4f4ee;color:#14785f}.due-badge{background:#fff3d9;color:#996a00}
 nav{position:fixed;bottom:0;left:0;right:0;background:#073d33;color:#fff;display:grid;grid-template-columns:repeat(8,minmax(72px,1fr));padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:30;box-shadow:0 -8px 25px #0002;overflow-x:auto;overflow-y:hidden;white-space:nowrap}nav button{border:0;background:none;color:#c7d7d1;padding:8px 4px;border-radius:15px;font-size:12px}nav button b{display:block;font-size:21px;margin-bottom:2px}nav button.active{background:#ffffff16;color:#fff;box-shadow:inset -4px 0 var(--gold)}
 .view{display:none}.view.active{display:block}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.toolbar input,.toolbar select{flex:1;min-width:150px}
@@ -341,7 +341,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 </section>
 
 <section id="bookings" class="view">
-  <div class="toolbar"><input id="search" placeholder="بحث بالاسم أو الجوال" oninput="renderBookings()"><select id="statusFilter" onchange="renderBookings()"><option value="">كل الحالات</option><option>مؤكد</option><option>غير مؤكد</option><option>تم الدخول</option><option>تم الخروج</option><option>ملغي</option></select></div>
+  <div class="toolbar"><input id="search" placeholder="بحث بالاسم أو الجوال" oninput="renderBookings()"><select id="statusFilter" onchange="renderBookings()"><option value="">كل الحالات</option><option>مؤكد</option><option>غير مؤكد</option><option>مؤجل</option><option>تم الدخول</option><option>تم الخروج</option><option>ملغي</option></select></div>
   <div class="section"><div class="section-head"><h3>الحجوزات</h3><button class="primary" onclick="openBooking()">+ حجز جديد</button></div><div id="bookingList" class="list"></div></div>
 </section>
 
@@ -1055,7 +1055,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <div><label class="label" for="bDate">تاريخ الحجز <span class="booking-required" aria-hidden="true">مطلوب</span></label><input id="bDate" type="date" required onchange="window.BookingDateStability?.finalize();updateStayFields();checkSelectedDate()"><div id="dateHint" class="meta" style="margin-top:5px"></div></div>
 <div><label class="label" for="bType">نوع الحجز</label><select id="bType" onchange="updateStayFields()"><option>يومي</option><option>مبيت</option></select></div>
 <div id="stayDaysWrap" style="display:none"><label class="label" for="bStayDays">عدد أيام المبيت</label><input id="bStayDays" type="number" min="1" max="30" value="1" oninput="updateStayFields()"><div id="stayDateHint" class="meta" style="margin-top:5px"></div></div>
-<div><label class="label help-inline" for="bStatus">الحالة <span data-help="confirmBooking"></span><span data-help="cancelBooking"></span></label><select id="bStatus" onchange="refreshCustomerCreditUI()"><option>مؤكد</option><option>غير مؤكد</option><option>تم الدخول</option><option>تم الخروج</option><option>ملغي</option></select></div>
+<div><label class="label help-inline" for="bStatus">الحالة <span data-help="confirmBooking"></span><span data-help="cancelBooking"></span></label><select id="bStatus" onchange="refreshCustomerCreditUI();window.BookingPostponement?.syncForm()"><option>مؤكد</option><option>غير مؤكد</option><option>مؤجل</option><option>تم الدخول</option><option>تم الخروج</option><option>ملغي</option></select></div>
 <div><label class="label" for="bCode">رقم الحجز</label><input id="bCode" readonly></div>
 </div></fieldset>
 <fieldset class="booking-form-section booking-payment-section"><legend>الدفع</legend><div class="booking-section-grid">
@@ -1227,11 +1227,13 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <script src="supabase-config.staging.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="booking-financial-core.js?v=20260922-1"></script>
+<script src="booking-postponement.js?v=20260922-1"></script>
 <script src="customer-credit-core.js?v=20260920-3"></script>
 <script src="resort-account-core.js?v=20260920-1"></script>
 <script src="arabic-number-input.js?v=20260921-1"></script>
 <script src="booking-date-stability.js?v=20260921-1"></script>
-<script src="deposit-refund-policy.js?v=20260918-2"></script>
+<script src="deposit-refund-policy.js?v=20260921-2"></script>
 <script>
 const {url:SUPABASE_URL,publishableKey:SUPABASE_PUBLISHABLE_KEY,projectRef:SUPABASE_PROJECT_REF,environment:APP_ENVIRONMENT}=window.ADWAA_SUPABASE_CONFIG;
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
@@ -1316,7 +1318,7 @@ function helpIcon(key){const item=HELP_CONTENT[key];return item?`<button class="
 function renderHelpIcons(root=document){root.querySelectorAll('[data-help]').forEach(el=>{const key=el.dataset.help;if(HELP_CONTENT[key]&&!el.querySelector('.help-icon'))el.innerHTML=helpIcon(key)})}
 function openHelp(event,key){event?.preventDefault();event?.stopPropagation();const item=HELP_CONTENT[key],popover=document.getElementById('helpPopover');if(!item||!popover||!isHelpEnabled())return;markHelpRead(key);document.getElementById('helpPopoverTitle').textContent=item.title;document.getElementById('helpPopoverText').textContent=item.text;popover.classList.add('open');document.body.classList.add('modal-open');popover.querySelector('.help-popover-close')?.focus()}
 function closeHelp(){const popover=document.getElementById('helpPopover');if(!popover)return;popover.classList.remove('open');if(!document.querySelector('.modal.open'))document.body.classList.remove('modal-open')}
-function paymentHelpKey(booking){const total=Number(booking?.total||0),paid=Number(booking?.paid||0);return paid<=0?'noPayment':paid>=total&&total>0?'fullPaid':'depositPaid'}
+function paymentHelpKey(booking){const total=Number(booking?.total||0),paid=getPaidAmount(booking);return paid<=0?'noPayment':paid>=total&&total>0?'fullPaid':'depositPaid'}
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&document.getElementById('helpPopover')?.classList.contains('open'))closeHelp()});
 let calDate=new Date();
 let editingBookingPhotos=[];
@@ -1638,6 +1640,7 @@ function bookingDaysRemaining(dateStr,todayStr=riyadhTodayISO()){
   const bookingDay=parse(dateStr),today=parse(todayStr);return bookingDay===null||today===null?null:Math.round((bookingDay-today)/86400000);
 }
 function bookingDaysRemainingLabel(booking,compact=false){
+  if(booking?.status==='مؤجل')return compact?'مؤجل بلا موعد':'الحجز مؤجل بلا موعد — الدفعات محفوظة';
   const remaining=bookingDaysRemaining(booking?.date);
   if(remaining===null)return compact?'التاريخ غير صالح':'تعذر حساب الأيام المتبقية';
   if(remaining<0)return compact?'منتهي':`الحجز منتهي منذ ${Math.abs(remaining)} ${Math.abs(remaining)===1?'يوم':'أيام'}`;
@@ -1645,8 +1648,8 @@ function bookingDaysRemainingLabel(booking,compact=false){
   if(remaining===1)return 'الحجز غدًا — متبقي يوم واحد';
   return `متبقي ${remaining} أيام`;
 }
-function upcoming(){return db.bookings.filter(b=>b.recordType!=='family'&&b.status!=='ملغي'&&b.status!=='تم الخروج'&&daysUntil(b.date)>=0).sort((a,b)=>a.date.localeCompare(b.date))}
-function statusClass(s){return s==='مؤكد'?'confirmed':s==='غير مؤكد'?'pending':s==='تم الدخول'?'entered':'cancelled'}
+function upcoming(){return db.bookings.filter(b=>b.recordType!=='family'&&!['ملغي','مؤجل','تم الخروج'].includes(b.status)&&daysUntil(b.date)>=0).sort((a,b)=>a.date.localeCompare(b.date))}
+function statusClass(s){return s==='مؤكد'?'confirmed':s==='غير مؤكد'?'pending':s==='مؤجل'?'postponed':s==='تم الدخول'?'entered':'cancelled'}
 const RESORT_STATUSES={ready:{label:'جاهز للاستقبال',className:'ready'},occupied:{label:'يوجد ضيف',className:'occupied'},cleaning:{label:'تحت التنظيف',className:'cleaning'},maintenance:{label:'تحت الصيانة',className:'maintenance'},closed:{label:'مغلق',className:'closed'}};
 function renderResortStatus(){
   const key=db.settings?.resortStatus||'ready',st=RESORT_STATUSES[key]||RESORT_STATUSES.ready,card=document.getElementById('resortStatusCard');
@@ -1748,15 +1751,15 @@ function runSystemHealthChecks(){
   const duplicateIds=[...ids].filter(([,n])=>n>1),duplicateCodes=[...codes].filter(([,n])=>n>1);
   add('سلامة البيانات',duplicateIds.length||duplicateCodes.length?'error':'ok',duplicateIds.length||duplicateCodes.length?'توجد سجلات مكررة':'لا توجد سجلات مكررة',`${duplicateIds.length} معرّف مكرر، ${duplicateCodes.length} رقم حجز مكرر.`);
 
-  const amountErrors=bookings.filter(b=>b.recordType!=='family'&&(!Number.isFinite(Number(b.total))||!Number.isFinite(Number(b.paid))||Number(b.total)<0||Number(b.paid)<0||Number(b.paid)>Number(b.total)));
-  const confirmationErrors=bookings.filter(b=>b.recordType!=='family'&&b.status==='مؤكد'&&Number(b.paid||0)<=0);
+  const amountErrors=bookings.filter(b=>b.recordType!=='family'&&(!Number.isFinite(Number(b.total))||!Number.isFinite(getPaidAmount(b))||Number(b.total)<0||getPaidAmount(b)<0||getPaidAmount(b)>Number(b.total)));
+  const confirmationErrors=bookings.filter(b=>b.recordType!=='family'&&b.status==='مؤكد'&&getPaidAmount(b)<=0);
   add('سلامة البيانات',amountErrors.length?'error':confirmationErrors.length?'warn':'ok',amountErrors.length?'أخطاء في المبالغ':confirmationErrors.length?'حجوزات مؤكدة دون عربون':'المبالغ سليمة',amountErrors.length?`${amountErrors.length} سجل يحتوي مبلغًا غير صالح.`:confirmationErrors.length?`${confirmationErrors.length} حجز مؤكد يحتاج مراجعة السداد.`:'لا توجد مبالغ سالبة أو مدفوعات تتجاوز الإجمالي.');
 
   let commissionErrors=0,commissionWarnings=0;
   bookings.forEach(b=>{const s=b.commissionSnapshot,type=normalizeRecordType(b.recordType);if(!s){if(type==='family')commissionErrors++;return}const allowed=['earned','received','received_before_system','no_commission'];if(!allowed.includes(commissionStatus(b)))commissionErrors++;if(type==='family'&&(commissionStatus(b)!=='no_commission'||Number(s.amount||0)!==0))commissionErrors++;if(commissionStatus(b)==='no_commission'&&Number(s.amount||0)!==0)commissionErrors++;if(['earned','received','received_before_system'].includes(commissionStatus(b))){const expected=calculateCommissionAmount(s.method,Number(s.rate||0),Number(s.days||1),Number(s.bookingTotal||0));if(!Number.isFinite(Number(s.amount))||Math.abs(Number(s.amount)-expected)>.01)commissionErrors++}if(s.status==='received'&&(!s.received||!s.receivedAt))commissionErrors++;if(s.status==='received_before_system'&&(s.received||s.receivedAt))commissionWarnings++;if(s.status==='earned'&&b.status==='ملغي')commissionErrors++;if(s.status==='received'&&b.status==='ملغي')commissionWarnings++;});
   add('سلامة البيانات',commissionErrors?'error':commissionWarnings?'warn':'ok',commissionErrors?'أخطاء في العمولات':commissionWarnings?'عمولات مستلمة لحجوزات ملغاة':'العمولات سليمة',commissionErrors?`${commissionErrors} خطأ في لقطة أو حالة العمولة.`:commissionWarnings?`${commissionWarnings} سجل يحتاج مراجعة يدوية.`:'الحسابات والحالات واللقطات الثابتة متوافقة.');
 
-  const active=bookings.filter(b=>b.status!=='ملغي'),conflicts=[];
+  const active=bookings.filter(b=>!['ملغي','مؤجل'].includes(b.status)),conflicts=[];
   for(let i=0;i<active.length;i++)for(let j=i+1;j<active.length;j++){const a=active[i],b=active[j];if(bookingOccupiedDates(a).some(d=>bookingOccupiedDates(b).includes(d)))conflicts.push(`${a.code||a.id||i} × ${b.code||b.id||j}`)}
   add('سلامة البيانات',conflicts.length?'error':'ok',conflicts.length?'توجد حجوزات متعارضة':'لا يوجد تعارض حجوزات',conflicts.length?`${conflicts.length} تعارض: ${conflicts.slice(0,3).join('، ')}${conflicts.length>3?'…':''}`:'جميع فترات الإشغال منفصلة.');
 
@@ -1832,7 +1835,7 @@ function openContractSendCenter(id){
 }
 function renderAlerts(){
   const root=document.getElementById('alertsList');if(!root)return;
-  const active=(db.bookings||[]).filter(b=>b.status!=='ملغي'&&b.recordType!=='family');
+  const active=(db.bookings||[]).filter(b=>!['ملغي','مؤجل'].includes(b.status)&&b.recordType!=='family');
   const today=isoToday(),now=new Date(),alerts=[];
   const contractPending=active.filter(b=>b.date>=today&&!b.manualMessages?.contract);
   const movement=active.filter(b=>(b.date===today&&!['تم الدخول','تم الخروج'].includes(b.status)&&now>=new Date(`${today}T15:30:00`))||(bookingExitDate(b)===today&&b.status!=='تم الخروج'&&hasReachedBookingExitTime(b,now)));
@@ -1865,13 +1868,13 @@ function getLast12MonthsData(){
     months.push({key,label,year:d.getFullYear(),month:d.getMonth(),revenue:0,bookings:0,occupancy:0});
   }
 
-  const active=db.bookings.filter(b=>b.status!=='ملغي');
+  const active=db.bookings.filter(b=>!['ملغي','مؤجل'].includes(b.status));
   active.forEach(b=>{
     const key=String(b.date||'').slice(0,7);
     const m=months.find(x=>x.key===key);
     if(m){
       m.bookings+=1;
-      m.revenue+=Number(b.paid||0);
+      m.revenue+=getPaidAmount(b);
     }
   });
 
@@ -1928,7 +1931,7 @@ function renderAnalytics(){
 }
 
 function renderDashboard(){
-  const active=db.bookings.filter(b=>b.status!=='ملغي'&&b.recordType!=='family');
+  const active=db.bookings.filter(b=>!['ملغي','مؤجل'].includes(b.status)&&b.recordType!=='family');
   const ups=upcoming();
   const today=isoToday();
   const now=new Date(today+'T00:00:00');
@@ -1945,10 +1948,10 @@ function renderDashboard(){
   const weekBookings=active.filter(b=>b.date>=weekStartIso&&b.date<=weekEndIso);
   const monthBookings=active.filter(b=>String(b.date||'').slice(0,7)===monthKey);
 
-  const paid=active.reduce((s,b)=>s+Number(b.paid||0),0);
+  const paid=active.reduce((s,b)=>s+getPaidAmount(b),0);
   const total=active.reduce((s,b)=>s+Number(b.total||0),0);
-  const revenueToday=todayBookings.reduce((s,b)=>s+Number(b.paid||0),0);
-  const revenueMonth=monthBookings.reduce((s,b)=>s+Number(b.paid||0),0);
+  const revenueToday=todayBookings.reduce((s,b)=>s+getPaidAmount(b),0);
+  const revenueMonth=monthBookings.reduce((s,b)=>s+getPaidAmount(b),0);
   const pending=active.reduce((s,b)=>s+getRemainingAmount(b),0);
   const fullyPaid=active.filter(isFullyPaid);
   const commission=outstandingCommissionTotal(fullyPaid);
@@ -2012,10 +2015,14 @@ function normalizeRecordType(value){
   if(['family','familyday','familypresence','relatives','تواجدالعائلة','يومالأهل','يومالاهل','العائلة','الاهل','الأهل'].includes(key))return 'family';
   return raw;
 }
-function getRemainingAmount(booking){return Math.max(0,Number(booking?.total||0)-Number(booking?.paid||0))}
-function isFullyPaid(booking){return normalizeRecordType(booking?.recordType)!=='family'&&booking?.status!=='ملغي'&&Number(booking?.total||0)>0&&Number(booking?.paid||0)>=Number(booking?.total||0)}
+function getPaidAmount(booking){return window.BookingFinancialCore?.settledAmount(booking)??Math.max(0,Number(booking?.paid||0))}
+function getCashReceived(booking){return window.BookingFinancialCore?.cashReceived(booking)??Math.max(0,Number(booking?.paid||0)-Number(booking?.customerCreditApplied||0))}
+function getRemainingAmount(booking){return window.BookingFinancialCore?.remainingAmount(booking)??(['ملغي','مؤجل'].includes(booking?.status)?0:Math.max(0,Number(booking?.total||0)-getPaidAmount(booking)))}
+function isFullyPaid(booking){return normalizeRecordType(booking?.recordType)!=='family'&&!['ملغي','مؤجل'].includes(booking?.status)&&Number(booking?.total||0)>0&&getPaidAmount(booking)>=Number(booking?.total||0)}
 function getPaymentStatus(booking){
   if(normalizeRecordType(booking?.recordType)==='family')return {code:'not_applicable',label:'لا ينطبق',remaining:0};
+  if(booking?.status==='ملغي')return {code:'cancelled',label:'ملغي — لا يوجد مبلغ للتحصيل',remaining:0};
+  if(booking?.status==='مؤجل')return {code:'postponed',label:'مؤجل بلا موعد — الدفعات محفوظة ولا يوجد تحصيل الآن',remaining:0};
   if(!(Number(booking?.total||0)>0))return {code:'unset',label:'لم يُحدد المبلغ',remaining:0};
   if(isFullyPaid(booking))return {code:'paid',label:'مكتمل السداد',remaining:0};
   const remaining=getRemainingAmount(booking);return {code:'due',label:`متبقي مبلغ: ${money(remaining)}`,remaining};
@@ -2027,7 +2034,7 @@ function canSendRemainingReminder(booking,now=new Date()){
   nextDay.setDate(nextDay.getDate()+1);const secondAt=new Date(`${nextDay.getFullYear()}-${String(nextDay.getMonth()+1).padStart(2,'0')}-${String(nextDay.getDate()).padStart(2,'0')}T00:00:00`),today=isoToday();
   return (today===entryDate&&now>=entryAt)||(today===`${nextDay.getFullYear()}-${String(nextDay.getMonth()+1).padStart(2,'0')}-${String(nextDay.getDate()).padStart(2,'0')}`&&now>=secondAt);
 }
-function commissionEligibility(booking){return !!booking&&normalizeRecordType(booking.recordType)!=='family'&&booking.status!=='ملغي'&&Number(booking.total||0)>0&&Number(booking.paid||0)>=Number(booking.total||0)}
+function commissionEligibility(booking){return !!booking&&normalizeRecordType(booking.recordType)!=='family'&&!['ملغي','مؤجل'].includes(booking.status)&&Number(booking.total||0)>0&&getPaidAmount(booking)>=Number(booking.total||0)}
 function calculateCommissionAmount(method,rate,days,total){
   const safeRate=Math.max(0,Number(rate||0));
   if(method==='percentage')return Math.round(Math.max(0,Number(total||0))*safeRate)/100;
@@ -2101,7 +2108,7 @@ function updateStayFields(){
 function findBookingConflict(candidate,editingId=''){
   const candidateDates=new Set(bookingOccupiedDates(candidate));
   return db.bookings.find(x=>{
-    if(x.id===editingId||x.status==='ملغي')return false;
+    if(x.id===editingId||['ملغي','مؤجل'].includes(x.status))return false;
     return bookingOccupiedDates(x).some(d=>candidateDates.has(d));
   });
 }
@@ -2117,7 +2124,7 @@ function openBooking(id,presetDate){if(!id&&['maintenance','closed'].includes(db
     let b=db.bookings.find(x=>x.id===id);
     if(!b)return;
     bId.value=b.id;bName.value=b.name;bPhone.value=b.phone;bDate.value=b.date;bType.value=b.type;bStayDays.value=b.stayDays||1;if(document.getElementById('bRecordType'))bRecordType.value=b.recordType||'customer';
-    bPaid.value=b.paid;bTotal.value=b.total;bStatus.value=b.status;bNotes.value=b.notes||'';bCode.value=b.code;if(document.getElementById('customerCreditUse'))customerCreditUse.value=String(Number(b.customerCreditApplied||0));if(document.getElementById('depositCancellationBy'))depositCancellationBy.value=b.depositCancellation?.cancelledBy||'customer';if(document.getElementById('depositCancellationAction'))depositCancellationAction.value=b.depositCancellation?.status==='refunded'?'refund':'credit';
+    bPaid.value=getPaidAmount(b);bTotal.value=b.total;bStatus.value=b.status;bNotes.value=b.notes||'';bCode.value=b.code;if(document.getElementById('customerCreditUse'))customerCreditUse.value=String(Number(b.customerCreditApplied||0));if(document.getElementById('depositCancellationBy'))depositCancellationBy.value=b.depositCancellation?.cancelledBy||'customer';if(document.getElementById('depositCancellationAction'))depositCancellationAction.value=b.depositCancellation?.status==='refunded'?'refund':'credit';
     editingBookingPhotos=Array.isArray(b.photos)?b.photos.map(p=>({...p})):[];
     bookingPhotosExpanded=false;
     deleteBookingBtn.style.display='inline-block';if(document.getElementById('deleteBookingHelp'))document.getElementById('deleteBookingHelp').style.display='inline-flex';
@@ -2136,7 +2143,7 @@ function openBooking(id,presetDate){if(!id&&['maintenance','closed'].includes(db
 }
 function closeModal(id){document.getElementById(id).classList.remove('open');if(!document.querySelector('.modal.open'))document.body.classList.remove('modal-open')}
 function nextAvailableDate(fromDate){
-  const taken=new Set(db.bookings.filter(x=>x.status!=='ملغي').flatMap(bookingOccupiedDates));
+  const taken=new Set(db.bookings.filter(x=>!['ملغي','مؤجل'].includes(x.status)).flatMap(bookingOccupiedDates));
   let d=new Date(fromDate+'T00:00:00');
   for(let i=0;i<365;i++){
     const iso=d.toISOString().slice(0,10);
@@ -2249,7 +2256,7 @@ function bookingDocumentHTML(b,type){
     </div>
     <div class="totals">
       <div class="row"><span>المبلغ الإجمالي</span><b>${money(b.total)}</b></div>
-      <div class="row"><span>المدفوع</span><b>${money(b.paid)}</b></div>
+      <div class="row"><span>المدفوع</span><b>${money(getPaidAmount(b))}</b></div>
       <div class="row total"><span>المتبقي</span><b>${money(due)}</b></div>
       <div class="row"><span>حالة السداد</span><b class="${payment.code==='paid'?'payment-paid':'payment-due'}">${escapeHtml(payment.label)}</b></div>
     </div>`;
@@ -2344,7 +2351,7 @@ function manualMessageText(type,b){
   const base=`رقم الحجز: ${b.code||'-'}\nتاريخ الحجز: ${b.date||'-'}\nنوع الحجز: ${b.type||'-'}`;
   const messages={
     contract:`مرحبًا ${b.name}\nمرفق لكم عقد حجز منتجع أضواء الشرق بصيغة PDF.\n${base}\nنأمل الاطلاع عليه والاحتفاظ بنسخة منه. ويُعد تأكيد الحجز أو سداد العربون موافقة على الشروط الواردة فيه.\n\nسياسة العربون: العربون غير مسترد نقدًا عند إلغاء العميل، ويُحفظ كامل المبلغ رصيدًا له لاستخدامه في حجز لاحق. وإذا تعذر تنفيذ الحجز من جهة المنتجع فيمكن إرجاع العربون أو إبقاؤه رصيدًا حسب اختيار العميل.`,
-    invoice:`مرحبًا ${b.name}\nمرفق لكم فاتورة حجز منتجع أضواء الشرق بصيغة PDF.\n${base}\nالإجمالي: ${money(b.total)}\nالمدفوع: ${money(b.paid)}\nحالة السداد: ${payment.label}`,
+    invoice:`مرحبًا ${b.name}\nمرفق لكم فاتورة حجز منتجع أضواء الشرق بصيغة PDF.\n${base}\nالإجمالي: ${money(b.total)}\nالمدفوع: ${money(getPaidAmount(b))}\nحالة السداد: ${payment.label}`,
     welcome:welcomeMessageText(b),
     reminder:`مرحبًا ${b.name}\nنذكركم بموعد حجزكم في منتجع أضواء الشرق.\n${base}\nوقت الدخول الساعة 3:30 عصرًا. نتشرف بخدمتكم.`,
     due:`مرحبًا ضيفنا،\nالمبلغ المتبقي للحجز #${b.code||'-'} هو ${money(due)}.\nشاكرين تعاونكم.`,
@@ -2492,7 +2499,15 @@ async function saveBooking(e){
   const cashPaid=Math.max(0,enteredPaid-requestedCredit);
   const effectiveCredit=bStatus.value==='ملغي'?0:requestedCredit;
   let obj={...(oldBooking||{}),id:id||crypto.randomUUID(),code:bCode.value,name:selectedRecordType==='family'?'تواجد العائلة':bName.value.trim(),phone:selectedRecordType==='family'?'':bPhone.value.trim(),date:bDate.value,type:bType.value,stayDays:bType.value==='مبيت'?Math.max(1,Number(bStayDays.value||1)):1,paid:selectedRecordType==='family'?0:cashPaid+effectiveCredit,total:selectedRecordType==='family'?0:Number(bTotal.value||0),status:bStatus.value,notes:bNotes.value.trim(),photos:editingBookingPhotos,recordType:selectedRecordType,customerCreditApplied:selectedRecordType==='family'?0:effectiveCredit,createdAt:oldBooking?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
-  obj=normalizeBookingCommission(obj,db.settings);
+  obj=window.BookingPostponement?.prepareForSave(oldBooking,obj)??obj;
+  const prepareBookingForSave=()=>{
+    if(selectedRecordType!=='family'){
+      if(!window.BookingPaymentHistory?.prepareBookingForSave)throw new Error('تعذر تحميل سجل الدفعات. حدّث الصفحة قبل حفظ الحجز لحماية المبالغ.');
+      obj=window.BookingPaymentHistory.prepareBookingForSave(obj);
+    }
+    return normalizeBookingCommission(obj,db.settings);
+  };
+  try{obj=window.BookingFinancialCore?.withFormSaveScope(prepareBookingForSave)??prepareBookingForSave()}catch(error){alert(error?.message||'تعذر تجهيز دفعات الحجز.');return}
   if(oldBooking?.commissionSnapshot?.status==='received'&&obj.status==='ملغي')alert('تنبيه: عمولة هذا الحجز مستلمة بالفعل. بقي سجلها محفوظًا ويجب على المدير مراجعته يدويًا.');
   let conflict=findBookingConflict(obj,obj.id);
   if(conflict){
@@ -2742,7 +2757,7 @@ function renderFinanceChart(){
   const now=new Date(), months=[];
   for(let i=11;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({key:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,label:d.toLocaleDateString('ar-SA',{month:'short'})})}
   const rows=months.map(m=>{
-    const revenue=db.bookings.filter(b=>b.status!=='ملغي'&&String(b.date||'').slice(0,7)===m.key).reduce((s,b)=>s+Math.max(0,Number(b.paid||0)-Number(b.customerCreditApplied||0)),0);
+    const revenue=db.bookings.filter(b=>!['ملغي','مؤجل'].includes(b.status)&&String(b.date||'').slice(0,7)===m.key).reduce((s,b)=>s+getCashReceived(b),0);
     const expense=db.expenses.filter(e=>String(e.date||'').slice(0,7)===m.key).reduce((s,e)=>s+Number(e.amount||0),0);
     return {...m,revenue,expense};
   });
@@ -2752,13 +2767,13 @@ function renderFinanceChart(){
 function renderExpenses(){
   if(typeof financePeriod==='undefined')return;
   const period=financePeriod.value||'month', cat=financeCategory.value||'', payment=financePayment.value||'';
-  const activeBookings=db.bookings.filter(b=>b.recordType!=='family'&&b.status!=='ملغي'&&financeDateMatch(b.date,period));
+  const activeBookings=db.bookings.filter(b=>b.recordType!=='family'&&!['ملغي','مؤجل'].includes(b.status)&&financeDateMatch(b.date,period));
   const filteredExpenses=db.expenses.filter(e=>financeDateMatch(e.date,period)&&(!cat||e.cat===cat)&&(!payment||e.paymentMethod===payment));
   const allPeriodExpenses=db.expenses.filter(e=>financeDateMatch(e.date,period));
-  const cashCollected=activeBookings.reduce((sum,b)=>sum+Math.max(0,Number(b.paid||0)-Number(b.customerCreditApplied||0)),0);
-  const revenue=activeBookings.reduce((sum,b)=>sum+Math.max(0,Number(b.paid||0)),0);
+  const cashCollected=window.ResortAccountCore?.customerCashCollected(db,date=>financeDateMatch(date,period))??activeBookings.reduce((sum,b)=>sum+getCashReceived(b),0);
+  const revenue=activeBookings.reduce((sum,b)=>sum+getPaidAmount(b),0);
   const customerCredits=(db.customerCredits||[]).reduce((sum,row)=>sum+(row?.type==='credit'?Number(row.amount||0):row?.type==='debit'?-Number(row.amount||0):0),0);
-  const due=activeBookings.reduce((sum,b)=>sum+Math.max(0,Number(b.total||0)-Number(b.paid||0)),0);
+  const due=activeBookings.reduce((sum,b)=>sum+getRemainingAmount(b),0);
   const expensesSum=allPeriodExpenses.reduce((sum,e)=>sum+Number(e.amount||0),0);
   const periodCommissionBookings=db.bookings.filter(b=>financeDateMatch(b.date,period)&&b.commissionSnapshot);
   const fullyPaidBookings=periodCommissionBookings.filter(isCommissionEligible);
@@ -2853,9 +2868,10 @@ function syncCustomerCreditDebit(booking,useAmount){
 }
 function creditCancelledDeposit(booking,oldBooking,action,cancelledBy='customer'){
   const core=window.CustomerCreditCore;if(!core||!oldBooking)return;
-  const depositAmount=core.depositAmount(oldBooking);
-  const cashPaid=core.cashCollected(oldBooking);
-  const settlementAmount=cancelledBy==='resort'?cashPaid:depositAmount;
+  const financialSource=booking||oldBooking;
+  const depositAmount=core.depositAmount(financialSource);
+  const cashPaid=core.cashCollected(financialSource);
+  const settlementAmount=typeof core.cancellationSettlement==='function'?core.cancellationSettlement(financialSource):cashPaid;
   const key=customerCreditKey(oldBooking.name,oldBooking.phone);
   const finalAction=cancelledBy==='resort'&&action==='refund'?'refund':'credit';
   booking.depositCancellation={status:finalAction==='refund'?'refunded':'credit',cancelledBy,depositAmount,settlementAmount,refundAmount:finalAction==='refund'?settlementAmount:0,recordedAt:new Date().toISOString()};
@@ -2877,9 +2893,9 @@ function getCustomers(){
     if(!map.has(key))map.set(key,{key,name:b.name||'',phone:b.phone||'',bookings:[],totalPaid:0,totalValue:0,totalDue:0,lastVisit:'',messageCount:0});
     const c=map.get(key);
     c.bookings.push(b);
-    c.totalPaid+=Number(b.paid||0);
+    c.totalPaid+=getPaidAmount(b);
     c.totalValue+=Number(b.total||0);
-    c.totalDue+=Math.max(0,Number(b.total||0)-Number(b.paid||0));
+    c.totalDue+=getRemainingAmount(b);
     c.messageCount+=Object.values(b.manualMessages||{}).filter(Boolean).length;
     if(!c.lastVisit||b.date>c.lastVisit)c.lastVisit=b.date;
     if(!c.phone&&b.phone)c.phone=b.phone;
@@ -2946,9 +2962,9 @@ function openCustomerProfile(value){
   cpMessages.textContent=`تم تسجيل ${c.messageCount} عملية إرسال يدوي عبر واتساب`;
   customerAdminNotes.value=db.customerNotes?.[c.key]||'';
   customerBookingHistory.innerHTML=[...c.bookings].sort((a,b)=>b.date.localeCompare(a.date)).map(b=>{
-    const due=Math.max(0,Number(b.total||0)-Number(b.paid||0));
+    const due=getRemainingAmount(b),paid=getPaidAmount(b);
     return `<div class="customer-history-item">
-      <div><b>${escapeHtml(b.code||'-')} — ${escapeHtml(b.date||'-')}</b><div class="meta">${escapeHtml(b.type||'')} • ${escapeHtml(b.status||'')}<br>المدفوع ${money(b.paid)} • المتبقي ${money(due)}</div></div>
+      <div><b>${escapeHtml(b.code||'-')} — ${escapeHtml(b.date||'-')}</b><div class="meta">${escapeHtml(b.type||'')} • ${escapeHtml(b.status||'')}<br>المدفوع ${money(paid)} • المتبقي ${money(due)}</div></div>
       <button class="secondary" onclick="closeModal('customerModal');openBooking('${b.id}')">فتح الحجز</button>
     </div>`;
   }).join('')||'<div class="empty">لا توجد حجوزات</div>';
@@ -3084,7 +3100,7 @@ function renderCalendar(){
   for(let d=1;d<=last.getDate();d++){
     const currentDate=new Date(y,m,d,12,0,0);
     const iso=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const bs=db.bookings.filter(b=>b.status!=='ملغي'&&bookingOccupiedDates(b).includes(iso));
+    const bs=db.bookings.filter(b=>!['ملغي','مؤجل'].includes(b.status)&&bookingOccupiedDates(b).includes(iso));
     const events=getSaudiCalendarEvents(currentDate);
 
     let cls=['day'];
@@ -3132,7 +3148,7 @@ function renderCalendar(){
   renderCalendarSummary(y,m,last.getDate());
 }
 function renderCalendarSummary(year,month,daysInMonth){
-  const active=db.bookings.filter(b=>b.status!=='ملغي');
+  const active=db.bookings.filter(b=>!['ملغي','مؤجل'].includes(b.status));
   const occupied=new Set();let paidDays=0,partialDays=0;
   for(let d=1;d<=daysInMonth;d++){
     const iso=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
@@ -3630,7 +3646,7 @@ function renderAuditLog(){
   body.innerHTML=rows.map(x=>`<tr><td>${formatDateTime(x.at)}</td><td>${escapeHtml(x.user||'—')}</td><td><b>${escapeHtml(x.action||'—')}</b></td><td>${escapeHtml(x.entity||'—')}</td><td class="audit-details">${escapeHtml(x.details||'')}${x.before||x.after?`<details class="audit-change"><summary>عرض قبل وبعد</summary><pre style="white-space:pre-wrap;direction:ltr;text-align:left">${escapeHtml(JSON.stringify({before:x.before,after:x.after},null,2))}</pre></details>`:''}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">لا توجد عمليات مسجلة بعد</td></tr>';
 }
 function exportAuditLog(){download(`Adwaa-audit-log-${isoToday()}.json`,JSON.stringify(db.auditLog||[],null,2),'application/json')}
-function exportCSV(){let rows=[['رقم الحجز','العميل','الجوال','التاريخ','النوع','المدفوع','الإجمالي','المتبقي','الحالة','ملاحظات'],...db.bookings.map(b=>[b.code,b.name,b.phone,b.date,b.type,b.paid,b.total,b.total-b.paid,b.status,b.notes])];let csv='\ufeff'+rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n');download(`bookings-${isoToday()}.csv`,csv,'text/csv;charset=utf-8')}
+function exportCSV(){let rows=[['رقم الحجز','العميل','الجوال','التاريخ','النوع','المدفوع','الإجمالي','المتبقي','الحالة','ملاحظات'],...db.bookings.map(b=>[b.code,b.name,b.phone,b.date,b.type,getPaidAmount(b),b.total,getRemainingAmount(b),b.status,b.notes])];let csv='\ufeff'+rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n');download(`bookings-${isoToday()}.csv`,csv,'text/csv;charset=utf-8')}
 function download(name,content,type){const a=document.createElement('a'),url=URL.createObjectURL(new Blob([content],{type}));a.href=url;a.download=name;a.rel='noopener';document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},1500)}
 async function resetAll(){if(!confirm('سيتم مسح كل الحجوزات والمصروفات والسلف وحركات رصيد المنتجع من جميع الأجهزة. سيُنشئ النظام نسخة أمان أولًا. هل أنت متأكد؟'))return;await createBackup('قبل المسح',{downloadFile:true,silent:true,note:'نسخة أمان قبل مسح جميع البيانات'});const history=[...(db.backupHistory||[])],audit=[...(db.auditLog||[])];db={bookings:[],expenses:[],cleaningTasks:[],notifications:[],customerNotes:{},customerCredits:[],accountingNotes:[],resortAccount:{calibration:null,financialRepairVersion:0,manualMovements:[]},backupHistory:history,auditLog:audit,settings:{waNumber:'',welcomeMsgDaily:DEFAULT_WELCOME_DAILY,welcomeMsgStay:DEFAULT_WELCOME_STAY,resortStatus:'ready',resortStatusUpdated:'',calendarMode:'both'},seq:1};addAudit('مسح','جميع البيانات','تم مسح الحجوزات والمصروفات والسلف وحركات الرصيد بعد إنشاء نسخة أمان');await persist();alert('تم مسح البيانات من جميع الأجهزة')}
 function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
@@ -3864,7 +3880,7 @@ function parseAssistantDate(text){
 }
 function runLocalAssistant(){
   const input=document.getElementById('localAssistantInput'),out=document.getElementById('localAssistantPreview'),text=String(input?.value||'').trim();if(!text){out.textContent='اكتب أمرًا أولًا.';return;}
-  if(/كم المتبقي|المتبقي على العملاء/.test(text)){const total=db.bookings.filter(b=>b.recordType!=='family'&&b.status!=='ملغي').reduce((s,b)=>s+getRemainingAmount(b),0);out.innerHTML=`<b>معاينة النتيجة:</b> إجمالي المتبقي ${money(total)}.`;return;}
+  if(/كم المتبقي|المتبقي على العملاء/.test(text)){const total=db.bookings.filter(b=>b.recordType!=='family'&&!['ملغي','مؤجل'].includes(b.status)).reduce((s,b)=>s+getRemainingAmount(b),0);out.innerHTML=`<b>معاينة النتيجة:</b> إجمالي المتبقي ${money(total)}.`;return;}
   if(/عمولات.*مستحق/.test(text)){out.innerHTML=`<b>معاينة النتيجة:</b> العمولات المستحقة ${money(outstandingCommissionTotal(db.bookings))}.`;return;}
   if(/الأيام المتاحة|ايام المتاحة/.test(text)){out.innerHTML=`<b>معاينة النتيجة:</b> أقرب يوم متاح ${nextAvailableDate(isoToday())||'غير متاح خلال سنة'}.`;return;}
   if(/تواجد العائلة|استخدام العائلة/.test(text)){openBooking(null,parseAssistantDate(text));bRecordType.value='family';updateRecordTypeUI();bNotes.value=text;out.textContent='تم تجهيز سجل تواجد العائلة في النموذج. راجعه ثم اضغط حفظ.';return;}
@@ -3932,15 +3948,15 @@ const V95_ENTRY_TIME='3:30 م',V95_DAILY_EXIT='3:00 ص',V95_STAY_EXIT='8:00 ص';
 let calendarViewMode='month';
 function bookingExitDate(b){return b.type==='مبيت'?addDaysISO(b.date,Math.max(1,Number(b.stayDays||1))):b.date}
 function bookingTimes(b){return {entry:V95_ENTRY_TIME,exit:b.type==='مبيت'?V95_STAY_EXIT:V95_DAILY_EXIT}}
-function paymentStateLabel(b){const total=Number(b.total||0),paid=Number(b.paid||0);return paid<=0?'لم يدفع':paid>=total&&total>0?'مدفوع بالكامل':'مدفوع جزئيًا'}
-function todayCard(b,kind){const p=getPaymentStatus(b),t=bookingTimes(b),task=(db.cleaningTasks||[]).find(x=>x.bookingId===b.id&&x.status!=='ملغي');return `<article class="today-booking-card"><div class="today-booking-head"><div><h4>${escapeHtml(b.name||'بدون اسم')} <span class="meta">#${escapeHtml(b.code||'')}</span></h4><div class="meta">${escapeHtml(b.phone||'بدون جوال')} • ${escapeHtml(b.type||'يومي')} • دخول ${t.entry} • خروج ${t.exit}</div></div><span class="badge ${statusClass(b.status)}">${escapeHtml(b.status||'غير مؤكد')}</span></div><div class="today-finance"><span>الإجمالي: <b class="money">${money(b.total)}</b></span><span>المستلم: <b class="money">${money(b.paid)}</b></span><span class="payment-help">الحالة: <b>${paymentStateLabel(b)}</b>${helpIcon(paymentHelpKey(b))}</span></div>${p.remaining>0?`<div class="today-due">⚠️ متبقٍ على العميل ${money(p.remaining)}</div>`:''}${kind==='exit'?`<div class="meta" style="margin-top:8px">🧹 التنظيف: ${task?(task.status==='done'?'مكتمل':'مهمة مسجلة'):'يُنشأ بعد تأكيد الخروج'}</div>`:''}<div class="today-actions"><button class="secondary" onclick="v95BookingDetails('${b.id}')">التفاصيل</button><button class="secondary" onclick="openBooking('${b.id}')">تعديل</button>${b.status!=='تم الدخول'&&b.status!=='تم الخروج'&&b.status!=='ملغي'?`<span class="help-action"><button class="primary" onclick="v95SetBookingStatus('${b.id}','تم الدخول')">تم الدخول</button>${helpIcon('checkIn')}</span>`:''}${b.status!=='تم الخروج'&&b.status!=='ملغي'?`<button class="primary" onclick="v95SetBookingStatus('${b.id}','تم الخروج')">تم الخروج</button>`:''}<button class="secondary" onclick="v95CopyPhone('${b.id}')">نسخ الجوال</button><button class="secondary" onclick="v95OpenWhatsApp('${b.id}')">واتساب</button>${p.remaining>0?`<button class="secondary" onclick="v95RecordPayment('${b.id}')">تسجيل دفعة</button>`:''}</div></article>`}
+function paymentStateLabel(b){if(b?.status==='مؤجل')return 'مؤجل — المدفوع محفوظ';if(b?.status==='ملغي')return 'ملغي — لا يوجد تحصيل';const total=Number(b.total||0),paid=getPaidAmount(b);return paid<=0?'لم يدفع':paid>=total&&total>0?'مدفوع بالكامل':'مدفوع جزئيًا'}
+function todayCard(b,kind){const p=getPaymentStatus(b),paid=getPaidAmount(b),t=bookingTimes(b),task=(db.cleaningTasks||[]).find(x=>x.bookingId===b.id&&x.status!=='ملغي');return `<article class="today-booking-card"><div class="today-booking-head"><div><h4>${escapeHtml(b.name||'بدون اسم')} <span class="meta">#${escapeHtml(b.code||'')}</span></h4><div class="meta">${escapeHtml(b.phone||'بدون جوال')} • ${escapeHtml(b.type||'يومي')} • دخول ${t.entry} • خروج ${t.exit}</div></div><span class="badge ${statusClass(b.status)}">${escapeHtml(b.status||'غير مؤكد')}</span></div><div class="today-finance"><span>الإجمالي: <b class="money">${money(b.total)}</b></span><span>المستلم: <b class="money">${money(paid)}</b></span><span class="payment-help">الحالة: <b>${paymentStateLabel(b)}</b>${helpIcon(paymentHelpKey(b))}</span></div>${p.remaining>0?`<div class="today-due">⚠️ متبقٍ على العميل ${money(p.remaining)}</div>`:''}${kind==='exit'?`<div class="meta" style="margin-top:8px">🧹 التنظيف: ${task?(task.status==='done'?'مكتمل':'مهمة مسجلة'):'يُنشأ بعد تأكيد الخروج'}</div>`:''}<div class="today-actions"><button class="secondary" onclick="v95BookingDetails('${b.id}')">التفاصيل</button><button class="secondary" onclick="openBooking('${b.id}')">تعديل</button>${b.status!=='تم الدخول'&&b.status!=='تم الخروج'&&b.status!=='ملغي'?`<span class="help-action"><button class="primary" onclick="v95SetBookingStatus('${b.id}','تم الدخول')">تم الدخول</button>${helpIcon('checkIn')}</span>`:''}${b.status!=='تم الخروج'&&b.status!=='ملغي'?`<button class="primary" onclick="v95SetBookingStatus('${b.id}','تم الخروج')">تم الخروج</button>`:''}<button class="secondary" onclick="v95CopyPhone('${b.id}')">نسخ الجوال</button><button class="secondary" onclick="v95OpenWhatsApp('${b.id}')">واتساب</button>${p.remaining>0?`<button class="secondary" onclick="v95RecordPayment('${b.id}')">تسجيل دفعة</button>`:''}</div></article>`}
 function monthMatch(value,now=new Date()){return String(value||'').slice(0,7)===`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`}
-function renderTodayBoard(){const root=document.getElementById('todayBoardContent');if(!root)return;try{const today=isoToday(),active=(db.bookings||[]).filter(b=>b.recordType!=='family'&&b.status!=='ملغي'),entries=active.filter(b=>b.date===today),exits=active.filter(b=>bookingExitDate(b)===today),month=active.filter(b=>monthMatch(b.date)),cashExpenses=(db.expenses||[]).filter(e=>monthMatch(e.date)).reduce((s,e)=>s+Number(e.amount||0),0),monthCommission=month.filter(isCommissionEligible).reduce((s,b)=>s+managerCommissionAmount(b),0),expenses=cashExpenses+monthCommission,revenue=month.reduce((s,b)=>s+Number(b.paid||0),0),due=active.reduce((s,b)=>s+getRemainingAmount(b),0);document.getElementById('todayBoardDate').textContent=new Date().toLocaleDateString('ar-SA',{weekday:'long',year:'numeric',month:'long',day:'numeric'});document.getElementById('todayQuickStats').innerHTML=[['حجوزات اليوم',new Set([...entries,...exits].map(x=>x.id)).size],['حجوزات الشهر',month.length],['المحصل هذا الشهر',money(revenue)],['المبالغ المتبقية',money(due)],['المصروفات والعمولة',money(expenses)],['صافي الربح',money(revenue-expenses)]].map(x=>`<div class="today-stat"><span>${x[0]}</span><b class="${String(x[1]).includes('ر.س')?'money':''}">${x[1]}</b></div>`).join('');root.innerHTML=entries.length||exits.length?`<div class="today-column"><div class="today-column-title">⬅️ دخول اليوم (${entries.length})</div>${entries.map(b=>todayCard(b,'entry')).join('')||'<div class="empty">لا يوجد دخول اليوم</div>'}</div><div class="today-column"><div class="today-column-title">➡️ خروج اليوم (${exits.length})</div>${exits.map(b=>todayCard(b,'exit')).join('')||'<div class="empty">لا يوجد خروج اليوم</div>'}</div>`:'<div class="empty" style="grid-column:1/-1">لا توجد حجوزات دخول أو خروج اليوم.</div>';const next=upcoming()[0],nextBox=document.getElementById('todayNextBooking');if(next){const start=new Date(next.date+'T15:30:00'),ms=Math.max(0,start-Date.now()),days=Math.floor(ms/86400000),hours=Math.floor(ms%86400000/3600000);nextBox.innerHTML=`<b>أقرب حجز قادم:</b> ${escapeHtml(next.name)} — بعد ${days} يوم و${hours} ساعة • ${escapeHtml(next.date)}`}else nextBox.textContent='لا يوجد حجز قادم.'}catch(err){root.innerHTML=`<div class="sync-banner error">تعذر عرض لوحة اليوم: ${escapeHtml(err.message||'خطأ غير معروف')}</div>`}}
+function renderTodayBoard(){const root=document.getElementById('todayBoardContent');if(!root)return;try{const today=isoToday(),active=(db.bookings||[]).filter(b=>b.recordType!=='family'&&!['ملغي','مؤجل'].includes(b.status)),entries=active.filter(b=>b.date===today),exits=active.filter(b=>bookingExitDate(b)===today),month=active.filter(b=>monthMatch(b.date)),cashExpenses=(db.expenses||[]).filter(e=>monthMatch(e.date)).reduce((s,e)=>s+Number(e.amount||0),0),monthCommission=month.filter(isCommissionEligible).reduce((s,b)=>s+managerCommissionAmount(b),0),expenses=cashExpenses+monthCommission,revenue=month.reduce((s,b)=>s+getPaidAmount(b),0),due=active.reduce((s,b)=>s+getRemainingAmount(b),0);document.getElementById('todayBoardDate').textContent=new Date().toLocaleDateString('ar-SA',{weekday:'long',year:'numeric',month:'long',day:'numeric'});document.getElementById('todayQuickStats').innerHTML=[['حجوزات اليوم',new Set([...entries,...exits].map(x=>x.id)).size],['حجوزات الشهر',month.length],['المحصل هذا الشهر',money(revenue)],['المبالغ المتبقية',money(due)],['المصروفات والعمولة',money(expenses)],['صافي الربح',money(revenue-expenses)]].map(x=>`<div class="today-stat"><span>${x[0]}</span><b class="${String(x[1]).includes('ر.س')?'money':''}">${x[1]}</b></div>`).join('');root.innerHTML=entries.length||exits.length?`<div class="today-column"><div class="today-column-title">⬅️ دخول اليوم (${entries.length})</div>${entries.map(b=>todayCard(b,'entry')).join('')||'<div class="empty">لا يوجد دخول اليوم</div>'}</div><div class="today-column"><div class="today-column-title">➡️ خروج اليوم (${exits.length})</div>${exits.map(b=>todayCard(b,'exit')).join('')||'<div class="empty">لا يوجد خروج اليوم</div>'}</div>`:'<div class="empty" style="grid-column:1/-1">لا توجد حجوزات دخول أو خروج اليوم.</div>';const next=upcoming()[0],nextBox=document.getElementById('todayNextBooking');if(next){const start=new Date(next.date+'T15:30:00'),ms=Math.max(0,start-Date.now()),days=Math.floor(ms/86400000),hours=Math.floor(ms%86400000/3600000);nextBox.innerHTML=`<b>أقرب حجز قادم:</b> ${escapeHtml(next.name)} — بعد ${days} يوم و${hours} ساعة • ${escapeHtml(next.date)}`}else nextBox.textContent='لا يوجد حجز قادم.'}catch(err){root.innerHTML=`<div class="sync-banner error">تعذر عرض لوحة اليوم: ${escapeHtml(err.message||'خطأ غير معروف')}</div>`}}
 async function v95SetBookingStatus(id,status){const b=db.bookings.find(x=>x.id===id);if(!b)return;if(!confirm(`تأكيد تغيير حالة حجز ${b.name} إلى «${status}»؟`))return;const before=b.status;b.status=status;b.updatedAt=new Date().toISOString();ensureCleaningTaskForBooking(b,before);addAudit('تعديل','حالة حجز',`${b.name}: ${before} ← ${status}`,{status:before},{status});await persist();renderTodayBoard()}
 function v95CopyPhone(id){const b=db.bookings.find(x=>x.id===id);if(!b)return;const value=b.phone||'';navigator.clipboard?.writeText(value).then(()=>alert('تم نسخ رقم الجوال.')).catch(()=>prompt('انسخ رقم الجوال:',value))}
 function v95OpenWhatsApp(id){const b=db.bookings.find(x=>x.id===id);if(!b)return;const phone=normalizeSaudiPhone(b.phone);if(!phone){alert('رقم الجوال غير صالح لواتساب.');return}window.open(`https://wa.me/${phone}`,'_blank','noopener')}
 function v95RecordPayment(id){openBooking(id);setTimeout(()=>{bPaid?.focus();bPaid?.scrollIntoView({behavior:'smooth',block:'center'})},100)}
-function v95BookingDetails(id){const b=db.bookings.find(x=>x.id===id);if(!b)return;const p=getPaymentStatus(b),t=bookingTimes(b),remainingLabel=bookingDaysRemainingLabel(b);if(!document.getElementById('v95DetailsModal')){const modal=document.createElement('div');modal.id='v95DetailsModal';modal.className='modal';modal.innerHTML='<div class="sheet" style="max-width:620px;margin:auto"><div class="sheet-head"><h2>تفاصيل الحجز</h2><button class="close" onclick="closeModal(\'v95DetailsModal\')">×</button></div><div id="v95DetailsBody"></div></div>';document.body.appendChild(modal)}document.getElementById('v95DetailsBody').innerHTML=`<h3>${escapeHtml(b.name)}</h3><div class="notice" style="margin:0 0 12px">📅 ${escapeHtml(remainingLabel)}</div><div class="meta">#${escapeHtml(b.code||'')} • ${escapeHtml(b.phone||'')} • ${escapeHtml(b.type)}<br>الدخول: ${escapeHtml(b.date)} ${t.entry}<br>الخروج: ${escapeHtml(bookingExitDate(b))} ${t.exit}<br>الحالة: ${escapeHtml(b.status)} • <span class="payment-help">السداد: ${paymentStateLabel(b)} ${helpIcon(paymentHelpKey(b))}</span><br>الإجمالي ${money(b.total)} • المستلم ${money(b.paid)} • المتبقي ${money(p.remaining)}</div><div class="actions"><button class="primary" onclick="closeModal('v95DetailsModal');openBooking('${b.id}')">فتح الحجز كاملًا</button></div>`;document.getElementById('v95DetailsModal').classList.add('open')}
+function v95BookingDetails(id){const b=db.bookings.find(x=>x.id===id);if(!b)return;const p=getPaymentStatus(b),paid=getPaidAmount(b),t=bookingTimes(b),remainingLabel=bookingDaysRemainingLabel(b),dateDetails=b.status==='مؤجل'?`الموعد: مؤجل بلا تاريخ<br>الموعد السابق: ${escapeHtml(b.postponedFromDate||'غير محفوظ')}`:`الدخول: ${escapeHtml(b.date)} ${t.entry}<br>الخروج: ${escapeHtml(bookingExitDate(b))} ${t.exit}`;if(!document.getElementById('v95DetailsModal')){const modal=document.createElement('div');modal.id='v95DetailsModal';modal.className='modal';modal.innerHTML='<div class="sheet" style="max-width:620px;margin:auto"><div class="sheet-head"><h2>تفاصيل الحجز</h2><button class="close" onclick="closeModal(\'v95DetailsModal\')">×</button></div><div id="v95DetailsBody"></div></div>';document.body.appendChild(modal)}document.getElementById('v95DetailsBody').innerHTML=`<h3>${escapeHtml(b.name)}</h3><div class="notice" style="margin:0 0 12px">📅 ${escapeHtml(remainingLabel)}</div><div class="meta">#${escapeHtml(b.code||'')} • ${escapeHtml(b.phone||'')} • ${escapeHtml(b.type)}<br>${dateDetails}<br>الحالة: ${escapeHtml(b.status)} • <span class="payment-help">السداد: ${paymentStateLabel(b)} ${helpIcon(paymentHelpKey(b))}</span><br>الإجمالي ${money(b.total)} • المستلم ${money(paid)} • المتبقي الآن ${money(p.remaining)}</div><div class="actions"><button class="primary" onclick="closeModal('v95DetailsModal');openBooking('${b.id}')">فتح الحجز كاملًا</button></div>`;document.getElementById('v95DetailsModal').classList.add('open')}
 function calendarStatusClass(b){if(b.status==='غير مؤكد')return 'cal-status-unconfirmed';if(b.status==='تم الدخول')return 'cal-status-entered';if(b.status==='تم الخروج')return 'cal-status-exited';if(b.status==='ملغي')return 'cal-status-cancelled';return 'cal-status-confirmed'}
 function v95CalendarEvent(b){const remainingLabel=bookingDaysRemainingLabel(b,true);return `<button class="calendar-event-chip ${calendarStatusClass(b)} ${isFullyPaid(b)?'cal-status-paid':'cal-status-due'}" title="${escapeHtml(b.name)} — ${escapeHtml(b.status)} — ${paymentStateLabel(b)} — ${escapeHtml(remainingLabel)}" onclick="event.stopPropagation();v95BookingDetails('${b.id}')">${b.recordType==='family'?'👨‍👩‍👧‍👦 العائلة':escapeHtml((b.name||'حجز').slice(0,18))}<span style="display:block;font-size:9px;margin-top:2px">${escapeHtml(remainingLabel)}</span></button>`}
 function fillCalendarPickers(){const mp=document.getElementById('calendarMonthPicker'),yp=document.getElementById('calendarYearPicker');if(!mp||!yp)return;mp.innerHTML=gregorianMonthsAr.map((x,i)=>`<option value="${i}" ${i===calDate.getMonth()?'selected':''}>${x}</option>`).join('');const y=calDate.getFullYear();yp.innerHTML=Array.from({length:11},(_,i)=>y-5+i).map(x=>`<option ${x===y?'selected':''}>${x}</option>`).join('')}
@@ -3951,7 +3967,7 @@ renderCalendar=function(){fillCalendarPickers();if(calendarViewMode==='month'){d
 renderTodayBoard=function(){
   const root=document.getElementById('todayBoardContent');if(!root)return;
   try{
-    const today=isoToday(),active=(db.bookings||[]).filter(b=>b.recordType!=='family'&&b.status!=='ملغي');
+    const today=isoToday(),active=(db.bookings||[]).filter(b=>b.recordType!=='family'&&!['ملغي','مؤجل'].includes(b.status));
     const now=new Date();
     const entries=active.filter(b=>b.date===today&&!['تم الدخول','تم الخروج'].includes(b.status)&&now>=new Date(`${today}T15:30:00`));
     const exits=active.filter(b=>bookingExitDate(b)===today&&b.status!=='تم الخروج'&&hasReachedBookingExitTime(b,now));

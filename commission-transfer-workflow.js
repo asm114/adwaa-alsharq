@@ -16,7 +16,7 @@ const moneyText=value=>typeof window.money==='function'?window.money(value):`${N
 const nowIso=()=>new Date().toISOString();
 const bookingFullyPaid=row=>{
   const total=Number(row?.total||0),paid=Number(row?.paid||0);
-  return row?.recordType!=='family'&&row?.status!=='ملغي'&&Number.isFinite(total)&&Number.isFinite(paid)&&total>0&&paid>=total;
+  return row?.recordType!=='family'&&!['ملغي','مؤجل'].includes(row?.status)&&Number.isFinite(total)&&Number.isFinite(paid)&&total>0&&paid>=total;
 };
 const subscriptionFullyPaid=row=>typeof window.subscriptionCommissionFullyPaid==='function'?window.subscriptionCommissionFullyPaid(row):Number(row?.total||0)>0&&Number(row?.paid||0)>=Number(row?.total||0);
 

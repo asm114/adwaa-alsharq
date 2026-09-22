@@ -26,7 +26,7 @@ test('direct save surfaces real Supabase update errors',async()=>{
 
 test('production config owns booking submit and verifies Supabase before closing',async()=>{
   const config=await read('supabase-config.staging.js');
-  assert.match(config,/BOOKING_SAVE_VERSION='20260916-3'/);
+  assert.match(config,/BOOKING_SAVE_VERSION='20260922-1'/);
   assert.match(config,/document\.addEventListener\('submit'/);
   assert.match(config,/event\.target\?\.id!=='bookingForm'/);
   assert.match(config,/event\.stopImmediatePropagation\(\)/);

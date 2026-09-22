@@ -166,7 +166,7 @@ const SOURCE_BOOKING='booking';
 const SOURCE_LEGACY='legacy';
 let checking=false;
 const state=()=>window.db;
-const activeBooking=booking=>booking&&booking.status!=='ملغي'&&booking.date&&booking.id;
+const activeBooking=booking=>booking&&!['ملغي','مؤجل'].includes(booking.status)&&booking.date&&booking.id;
 const bookingId=booking=>String(booking?.id||'');
 function addDays(iso,days){const d=new Date(`${iso}T12:00:00`);d.setDate(d.getDate()+days);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function occupiedDates(booking){if(!activeBooking(booking))return[];const days=booking.type==='مبيت'?Math.max(1,Number(booking.stayDays||1)):1;return Array.from({length:days},(_,i)=>addDays(booking.date,i))}

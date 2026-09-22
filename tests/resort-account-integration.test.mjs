@@ -54,17 +54,17 @@ test('refunds commissions expenses and advances feed the balance without changin
 
 test('finance loader brings the resort balance after commission workflow',async()=>{
   const loader=await read('subscription-booking-type.js');
-  const commission=loader.indexOf('commission-transfer-workflow.js?v=20260813-2');
+  const commission=loader.indexOf('commission-transfer-workflow.js?v=20260922-1');
   const account=loader.indexOf('resort-account-balance.js?v=20260921-1');
   assert.ok(commission>=0);
   assert.ok(account>commission);
 });
 
 
-test('resort cancellation settles all cash actually paid while customer cancellation remains deposit-policy based',async()=>{
+test('cancellation settles all cash actually received without deleting the payment history',async()=>{
   const html=await read('index.html');
-  assert.match(html,/const cashPaid=core\.cashCollected\(oldBooking\)/);
-  assert.match(html,/const settlementAmount=cancelledBy==='resort'\?cashPaid:depositAmount/);
+  assert.match(html,/const cashPaid=core\.cashCollected\(financialSource\)/);
+  assert.match(html,/const settlementAmount=typeof core\.cancellationSettlement==='function'\?core\.cancellationSettlement\(financialSource\):cashPaid/);
   assert.match(html,/refundAmount:finalAction==='refund'\?settlementAmount:0/);
 });
 

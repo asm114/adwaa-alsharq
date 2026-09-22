@@ -40,6 +40,7 @@ test('حماية العربون تطبق فقط على الحجز المفتوح
   assert.match(source,/formCode/);
   assert.match(source,/requested>maxDeposit\+0\.009/);
   assert.match(source,/payments\[index\]=\{\.\.\.payments\[index\],amount:requested\}/);
+  assert.match(source,/BookingFinancialCore\?\.isFormSaveActive/);
 });
 
 test('القيمة التي كتبها المستخدم تحفظ قبل أن تعيد واجهة الدفعات ضبط الحقل',async()=>{
@@ -68,6 +69,7 @@ test('تعديل الحجز لا يسقط رصيد العميل من إجمال�
 test('الحفظ يثبت التاريخ الذي اختاره المستخدم ويوقف النجاح عند عدم مطابقته',async()=>{
   const source=await read('booking-save-stability.js');
   assert.match(source,/const requestedDate=String\(document\.getElementById\('bDate'\)/);
-  assert.match(source,/String\(localSaved\.date\|\|''\)!==requestedDate/);
+  assert.match(source,/String\(localSaved\?\.date\|\|''\)===requestedDate/);
   assert.match(source,/لم يتم تثبيت تاريخ الحجز المطلوب/);
+  assert.match(source,/لم يتم تثبيت حالة «مؤجل بلا موعد»/);
 });

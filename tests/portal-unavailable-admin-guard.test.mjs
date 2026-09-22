@@ -30,5 +30,5 @@ test('legacy auto-sync is not loaded by official production entry points',async(
     read('subscription-booking-type.js')
   ]);
   for(const source of [index,finalAdmin,subscription])assert.doesNotMatch(source,/portal-booking-auto-sync\.js/);
-  assert.match(finalAdmin,/portal-booking-sync-stable\.js\?v=20260831-1/);
+  assert.match(finalAdmin,/portal-booking-sync-stable\.js\?v=20260922-1/);
 });

@@ -9,9 +9,10 @@ function safe(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp
 function moneyText(value){if(typeof money==='function')return money(Number(value||0));return `${new Intl.NumberFormat('ar-SA').format(Number(value||0))} ر.س`}
 function todayIso(){if(typeof isoToday==='function')return isoToday();const now=new Date();return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`}
 function dateIso(date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`}
-function activeBookings(){if(typeof db==='undefined'||!Array.isArray(db?.bookings))return [];return db.bookings.filter(b=>b.status!=='ملغي'&&b.recordType!=='family')}
+function activeBookings(){if(typeof db==='undefined'||!Array.isArray(db?.bookings))return [];return db.bookings.filter(b=>!['ملغي','مؤجل'].includes(b.status)&&b.recordType!=='family')}
 function remainingAmount(booking){if(typeof getRemainingAmount==='function')return Math.max(0,Number(getRemainingAmount(booking)||0));return Math.max(0,Number(booking?.total||0)-Number(booking?.paid||0))}
-function fullyPaid(booking){if(typeof isFullyPaid==='function')return !!isFullyPaid(booking);const total=Number(booking?.total||0),paid=Number(booking?.paid||0);return total>0&&paid>=total}
+function paidAmount(booking){return window.BookingFinancialCore?.settledAmount(booking)??Math.max(0,Number(booking?.paid||0))}
+function fullyPaid(booking){if(typeof isFullyPaid==='function')return !!isFullyPaid(booking);const total=Number(booking?.total||0),paid=paidAmount(booking);return total>0&&paid>=total}
 function commissionAmount(booking){if(typeof managerCommissionAmount==='function')return Math.max(0,Number(managerCommissionAmount(booking)||0));return Math.max(0,Number(booking?.commissionSnapshot?.amount||0))}
 function commissionState(booking){if(typeof commissionStatus==='function')return commissionStatus(booking);return booking?.commissionSnapshot?.status||''}
 
@@ -27,7 +28,7 @@ function sortByDateAsc(list){return [...list].sort((a,b)=>String(a.date||'').loc
 function sortByDateDesc(list){return [...list].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.code||'').localeCompare(String(a.code||'')))}
 function currentUpcoming(active,today){
   if(typeof upcoming==='function'){
-    try{return (upcoming()||[]).filter(b=>b&&b.status!=='ملغي'&&b.recordType!=='family')}catch{}
+    try{return (upcoming()||[]).filter(b=>b&&!['ملغي','مؤجل'].includes(b.status)&&b.recordType!=='family')}catch{}
   }
   return sortByDateAsc(active.filter(b=>String(b.date||'')>=today&&!['تم الخروج'].includes(b.status)));
 }
@@ -39,18 +40,18 @@ function metricDefinition(id){
   const week=active.filter(b=>b.date>=p.weekStart&&b.date<=p.weekEnd);
   const upcomingList=currentUpcoming(active,p.today);
   const withDue=active.filter(b=>remainingAmount(b)>0);
-  const withSimpleDue=active.filter(b=>Math.max(0,Number(b.total||0)-Number(b.paid||0))>0);
-  const paid=active.filter(b=>Number(b.paid||0)>0);
+  const withSimpleDue=active.filter(b=>remainingAmount(b)>0);
+  const paid=active.filter(b=>paidAmount(b)>0);
   const earnedCommission=active.filter(b=>commissionState(b)==='earned'&&commissionAmount(b)>0);
   const defs={
     sMonth:{title:'حجوزات الشهر',note:'الحجوزات غير الملغاة المسجلة بتاريخ هذا الشهر.',items:sortByDateDesc(month),mode:'booking'},
     sUpcoming:{title:'الحجوزات القادمة',note:'الحجوزات القادمة التي ما زالت ضمن التشغيل.',items:sortByDateAsc(upcomingList),mode:'upcoming'},
     sDue:{title:'إجمالي المتبقي',note:'الحجوزات التي عليها مبلغ متبقٍ حاليًا.',items:sortByDateAsc(withSimpleDue),mode:'due-simple'},
-    sRevenueMonth:{title:'إيراد الشهر',note:'تفصيل المبلغ الظاهر حسب المبالغ المستلمة في حجوزات هذا الشهر.',items:sortByDateDesc(month.filter(b=>Number(b.paid||0)>0)),mode:'paid'},
+    sRevenueMonth:{title:'إيراد الشهر',note:'تفصيل المبلغ الظاهر حسب المبالغ المستلمة في حجوزات هذا الشهر.',items:sortByDateDesc(month.filter(b=>paidAmount(b)>0)),mode:'paid'},
     sTotal:{title:'إجمالي الحجوزات',note:'كل الحجوزات غير الملغاة للعملاء.',items:sortByDateDesc(active),mode:'booking'},
     sToday:{title:'حجوزات اليوم',note:'الحجوزات المسجلة بتاريخ اليوم.',items:sortByDateAsc(today),mode:'booking'},
     sWeek:{title:'حجوزات الأسبوع',note:'الحجوزات من بداية الأسبوع الحالي إلى نهايته.',items:sortByDateAsc(week),mode:'booking'},
-    sRevenueToday:{title:'إيرادات اليوم',note:'المبالغ المستلمة في الحجوزات المسجلة بتاريخ اليوم.',items:sortByDateDesc(today.filter(b=>Number(b.paid||0)>0)),mode:'paid'},
+    sRevenueToday:{title:'إيرادات اليوم',note:'المبالغ المستلمة في الحجوزات المسجلة بتاريخ اليوم.',items:sortByDateDesc(today.filter(b=>paidAmount(b)>0)),mode:'paid'},
     sPending:{title:'المبالغ المعلقة',note:'تفصيل المبالغ المتبقية التي يتابعها النظام حاليًا.',items:sortByDateAsc(withDue),mode:'due'},
     sCommission:{title:'العمولات المستحقة',note:'الحجوزات التي استحقت عليها عمولة ولم تُسجل كمستلمة بعد.',items:sortByDateDesc(earnedCommission),mode:'commission'},
     sPaid:{title:'إجمالي المحصل',note:'تفصيل كل المبالغ المسجلة كمستلمة في الحجوزات غير الملغاة.',items:sortByDateDesc(paid),mode:'paid'},
@@ -60,9 +61,9 @@ function metricDefinition(id){
 }
 
 function amountFor(booking,mode){
-  if(mode==='paid')return {label:'المستلم',value:Number(booking.paid||0)};
+  if(mode==='paid')return {label:'المستلم',value:paidAmount(booking)};
   if(mode==='due')return {label:'المتبقي',value:remainingAmount(booking)};
-  if(mode==='due-simple')return {label:'المتبقي',value:Math.max(0,Number(booking.total||0)-Number(booking.paid||0))};
+  if(mode==='due-simple')return {label:'المتبقي',value:remainingAmount(booking)};
   if(mode==='commission')return {label:'العمولة',value:commissionAmount(booking)};
   if(mode==='upcoming')return remainingAmount(booking)>0?{label:'المتبقي',value:remainingAmount(booking)}:{label:'الإجمالي',value:Number(booking.total||0)};
   return {label:'الإجمالي',value:Number(booking.total||0)};
@@ -89,7 +90,7 @@ window.openBookingFromMetricDrilldown=openBookingFromDrilldown;
 
 function rowHtml(booking,mode){
   const amount=amountFor(booking,mode);
-  const payment=`الإجمالي ${moneyText(booking.total)} • المستلم ${moneyText(booking.paid)}`;
+  const payment=`الإجمالي ${moneyText(booking.total)} • المستلم ${moneyText(paidAmount(booking))}`;
   const meta=[booking.date||'-',booking.type||'يومي',booking.status||'غير محدد'].map(safe).join(' • ');
   return `<button type="button" class="metric-drilldown-row" data-booking-id="${safe(booking.id||'')}"><span class="metric-drilldown-main"><strong>${safe(booking.name||'بدون اسم')}</strong><small>#${safe(booking.code||'-')} • ${meta}</small><em>${safe(payment)}</em></span><span class="metric-drilldown-amount"><small>${safe(amount.label)}</small><b class="money">${safe(moneyText(amount.value))}</b></span><span class="metric-drilldown-chevron" aria-hidden="true">‹</span></button>`;
 }

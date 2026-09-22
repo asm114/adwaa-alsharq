@@ -11,13 +11,13 @@ test('ملف سياسة العربون صالح نحويًا ومحمل بالن
   const loader=await read('subscription-booking-type.js');
   const index=await read('index.html');
   assert.doesNotThrow(()=>new vm.Script(policy));
-  assert.match(loader,/deposit-refund-policy\.js\?v=20260918-2/);
-  assert.match(index,/deposit-refund-policy\.js\?v=20260918-2/);
+  assert.match(loader,/deposit-refund-policy\.js\?v=20260921-2/);
+  assert.match(index,/deposit-refund-policy\.js\?v=20260921-2/);
 });
 
 test('السياسة المعتمدة تحول إلغاء العميل إلى رصيد وتمنع وصف الاسترداد النقدي له',async()=>{
   const js=await read('deposit-refund-policy.js');
-  assert.match(js,/العربون غير مسترد نقدًا، وفي حال إلغاء الحجز يُحفظ كامل مبلغ العربون كرصيد للعميل لاستخدامه في حجز لاحق/);
+  assert.match(js,/المبالغ المستلمة غير مستردة نقدًا عند إلغاء العميل، ويُحفظ كامل ما استلمه المنتجع كرصيد للعميل لاستخدامه في حجز لاحق/);
   assert.match(js,/إذا ألغى المنتجع الحجز، يكون للعميل خيار استرجاع المبلغ أو إبقائه رصيدًا/);
   assert.doesNotMatch(js,/إرجاع جزئي/);
 });
@@ -53,7 +53,7 @@ test('استخدام رصيد العميل لا يُحسب كتحصيل نقدي
   const core=await read('customer-credit-core.js');
   const index=await read('index.html');
   assert.match(core,/return Math\.max\(0,safeNumber\(booking\?\.paid\)-safeNumber\(booking\?\.customerCreditApplied\)\)/);
-  assert.match(index,/const cashCollected=activeBookings\.reduce/);
+  assert.match(index,/ResortAccountCore\?\.customerCashCollected/);
   assert.match(index,/finCashCollected/);
   assert.match(index,/finCustomerCredits/);
 });
