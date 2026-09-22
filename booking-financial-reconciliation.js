@@ -28,9 +28,15 @@ function paymentIds(booking){return new Set((booking?.payments||[]).map(row=>Str
 function matchesPlan(booking,plan){
   if(!booking||String(booking.id)!==plan.id||String(booking.code)!==plan.code)return {ok:false,reason:'id_or_code'};
   if(Math.abs(num(booking.total)-plan.total)>0.01)return {ok:false,reason:'total_changed'};
-  if(plan.expect?.status&&String(booking.status)!==plan.expect.status)return {ok:false,reason:'status_changed'};
   const ids=paymentIds(booking);
-  if(ids.has(plan.payment.id))return {ok:true,already:true};
+  if(ids.has(plan.payment.id)){
+    const expectedStatus=plan.setStatus||plan.expect?.status||'';
+    if(expectedStatus&&String(booking.status)!==expectedStatus)return {ok:false,reason:'restored_payment_but_status_changed'};
+    const expectedPaid=paidTotal(booking);
+    if(Math.abs(num(booking.paid)-expectedPaid)>0.01)return {ok:false,reason:'restored_payment_but_paid_mismatch'};
+    return {ok:true,already:true};
+  }
+  if(plan.expect?.status&&String(booking.status)!==plan.expect.status)return {ok:false,reason:'status_changed'};
   if(plan.expect?.payments!=null&&Number(booking?.payments?.length||0)!==plan.expect.payments)return {ok:false,reason:'payments_changed'};
   if(plan.expect?.paymentIds){
     for(const id of plan.expect.paymentIds)if(!ids.has(id))return {ok:false,reason:'expected_payment_missing'};
