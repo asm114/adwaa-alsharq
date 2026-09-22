@@ -8,7 +8,7 @@ const PRODUCTION_PUBLISHABLE_KEY='sb_publishable_BFTIR_8VK2qQuKnl2c-jDA_cMnWz0E-
 const PRODUCTION_GITHUB_HOST='asm114.github.io';
 const PRODUCTION_GITHUB_PATH='/adwaa-alsharq';
 const PRODUCTION_VERCEL_HOST='adwaa-alsharq.vercel.app';
-const BOOKING_SAVE_VERSION='20260916-3';
+const BOOKING_SAVE_VERSION='20260921-2';
 const hostname=String(window.location?.hostname||'').toLowerCase();
 const pathname=String(window.location?.pathname||'');
 const isProductionGithubPages=hostname===PRODUCTION_GITHUB_HOST&&(
@@ -73,7 +73,11 @@ async function writeStateAndVerifyBooking(booking){
     throw new Error('تم منع الحفظ لأن الموقع غير متصل بمشروع Production المعتمد.');
   }
 
+  const expectedPayments=window.BookingFinancialCore?.normalizePaymentRows(booking?.payments)||[];
   db=normalizeDB(db);
+  const normalizedLocal=(db.bookings||[]).find(item=>String(item?.id||'')===String(booking.id)||String(item?.code||'')===String(booking.code));
+  const normalizedPayments=window.BookingFinancialCore?.normalizePaymentRows(normalizedLocal?.payments)||[];
+  if(JSON.stringify(normalizedPayments)!==JSON.stringify(expectedPayments))throw new Error('تم إيقاف الحفظ لأن التطبيع غيّر سجل الدفعات قبل الكتابة.');
   const payload={data:db,updated_at:new Date().toISOString()};
   const updateResult=await client
     .from('app_state')
@@ -109,6 +113,8 @@ async function writeStateAndVerifyBooking(booking){
   }
   if(Math.abs(Number(remote.total||0)-Number(booking.total||0))>0.009)throw new Error('إجمالي الحجز لم يتطابق بعد الحفظ.');
   if(Math.abs(Number(remote.paid||0)-Number(booking.paid||0))>0.009)throw new Error('المدفوع لم يتطابق بعد الحفظ.');
+  const remotePayments=window.BookingFinancialCore?.normalizePaymentRows(remote?.payments)||[];
+  if(JSON.stringify(remotePayments)!==JSON.stringify(expectedPayments))throw new Error('سجل الدفعات في Supabase لا يطابق السجل المحفوظ محليًا.');
   return remote;
 }
 
@@ -132,6 +138,11 @@ async function saveBookingAuthoritatively(event){
     }
     const previousStatus=oldBooking?.status||'';
     const selectedRecordType=bookingField('bRecordType')?.value||oldBooking?.recordType||'customer';
+    const requestedCredit=selectedRecordType==='family'?0:Math.max(0,Number(bookingField('customerCreditUse')?.value||0));
+    const creditKey=typeof customerCreditKey==='function'?customerCreditKey(String(bookingField('bName')?.value||'').trim(),String(bookingField('bPhone')?.value||'').trim()):'';
+    const availableCredit=typeof customerCreditBalance==='function'?customerCreditBalance(creditKey,id||''):0;
+    if(requestedCredit>availableCredit+0.009)throw new Error(`رصيد العميل المتاح ${typeof money==='function'?money(availableCredit):availableCredit} فقط.`);
+    const effectiveCredit=String(bookingField('bStatus')?.value||'')==='ملغي'?0:requestedCredit;
     let obj={
       ...(oldBooking||{}),
       id:id||crypto.randomUUID(),
@@ -147,10 +158,18 @@ async function saveBookingAuthoritatively(event){
       notes:String(bookingField('bNotes')?.value||'').trim(),
       photos:typeof editingBookingPhotos!=='undefined'?editingBookingPhotos:[],
       recordType:selectedRecordType,
+      customerCreditApplied:selectedRecordType==='family'?0:effectiveCredit,
       createdAt:oldBooking?.createdAt||new Date().toISOString(),
       updatedAt:new Date().toISOString()
     };
-    obj=normalizeBookingCommission(obj,db.settings);
+    const prepareBookingForSave=()=>{
+      if(selectedRecordType!=='family'){
+        if(!window.BookingPaymentHistory?.prepareBookingForSave)throw new Error('تعذر تحميل سجل الدفعات. حدّث الصفحة قبل حفظ الحجز لحماية المبالغ.');
+        obj=window.BookingPaymentHistory.prepareBookingForSave(obj);
+      }
+      return normalizeBookingCommission(obj,db.settings);
+    };
+    obj=window.BookingFinancialCore?.withFormSaveScope(prepareBookingForSave)??prepareBookingForSave();
 
     if(oldBooking?.commissionSnapshot?.status==='received'&&obj.status==='ملغي'){
       alert('تنبيه: عمولة هذا الحجز مستلمة بالفعل. بقي سجلها محفوظًا ويجب على المدير مراجعته يدويًا.');
@@ -160,6 +179,13 @@ async function saveBookingAuthoritatively(event){
     if(conflict){
       const alt=nextAvailableDate(obj.date);
       throw new Error(`يوجد تعارض مع حجز ${conflict.name} خلال فترة الحجز المطلوبة.${alt?` أقرب تاريخ متاح مبدئيًا: ${alt}`:''}`);
+    }
+
+    if(typeof syncCustomerCreditDebit==='function')syncCustomerCreditDebit(obj,effectiveCredit);
+    if(obj.status==='ملغي'&&previousStatus!=='ملغي'&&oldBooking&&typeof creditCancelledDeposit==='function'){
+      const cancelledBy=bookingField('depositCancellationBy')?.value||'customer';
+      const action=cancelledBy==='resort'?(bookingField('depositCancellationAction')?.value||'credit'):'credit';
+      creditCancelledDeposit(obj,oldBooking,action,cancelledBy);
     }
 
     if(oldBooking){

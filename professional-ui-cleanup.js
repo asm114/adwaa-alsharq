@@ -10,6 +10,8 @@ const subscriptions=()=>Array.isArray(state().subscriptions)?state().subscriptio
 const money=value=>typeof window.money==='function'?window.money(value):`${Math.max(0,Number(value||0)).toLocaleString('ar-SA')} ر.س`;
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#039;'}[c]));
 const norm=value=>String(value||'').replace(/\s+/g,' ').trim();
+const paidAmount=row=>window.BookingFinancialCore?.settledAmount(row)??Math.max(0,Number(row?.paid||0));
+const dueAmount=row=>window.BookingFinancialCore?.remainingAmount(row)??Math.max(0,Number(row?.total||0)-paidAmount(row));
 function activeViewId(){return document.querySelector('.view.active')?.id||''}
 function inBookings(){return activeViewId()==='bookings'}
 
@@ -77,15 +79,15 @@ function ensureDetailModal(){
 function openDetails(title,html){ensureDetailModal();document.getElementById('professionalFinanceTitle').textContent=title;document.getElementById('professionalFinanceBody').innerHTML=html;document.getElementById('professionalFinanceModal').classList.add('open')}
 function detailList(rows,empty='لا توجد بيانات في الفترة المحددة'){return rows.length?`<div class="list">${rows.join('')}</div>`:`<div class="empty">${empty}</div>`}
 function bookingRow(row,extra=''){
-  const due=Math.max(0,Number(row.total||0)-Number(row.paid||0));
-  return `<div class="item"><div><h4>${esc(row.name||'بدون اسم')} <span class="small">#${esc(row.code||'')}</span></h4><div class="meta">${esc(row.date||'')} • ${esc(row.type||'')}<br>الإجمالي ${esc(money(row.total))} • المدفوع ${esc(money(row.paid))} • المتبقي ${esc(money(due))}${extra?`<br>${extra}`:''}</div></div></div>`;
+  const paid=paidAmount(row),due=dueAmount(row);
+  return `<div class="item"><div><h4>${esc(row.name||'بدون اسم')} <span class="small">#${esc(row.code||'')}</span></h4><div class="meta">${esc(row.date||'')} • ${esc(row.type||'')}<br>الإجمالي ${esc(money(row.total))} • المدفوع ${esc(money(paid))} • المتبقي ${esc(money(due))}${extra?`<br>${extra}`:''}</div></div></div>`;
 }
 function expenseRow(row){return `<div class="item"><div><h4>${esc(row.title||row.cat||'مصروف')}</h4><div class="meta">${esc(row.date||'')} • ${esc(row.cat||'غير مصنف')} • ${esc(row.paymentMethod||'طريقة غير محددة')}${row.notes?`<br>${esc(row.notes)}`:''}</div></div><b>${esc(money(row.amount))}</b></div>`}
 function subscriptionPaymentRow(row){return `<div class="item"><div><h4>${esc(row.name)} <span class="small">اشتراك دوري</span></h4><div class="meta">${esc(String(row.date||'').slice(0,10))}<br>دفعة اشتراك رئيسي — لا تتكرر على الزيارات</div></div><b>${esc(money(row.amount))}</b></div>`}
 
-function showRevenue(){const ordinary=periodBookings().filter(r=>Number(r.paid||0)>0).map(r=>bookingRow(r)),subs=subscriptionPayments().map(subscriptionPaymentRow);openDetails('تفاصيل الإيرادات',detailList([...ordinary,...subs]))}
+function showRevenue(){const ordinary=periodBookings().filter(r=>paidAmount(r)>0).map(r=>bookingRow(r)),subs=subscriptionPayments().map(subscriptionPaymentRow);openDetails('تفاصيل الإيرادات',detailList([...ordinary,...subs]))}
 function showDue(){
-  const ordinary=periodBookings().filter(r=>Number(r.total||0)>Number(r.paid||0)).map(r=>bookingRow(r,'⚠️ يوجد مبلغ لم يُستلم بعد'));
+  const ordinary=periodBookings().filter(r=>dueAmount(r)>0).map(r=>bookingRow(r,'⚠️ يوجد مبلغ لم يُستلم بعد'));
   const subs=subscriptions().filter(s=>s?.paymentManaged===true&&s?.status!=='ملغي'&&Number(s.total||0)>Number(s.paid||0)).map(s=>`<div class="item"><div><h4>${esc(s.customerName||s.name||'اشتراك دوري')}</h4><div class="meta">اشتراك دوري رئيسي<br>الإجمالي ${esc(money(s.total))} • المدفوع ${esc(money(s.paid))} • المتبقي ${esc(money(Number(s.total||0)-Number(s.paid||0)))}</div></div></div>`);
   openDetails('المبالغ المتبقية',detailList([...ordinary,...subs]))
 }
@@ -97,11 +99,11 @@ function showCommission(mode){
     openDetails('العمولات المستلمة',detailList(received,'لا توجد عمولات مستلمة في الفترة المحددة'));return;
   }
   const earned=rows.filter(r=>commissionStatus(r)==='earned').map(r=>bookingRow(r,`🟠 مستحقة ولم تؤكد تحويلها لحسابك • قيمة العمولة ${esc(money(commissionAmount(r)))}`));
-  const waiting=rows.filter(r=>commissionStatus(r)==='not_earned'&&Number(r.total||0)>0&&Number(r.paid||0)<Number(r.total||0)).map(r=>bookingRow(r,'🟡 لم تستحق بعد — العميل دفع عربون/جزئي ولم يكتمل السداد'));
+  const waiting=rows.filter(r=>commissionStatus(r)==='not_earned'&&Number(r.total||0)>0&&dueAmount(r)>0).map(r=>bookingRow(r,'🟡 لم تستحق بعد — العميل دفع عربون/جزئي ولم يكتمل السداد'));
   openDetails('متابعة عمولات المدير',`${earned.length?'<div class="notice"><b>مستحقة الآن</b></div>':''}${detailList(earned,'لا توجد عمولات مستحقة الآن')}${waiting.length?`<div class="notice" style="margin-top:14px"><b>بانتظار اكتمال السداد</b></div>${detailList(waiting)}`:''}`)
 }
 function showProfit(){
-  const ordinaryRevenue=periodBookings().reduce((s,r)=>s+Number(r.paid||0),0),subRevenue=subscriptionPayments().reduce((s,r)=>s+r.amount,0),cost=expenses().filter(r=>dateMatch(r.date)).reduce((s,r)=>s+Number(r.amount||0),0),received=bookings().filter(r=>dateMatch(r.date)&&commissionStatus(r)==='received').reduce((s,r)=>s+commissionAmount(r),0),revenue=ordinaryRevenue+subRevenue;
+  const ordinaryRevenue=periodBookings().reduce((s,r)=>s+paidAmount(r),0),subRevenue=subscriptionPayments().reduce((s,r)=>s+r.amount,0),cost=expenses().filter(r=>dateMatch(r.date)).reduce((s,r)=>s+Number(r.amount||0),0),received=bookings().filter(r=>dateMatch(r.date)&&commissionStatus(r)==='received').reduce((s,r)=>s+commissionAmount(r),0),revenue=ordinaryRevenue+subRevenue;
   openDetails('تفاصيل صافي الربح',`<div class="notice"><b>المحصل:</b> ${esc(money(revenue))}<br><b>المصروفات:</b> ${esc(money(cost))}<br><b>العمولات المستلمة:</b> ${esc(money(received))}<br><b>الصافي التقريبي:</b> ${esc(money(revenue-cost-received))}</div>`)
 }
 function makeClickable(id,handler,title){const el=document.getElementById(id);if(!el||el.dataset.professionalClickable)return;const card=el.closest('.finance-card,.stat')||el;card.classList.add('professional-clickable');card.tabIndex=0;card.setAttribute('role','button');card.setAttribute('aria-label',title);el.dataset.professionalClickable='1';card.addEventListener('click',handler);card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();handler()}})}

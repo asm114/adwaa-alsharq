@@ -50,3 +50,13 @@ test('editing the same booking replaces rather than duplicates its credit debit'
   assert.equal(ledger.filter(x=>x.type==='debit').length,1);
   assert.equal(core.balanceFor(ledger,key),100);
 });
+
+test('cancellation credit equals all cash received and is not duplicated',()=>{
+  const booking={paid:500,payments:[{amount:200,type:'deposit'},{amount:300,type:'partial'}]};
+  assert.equal(core.cancellationSettlement(booking),500);
+  const key=core.customerKey('عميل','0500000000');
+  let ledger=core.addCreditOnce([],{customerKey:key,amount:core.cancellationSettlement(booking),sourceBookingId:'cancelled-full'});
+  ledger=core.addCreditOnce(ledger,{customerKey:key,amount:core.cancellationSettlement(booking),sourceBookingId:'cancelled-full'});
+  assert.equal(core.balanceFor(ledger,key),500);
+  assert.equal(ledger.length,1);
+});

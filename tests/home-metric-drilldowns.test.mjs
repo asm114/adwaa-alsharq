@@ -17,7 +17,7 @@ test('all dashboard metrics expose drill-downs',()=>{
 
 test('drill-down layer is reversible and loaded independently',()=>{
   assert.match(loader,/home-metric-drilldowns\.css\?v=20260822-1/);
-  assert.match(loader,/home-metric-drilldowns\.js\?v=20260822-1/);
+  assert.match(loader,/home-metric-drilldowns\.js\?v=20260921-2/);
   assert.match(loader,/dataset\.homeMetricDrilldowns/);
   assert.match(js,/homeMetricDrilldownModal/);
 });

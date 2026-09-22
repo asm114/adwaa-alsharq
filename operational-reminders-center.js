@@ -16,7 +16,7 @@ const notifications=()=>{const state=db();if(!state)return[];state.notifications
 const isoDate=date=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
 const nowIso=()=>new Date().toISOString();
 const money=value=>typeof window.money==='function'?window.money(value):`${Math.max(0,Number(value||0)).toLocaleString('ar-SA')} ر.س`;
-const remaining=booking=>Math.max(0,Number(booking?.total||0)-Number(booking?.paid||0));
+const remaining=booking=>window.BookingFinancialCore?.remainingAmount(booking)??Math.max(0,Number(booking?.total||0)-Number(booking?.paid||0));
 const activeBooking=booking=>booking&&booking.recordType!=='family'&&booking.status!=='ملغي';
 const reminderKey=(type,booking)=>`ops:${type}:${booking.id}`;
 

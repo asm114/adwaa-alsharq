@@ -53,7 +53,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 (()=>{
   if(document.querySelector('script[data-bookings-excel-export]'))return;
   const script=document.createElement('script');
-  script.src='bookings-excel-export.js?v=20260807-1';
+  script.src='bookings-excel-export.js?v=20260921-2';
   script.defer=true;
   script.dataset.bookingsExcelExport='1';
   document.head.appendChild(script);

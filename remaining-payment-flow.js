@@ -13,7 +13,7 @@ const state=()=>window.db;
 const bookings=()=>Array.isArray(state()?.bookings)?state().bookings:[];
 const notifications=()=>{const db=state();if(!db)return[];db.notifications=Array.isArray(db.notifications)?db.notifications:[];return db.notifications};
 const safeNumber=value=>Math.max(0,Number(value||0));
-const remaining=booking=>Math.max(0,safeNumber(booking?.total)-safeNumber(booking?.paid));
+const remaining=booking=>window.BookingFinancialCore?.remainingAmount(booking)??Math.max(0,safeNumber(booking?.total)-safeNumber(booking?.paid));
 const active=booking=>booking&&booking.recordType!=='family'&&booking.status!=='ملغي';
 const isoDate=date=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
 const todayIso=()=>isoDate(new Date());

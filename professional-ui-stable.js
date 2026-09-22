@@ -12,6 +12,8 @@ const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;
 const norm=value=>String(value||'').replace(/\s+/g,' ').trim();
 const activeViewId=()=>document.querySelector('.view.active')?.id||'';
 const inBookings=()=>activeViewId()==='bookings';
+const paidAmount=row=>window.BookingFinancialCore?.settledAmount(row)??Math.max(0,Number(row?.paid||0));
+const dueAmount=row=>window.BookingFinancialCore?.remainingAmount(row)??Math.max(0,Number(row?.total||0)-paidAmount(row));
 
 function cleanVoiceUi(){
   document.querySelectorAll('.voice,[onclick*="startVoice"],[onclick*="parseVoice"]').forEach(el=>el.remove());
@@ -82,8 +84,8 @@ function ensureDetailModal(){
 function openDetails(title,html){ensureDetailModal();document.getElementById('professionalFinanceTitle').textContent=title;document.getElementById('professionalFinanceBody').innerHTML=html;document.getElementById('professionalFinanceModal').classList.add('open')}
 function detailList(rows,empty='لا توجد بيانات في الفترة المحددة'){return rows.length?`<div class="list">${rows.join('')}</div>`:`<div class="empty">${empty}</div>`}
 function bookingRow(row,extra=''){
-  const due=Math.max(0,Number(row.total||0)-Number(row.paid||0));
-  return `<div class="item"><div><h4>${esc(row.name||'بدون اسم')} <span class="small">#${esc(row.code||'')}</span></h4><div class="meta">${esc(row.date||'')} • ${esc(row.type||'')}<br>الإجمالي ${esc(money(row.total))} • المدفوع ${esc(money(row.paid))} • المتبقي ${esc(money(due))}${extra?`<br>${extra}`:''}</div></div></div>`;
+  const paid=paidAmount(row),due=dueAmount(row);
+  return `<div class="item"><div><h4>${esc(row.name||'بدون اسم')} <span class="small">#${esc(row.code||'')}</span></h4><div class="meta">${esc(row.date||'')} • ${esc(row.type||'')}<br>الإجمالي ${esc(money(row.total))} • المدفوع ${esc(money(paid))} • المتبقي ${esc(money(due))}${extra?`<br>${extra}`:''}</div></div></div>`;
 }
 function subscriptionRow(row,extra=''){
   const due=Math.max(0,Number(row.total||0)-Number(row.paid||0));
@@ -91,9 +93,9 @@ function subscriptionRow(row,extra=''){
 }
 function expenseRow(row){return `<div class="item"><div><h4>${esc(row.title||row.cat||'مصروف')}</h4><div class="meta">${esc(row.date||'')} • ${esc(row.cat||'غير مصنف')} • ${esc(row.paymentMethod||'طريقة غير محددة')}${row.notes?`<br>${esc(row.notes)}`:''}</div></div><b>${esc(money(row.amount))}</b></div>`}
 function subscriptionPaymentRow(row){return `<div class="item"><div><h4>${esc(row.name)} <span class="small">اشتراك دوري</span></h4><div class="meta">${esc(String(row.date||'').slice(0,10))}<br>دفعة اشتراك رئيسي — لا تتكرر على الزيارات</div></div><b>${esc(money(row.amount))}</b></div>`}
-function showRevenue(){openDetails('تفاصيل الإيرادات',detailList([...periodBookings().filter(r=>Number(r.paid||0)>0).map(r=>bookingRow(r)),...subscriptionPayments().map(subscriptionPaymentRow)]))}
+function showRevenue(){openDetails('تفاصيل الإيرادات',detailList([...periodBookings().filter(r=>paidAmount(r)>0).map(r=>bookingRow(r)),...subscriptionPayments().map(subscriptionPaymentRow)]))}
 function showDue(){
-  const ordinary=periodBookings().filter(r=>Number(r.total||0)>Number(r.paid||0)).map(r=>bookingRow(r,'⚠️ يوجد مبلغ لم يُستلم بعد'));
+  const ordinary=periodBookings().filter(r=>dueAmount(r)>0).map(r=>bookingRow(r,'⚠️ يوجد مبلغ لم يُستلم بعد'));
   const subs=periodSubscriptions().filter(s=>Number(s.total||0)>Number(s.paid||0)).map(s=>subscriptionRow(s,'⚠️ يوجد مبلغ لم يُستلم بعد'));
   openDetails('المبالغ المتبقية',detailList([...ordinary,...subs]));
 }
@@ -110,13 +112,13 @@ function showCommission(mode){
     ...subs.filter(r=>subscriptionCommissionStatus(r)==='earned').map(r=>subscriptionRow(r,`🟠 عمولة الاشتراك مستحقة مرة واحدة بعد اكتمال السداد • ${esc(money(subscriptionCommissionAmount(r)))}`))
   ];
   const waiting=[
-    ...rows.filter(r=>commissionStatus(r)==='not_earned'&&Number(r.total||0)>0&&Number(r.paid||0)<Number(r.total||0)).map(r=>bookingRow(r,'🟡 لم تستحق بعد — العميل دفع عربون/جزئي ولم يكتمل السداد')),
+    ...rows.filter(r=>commissionStatus(r)==='not_earned'&&Number(r.total||0)>0&&dueAmount(r)>0).map(r=>bookingRow(r,'🟡 لم تستحق بعد — العميل دفع عربون/جزئي ولم يكتمل السداد')),
     ...subs.filter(r=>subscriptionCommissionStatus(r)==='not_earned'&&Number(r.total||0)>0&&Number(r.paid||0)<Number(r.total||0)).map(r=>subscriptionRow(r,'🟡 عمولة الاشتراك تنتظر اكتمال سداد قيمة الباقة'))
   ];
   openDetails('متابعة عمولات المدير',`${detailList(earned,'لا توجد عمولات مستحقة الآن')}${waiting.length?`<div class="notice" style="margin-top:14px"><b>بانتظار اكتمال السداد</b></div>${detailList(waiting)}`:''}`);
 }
 function showProfit(){
-  const ordinaryRevenue=periodBookings().reduce((sum,row)=>sum+Number(row.paid||0),0),subRevenue=subscriptionPayments().reduce((sum,row)=>sum+row.amount,0),cost=expenses().filter(row=>dateMatch(row.date)).reduce((sum,row)=>sum+Number(row.amount||0),0);
+  const ordinaryRevenue=periodBookings().reduce((sum,row)=>sum+paidAmount(row),0),subRevenue=subscriptionPayments().reduce((sum,row)=>sum+row.amount,0),cost=expenses().filter(row=>dateMatch(row.date)).reduce((sum,row)=>sum+Number(row.amount||0),0);
   const ordinaryReceived=periodBookings().filter(row=>commissionStatus(row)==='received').reduce((sum,row)=>sum+commissionAmount(row),0);
   const subscriptionReceived=periodSubscriptions().filter(row=>subscriptionCommissionStatus(row)==='received').reduce((sum,row)=>sum+subscriptionCommissionAmount(row),0);
   const received=ordinaryReceived+subscriptionReceived,revenue=ordinaryRevenue+subRevenue;

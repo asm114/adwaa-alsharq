@@ -40,6 +40,7 @@ test('حماية العربون تطبق فقط على الحجز المفتوح
   assert.match(source,/formCode/);
   assert.match(source,/requested>maxDeposit\+0\.009/);
   assert.match(source,/payments\[index\]=\{\.\.\.payments\[index\],amount:requested\}/);
+  assert.match(source,/BookingFinancialCore\?\.isFormSaveActive/);
 });
 
 test('القيمة التي كتبها المستخدم تحفظ قبل أن تعيد واجهة الدفعات ضبط الحقل',async()=>{

@@ -42,6 +42,9 @@
     if(payments.length)return payments.reduce((sum,row)=>sum+safeNumber(row?.amount),0);
     return Math.max(0,safeNumber(booking?.paid)-safeNumber(booking?.customerCreditApplied));
   }
+  function cancellationSettlement(booking){
+    return cashCollected(booking);
+  }
   function addCreditOnce(ledger,{customerKey:key,name='',phone='',amount=0,sourceBookingId='',sourceBookingCode='',createdAt=''}) {
     let rows=creditRows(ledger).map(row=>({...row}));
     const normalizedAmount=safeNumber(amount);
@@ -72,6 +75,6 @@
     });
     return recalculateBalances(rows);
   }
-  const api={safeNumber,normalizePhone,customerKey,recalculateBalances,balanceFor,depositAmount,cashCollected,addCreditOnce,setDebitForBooking};
+  const api={safeNumber,normalizePhone,customerKey,recalculateBalances,balanceFor,depositAmount,cashCollected,cancellationSettlement,addCreditOnce,setDebitForBooking};
   root.CustomerCreditCore=api;
 })(typeof window!=='undefined'?window:globalThis);
