@@ -42,6 +42,7 @@ jobs:
             arabic-number-input.js
             accounting-notes.js
             resort-account-core.js
+            booking-financial-reconciliation.js
             resort-account-balance.js
             remaining-payment-flow.js
             subscription-booking-type.js
