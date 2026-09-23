@@ -1,339 +1,51 @@
-(function accountingNotesModule(){
+(function financeOrganizer(){
 'use strict';
-
-const SECTION_ID='accountingNotesSection';
-const NOTE_MODAL_ID='accountingNoteModal';
-const PAYMENT_MODAL_ID='accountingPaymentModal';
-
-function notes(){
-  if(!Array.isArray(db?.accountingNotes)) db.accountingNotes=[];
-  return db.accountingNotes;
+const ADV_SECTION='accountingNotesSection',MAINT_SECTION='maintenanceInstallmentsSection',HUB_ID='financeEntryHub';
+const uid=()=>crypto.randomUUID(),now=()=>new Date().toISOString(),today=()=>typeof window.isoToday==='function'?window.isoToday():new Date().toISOString().slice(0,10);
+const esc=v=>typeof window.escapeHtml==='function'?window.escapeHtml(String(v??'')):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=v=>typeof window.money==='function'?window.money(Number(v||0)):new Intl.NumberFormat('ar-SA',{maximumFractionDigits:2}).format(Number(v||0))+' ر.س';
+const persist=async()=>{if(typeof window.persist==='function')await window.persist();window.renderResortAccount?.();window.renderExpenses?.();renderAllFinanceTools();};
+function notes(){if(!Array.isArray(db.accountingNotes))db.accountingNotes=[];return db.accountingNotes;}
+function maint(){if(!Array.isArray(db.maintenanceJobs))db.maintenanceJobs=[];return db.maintenanceJobs;}
+function payments(x){return (Array.isArray(x?.payments)?x.payments:[]).map(p=>({...p,amount:Math.max(0,Number(p.amount||0))}));}
+function summary(x){const principal=Math.max(0,Number(x?.principalAmount??x?.totalAmount??0)),paid=payments(x).reduce((s,p)=>s+p.amount,0);return {principal,paid,remaining:Math.max(0,principal-paid)};}
+function addAudit(action,entity,details,before,after){window.addAudit?.(action,entity,details,before,after);}
+function openModal(id){document.getElementById(id)?.classList.add('open');document.body.classList.add('modal-open');}
+function closeModal(id){window.closeModal?.(id);}
+function expenseById(id){return (db.expenses||[]).find(x=>x.id===id);}
+function ensureExpenses(){if(!Array.isArray(db.expenses))db.expenses=[];return db.expenses;}
+function expenseRef(){const rows=ensureExpenses(),nums=rows.map(x=>Number(String(x.ref||'').match(/\d+/)?.[0]||0));return 'EXP-'+String(Math.max(0,...nums)+1).padStart(4,'0');}
+function makeExpense({title,amount,date,category,note,maintenanceJobId='',maintenancePaymentId='',salaryMonth=''}){
+ return {id:uid(),ref:expenseRef(),title,amount:Number(amount),date:date||today(),category:category||'أخرى',paymentMethod:'غير محدد',notes:note||'',note:note||'',maintenanceJobId,maintenancePaymentId,salaryMonth,createdAt:now(),updatedAt:now()};
 }
-function payments(note){
-  return (Array.isArray(note?.payments)?note.payments:[]).map(row=>({
-    ...row,
-    amount:Math.max(0,Number(row?.amount||0))
-  }));
-}
-function summary(note){
-  const principal=Math.max(0,Number(note?.principalAmount||0));
-  const paid=payments(note).reduce((sum,row)=>sum+row.amount,0);
-  return {principal,paid,remaining:Math.max(0,principal-paid)};
-}
-function totals(){
-  return notes().reduce((acc,n)=>{
-    const s=summary(n);
-    acc.principal+=s.principal;acc.paid+=s.paid;acc.remaining+=s.remaining;
-    return acc;
-  },{principal:0,paid:0,remaining:0});
-}
-function moneyValue(value){
-  if(typeof window.money==='function') return window.money(value);
-  return new Intl.NumberFormat('ar-SA',{maximumFractionDigits:2}).format(Number(value||0))+' ر.س';
-}
-function esc(value){
-  if(typeof window.escapeHtml==='function') return window.escapeHtml(String(value??''));
-  return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-function today(){
-  if(typeof window.isoToday==='function') return window.isoToday();
-  return new Date().toISOString().slice(0,10);
-}
-function findNote(id){return notes().find(n=>n.id===id)||null;}
-function uid(){return crypto.randomUUID();}
-function now(){return new Date().toISOString();}
-
-function installStyles(){
-  if(document.getElementById('accountingNotesStyles')) return;
-  const style=document.createElement('style');
-  style.id='accountingNotesStyles';
-  style.textContent=`
-  .accounting-notes-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:16px 18px 4px}
-  .accounting-note-summary-card{background:#f8faf9;border:1px solid var(--line);border-radius:15px;padding:13px}
-  .accounting-note-summary-card span{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}
-  .accounting-note-summary-card b{display:block;font-size:20px}
-  .accounting-notes-list{display:grid;gap:10px;padding:14px 18px 18px}
-  .accounting-note-card{border:1px solid var(--line);border-radius:17px;background:#fff;padding:14px;display:grid;gap:10px}
-  .accounting-note-card.settled{background:#f4fbf7;border-color:#acd7c4}
-  .accounting-note-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
-  .accounting-note-head h4{margin:0 0 4px}
-  .accounting-note-status{display:inline-flex;padding:6px 9px;border-radius:999px;font-size:12px;font-weight:900;background:#fff3d9;color:#8b6500}
-  .accounting-note-card.settled .accounting-note-status{background:#e4f4ee;color:#14785f}
-  .accounting-note-figures{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-  .accounting-note-figure{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fafcfb}
-  .accounting-note-figure span{display:block;color:var(--muted);font-size:11px}
-  .accounting-note-figure b{display:block;margin-top:4px}
-  .accounting-payment-list{display:grid;gap:6px}
-  .accounting-payment-row{border:1px solid #e5e9e7;border-radius:12px;padding:9px;background:#fafcfb;display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
-  .accounting-payment-row .actions{margin-top:5px}
-  .accounting-note-actions{display:flex;gap:7px;flex-wrap:wrap}
-  .accounting-note-actions button{min-height:38px}
-  .accounting-note-explanation{margin:0 18px 12px}
-  .accounting-modal .sheet{max-width:640px;margin:auto}
-  @media(max-width:620px){
-    .accounting-notes-summary,.accounting-note-figures{grid-template-columns:1fr}
-    .accounting-payment-row,.accounting-note-head{flex-direction:column}
-    .accounting-note-actions button{flex:1}
-  }`;
-  document.head.appendChild(style);
-}
-
-function installSection(){
-  const finance=document.getElementById('expenses');
-  if(!finance||document.getElementById(SECTION_ID)) return;
-  const section=document.createElement('div');
-  section.className='section';
-  section.id=SECTION_ID;
-  section.innerHTML=`
-    <div class="section-head">
-      <div>
-        <h3>📝 الملاحظات الحسابية</h3>
-        <div class="meta">ذمم شخصية على حساب المنتجع — مثل مبلغ استلفته ثم تسدده على دفعات.</div>
-      </div>
-      <button class="primary" type="button" onclick="openAccountingNote()">+ ملاحظة حسابية</button>
-    </div>
-    <div class="notice accounting-note-explanation">
-      هذه المبالغ <b>ليست مصروفًا ولا تغيّر صافي الربح</b>، لكنها تخصم من رصيد حساب المنتجع عند تسجيل السلفة، وكل سداد يعيد المبلغ إلى الرصيد تلقائيًا.
-    </div>
-    <div class="accounting-notes-summary">
-      <div class="accounting-note-summary-card"><span>إجمالي المبالغ المسجلة</span><b class="money" id="accountingPrincipalTotal">0 ر.س</b></div>
-      <div class="accounting-note-summary-card"><span>إجمالي ما تم سداده</span><b class="money finance-positive" id="accountingPaidTotal">0 ر.س</b></div>
-      <div class="accounting-note-summary-card"><span>المتبقي لحساب المنتجع</span><b class="money finance-negative" id="accountingRemainingTotal">0 ر.س</b></div>
-    </div>
-    <div id="accountingNotesList" class="accounting-notes-list"></div>`;
-  const chart=finance.querySelector('#financeChart')?.closest('.section');
-  if(chart) finance.insertBefore(section,chart);
-  else finance.appendChild(section);
-}
-
-function installModals(){
-  if(!document.getElementById(NOTE_MODAL_ID)){
-    const modal=document.createElement('div');
-    modal.id=NOTE_MODAL_ID;modal.className='modal accounting-modal';
-    modal.innerHTML=`<div class="sheet">
-      <div class="sheet-head"><h2 id="accountingNoteModalTitle">ملاحظة حسابية</h2><button class="close" type="button" onclick="closeModal('${NOTE_MODAL_ID}')">×</button></div>
-      <form id="accountingNoteForm">
-        <input type="hidden" name="id">
-        <div class="form-grid">
-          <label>العنوان<input name="title" maxlength="120" placeholder="مثال: استلاف من حساب المنتجع" required></label>
-          <label>أصل المبلغ<input name="principalAmount" type="number" min="0.01" step="0.01" inputmode="decimal" required></label>
-          <label>التاريخ<input name="date" type="date" required></label>
-          <label class="full">الملاحظة<textarea name="note" maxlength="1200" placeholder="مثال: استخدمت المبلغ لمصاريف شخصية"></textarea></label>
-        </div>
-        <div class="actions">
-          <button class="secondary" type="button" onclick="closeModal('${NOTE_MODAL_ID}')">إلغاء</button>
-          <button class="primary" type="submit">حفظ</button>
-        </div>
-      </form>
-    </div>`;
-    document.body.appendChild(modal);
-    modal.querySelector('form').addEventListener('submit',saveAccountingNote);
-  }
-  if(!document.getElementById(PAYMENT_MODAL_ID)){
-    const modal=document.createElement('div');
-    modal.id=PAYMENT_MODAL_ID;modal.className='modal accounting-modal';
-    modal.innerHTML=`<div class="sheet">
-      <div class="sheet-head"><h2 id="accountingPaymentModalTitle">إضافة سداد</h2><button class="close" type="button" onclick="closeModal('${PAYMENT_MODAL_ID}')">×</button></div>
-      <form id="accountingPaymentForm">
-        <input type="hidden" name="noteId"><input type="hidden" name="paymentId">
-        <div class="form-grid">
-          <label>مبلغ السداد<input name="amount" type="number" min="0.01" step="0.01" inputmode="decimal" required></label>
-          <label>التاريخ<input name="date" type="date" required></label>
-          <label class="full">ملاحظة السداد<input name="note" maxlength="500" placeholder="مثال: سداد دفعة أولى"></label>
-        </div>
-        <div class="actions">
-          <button class="secondary" type="button" onclick="closeModal('${PAYMENT_MODAL_ID}')">إلغاء</button>
-          <button class="primary" type="submit">حفظ السداد</button>
-        </div>
-      </form>
-    </div>`;
-    document.body.appendChild(modal);
-    modal.querySelector('form').addEventListener('submit',saveAccountingPayment);
-  }
-}
-
-function render(){
-  installSection();installModals();
-  const list=document.getElementById('accountingNotesList');
-  if(!list)return;
-  const total=totals();
-  const setText=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=moneyValue(val);};
-  setText('accountingPrincipalTotal',total.principal);
-  setText('accountingPaidTotal',total.paid);
-  setText('accountingRemainingTotal',total.remaining);
-
-  const ordered=[...notes()].sort((a,b)=>String(b.date||b.createdAt||'').localeCompare(String(a.date||a.createdAt||'')));
-  list.innerHTML=ordered.length?ordered.map(note=>{
-    const s=summary(note),rows=payments(note).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
-    const settled=s.remaining<=0.009;
-    return `<article class="accounting-note-card ${settled?'settled':''}" data-accounting-note="${esc(note.id)}">
-      <div class="accounting-note-head">
-        <div><h4>${esc(note.title||'ملاحظة حسابية')}</h4><div class="meta">${esc(note.date||'')} ${note.note?`• ${esc(note.note)}`:''}</div></div>
-        <span class="accounting-note-status">${settled?'مسدد بالكامل':'متبقي '+moneyValue(s.remaining)}</span>
-      </div>
-      <div class="accounting-note-figures">
-        <div class="accounting-note-figure"><span>أصل المبلغ</span><b class="money">${moneyValue(s.principal)}</b></div>
-        <div class="accounting-note-figure"><span>المسدد</span><b class="money finance-positive">${moneyValue(s.paid)}</b></div>
-        <div class="accounting-note-figure"><span>المتبقي</span><b class="money ${settled?'finance-positive':'finance-negative'}">${moneyValue(s.remaining)}</b></div>
-      </div>
-      <div>
-        <b style="font-size:13px">سجل السداد</b>
-        <div class="accounting-payment-list">
-          ${rows.length?rows.map(row=>`<div class="accounting-payment-row">
-            <div><b class="money">${moneyValue(row.amount)}</b><div class="meta">${esc(row.date||'')}${row.note?` • ${esc(row.note)}`:''}</div></div>
-            <div class="actions"><button class="secondary small" type="button" onclick="openAccountingPayment('${esc(note.id)}','${esc(row.id)}')">تعديل</button><button class="danger small" type="button" onclick="deleteAccountingPayment('${esc(note.id)}','${esc(row.id)}')">حذف</button></div>
-          </div>`).join(''):'<div class="meta">لم يتم تسجيل أي سداد بعد.</div>'}
-        </div>
-      </div>
-      <div class="accounting-note-actions">
-        ${settled?'':`<button class="primary" type="button" onclick="openAccountingPayment('${esc(note.id)}')">+ إضافة سداد</button>`}
-        <button class="secondary" type="button" onclick="openAccountingNote('${esc(note.id)}')">تعديل الملاحظة</button>
-        <button class="danger" type="button" onclick="deleteAccountingNote('${esc(note.id)}')">حذف</button>
-      </div>
-    </article>`;
-  }).join(''):'<div class="empty">لا توجد ملاحظات حسابية حتى الآن.</div>';
-}
-
-function openNote(id=''){
-  installModals();
-  const modal=document.getElementById(NOTE_MODAL_ID),form=document.getElementById('accountingNoteForm');
-  const note=id?findNote(id):null;
-  form.reset();
-  form.elements.id.value=note?.id||'';
-  form.elements.title.value=note?.title||'استلاف من حساب المنتجع';
-  form.elements.principalAmount.value=note?.principalAmount??'';
-  form.elements.date.value=note?.date||today();
-  form.elements.note.value=note?.note||'';
-  document.getElementById('accountingNoteModalTitle').textContent=note?'تعديل الملاحظة الحسابية':'إضافة ملاحظة حسابية';
-  modal.classList.add('open');document.body.classList.add('modal-open');
-}
-async function saveAccountingNote(event){
-  event.preventDefault();
-  const form=event.currentTarget,id=form.elements.id.value,note=findNote(id);
-  const principalAmount=Math.max(0,Number(form.elements.principalAmount.value||0));
-  if(principalAmount<=0){alert('أدخل أصل المبلغ.');return;}
-  const alreadyPaid=note?summary(note).paid:0;
-  if(!note&&window.ResortAccountCore&&db?.resortAccount?.calibration){
-    const available=window.ResortAccountCore.currentBalance(db);
-    if(principalAmount>available+0.009&&!confirm(`الرصيد المتاح في حساب المنتجع ${moneyValue(available)} فقط، وتسجيل هذه السلفة سيجعل الرصيد سالبًا. هل تريد المتابعة؟`))return;
-  }
-  if(principalAmount+0.009<alreadyPaid){
-    alert(`لا يمكن جعل أصل المبلغ أقل من إجمالي ما تم سداده (${moneyValue(alreadyPaid)}).`);
-    return;
-  }
-  const next={
-    id:note?.id||uid(),
-    title:String(form.elements.title.value||'').trim()||'استلاف من حساب المنتجع',
-    principalAmount,
-    date:form.elements.date.value||today(),
-    note:String(form.elements.note.value||'').trim(),
-    payments:payments(note),
-    createdAt:note?.createdAt||now(),
-    updatedAt:now()
-  };
-  const before=note?JSON.parse(JSON.stringify(note)):null;
-  if(note) Object.assign(note,next); else notes().push(next);
-  if(typeof window.addAudit==='function') window.addAudit(note?'تعديل':'إضافة','ملاحظة حسابية',`${next.title} — ${moneyValue(principalAmount)}`,before,next);
-  if(typeof window.persist==='function') await window.persist();
-  window.renderResortAccount?.();
-  if(typeof window.closeModal==='function') window.closeModal(NOTE_MODAL_ID);
-  render();
-}
-async function deleteNote(id){
-  const note=findNote(id);if(!note)return;
-  const s=summary(note);
-  const warning=s.remaining>0.009
-    ?`هذه الملاحظة ما زال عليها ${moneyValue(s.remaining)}. هل تريد حذفها نهائيًا مع سجل السداد؟`
-    :'حذف هذه الملاحظة الحسابية وسجل سدادها؟';
-  if(!confirm(warning))return;
-  const before=JSON.parse(JSON.stringify(note));
-  db.accountingNotes=notes().filter(n=>n.id!==id);
-  if(typeof window.addAudit==='function') window.addAudit('حذف','ملاحظة حسابية',note.title||'',before,null);
-  if(typeof window.persist==='function') await window.persist();
-  window.renderResortAccount?.();
-  render();
-}
-
-function openPayment(noteId,paymentId=''){
-  installModals();
-  const note=findNote(noteId);if(!note)return;
-  const payment=payments(note).find(row=>row.id===paymentId)||null;
-  const form=document.getElementById('accountingPaymentForm');
-  form.reset();
-  form.elements.noteId.value=noteId;form.elements.paymentId.value=payment?.id||'';
-  form.elements.amount.value=payment?.amount??'';
-  form.elements.date.value=payment?.date||today();
-  form.elements.note.value=payment?.note||'';
-  document.getElementById('accountingPaymentModalTitle').textContent=payment?'تعديل السداد':'إضافة سداد';
-  document.getElementById(PAYMENT_MODAL_ID).classList.add('open');document.body.classList.add('modal-open');
-}
-async function saveAccountingPayment(event){
-  event.preventDefault();
-  const form=event.currentTarget,note=findNote(form.elements.noteId.value);
-  if(!note)return;
-  const paymentId=form.elements.paymentId.value;
-  const amount=Math.max(0,Number(form.elements.amount.value||0));
-  if(amount<=0){alert('أدخل مبلغ السداد.');return;}
-  const current=payments(note);
-  const otherPaid=current.filter(row=>row.id!==paymentId).reduce((sum,row)=>sum+row.amount,0);
-  const principal=summary(note).principal;
-  if(otherPaid+amount>principal+0.009){
-    alert(`السداد يتجاوز المتبقي. الحد الأعلى لهذه الدفعة هو ${moneyValue(Math.max(0,principal-otherPaid))}.`);
-    return;
-  }
-  const existing=current.find(row=>row.id===paymentId)||null;
-  const row={
-    id:existing?.id||uid(),
-    amount,
-    date:form.elements.date.value||today(),
-    note:String(form.elements.note.value||'').trim(),
-    createdAt:existing?.createdAt||now(),
-    updatedAt:now()
-  };
-  const before=existing?JSON.parse(JSON.stringify(existing)):null;
-  note.payments=existing?current.map(x=>x.id===row.id?row:x):[...current,row];
-  note.updatedAt=now();
-  if(typeof window.addAudit==='function') window.addAudit(existing?'تعديل':'إضافة','سداد ملاحظة حسابية',`${note.title||'ملاحظة'} — ${moneyValue(amount)}`,before,row);
-  if(typeof window.persist==='function') await window.persist();
-  window.renderResortAccount?.();
-  if(typeof window.closeModal==='function') window.closeModal(PAYMENT_MODAL_ID);
-  render();
-}
-async function deletePayment(noteId,paymentId){
-  const note=findNote(noteId);if(!note)return;
-  const row=payments(note).find(x=>x.id===paymentId);if(!row)return;
-  if(!confirm(`حذف سداد ${moneyValue(row.amount)}؟ سيعاد المبلغ إلى المتبقي.`))return;
-  const before=JSON.parse(JSON.stringify(row));
-  note.payments=payments(note).filter(x=>x.id!==paymentId);
-  note.updatedAt=now();
-  if(typeof window.addAudit==='function') window.addAudit('حذف','سداد ملاحظة حسابية',`${note.title||'ملاحظة'} — ${moneyValue(row.amount)}`,before,null);
-  if(typeof window.persist==='function') await window.persist();
-  window.renderResortAccount?.();
-  render();
-}
-
-function install(){
-  installStyles();installSection();installModals();
-  const base=window.renderExpenses;
-  if(typeof base==='function'&&!base.__accountingNotesWrapped){
-    const wrapped=function(){
-      const result=base.apply(this,arguments);
-      render();
-      return result;
-    };
-    wrapped.__accountingNotesWrapped=true;
-    window.renderExpenses=wrapped;
-  }
-  render();
-}
-
-window.openAccountingNote=openNote;
-window.deleteAccountingNote=deleteNote;
-window.openAccountingPayment=openPayment;
-window.deleteAccountingPayment=deletePayment;
-window.renderAccountingNotes=render;
-window.AccountingNotes={summary,totals,payments};
-
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
-else install();
+function installStyles(){if(document.getElementById('financeOrganizerStyles'))return;const s=document.createElement('style');s.id='financeOrganizerStyles';s.textContent=`
+.finance-entry-hub{padding:16px 18px}.finance-entry-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.finance-entry-btn{border:1px solid var(--line);background:#f8faf9;border-radius:15px;padding:14px;text-align:right;min-height:86px}.finance-entry-btn b{display:block;font-size:14px;margin-bottom:5px}.finance-entry-btn span{font-size:11px;color:var(--muted);line-height:1.6}.finance-entry-btn.primary-entry{background:#0d4c3f;color:#fff}.finance-entry-btn.primary-entry span{color:#d8e7e2}.finance-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:11px}.finance-kpi{border:1px solid var(--line);border-radius:13px;padding:11px;background:#fff}.finance-kpi span{display:block;color:var(--muted);font-size:11px}.finance-kpi b{display:block;margin-top:4px}.fo-list{display:grid;gap:9px;padding:14px 18px 18px}.fo-card{border:1px solid var(--line);border-radius:16px;padding:13px;background:#fff}.fo-card.settled{background:#f4fbf7;border-color:#acd7c4}.fo-head{display:flex;justify-content:space-between;gap:10px}.fo-status{font-size:11px;font-weight:900;padding:6px 9px;border-radius:999px;background:#fff3d9;color:#8b6500;height:max-content}.settled .fo-status{background:#e4f4ee;color:#14785f}.fo-figures{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:10px 0}.fo-figure{background:#fafcfb;border:1px solid var(--line);border-radius:11px;padding:9px}.fo-figure span{display:block;color:var(--muted);font-size:10px}.fo-payment{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid #edf0ee}.fo-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.fo-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:14px 18px 0}.fo-summary>div{border:1px solid var(--line);border-radius:12px;padding:10px}.fo-summary span{display:block;color:var(--muted);font-size:10px}.fo-summary b{display:block;margin-top:4px}.fo-note{margin:12px 18px 0}.fo-modal .sheet{max-width:650px;margin:auto}
+@media(max-width:720px){.finance-entry-grid{grid-template-columns:1fr 1fr}.finance-kpis,.fo-summary,.fo-figures{grid-template-columns:1fr}.fo-head,.fo-payment{flex-direction:column}.finance-entry-btn{min-height:76px}}
+`;document.head.appendChild(s);}
+function installHub(){const finance=document.getElementById('expenses');if(!finance||document.getElementById(HUB_ID))return;const sec=document.createElement('div');sec.className='section';sec.id=HUB_ID;sec.innerHTML=`<div class="section-head"><div><h3>💳 مركز التسجيل المالي</h3><div class="meta">اختر نوع الحركة بدل تسجيل كل شيء كحركة عامة.</div></div></div><div class="finance-entry-hub"><div class="finance-entry-grid"><button class="finance-entry-btn primary-entry" onclick="openExpense()"><b>🧾 مصروف عادي</b><span>مشتريات، خدمات ومصاريف تشغيلية</span></button><button class="finance-entry-btn" onclick="openMaintenanceJob()"><b>🛠️ صيانة بالتقسيط</b><span>إجمالي مستحق ودفعات ومتـبقي</span></button><button class="finance-entry-btn" onclick="openSalaryExpense()"><b>👷 راتب عامل</b><span>تسجيل الراتب باسم العامل والشهر</span></button><button class="finance-entry-btn" onclick="openAccountingNote()"><b>↔️ سلفة من حساب المنتجع</b><span>تخرج من الرصيد وتعود عند السداد</span></button></div><div class="finance-kpis"><div class="finance-kpi"><span>مستحقات صيانة قائمة</span><b id="foMaintenanceDue" class="money">0</b></div><div class="finance-kpi"><span>رواتب مسجلة هذا الشهر</span><b id="foSalaryMonth" class="money">0</b></div><div class="finance-kpi"><span>ذمم/سلف غير مسددة</span><b id="foAdvanceDue" class="money">0</b></div></div></div>`;finance.prepend(sec);}
+function installSections(){const finance=document.getElementById('expenses');if(!finance)return;if(!document.getElementById(MAINT_SECTION)){const s=document.createElement('div');s.className='section';s.id=MAINT_SECTION;s.innerHTML=`<div class="section-head"><div><h3>🛠️ مستحقات الصيانة</h3><div class="meta">المبلغ المتبقي التزام فقط؛ الرصيد ينقص عند تسجيل الدفعة الفعلية.</div></div><button class="primary" onclick="openMaintenanceJob()">+ صيانة جديدة</button></div><div class="fo-summary"><div><span>إجمالي العقود</span><b id="maintTotal" class="money">0</b></div><div><span>المدفوع فعليًا</span><b id="maintPaid" class="money">0</b></div><div><span>المتبقي</span><b id="maintDue" class="money">0</b></div></div><div id="maintenanceList" class="fo-list"></div>`;finance.appendChild(s);}if(!document.getElementById(ADV_SECTION)){const s=document.createElement('div');s.className='section';s.id=ADV_SECTION;s.innerHTML=`<div class="section-head"><div><h3>↔️ السلف والذمم</h3><div class="meta">مبالغ خرجت من حساب المنتجع وليست مصروفًا؛ السداد يعيدها للرصيد.</div></div><button class="primary" onclick="openAccountingNote()">+ سلفة</button></div><div class="fo-summary"><div><span>أصل السلف</span><b id="advTotal" class="money">0</b></div><div><span>المسدد</span><b id="advPaid" class="money">0</b></div><div><span>المتبقي</span><b id="advDue" class="money">0</b></div></div><div id="accountingNotesList" class="fo-list"></div>`;finance.appendChild(s);}}
+function installModals(){if(!document.getElementById('maintenanceJobModal')){document.body.insertAdjacentHTML('beforeend',`<div class="modal fo-modal" id="maintenanceJobModal"><div class="sheet"><div class="sheet-head"><h2>صيانة بالتقسيط</h2><button class="close" onclick="closeModal('maintenanceJobModal')">×</button></div><form id="maintenanceJobForm"><input type="hidden" name="id"><div class="form-grid"><label>الفني / المستفيد<input name="vendor" required placeholder="مثال: الكهربائي"></label><label>إجمالي تكلفة الصيانة<input name="total" type="number" min="0.01" step="0.01" inputmode="decimal" required></label><label>نوع الصيانة<input name="title" required placeholder="مثال: صيانة الكهرباء"></label><label>تاريخ العمل<input name="date" type="date" required></label><label class="full">ملاحظة<textarea name="note" placeholder="تفاصيل العمل أو الاتفاق"></textarea></label></div><div class="actions"><button class="secondary" type="button" onclick="closeModal('maintenanceJobModal')">إلغاء</button><button class="primary">حفظ</button></div></form></div></div><div class="modal fo-modal" id="maintenancePaymentModal"><div class="sheet"><div class="sheet-head"><h2>تسجيل دفعة صيانة</h2><button class="close" onclick="closeModal('maintenancePaymentModal')">×</button></div><form id="maintenancePaymentForm"><input type="hidden" name="jobId"><input type="hidden" name="paymentId"><div class="form-grid"><label>المبلغ<input name="amount" type="number" min="0.01" step="0.01" inputmode="decimal" required></label><label>التاريخ<input name="date" type="date" required></label><label class="full">ملاحظة<input name="note" placeholder="مثال: الدفعة الأولى"></label></div><div class="actions"><button class="secondary" type="button" onclick="closeModal('maintenancePaymentModal')">إلغاء</button><button class="primary">حفظ الدفعة</button></div></form></div></div>`);document.getElementById('maintenanceJobForm').onsubmit=saveMaintenanceJob;document.getElementById('maintenancePaymentForm').onsubmit=saveMaintenancePayment;}
+if(!document.getElementById('salaryExpenseModal')){document.body.insertAdjacentHTML('beforeend',`<div class="modal fo-modal" id="salaryExpenseModal"><div class="sheet"><div class="sheet-head"><h2>تسجيل راتب عامل</h2><button class="close" onclick="closeModal('salaryExpenseModal')">×</button></div><form id="salaryExpenseForm"><div class="form-grid"><label>اسم العامل<input name="worker" required></label><label>مبلغ الراتب<input name="amount" type="number" min="0.01" step="0.01" inputmode="decimal" required></label><label>شهر الراتب<input name="month" type="month" required></label><label>تاريخ الدفع<input name="date" type="date" required></label><label class="full">ملاحظة<input name="note" placeholder="اختياري"></label></div><div class="actions"><button class="secondary" type="button" onclick="closeModal('salaryExpenseModal')">إلغاء</button><button class="primary">تسجيل الراتب</button></div></form></div></div>`);document.getElementById('salaryExpenseForm').onsubmit=saveSalaryExpense;}
+if(!document.getElementById('accountingNoteModal')){document.body.insertAdjacentHTML('beforeend',`<div class="modal fo-modal" id="accountingNoteModal"><div class="sheet"><div class="sheet-head"><h2>سلفة من حساب المنتجع</h2><button class="close" onclick="closeModal('accountingNoteModal')">×</button></div><form id="accountingNoteForm"><input type="hidden" name="id"><div class="form-grid"><label>العنوان<input name="title" required></label><label>أصل المبلغ<input name="principal" type="number" min="0.01" step="0.01" required></label><label>التاريخ<input name="date" type="date" required></label><label class="full">ملاحظة<textarea name="note"></textarea></label></div><div class="actions"><button class="secondary" type="button" onclick="closeModal('accountingNoteModal')">إلغاء</button><button class="primary">حفظ</button></div></form></div></div><div class="modal fo-modal" id="accountingPaymentModal"><div class="sheet"><div class="sheet-head"><h2>سداد السلفة</h2><button class="close" onclick="closeModal('accountingPaymentModal')">×</button></div><form id="accountingPaymentForm"><input type="hidden" name="noteId"><input type="hidden" name="paymentId"><div class="form-grid"><label>المبلغ<input name="amount" type="number" min="0.01" step="0.01" required></label><label>التاريخ<input name="date" type="date" required></label><label class="full">ملاحظة<input name="note"></label></div><div class="actions"><button class="secondary" type="button" onclick="closeModal('accountingPaymentModal')">إلغاء</button><button class="primary">حفظ السداد</button></div></form></div></div>`);document.getElementById('accountingNoteForm').onsubmit=saveAdvance;document.getElementById('accountingPaymentForm').onsubmit=saveAdvancePayment;}}
+function renderMaintenance(){const list=document.getElementById('maintenanceList');if(!list)return;const totals=maint().reduce((a,j)=>{const s=summary(j);a.total+=s.principal;a.paid+=s.paid;a.due+=s.remaining;return a},{total:0,paid:0,due:0});[['maintTotal',totals.total],['maintPaid',totals.paid],['maintDue',totals.due],['foMaintenanceDue',totals.due]].forEach(([id,v])=>{const e=document.getElementById(id);if(e)e.textContent=money(v)});list.innerHTML=[...maint()].sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(j=>{const s=summary(j),settled=s.remaining<.01;return `<article class="fo-card ${settled?'settled':''}"><div class="fo-head"><div><b>${esc(j.title)}</b><div class="meta">${esc(j.vendor)} • ${esc(j.date)}${j.note?' • '+esc(j.note):''}</div></div><span class="fo-status">${settled?'مسدد بالكامل':'متبقي '+money(s.remaining)}</span></div><div class="fo-figures"><div class="fo-figure"><span>الإجمالي</span><b>${money(s.principal)}</b></div><div class="fo-figure"><span>المدفوع</span><b>${money(s.paid)}</b></div><div class="fo-figure"><span>المتبقي</span><b>${money(s.remaining)}</b></div></div>${payments(j).map(p=>`<div class="fo-payment"><div><b>${money(p.amount)}</b><div class="meta">${esc(p.date)}${p.note?' • '+esc(p.note):''}</div></div><div><button class="secondary small" onclick="openMaintenancePayment('${j.id}','${p.id}')">تعديل</button> <button class="danger small" onclick="deleteMaintenancePayment('${j.id}','${p.id}')">حذف</button></div></div>`).join('')}<div class="fo-actions">${settled?'':`<button class="primary" onclick="openMaintenancePayment('${j.id}')">+ إضافة دفعة</button>`}<button class="secondary" onclick="openMaintenanceJob('${j.id}')">تعديل</button><button class="danger" onclick="deleteMaintenanceJob('${j.id}')">حذف</button></div></article>`}).join('')||'<div class="empty">لا توجد مستحقات صيانة.</div>';}
+function renderAdvances(){const list=document.getElementById('accountingNotesList');if(!list)return;const totals=notes().reduce((a,j)=>{const s=summary(j);a.total+=s.principal;a.paid+=s.paid;a.due+=s.remaining;return a},{total:0,paid:0,due:0});[['advTotal',totals.total],['advPaid',totals.paid],['advDue',totals.due],['foAdvanceDue',totals.due]].forEach(([id,v])=>{const e=document.getElementById(id);if(e)e.textContent=money(v)});list.innerHTML=[...notes()].sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(j=>{const s=summary(j),settled=s.remaining<.01;return `<article class="fo-card ${settled?'settled':''}"><div class="fo-head"><div><b>${esc(j.title||'سلفة')}</b><div class="meta">${esc(j.date)}${j.note?' • '+esc(j.note):''}</div></div><span class="fo-status">${settled?'مسدد بالكامل':'متبقي '+money(s.remaining)}</span></div><div class="fo-figures"><div class="fo-figure"><span>الأصل</span><b>${money(s.principal)}</b></div><div class="fo-figure"><span>المسدد</span><b>${money(s.paid)}</b></div><div class="fo-figure"><span>المتبقي</span><b>${money(s.remaining)}</b></div></div>${payments(j).map(p=>`<div class="fo-payment"><div><b>${money(p.amount)}</b><div class="meta">${esc(p.date)}${p.note?' • '+esc(p.note):''}</div></div><div><button class="secondary small" onclick="openAccountingPayment('${j.id}','${p.id}')">تعديل</button> <button class="danger small" onclick="deleteAccountingPayment('${j.id}','${p.id}')">حذف</button></div></div>`).join('')}<div class="fo-actions">${settled?'':`<button class="primary" onclick="openAccountingPayment('${j.id}')">+ تسجيل سداد</button>`}<button class="secondary" onclick="openAccountingNote('${j.id}')">تعديل</button><button class="danger" onclick="deleteAccountingNote('${j.id}')">حذف</button></div></article>`}).join('')||'<div class="empty">لا توجد سلف أو ذمم.</div>';}
+function renderSalaryKpi(){const m=today().slice(0,7),sum=(db.expenses||[]).filter(e=>e.category==='راتب عامل'&&(e.salaryMonth===m||String(e.date||'').slice(0,7)===m)).reduce((s,e)=>s+Number(e.amount||0),0);const el=document.getElementById('foSalaryMonth');if(el)el.textContent=money(sum);}
+function renderAllFinanceTools(){installHub();installSections();installModals();renderMaintenance();renderAdvances();renderSalaryKpi();}
+function openMaintenanceJob(id=''){const j=maint().find(x=>x.id===id),f=document.getElementById('maintenanceJobForm');f.reset();f.elements.id.value=j?.id||'';f.elements.vendor.value=j?.vendor||'';f.elements.total.value=j?.totalAmount||'';f.elements.title.value=j?.title||'';f.elements.date.value=j?.date||today();f.elements.note.value=j?.note||'';openModal('maintenanceJobModal');}
+async function saveMaintenanceJob(e){e.preventDefault();const f=e.currentTarget,id=f.elements.id.value,j=maint().find(x=>x.id===id),total=Number(f.elements.total.value||0),paid=j?summary(j).paid:0;if(total<=0)return alert('أدخل إجمالي تكلفة الصيانة.');if(total+0.009<paid)return alert(`لا يمكن جعل الإجمالي أقل من المدفوع ${money(paid)}.`);const next={id:j?.id||uid(),vendor:f.elements.vendor.value.trim(),title:f.elements.title.value.trim(),totalAmount:total,date:f.elements.date.value,note:f.elements.note.value.trim(),payments:payments(j),createdAt:j?.createdAt||now(),updatedAt:now()};const before=j?structuredClone(j):null;j?Object.assign(j,next):maint().push(next);addAudit(j?'تعديل':'إضافة','مستحق صيانة',`${next.title} — ${next.vendor}`,before,next);closeModal('maintenanceJobModal');await persist();}
+function openMaintenancePayment(jobId,paymentId=''){const j=maint().find(x=>x.id===jobId),p=payments(j).find(x=>x.id===paymentId),f=document.getElementById('maintenancePaymentForm');if(!j)return;f.reset();f.elements.jobId.value=jobId;f.elements.paymentId.value=p?.id||'';f.elements.amount.value=p?.amount||'';f.elements.date.value=p?.date||today();f.elements.note.value=p?.note||'';openModal('maintenancePaymentModal');}
+async function saveMaintenancePayment(e){e.preventDefault();const f=e.currentTarget,j=maint().find(x=>x.id===f.elements.jobId.value);if(!j)return;const id=f.elements.paymentId.value,amount=Number(f.elements.amount.value||0),other=payments(j).filter(x=>x.id!==id).reduce((s,p)=>s+p.amount,0);if(amount<=0)return alert('أدخل مبلغ الدفعة.');if(other+amount>Number(j.totalAmount)+.009)return alert(`الدفعة تتجاوز المتبقي. الحد الأعلى ${money(Number(j.totalAmount)-other)}.`);let p=payments(j).find(x=>x.id===id),expense=p?.expenseId?expenseById(p.expenseId):null;const row={id:p?.id||uid(),amount,date:f.elements.date.value,note:f.elements.note.value.trim(),expenseId:expense?.id||uid(),createdAt:p?.createdAt||now(),updatedAt:now()};if(expense){expense.amount=amount;expense.date=row.date;expense.title=`دفعة صيانة: ${j.title} — ${j.vendor}`;expense.notes=row.note;expense.note=row.note;expense.updatedAt=now();}else{const ex=makeExpense({title:`دفعة صيانة: ${j.title} — ${j.vendor}`,amount,date:row.date,category:'صيانة',note:row.note,maintenanceJobId:j.id,maintenancePaymentId:row.id});ex.id=row.expenseId;ensureExpenses().push(ex);}j.payments=p?payments(j).map(x=>x.id===id?row:x):[...payments(j),row];j.updatedAt=now();addAudit(p?'تعديل':'إضافة','دفعة صيانة',`${j.title} — ${money(amount)}`,p||null,row);closeModal('maintenancePaymentModal');await persist();}
+async function deleteMaintenancePayment(jobId,paymentId){const j=maint().find(x=>x.id===jobId),p=payments(j).find(x=>x.id===paymentId);if(!j||!p||!confirm(`حذف دفعة ${money(p.amount)}؟`))return;j.payments=payments(j).filter(x=>x.id!==paymentId);if(p.expenseId)db.expenses=ensureExpenses().filter(x=>x.id!==p.expenseId);addAudit('حذف','دفعة صيانة',j.title,p,null);await persist();}
+async function deleteMaintenanceJob(id){const j=maint().find(x=>x.id===id);if(!j||!confirm('حذف مستحق الصيانة وكل دفعاته؟ سيتم حذف المصروفات المرتبطة بهذه الدفعات أيضًا.'))return;const ids=new Set(payments(j).map(p=>p.expenseId).filter(Boolean));db.expenses=ensureExpenses().filter(x=>!ids.has(x.id));db.maintenanceJobs=maint().filter(x=>x.id!==id);addAudit('حذف','مستحق صيانة',j.title,j,null);await persist();}
+function openSalaryExpense(){const f=document.getElementById('salaryExpenseForm');f.reset();f.elements.date.value=today();f.elements.month.value=today().slice(0,7);openModal('salaryExpenseModal');}
+async function saveSalaryExpense(e){e.preventDefault();const f=e.currentTarget,worker=f.elements.worker.value.trim(),amount=Number(f.elements.amount.value||0),month=f.elements.month.value;if(!worker||amount<=0)return alert('أدخل اسم العامل ومبلغ الراتب.');if((db.expenses||[]).some(x=>x.category==='راتب عامل'&&x.salaryMonth===month&&String(x.title||'').includes(worker))&&!confirm(`يوجد راتب مسجل للعامل ${worker} عن هذا الشهر. هل تريد تسجيل دفعة راتب إضافية؟`))return;const ex=makeExpense({title:`راتب العامل: ${worker}`,amount,date:f.elements.date.value,category:'راتب عامل',note:f.elements.note.value.trim(),salaryMonth:month});ensureExpenses().push(ex);addAudit('إضافة','راتب عامل',`${worker} — ${month} — ${money(amount)}`,null,ex);closeModal('salaryExpenseModal');await persist();}
+function openAdvance(id=''){const j=notes().find(x=>x.id===id),f=document.getElementById('accountingNoteForm');f.reset();f.elements.id.value=j?.id||'';f.elements.title.value=j?.title||'استلاف من حساب المنتجع';f.elements.principal.value=j?.principalAmount||'';f.elements.date.value=j?.date||today();f.elements.note.value=j?.note||'';openModal('accountingNoteModal');}
+async function saveAdvance(e){e.preventDefault();const f=e.currentTarget,id=f.elements.id.value,j=notes().find(x=>x.id===id),principal=Number(f.elements.principal.value||0),paid=j?summary(j).paid:0;if(principal<=0)return alert('أدخل أصل المبلغ.');if(principal+0.009<paid)return alert(`أصل المبلغ لا يمكن أن يكون أقل من المسدد ${money(paid)}.`);const next={id:j?.id||uid(),title:f.elements.title.value.trim()||'استلاف من حساب المنتجع',principalAmount:principal,date:f.elements.date.value,note:f.elements.note.value.trim(),payments:payments(j),createdAt:j?.createdAt||now(),updatedAt:now()};const before=j?structuredClone(j):null;j?Object.assign(j,next):notes().push(next);addAudit(j?'تعديل':'إضافة','سلفة/ذمة',next.title,before,next);closeModal('accountingNoteModal');await persist();}
+function openAdvancePayment(noteId,paymentId=''){const j=notes().find(x=>x.id===noteId),p=payments(j).find(x=>x.id===paymentId),f=document.getElementById('accountingPaymentForm');if(!j)return;f.reset();f.elements.noteId.value=noteId;f.elements.paymentId.value=p?.id||'';f.elements.amount.value=p?.amount||'';f.elements.date.value=p?.date||today();f.elements.note.value=p?.note||'';openModal('accountingPaymentModal');}
+async function saveAdvancePayment(e){e.preventDefault();const f=e.currentTarget,j=notes().find(x=>x.id===f.elements.noteId.value),id=f.elements.paymentId.value,amount=Number(f.elements.amount.value||0);if(!j)return;const other=payments(j).filter(x=>x.id!==id).reduce((s,p)=>s+p.amount,0);if(amount<=0)return alert('أدخل مبلغ السداد.');if(other+amount>Number(j.principalAmount)+.009)return alert(`السداد يتجاوز المتبقي. الحد الأعلى ${money(Number(j.principalAmount)-other)}.`);const old=payments(j).find(x=>x.id===id),row={id:old?.id||uid(),amount,date:f.elements.date.value,note:f.elements.note.value.trim(),createdAt:old?.createdAt||now(),updatedAt:now()};j.payments=old?payments(j).map(x=>x.id===id?row:x):[...payments(j),row];j.updatedAt=now();addAudit(old?'تعديل':'إضافة','سداد سلفة',`${j.title} — ${money(amount)}`,old||null,row);closeModal('accountingPaymentModal');await persist();}
+async function deleteAdvancePayment(noteId,paymentId){const j=notes().find(x=>x.id===noteId),p=payments(j).find(x=>x.id===paymentId);if(!j||!p||!confirm(`حذف سداد ${money(p.amount)}؟`))return;j.payments=payments(j).filter(x=>x.id!==paymentId);addAudit('حذف','سداد سلفة',j.title,p,null);await persist();}
+async function deleteAdvance(id){const j=notes().find(x=>x.id===id);if(!j||!confirm('حذف السلفة وسجل سدادها؟'))return;db.accountingNotes=notes().filter(x=>x.id!==id);addAudit('حذف','سلفة/ذمة',j.title,j,null);await persist();}
+function install(){installStyles();installHub();installSections();installModals();const base=window.renderExpenses;if(typeof base==='function'&&!base.__financeOrganizer){const wrapped=function(){const r=base.apply(this,arguments);setTimeout(renderAllFinanceTools,0);return r};wrapped.__financeOrganizer=true;window.renderExpenses=wrapped;}renderAllFinanceTools();}
+window.openMaintenanceJob=openMaintenanceJob;window.openMaintenancePayment=openMaintenancePayment;window.deleteMaintenancePayment=deleteMaintenancePayment;window.deleteMaintenanceJob=deleteMaintenanceJob;window.openSalaryExpense=openSalaryExpense;window.openAccountingNote=openAdvance;window.openAccountingPayment=openAdvancePayment;window.deleteAccountingPayment=deleteAdvancePayment;window.deleteAccountingNote=deleteAdvance;window.renderAccountingNotes=renderAllFinanceTools;window.AccountingNotes={summary,payments};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })();
