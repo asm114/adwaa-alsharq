@@ -41,10 +41,10 @@ function dateValue(value,fallback=''){
   const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');
   return `${y}-${m}-${day}`;
 }
-function movement({id='',kind='',source='',label='',amount=0,date='',at='',method='',sourceId='',editable=false}){
+function movement({id='',kind='',source='',label='',amount=0,date='',at='',method='',sourceId='',editable=false,historicalUnknownDate=false}){
   const signed=Number(amount||0)||0;
   if(!signed)return null;
-  return {id:text(id),kind:text(kind),source:text(source),label:text(label),amount:signed,date:dateValue(date,at),at:atValue(at,date),method:text(method),sourceId:text(sourceId),editable:!!editable};
+  return {id:text(id),kind:text(kind),source:text(source),label:text(label),amount:signed,date:historicalUnknownDate?'':dateValue(date,at),at:historicalUnknownDate?'':atValue(at,date),method:text(method),sourceId:text(sourceId),editable:!!editable,historicalUnknownDate:!!historicalUnknownDate};
 }
 function bookingCashRows(booking){
   const rows=arr(booking?.payments).filter(row=>num(row?.amount)>0);
@@ -70,7 +70,8 @@ function subscriptionCashRows(subscription){
     id:'subscription-payment:'+text(subscription?.id)+':'+text(row?.id||index),
     kind:'subscription_payment',source:'اشتراك',label:subscription?.name||subscription?.customerName||'اشتراك',
     amount:num(row.amount),date:row.date||row.createdAt||subscription?.createdAt,
-    at:row.createdAt||row.date||subscription?.createdAt,method:row.method||'غير محدد',sourceId:subscription?.id
+    at:row.createdAt||row.date||subscription?.createdAt,method:row.method||'غير محدد',sourceId:subscription?.id,
+    historicalUnknownDate:row.historicalUnknownDate===true
   })).filter(Boolean);
   return rows.filter(Boolean);
 }
@@ -146,6 +147,7 @@ function buildMovements(state){
 function calibration(state){return normalizeAccount(state?.resortAccount).calibration}
 function movementAfterCalibration(row,cal){
   if(!cal?.at)return true;
+  if(row?.historicalUnknownDate)return false;
   const cut=new Date(cal.at).getTime(),event=new Date(row.at||row.date).getTime();
   if(!Number.isFinite(cut)||!Number.isFinite(event))return true;
   return event>cut;

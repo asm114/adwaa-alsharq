@@ -66,7 +66,7 @@ function paymentMovements(subscription){
     return finance.validPayments.map((row,index)=>({
       ...row,amount:amount(row.amount),
       id:row.id||`payment-${index}`,
-      date:row.date||row.createdAt||subscription?.createdAt||subscription?.updatedAt||''
+      date:row.historicalUnknownDate?'':(row.date||row.createdAt||subscription?.createdAt||subscription?.updatedAt||'')
     }));
   }
   return finance.paid>0?[{

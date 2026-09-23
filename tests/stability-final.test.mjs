@@ -91,9 +91,10 @@ test('تقويم بوابة العملاء على الجوال يستخدم شب
 test('Service Worker يستخدم كاش الإصدار الحالي ويحدث fallback عند نجاح فتح التطبيق',async()=>{
   const sw=await read('sw.js');
   assert.match(sw,/CACHE_NAMESPACE=`adwaa-alsharq:\$\{SCOPE_PATH\}:`/);
-  assert.match(sw,/CACHE=`\$\{CACHE_NAMESPACE\}app-state-20260922-issue150-1`/);
+  assert.match(sw,/CACHE=`\$\{CACHE_NAMESPACE\}app-state-20260923-issue150-2`/);
   assert.match(sw,/subscription-financial-core\.js\?v=20260922-1/);
   assert.match(sw,/operational-alert-core\.js\?v=20260922-1/);
+  assert.match(sw,/subscription-owner-confirmed-reconciliation\.js\?v=20260923-1/);
   assert.match(sw,/supabase-config\.staging\.js/);
   assert.match(sw,/isAppShellRequest/);
   assert.match(sw,/cache\.put\(FALLBACK,response\.clone\(\)\)/);

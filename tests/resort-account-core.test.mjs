@@ -69,3 +69,12 @@ test('financial integrity flags booking payment + customer credit mismatch',()=>
   const issues=core.integrityIssues(state);
   assert.ok(issues.some(x=>x.type==='booking_payment_total'));
 });
+
+test('owner-confirmed cash with unknown historical date is not added above a later calibrated balance',()=>{
+  const state={
+    subscriptions:[{id:'s',name:'نورة',total:1950,paid:1950,paymentManaged:true,paymentHistory:[{id:'old',amount:1500,date:'2026-08-27'},{id:'confirmed',amount:450,date:'',historicalUnknownDate:true}]}],
+    resortAccount:{calibration:{balance:4000,at:'2026-09-20T10:00:00Z'}}
+  };
+  assert.equal(core.currentBalance(state),4000);
+  assert.equal(core.balanceDetails(state).allMovements.filter(row=>row.kind==='subscription_payment').reduce((sum,row)=>sum+row.amount,0),1950);
+});
