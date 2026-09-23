@@ -56,7 +56,7 @@ function ensureModal(){
 }
 function paymentHistory(sub){
  const rows=Array.isArray(sub?.paymentHistory)?sub.paymentHistory:[];
- return rows.length?rows.slice().reverse().map(row=>`<div class="subscription-visit-row"><div><b>${money(row.amount)}</b><div class="meta">${esc(new Date(row.date).toLocaleString('ar-SA'))} • ${esc(row.method||'غير محدد')}${row.note?` • ${esc(row.note)}`:''}</div></div></div>`).join(''):'<div class="empty">لا توجد دفعات مسجلة.</div>';
+ return rows.length?rows.slice().reverse().map(row=>`<div class="subscription-visit-row"><div><b>${window.SubscriptionFinancialCore?.isValidPayment(row)?money(row.amount):'مبلغ غير صالح — يحتاج مراجعة'}</b><div class="meta">${row.date?esc(new Date(row.date).toLocaleString('ar-SA')):'بدون تاريخ'} • ${esc(row.method||'غير محدد')}${row.note?` • ${esc(row.note)}`:''}</div></div></div>`).join(''):'<div class="empty">لا توجد دفعات مسجلة.</div>';
 }
 function visitLabel(index,total){return `الزيارة ${index+1} من ${total}`}
 function renderControl(id){
@@ -88,11 +88,12 @@ window.subscriptionControlInitializeLegacy=async id=>{
  const paidValue=prompt('إجمالي المبلغ المستلم حتى الآن:',String(num(current.paid)||0));if(paidValue===null)return;
  const paid=num(paidValue);if(paid>total){alert('المدفوع لا يمكن أن يكون أكبر من قيمة الاشتراك.');return}
  if(!confirm(`تهيئة الاشتراك الرئيسي؟\n\nالإجمالي: ${money(total)}\nالمدفوع: ${money(paid)}\nالمتبقي: ${money(total-paid)}\n\nلن يتم إنشاء زيارات جديدة أو حذف الزيارات الحالية.`))return;
- const now=new Date().toISOString(),draft=legacyDraftById(id),dates=visits.map(v=>v.date).filter(Boolean).sort(),record={
+ const now=new Date().toISOString(),draft=legacyDraftById(id),dates=visits.map(v=>v.date).filter(Boolean).sort(),rawRecord={
   id,name:current.name||visits[0]?.name||'',phone:current.phone||visits[0]?.phone||'',type:current.type||'custom',typeLabel:current.typeLabel||'اشتراك دوري',
   visits:Math.max(Number(current.visits||0),dates.length),dates,total,paid,remaining:Math.max(0,total-paid),paymentManaged:true,paymentStatus:total-paid>0?'مدفوع جزئيًا':'مدفوع بالكامل',
-  paymentHistory:paid>0?[{id:uuid(),amount:paid,date:now,method:'غير محدد',note:'الرصيد المسجل عند تهيئة الاشتراك الرئيسي'}]:[],note:current.note||'',status:total-paid>0?'partial':'paid',createdAt:current.createdAt||now,updatedAt:now,draftId:draft?.id||null,portalTransferredDates:current.portalTransferredDates||[]
+ paymentHistory:paid>0?[{id:uuid(),amount:paid,date:now,method:'غير محدد',note:'الرصيد المسجل عند تهيئة الاشتراك الرئيسي'}]:[],note:current.note||'',status:total-paid>0?'partial':'paid',createdAt:current.createdAt||now,updatedAt:now,draftId:draft?.id||null,portalTransferredDates:current.portalTransferredDates||[]
  };
+ const record=window.SubscriptionFinancialCore?.reconcile(rawRecord)||rawRecord;
  subscriptions().push(record);
  for(const visit of visits){visit.subscriptionVisit=true;visit.subscriptionPaymentManaged=true;visit.subscriptionValue=total;visit.total=0;visit.paid=0;visit.updatedAt=now}
  if(draft){draft.subscriptionId=id;draft.status='approved';draft.total=total;draft.paid=paid;draft.updatedAt=now}

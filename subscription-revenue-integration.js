@@ -28,16 +28,15 @@ function ordinaryActiveBookings(){
   return bookings().filter(row=>row?.recordType!=='family'&&!isCancelled(row)&&!isPostponed(row)&&!isManagedVisit(row,ids));
 }
 function paymentRows(sub){
-  const history=Array.isArray(sub?.paymentHistory)?sub.paymentHistory:[];
-  const rows=history.map(row=>({subscription:sub,amount:num(row?.amount),date:row?.date||row?.createdAt||sub?.createdAt||sub?.updatedAt||'',method:row?.method||'غير محدد'})).filter(row=>row.amount>0);
-  const recorded=rows.reduce((sum,row)=>sum+row.amount,0),paid=num(sub?.paid);
-  if(paid>recorded)rows.push({subscription:sub,amount:paid-recorded,date:sub?.updatedAt||sub?.createdAt||'',method:'غير محدد',fallback:true});
-  return rows;
+  const core=window.SubscriptionFinancialCore;
+  if(core)return core.paymentMovements(sub).map(row=>({subscription:sub,amount:row.amount,date:row.date,method:row.method||'غير محدد',fallback:row.legacy===true}));
+  return [];
 }
 function allSubscriptionPayments(){return managedSubscriptions().flatMap(paymentRows)}
-function subscriptionPaidTotal(){return managedSubscriptions().reduce((sum,row)=>sum+num(row.paid),0)}
-function subscriptionTotalValue(){return managedSubscriptions().reduce((sum,row)=>sum+num(row.total),0)}
-function dueOf(row){return Math.max(0,num(row?.total)-num(row?.paid))}
+function subscriptionFinance(row){return window.SubscriptionFinancialCore?.stats(row)||{total:num(row?.total),paid:num(row?.paid),due:Math.max(0,num(row?.total)-num(row?.paid))}}
+function subscriptionPaidTotal(){return managedSubscriptions().reduce((sum,row)=>sum+subscriptionFinance(row).paid,0)}
+function subscriptionTotalValue(){return managedSubscriptions().reduce((sum,row)=>sum+subscriptionFinance(row).total,0)}
+function dueOf(row){return row?.paymentManaged===true?subscriptionFinance(row).due:Math.max(0,num(row?.total)-num(row?.paid))}
 function ordinaryDueTotal(rows=ordinaryActiveBookings()){return rows.reduce((sum,row)=>sum+dueOf(row),0)}
 function subscriptionDueTotal(rows=managedSubscriptions()){return rows.reduce((sum,row)=>sum+dueOf(row),0)}
 function subscriptionPeriodDate(row){return row?.createdAt||row?.updatedAt||(Array.isArray(row?.dates)?row.dates[0]:'')||''}

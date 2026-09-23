@@ -5,6 +5,7 @@ const num=value=>Math.max(0,Number(value||0)||0);
 const arr=value=>Array.isArray(value)?value:[];
 const text=value=>String(value??'');
 const uuidFallback=(prefix,index)=>prefix+'-'+index;
+const subscriptionCore=root.SubscriptionFinancialCore||(typeof require==='function'?require('./subscription-financial-core.js'):null);
 
 function normalizeAccount(value){
   const source=value&&typeof value==='object'?value:{};
@@ -40,10 +41,10 @@ function dateValue(value,fallback=''){
   const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');
   return `${y}-${m}-${day}`;
 }
-function movement({id='',kind='',source='',label='',amount=0,date='',at='',method='',sourceId='',editable=false}){
+function movement({id='',kind='',source='',label='',amount=0,date='',at='',method='',sourceId='',editable=false,historicalUnknownDate=false}){
   const signed=Number(amount||0)||0;
   if(!signed)return null;
-  return {id:text(id),kind:text(kind),source:text(source),label:text(label),amount:signed,date:dateValue(date,at),at:atValue(at,date),method:text(method),sourceId:text(sourceId),editable:!!editable};
+  return {id:text(id),kind:text(kind),source:text(source),label:text(label),amount:signed,date:historicalUnknownDate?'':dateValue(date,at),at:historicalUnknownDate?'':atValue(at,date),method:text(method),sourceId:text(sourceId),editable:!!editable,historicalUnknownDate:!!historicalUnknownDate};
 }
 function bookingCashRows(booking){
   const rows=arr(booking?.payments).filter(row=>num(row?.amount)>0);
@@ -64,21 +65,14 @@ function bookingCashRows(booking){
   })]:[];
 }
 function subscriptionCashRows(subscription){
-  const history=arr(subscription?.paymentHistory).filter(row=>num(row?.amount)>0);
+  const history=subscriptionCore?subscriptionCore.paymentMovements(subscription):[];
   const rows=history.map((row,index)=>movement({
     id:'subscription-payment:'+text(subscription?.id)+':'+text(row?.id||index),
     kind:'subscription_payment',source:'اشتراك',label:subscription?.name||subscription?.customerName||'اشتراك',
     amount:num(row.amount),date:row.date||row.createdAt||subscription?.createdAt,
-    at:row.createdAt||row.date||subscription?.createdAt,method:row.method||'غير محدد',sourceId:subscription?.id
+    at:row.createdAt||row.date||subscription?.createdAt,method:row.method||'غير محدد',sourceId:subscription?.id,
+    historicalUnknownDate:row.historicalUnknownDate===true
   })).filter(Boolean);
-  const recorded=history.reduce((sum,row)=>sum+num(row.amount),0);
-  const fallback=Math.max(0,num(subscription?.paid)-recorded);
-  if(fallback>0)rows.push(movement({
-    id:'subscription-payment-fallback:'+text(subscription?.id),kind:'subscription_payment',source:'اشتراك',
-    label:subscription?.name||subscription?.customerName||'اشتراك',amount:fallback,
-    date:subscription?.updatedAt||subscription?.createdAt,at:subscription?.updatedAt||subscription?.createdAt,
-    method:'غير محدد',sourceId:subscription?.id
-  }));
   return rows.filter(Boolean);
 }
 function commissionMovement(row,source){
@@ -153,6 +147,7 @@ function buildMovements(state){
 function calibration(state){return normalizeAccount(state?.resortAccount).calibration}
 function movementAfterCalibration(row,cal){
   if(!cal?.at)return true;
+  if(row?.historicalUnknownDate)return false;
   const cut=new Date(cal.at).getTime(),event=new Date(row.at||row.date).getTime();
   if(!Number.isFinite(cut)||!Number.isFinite(event))return true;
   return event>cut;
@@ -192,6 +187,7 @@ function integrityIssues(state){
     const principal=num(note?.principalAmount),paid=arr(note?.payments).reduce((sum,row)=>sum+num(row?.amount),0);
     if(paid>principal+0.01)issues.push({type:'advance',id:text(note?.id),message:`${note?.title||'سلفة'}: السداد أكبر من أصل المبلغ`});
   }
+  if(subscriptionCore)issues.push(...subscriptionCore.integrityIssues(db));
   return issues;
 }
 const api={num,normalizeAccount,buildMovements,balanceDetails,currentBalance,periodMovements,customerCashCollected,cashOutflow,integrityIssues};

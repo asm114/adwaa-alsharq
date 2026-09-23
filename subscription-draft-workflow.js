@@ -98,12 +98,13 @@ function createVisitBookings(sub){
 }
 function makeSubscription(data,draftId=null){
  const now=new Date().toISOString(),remaining=Math.max(0,data.total-data.paid);
- return{
+ const subscription={
   id:uuid(),name:data.name,phone:data.phone,type:data.type,typeLabel:data.typeLabel,visits:data.visits,dates:[...data.dates].sort(),
   total:data.total,paid:data.paid,remaining,paymentManaged:true,paymentStatus:remaining>0?'مدفوع جزئيًا':'مدفوع بالكامل',
   paymentHistory:initialPayment(data.paid),note:data.note,status:remaining>0?'partial':'paid',createdAt:now,updatedAt:now,draftId:draftId||null,
   portalTransferredDates:[]
  };
+ return window.SubscriptionFinancialCore?.reconcile(subscription)||subscription;
 }
 async function createOfficial(data,draftId=null){
  if(savingOfficial)return false;
@@ -133,18 +134,20 @@ async function approveDraft(id){
  return createOfficial({...d,paid},id);
 }
 async function addPayment(subscriptionId){
- const sub=subscriptions().find(x=>x.id===subscriptionId);if(!sub)return;
+ const rows=subscriptions(),index=rows.findIndex(x=>x.id===subscriptionId),sub=rows[index];if(!sub)return;
  if(!sub.paymentManaged){alert('هذا اشتراك قديم. لم يتم تحويل سجله المالي للنظام الجديد حتى لا تتغير بياناته السابقة.');return}
- const due=Math.max(0,num(sub.total)-num(sub.paid));if(due<=0){alert('الاشتراك مكتمل السداد.');return}
+ const finance=window.SubscriptionFinancialCore?.stats(sub)||{due:Math.max(0,num(sub.total)-num(sub.paid))},due=finance.due;if(due<=0){alert('الاشتراك مكتمل السداد أو يحتاج مراجعة مالية.');return}
  const value=prompt(`المتبقي الحالي ${money(due)}\nأدخل قيمة الدفعة الجديدة:`,'');if(value===null)return;
- const amount=num(value);if(amount<=0){alert('أدخل مبلغًا صحيحًا.');return}if(amount>due){alert(`الدفعة أكبر من المتبقي (${money(due)}).`);return}
+ const amount=Number(value);if(!Number.isFinite(amount)||amount<=0){alert('أدخل مبلغًا صحيحًا أكبر من صفر.');return}if(amount>due){alert(`الدفعة أكبر من المتبقي (${money(due)}).`);return}
  const method=prompt('طريقة الدفع (اختياري):','تحويل')??'تحويل';
  const note=prompt('ملاحظة على الدفعة (اختياري):','')??'';
- sub.paymentHistory=Array.isArray(sub.paymentHistory)?sub.paymentHistory:[];
- sub.paymentHistory.push({id:uuid(),amount,date:new Date().toISOString(),method,note});
- sub.paid=num(sub.paid)+amount;sub.remaining=Math.max(0,num(sub.total)-sub.paid);sub.paymentStatus=sub.remaining>0?'مدفوع جزئيًا':'مدفوع بالكامل';sub.status=sub.remaining>0?'partial':'paid';sub.updatedAt=new Date().toISOString();
- const d=drafts().find(x=>x.subscriptionId===sub.id);if(d){d.paid=sub.paid;d.updatedAt=sub.updatedAt}
- await save();alert(sub.remaining>0?`تم تسجيل الدفعة. المتبقي ${money(sub.remaining)}.`:'تم تسجيل الدفعة واكتمل سداد الاشتراك.');
+ const now=new Date().toISOString(),payment={id:uuid(),amount,date:now,method,note};
+ let updated;
+ try{updated=window.SubscriptionFinancialCore?.appendPayment(sub,payment)||{...sub,paymentHistory:[...(sub.paymentHistory||[]),payment],paid:num(sub.paid)+amount}}
+ catch(error){console.error(error);alert('تعذر تسجيل الدفعة لأنها لا تطابق المتبقي المالي.');return}
+ updated.updatedAt=now;rows[index]=updated;
+ const d=drafts().find(x=>x.subscriptionId===updated.id);if(d){d.paid=updated.paid;d.updatedAt=updated.updatedAt}
+ await save();alert(updated.remaining>0?`تم تسجيل الدفعة. المتبقي ${money(updated.remaining)}.`:'تم تسجيل الدفعة واكتمل سداد الاشتراك. ستظهر متابعة العمولة إن كانت مستحقة.');
 }
 async function renew(id){
  const d=drafts().find(x=>x.id===id);if(!d)return;
@@ -186,7 +189,7 @@ function renderDraftPanel(){
 function renderOfficialPanel(){
  const root=document.getElementById('subscriptionOfficialPanel');if(!root)return;
  const rows=subscriptions().filter(s=>s?.paymentManaged).slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
- root.innerHTML=rows.length?rows.map(s=>{const paid=num(s.paid),due=Math.max(0,num(s.total)-paid);return`<article class="draft-card"><div class="draft-head"><div><h4>${esc(s.name)} — ${esc(s.typeLabel||'اشتراك دوري')}</h4><div class="meta">${esc(s.phone)} • ${s.dates?.length||0} زيارة</div></div><span class="badge ${due>0?'pending':'confirmed'}">${due>0?'مدفوع جزئيًا':'مكتمل السداد'}</span></div><div class="subscription-money-grid"><div><small>الإجمالي</small><b>${money(s.total)}</b></div><div><small>المدفوع</small><b>${money(paid)}</b></div><div class="${due>0?'due':''}"><small>المتبقي</small><b>${money(due)}</b></div></div>${due>0?`<div class="subscription-due-warning">⚠️ متبقي على العميل ${money(due)}</div>`:''}<details><summary>سجل الدفعات (${(s.paymentHistory||[]).length})</summary><div class="payment-mini-list">${(s.paymentHistory||[]).map(p=>`<div>${new Date(p.date).toLocaleDateString('ar-SA')} • ${money(p.amount)} • ${esc(p.method||'—')}</div>`).join('')||'<div class="meta">لا توجد دفعات مسجلة.</div>'}</div></details><div class="actions">${due>0?`<button class="primary" onclick="addSubscriptionPayment('${s.id}')">تسجيل دفعة</button>`:''}<button class="secondary" onclick="transferOfficialSubscriptionToPortal('${s.id}')">ترحيل الأيام للبوابة</button></div></article>`}).join(''):'<div class="empty">لا توجد اشتراكات رسمية بالنظام المالي الجديد.</div>';
+ root.innerHTML=rows.length?rows.map(s=>{const finance=window.SubscriptionFinancialCore?.stats(s)||{paid:num(s.paid),due:Math.max(0,num(s.total)-num(s.paid)),fullyPaid:num(s.total)>0&&num(s.total)===num(s.paid),overpaid:0,invalidPayments:[]},paid=finance.paid,due=finance.due,needsReview=finance.overpaid>0||finance.invalidPayments.length>0;return`<article class="draft-card"><div class="draft-head"><div><h4>${esc(s.name)} — ${esc(s.typeLabel||'اشتراك دوري')}</h4><div class="meta">${esc(s.phone)} • ${s.dates?.length||0} زيارة</div></div><span class="badge ${finance.fullyPaid?'confirmed':'pending'}">${finance.fullyPaid?'مكتمل السداد':needsReview?'يحتاج مراجعة مالية':'مدفوع جزئيًا'}</span></div><div class="subscription-money-grid"><div><small>الإجمالي</small><b>${money(finance.total??s.total)}</b></div><div><small>المدفوع</small><b>${money(paid)}</b></div><div class="${due>0?'due':''}"><small>المتبقي</small><b>${money(due)}</b></div></div>${needsReview?`<div class="subscription-due-warning">⚠️ يوجد سجل مالي غير صالح محفوظ للتدقيق ولم يُحتسب كدفعة.</div>`:due>0?`<div class="subscription-due-warning">⚠️ متبقي على العميل ${money(due)}</div>`:''}<details><summary>سجل الدفعات (${(s.paymentHistory||[]).length})</summary><div class="payment-mini-list">${(s.paymentHistory||[]).map(p=>`<div>${p.date?new Date(p.date).toLocaleDateString('ar-SA'):'—'} • ${window.SubscriptionFinancialCore?.isValidPayment(p)?money(p.amount):'مبلغ غير صالح — يحتاج مراجعة'} • ${esc(p.method||'—')}</div>`).join('')||'<div class="meta">لا توجد دفعات مسجلة.</div>'}</div></details><div class="actions">${due>0&&!finance.overpaid?`<button class="primary" onclick="addSubscriptionPayment('${s.id}')">تسجيل دفعة</button>`:''}<button class="secondary" onclick="transferOfficialSubscriptionToPortal('${s.id}')">ترحيل الأيام للبوابة</button></div></article>`}).join(''):'<div class="empty">لا توجد اشتراكات رسمية بالنظام المالي الجديد.</div>';
 }
 function renderPanels(){renderDraftPanel();renderOfficialPanel()}
 function install(){

@@ -30,10 +30,7 @@ function visitStats(subscription){
  };
 }
 function financialStats(subscription){
- const history=Array.isArray(subscription?.paymentHistory)?subscription.paymentHistory:[];
- const paid=history.length?history.reduce((sum,row)=>sum+num(row?.amount),0):num(subscription?.paid);
- const total=num(subscription?.total);
- return{total,paid:Math.min(total,paid),due:Math.max(0,total-paid)};
+ return window.SubscriptionFinancialCore?.stats(subscription)||{total:num(subscription?.total),paid:num(subscription?.paid),due:Math.max(0,num(subscription?.total)-num(subscription?.paid))};
 }
 window.subscriptionVisitStats=visitStats;
 window.subscriptionFinancialStats=financialStats;
