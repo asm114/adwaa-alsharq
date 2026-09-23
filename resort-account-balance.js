@@ -35,6 +35,8 @@ function sourceLabel(row){
     booking_payment:'دفعة حجز',
     subscription_payment:'دفعة اشتراك',
     expense:'مصروف',
+    maintenance_payment:'دفعة صيانة',
+    salary_payment:'راتب عامل',
     customer_refund:'استرداد عميل',
     commission_transfer:'تحويل عمولة',
     personal_advance:'سلفة من المنتجع',

@@ -1,7 +1,17 @@
 (function(root){
 'use strict';
 
-const num=value=>Math.max(0,Number(value||0)||0);
+function parseMoney(value){
+  const normalized=String(value??'')
+    .replace(/[٠-٩]/g,char=>String(char.charCodeAt(0)-'٠'.charCodeAt(0)))
+    .replace(/[۰-۹]/g,char=>String(char.charCodeAt(0)-'۰'.charCodeAt(0)))
+    .replace(/[٫]/g,'.')
+    .replace(/[٬،,\u00a0\s]/g,'')
+    .replace(/[^\d.\-]/g,'');
+  const parsed=Number(normalized);
+  return Number.isFinite(parsed)?parsed:0;
+}
+const num=value=>Math.max(0,parseMoney(value));
 const arr=value=>Array.isArray(value)?value:[];
 const text=value=>String(value??'');
 const uuidFallback=(prefix,index)=>prefix+'-'+index;
@@ -94,6 +104,41 @@ function commissionMovement(row,source){
     at:snap.receivedAt||row?.commissionReceivedAt,sourceId:row?.id
   });
 }
+function maintenanceSummary(job){
+  const total=num(job?.totalAmount);
+  const paid=arr(job?.payments).reduce((sum,row)=>sum+num(row?.amount),0);
+  return {total,paid,remaining:Math.max(0,total-paid),status:paid<=0?'unpaid':paid+0.009>=total?'paid':'partial'};
+}
+function maintenanceTotals(state,matcher){
+  return arr(state?.maintenanceJobs).reduce((totals,job)=>{
+    const summary=maintenanceSummary(job);
+    totals.total+=summary.total;
+    totals.paid+=arr(job?.payments).filter(row=>typeof matcher!=='function'||matcher(dateValue(row?.date,row?.createdAt),row,job)).reduce((sum,row)=>sum+num(row?.amount),0);
+    totals.remaining+=summary.remaining;
+    return totals;
+  },{total:0,paid:0,remaining:0});
+}
+function salaryRows(state){
+  return arr(state?.expenses).filter(row=>row?.expenseType==='salary'||row?.category==='راتب عامل'||row?.cat==='راتب عامل');
+}
+function salaryTotals(state,{month='',year=''}={}){
+  const rows=salaryRows(state),matches=row=>{
+    const salaryMonth=text(row?.salaryMonth||row?.date).slice(0,7);
+    return (!month||salaryMonth===month)&&(!year||salaryMonth.slice(0,4)===year);
+  };
+  return {amount:rows.filter(matches).reduce((sum,row)=>sum+num(row?.amount),0),count:rows.filter(matches).length,rows:rows.filter(matches)};
+}
+function salaryKey(worker,month){return text(worker).trim().replace(/\s+/g,' ').toLocaleLowerCase('ar')+'|'+text(month).slice(0,7)}
+function isSalaryDuplicate(state,{workerName='',salaryMonth='',excludeId=''}={}){
+  const key=salaryKey(workerName,salaryMonth);
+  return salaryRows(state).some(row=>text(row?.id)!==text(excludeId)&&salaryKey(row?.workerName||text(row?.title).replace(/^راتب العامل:\s*/,''),row?.salaryMonth||row?.date)===key);
+}
+function advanceTotals(state){
+  return arr(state?.accountingNotes).reduce((totals,note)=>{
+    const principal=num(note?.principalAmount),repaid=arr(note?.payments).reduce((sum,row)=>sum+num(row?.amount),0);
+    totals.principal+=principal;totals.repaid+=repaid;totals.outstanding+=Math.max(0,principal-repaid);return totals;
+  },{principal:0,repaid:0,outstanding:0});
+}
 function buildMovements(state){
   const db=state&&typeof state==='object'?state:{};
   const rows=[];
@@ -117,8 +162,11 @@ function buildMovements(state){
   }
   for(const expense of arr(db.expenses)){
     const amount=num(expense?.amount);if(!amount)continue;
+    // Ordinary rows retain kind:'expense'; generated rows receive a clearer source kind.
+    const expenseType=expense?.expenseType==='maintenance_payment'||expense?.maintenancePaymentId?'maintenance_payment':expense?.expenseType==='salary'||expense?.salaryMonth||expense?.category==='راتب عامل'||expense?.cat==='راتب عامل'?'salary_payment':'expense';
+    const source=expenseType==='maintenance_payment'?'صيانة':expenseType==='salary_payment'?'راتب عامل':'مصروف';
     rows.push(movement({
-      id:'expense:'+text(expense.id),kind:'expense',source:'مصروف',
+      id:'expense:'+text(expense.id),kind:expenseType,source,
       label:`${expense.ref||''} ${expense.title||'مصروف'}`.trim(),amount:-amount,date:expense.date,
       at:expense.createdAt||expense.date||expense.updatedAt,method:expense.paymentMethod||'غير محدد',sourceId:expense.id
     }));
@@ -173,6 +221,13 @@ function customerCashCollected(state,matcher){
 function cashOutflow(state,matcher){
   return periodMovements(state,matcher).filter(row=>row.amount<0).reduce((sum,row)=>sum+Math.abs(row.amount),0);
 }
+function financeSummary(state,matcher){
+  const expenses=arr(state?.expenses).filter(row=>typeof matcher!=='function'||matcher(dateValue(row?.date,row?.createdAt),row));
+  const actualExpenses=expenses.reduce((sum,row)=>sum+num(row?.amount),0);
+  const maintenancePaid=expenses.filter(row=>row?.expenseType==='maintenance_payment'||row?.maintenancePaymentId).reduce((sum,row)=>sum+num(row?.amount),0);
+  const salaries=expenses.filter(row=>row?.expenseType==='salary'||row?.category==='راتب عامل'||row?.cat==='راتب عامل').reduce((sum,row)=>sum+num(row?.amount),0);
+  return {actualExpenses,maintenancePaid,salaries,maintenanceDue:maintenanceTotals(state).remaining,...advanceTotals(state)};
+}
 function integrityIssues(state){
   const db=state&&typeof state==='object'?state:{},issues=[];
   for(const expense of arr(db.expenses))if(!(num(expense?.amount)>0))issues.push({type:'expense',id:text(expense?.id),message:'مصروف بدون مبلغ صحيح'});
@@ -192,9 +247,28 @@ function integrityIssues(state){
     const principal=num(note?.principalAmount),paid=arr(note?.payments).reduce((sum,row)=>sum+num(row?.amount),0);
     if(paid>principal+0.01)issues.push({type:'advance',id:text(note?.id),message:`${note?.title||'سلفة'}: السداد أكبر من أصل المبلغ`});
   }
+  const linkedExpenses=new Map();
+  for(const expense of arr(db.expenses)){
+    if(expense?.expenseType!=='maintenance_payment'&&!expense?.maintenancePaymentId)continue;
+    const paymentId=text(expense?.maintenancePaymentId);
+    if(!paymentId)issues.push({type:'maintenance_orphan_expense',id:text(expense?.id),message:'مصروف صيانة مولد دون مرجع دفعة'});
+    else linkedExpenses.set(paymentId,[...(linkedExpenses.get(paymentId)||[]),expense]);
+  }
+  const knownPayments=new Set();
+  for(const job of arr(db.maintenanceJobs)){
+    const summary=maintenanceSummary(job);
+    if(summary.paid>summary.total+0.01)issues.push({type:'maintenance_overpaid',id:text(job?.id),message:`${job?.title||'صيانة'}: المدفوع أكبر من إجمالي الصيانة`});
+    for(const payment of arr(job?.payments)){
+      const paymentId=text(payment?.id);knownPayments.add(paymentId);
+      const links=linkedExpenses.get(paymentId)||[];
+      if(links.length!==1)issues.push({type:'maintenance_expense_link',id:paymentId,message:`${job?.title||'صيانة'}: دفعة الصيانة مرتبطة بـ ${links.length} حركة مصروف بدل حركة واحدة`});
+      else if(Math.abs(num(links[0]?.amount)-num(payment?.amount))>0.01)issues.push({type:'maintenance_amount_mismatch',id:paymentId,message:`${job?.title||'صيانة'}: مبلغ الدفعة لا يطابق المصروف المرتبط`});
+    }
+  }
+  for(const paymentId of linkedExpenses.keys())if(!knownPayments.has(paymentId))issues.push({type:'maintenance_orphan_expense',id:paymentId,message:'مصروف صيانة مرتبط بدفعة غير موجودة'});
   return issues;
 }
-const api={num,normalizeAccount,buildMovements,balanceDetails,currentBalance,periodMovements,customerCashCollected,cashOutflow,integrityIssues};
+const api={parseMoney,num,normalizeAccount,maintenanceSummary,maintenanceTotals,salaryRows,salaryTotals,isSalaryDuplicate,advanceTotals,financeSummary,buildMovements,balanceDetails,currentBalance,periodMovements,customerCashCollected,cashOutflow,integrityIssues};
 root.ResortAccountCore=api;
 if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
