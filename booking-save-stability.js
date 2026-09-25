@@ -111,7 +111,21 @@ function depositFromBooking(booking){
   const deposit=payments.find(item=>item?.type==='deposit');
   return deposit?moneyValue(deposit.amount):0;
 }
-function normalizedPayments(booking){return window.BookingFinancialCore?.normalizePaymentRows(booking?.payments)||[]}
+function normalizedPayments(booking){
+  const rows=window.BookingFinancialCore?.normalizePaymentRows(booking?.payments)||[];
+  return rows.map(row=>({
+    id:String(row?.id||''),
+    amount:moneyValue(row?.amount),
+    type:String(row?.type||''),
+    method:String(row?.method||''),
+    date:String(row?.date||''),
+    note:String(row?.note||'')
+  })).sort((a,b)=>{
+    const ak=[a.id,a.type,a.date,a.method,a.amount,a.note].join('|');
+    const bk=[b.id,b.type,b.date,b.method,b.amount,b.note].join('|');
+    return ak.localeCompare(bk);
+  });
+}
 async function verifySavedBookingInSupabase(id,code,requested){
   let client=null,rowId='main';
   try{if(typeof supabaseClient!=='undefined')client=supabaseClient}catch(_){}
