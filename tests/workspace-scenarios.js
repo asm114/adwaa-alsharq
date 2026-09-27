@@ -5,6 +5,7 @@ const result=document.getElementById('qaResult'),pause=ms=>new Promise(r=>setTim
 const check=(condition,message)=>{if(!condition)throw Error(message);result.textContent+='✓ '+message+'\n'};
 function fill(id,value){const el=document.getElementById(id);if(!el)throw Error('missing '+id);el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))}
 function submit(form){form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))}
+async function saveBookingThroughUI(){document.querySelector('button[type="submit"][form="bookingForm"]').click();await pause(1600)}
 document.getElementById('qaLayout').onclick=()=>{
  const width=document.documentElement.clientWidth;
  const overflow=[...document.querySelectorAll('#appRoot main *')].filter(e=>e.getClientRects().length&&!e.closest('.calendar,.finance-table,.resort-account-ledger,.protection-table,.workspace-finance-nav')).filter(e=>{const r=e.getBoundingClientRect();return r.left< -2||r.right>width+2});
@@ -15,11 +16,11 @@ document.getElementById('qaRun').onclick=async()=>{
  try{
   check(db.bookings.length===0,'بيانات فارغة ومعزولة');
   openBooking();await pause(50);fill('bName','عميل اختبار معزول');fill('bPhone','0500000000');fill('bDate','2026-10-20');fill('bTotal','١٢٠٠');fill('bookingDepositAmount','٥٠٠');
-  await saveBooking({preventDefault(){}});await pause(250);
+  await saveBookingThroughUI();
   check(db.bookings.length===1&&db.bookings[0].total===1200&&db.bookings[0].paid===500,'حجز 1200 وعربون 500 بالأرقام العربية');
-  openBooking(db.bookings[0].id);fill('paymentAmount','٢٠٠');document.getElementById('paymentSaveButton').click();await saveBooking({preventDefault(){}});await pause(250);
+  openBooking(db.bookings[0].id);document.getElementById('bookingPaymentAddToggle').click();fill('paymentAmount','٢٠٠');document.getElementById('paymentSaveButton').click();await saveBookingThroughUI();
   check(db.bookings[0].paid===700,'دفعة إضافية 200');
-  openBooking(db.bookings[0].id);fill('bNotes','تعديل تجريبي');await saveBooking({preventDefault(){}});await pause(250);check(db.bookings[0].notes==='تعديل تجريبي','تعديل الحجز');
+  openBooking(db.bookings[0].id);fill('bNotes','تعديل تجريبي');await saveBookingThroughUI();check(db.bookings[0].notes==='تعديل تجريبي','تعديل الحجز');
   for(const id of ['customers','expenses','calendarView','dashboard','bookings','settings','about','dataProtection']){switchView(id);check(document.getElementById(id).classList.contains('active'),'تنقل '+id)}
   switchView('expenses');openExpense();fill('eTitle','مصروف اختبار');fill('eAmount','١٠٠');await saveExpense({preventDefault(){},currentTarget:document.getElementById('expenseForm')});
   check(ResortAccountCore.currentBalance(db)===600,'رصيد 700 محصل ناقص 100 مصروف');
