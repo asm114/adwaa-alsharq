@@ -22,7 +22,7 @@ document.getElementById('qaRun').onclick=async()=>{
   check(db.bookings[0].paid===700,'دفعة إضافية 200');
   openBooking(db.bookings[0].id);fill('bNotes','تعديل تجريبي');await saveBookingThroughUI();check(db.bookings[0].notes==='تعديل تجريبي','تعديل الحجز');
   for(const id of ['customers','expenses','calendarView','dashboard','bookings','settings','about','dataProtection']){switchView(id);check(document.getElementById(id).classList.contains('active'),'تنقل '+id)}
-  switchView('expenses');openExpense();fill('eTitle','مصروف اختبار');fill('eAmount','١٠٠');await saveExpense({preventDefault(){},currentTarget:document.getElementById('expenseForm')});
+  switchView('expenses');openExpense();fill('eTitle','مصروف اختبار');fill('eAmount','١٠٠');document.querySelector('#expenseModal button[type="submit"]').click();await pause(800);
   check(ResortAccountCore.currentBalance(db)===600,'رصيد 700 محصل ناقص 100 مصروف');
   openMaintenanceJob();let form=document.getElementById('maintenanceJobForm');form.elements.title.value='صيانة اختبار';form.elements.vendor.value='فني تجريبي';form.elements.total.value='1200';QA.delay=100;submit(form);submit(form);await pause(450);
   check(db.maintenanceJobs.length===1,'الضغط مرتين لا يكرر الصيانة');
