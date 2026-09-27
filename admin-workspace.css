@@ -1,0 +1,131 @@
+/* Reversible, presentation-only workspace. Prefix avoids changing public pages. */
+body.admin-workspace.simplified-ui{--green:#0f5b4c;--text:#172e29;--muted:#5c6d67;--line:#dde6e1;background:#f3f6f5!important;color:var(--text)!important;font-size:16px;line-height:1.65}
+body.admin-workspace.simplified-ui .app{max-width:none!important;padding-bottom:110px}
+body.admin-workspace.simplified-ui .app-header{max-width:none!important;margin:0!important;padding:22px 28px!important;background:#fff!important;border:0!important;border-bottom:1px solid var(--line)!important;border-radius:0!important;box-shadow:none!important;min-height:96px}
+body.admin-workspace.simplified-ui .app-header .title{color:var(--text)!important;font-size:26px!important;line-height:1.45!important;letter-spacing:normal!important}
+body.admin-workspace.simplified-ui .app-header .subtitle{color:var(--muted)!important;font-size:14px!important}
+body.admin-workspace.simplified-ui .app-header-copy{display:block!important;padding:0!important}
+body.admin-workspace.simplified-ui .app-header-copy:before{display:none!important}
+body.admin-workspace.simplified-ui .header-actions .icon-btn{background:#f3f7f5!important;border:1px solid var(--line)!important;color:var(--green)!important;border-radius:12px!important;box-shadow:none!important;min-height:44px}
+body.admin-workspace.simplified-ui main{width:100%!important;max-width:1520px!important;margin:auto!important;padding:26px!important}
+body.admin-workspace.simplified-ui .view{min-width:0}
+body.admin-workspace.simplified-ui .section,body.admin-workspace.simplified-ui .home-section,body.admin-workspace.simplified-ui .finance-card,body.admin-workspace.simplified-ui .stat,body.admin-workspace.simplified-ui .fo-card{border:1px solid var(--line)!important;border-radius:16px!important;background:#fff!important;box-shadow:0 2px 5px #16372a05!important}
+body.admin-workspace.simplified-ui .section-head{padding:18px 20px!important;background:transparent!important;gap:16px;flex-wrap:wrap}
+body.admin-workspace.simplified-ui .section-head h3,body.admin-workspace.simplified-ui .home-section-head h2{font-size:19px!important;color:var(--text)!important;line-height:1.5!important;letter-spacing:normal!important}
+body.admin-workspace.simplified-ui .meta,body.admin-workspace.simplified-ui .label{color:var(--muted)!important;font-size:14px!important;line-height:1.7!important}
+body.admin-workspace.simplified-ui button{min-height:44px;letter-spacing:normal!important}
+body.admin-workspace.simplified-ui button.primary{background:var(--green)!important;color:#fff!important;box-shadow:none!important;border-radius:10px!important}
+body.admin-workspace.simplified-ui button.secondary{background:#fff!important;border:1px solid #cedbd4!important;color:#254e42!important;border-radius:10px!important}
+body.admin-workspace.simplified-ui button.danger{background:#fff2f1!important;color:#a22b2b!important;border:1px solid #efc8c5!important;border-radius:10px!important}
+body.admin-workspace.simplified-ui :focus-visible{outline:3px solid #299984!important;outline-offset:3px}
+body.admin-workspace.simplified-ui input,body.admin-workspace.simplified-ui select,body.admin-workspace.simplified-ui textarea{font-size:16px!important;min-height:46px;border-radius:10px!important;border-color:#cad8d1!important;max-width:100%;min-width:0}
+body.admin-workspace.simplified-ui input[type=checkbox],body.admin-workspace.simplified-ui input[type=radio]{min-height:20px;width:20px;accent-color:var(--green)}
+body.admin-workspace.simplified-ui .toolbar,body.admin-workspace.simplified-ui .finance-toolbar{padding:16px;background:#fff;border:1px solid var(--line);border-radius:14px;gap:12px}
+body.admin-workspace.simplified-ui .item{padding:18px!important;border-color:var(--line)!important;gap:16px;min-width:0}
+body.admin-workspace.simplified-ui .item h4{font-size:17px;line-height:1.6}
+body.admin-workspace.simplified-ui .actions{gap:8px;flex-wrap:wrap}
+body.admin-workspace.simplified-ui .empty,body.admin-workspace.simplified-ui .home-empty{padding:32px 20px!important;background:#f8faf9!important;border:1px dashed #cedbd4!important;border-radius:12px!important;color:#586f64!important;font-size:15px!important;text-align:center;line-height:1.9}
+body.admin-workspace.simplified-ui .stat:before,body.admin-workspace.simplified-ui .stat:after{display:none!important}
+body.admin-workspace.simplified-ui .stat{padding:20px!important;min-height:115px}
+body.admin-workspace.simplified-ui .stat .k{font-size:14px!important;color:var(--muted)!important}
+body.admin-workspace.simplified-ui .stat .v{font-size:26px!important;margin-top:8px;font-variant-numeric:tabular-nums}
+body.admin-workspace.simplified-ui #resortStatusCard.home-status{background:#0a4439!important;border:0!important;box-shadow:none!important;border-radius:16px!important;padding:24px!important}
+body.admin-workspace.simplified-ui .home-quick-actions{background:#fff!important;border-color:var(--line)!important}
+body.admin-workspace.simplified-ui .home-quick-actions .home-section-head h2{color:var(--text)!important}
+body.admin-workspace.simplified-ui .home-quick-actions .home-section-head p{color:var(--muted)!important}
+body.admin-workspace.simplified-ui .quick-action-grid button{color:var(--green)!important;background:#f2f7f4!important;border:1px solid #dce8e0!important;border-radius:12px!important;font-size:14px!important}
+body.admin-workspace.simplified-ui .home-important-alerts{background:#fff!important;border-inline-start:3px solid #b88324!important}
+body.admin-workspace.simplified-ui .home-section-head{padding:20px 20px 12px}
+body.admin-workspace.simplified-ui nav{background:#0a3029!important;box-shadow:none!important;border:0!important}
+body.admin-workspace.simplified-ui nav>button{color:#c6d9d2!important;border-radius:10px!important;font-size:14px!important;line-height:1.5;min-height:48px}
+body.admin-workspace.simplified-ui nav>button.active{background:#ffffff18!important;color:#fff!important;box-shadow:inset -3px 0 #dfb657!important}
+body.admin-workspace.simplified-ui nav>button:hover{background:#ffffff10!important}
+body.admin-workspace.simplified-ui nav>button b{display:inline-flex!important;align-items:center;justify-content:center;font-size:20px!important}
+body.admin-workspace.simplified-ui nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.workspace-brand{display:none}
+.workspace-skip{position:fixed;top:-100px;inset-inline-start:20px;z-index:999;background:#fff;padding:12px;color:#0a4439}.workspace-skip:focus{top:12px}
+body.admin-workspace.simplified-ui #expenses{flex-direction:column;gap:16px}
+body.admin-workspace.simplified-ui #expenses.active{display:flex!important}
+body.admin-workspace.simplified-ui #expenses>*{margin-block:0!important;min-width:0}
+body.admin-workspace.simplified-ui #expenses>.finance-toolbar{order:0}
+body.admin-workspace.simplified-ui #expenses>.finance-summary{order:1}
+#workspaceMetricToggle{order:2;align-self:flex-start}#workspaceFinanceScope{order:3}#workspaceFinanceNav{order:4}
+body.admin-workspace.simplified-ui #expenses>.section,body.admin-workspace.simplified-ui #expenses>.grid{order:5}
+body.admin-workspace.simplified-ui .finance-summary{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:12px!important}
+body.admin-workspace.simplified-ui .finance-card{padding:20px!important;min-width:0}
+body.admin-workspace.simplified-ui .finance-card:has(#finAvailableBalance){order:-1;background:#e8f3ed!important;border-color:#b1d1bf!important}
+body.admin-workspace.simplified-ui .finance-card .amount{font-size:24px!important;line-height:1.5!important;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+body.admin-workspace.simplified-ui .finance-card small{font-size:14px!important;color:#526a5f!important}
+body.admin-workspace.simplified-ui #expenses:not(.workspace-expanded-metrics) .workspace-secondary-metric{display:none!important}
+body.admin-workspace.simplified-ui .workspace-panel-hidden{display:none!important}
+.workspace-finance-nav{display:flex;gap:6px;padding:6px;background:#e7eeea;border:1px solid #d7e3db;border-radius:12px;overflow-x:auto;max-width:100%;scrollbar-width:thin}
+.workspace-finance-nav button{flex:none;white-space:nowrap;border:0;padding:10px 16px;border-radius:8px;background:transparent;color:#466054;font-weight:700;font-size:14px}
+.workspace-finance-nav button[aria-pressed=true]{background:#fff;color:#0a4439;box-shadow:0 1px 4px #173c2514}
+.workspace-disclosure{border:0;background:transparent;color:#0f5b4c;font-size:14px;text-decoration:underline;text-underline-offset:4px;padding:4px 0}
+.workspace-scope{font-size:13px;color:#5c6d67;line-height:1.8}
+body.admin-workspace.simplified-ui .finance-table,body.admin-workspace.simplified-ui .resort-account-ledger,body.admin-workspace.simplified-ui .protection-table{max-width:100%;overscroll-behavior-inline:contain;scrollbar-width:thin}
+body.admin-workspace.simplified-ui table{font-size:14px}
+body.admin-workspace.simplified-ui th{background:#f2f6f3!important;color:#4e695b!important;font-size:14px!important;padding:14px!important}
+body.admin-workspace.simplified-ui td{padding:14px!important;border-color:#e7ede9!important}
+body.admin-workspace.simplified-ui tbody tr:nth-child(even){background:#fafcfb}
+body.admin-workspace.simplified-ui .sheet{border-radius:18px!important;border:1px solid var(--line)!important;box-shadow:0 20px 60px #09281e26!important;max-height:92dvh;overscroll-behavior:contain}
+body.admin-workspace.simplified-ui .modal{background:#0a211b80!important;backdrop-filter:blur(3px)}
+body.admin-workspace.simplified-ui .sheet-head{background:#fff;padding-bottom:16px;border-bottom:1px solid var(--line)}
+body.admin-workspace.simplified-ui .form-grid{gap:18px!important}
+body.admin-workspace.simplified-ui .finance-entry-btn{border-radius:12px!important;background:#f6f9f7!important;min-height:96px}
+body.admin-workspace.simplified-ui .finance-kpis{border-top:1px solid var(--line);padding-top:20px;margin-top:20px}
+.workspace-form-status{margin-block:14px;padding:12px 16px;border:1px solid #c4d8cd;border-radius:10px;background:#edf6f1;color:#204c37;font-size:14px;line-height:1.8}
+.workspace-form-status.error{background:#fff1ee;color:#952f22;border-color:#e9b6ab}
+body.admin-workspace .auth-gate{background:#eef4f0!important}
+body.admin-workspace .auth-card{border:1px solid #d5e2da;border-radius:20px!important;box-shadow:0 16px 55px #1b433214!important}
+body.admin-workspace.simplified-ui #expenses[data-workspace-finance-view="overview"] #resortAccountLedgerBody>tr:nth-child(n+6){display:none}
+body.admin-workspace.simplified-ui #expenses[data-workspace-finance-view="overview"] #resortAccountSection .resort-account-balance{display:none}
+#workspaceAllMovements{margin:0 18px 18px!important}
+#expenses:not([data-workspace-finance-view="overview"]) #workspaceAllMovements{display:none}
+@media(min-width:1100px){
+ body.admin-workspace.simplified-ui .app{padding-inline-start:244px!important;padding-bottom:20px!important}
+ body.admin-workspace.simplified-ui #appRoot>nav{position:fixed!important;inset-block:0!important;inset-inline-start:0!important;inset-inline-end:auto!important;transform:none!important;width:244px!important;max-width:none!important;height:100dvh!important;margin:0!important;padding:22px 14px!important;border-radius:0!important;display:flex!important;flex-direction:column!important;align-items:stretch;gap:5px;overflow-y:auto!important}
+ body.admin-workspace.simplified-ui #appRoot>nav>button{display:flex!important;align-items:center;justify-content:flex-start;gap:14px;text-align:start;padding:12px 16px!important;flex:none}
+ body.admin-workspace.simplified-ui #appRoot>nav>button b{margin:0!important}
+ body.admin-workspace.simplified-ui #appRoot>nav>.simple-more-button{display:none!important}
+ .workspace-brand{display:flex;align-items:center;gap:12px;color:#fff;padding:8px 10px 28px;margin-bottom:12px;border-bottom:1px solid #ffffff1a}
+ .workspace-brand strong{font-size:19px}.workspace-brand small{display:block;font-size:12px;color:#b7cdc3;margin-top:3px}
+ .workspace-mark{width:42px;height:46px;border:1px solid #d5b66e88;border-radius:12px;display:grid;place-items:center;color:#efd7a7;font-size:26px}
+ body.admin-workspace.simplified-ui .home-command-center{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)!important;gap:20px!important}
+ body.admin-workspace.simplified-ui .home-status,body.admin-workspace.simplified-ui .home-metrics,body.admin-workspace.simplified-ui .home-quick-actions{grid-column:1/-1!important}
+}
+@media(max-width:1400px){body.admin-workspace.simplified-ui .finance-summary{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@media(max-width:1099px){
+ body.admin-workspace.simplified-ui #appRoot>nav{width:calc(100% - 24px)!important;max-width:800px!important;inset-inline:12px!important;bottom:10px!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;padding:8px 4px calc(8px + env(safe-area-inset-bottom))!important;border-radius:16px!important}
+ body.admin-workspace.simplified-ui nav>button{font-size:12px!important;display:flex;flex-direction:column;align-items:center;gap:5px}
+ body.admin-workspace.simplified-ui nav>button b{margin:0!important}.workspace-brand{display:none}
+}
+@media(max-width:700px){
+ body.admin-workspace.simplified-ui .app-header{padding:16px!important;min-height:84px}
+ body.admin-workspace.simplified-ui .app-header .title{font-size:21px!important}
+ body.admin-workspace.simplified-ui main{padding:16px 12px!important}
+ body.admin-workspace.simplified-ui .finance-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ body.admin-workspace.simplified-ui .finance-card{padding:14px!important}
+ body.admin-workspace.simplified-ui .finance-card:has(#finAvailableBalance){grid-column:1/-1}
+ body.admin-workspace.simplified-ui .finance-card .amount{font-size:23px!important}
+ body.admin-workspace.simplified-ui .toolbar{flex-wrap:wrap}
+ body.admin-workspace.simplified-ui .toolbar>*{flex:1 1 140px;min-width:0}
+ body.admin-workspace.simplified-ui .finance-toolbar>div{min-width:0;flex:1 1 140px}
+ body.admin-workspace.simplified-ui .section-head{padding:16px!important}
+ body.admin-workspace.simplified-ui .item{flex-wrap:wrap;padding:14px!important}
+ body.admin-workspace.simplified-ui .item>*{min-width:0;max-width:100%;overflow-wrap:anywhere}
+ body.admin-workspace.simplified-ui .item .actions{width:100%}
+ body.admin-workspace.simplified-ui .item .actions button{flex:1 1 auto}
+ body.admin-workspace.simplified-ui .stat{padding:14px!important}
+ body.admin-workspace.simplified-ui .stat .v{font-size:22px!important}
+ body.admin-workspace.simplified-ui .sheet{width:100%!important;border-radius:18px 18px 0 0!important;margin-bottom:0!important;padding:18px!important;max-height:94dvh}
+ body.admin-workspace.simplified-ui #bookingModal .sheet{padding:0!important}
+ body.admin-workspace.simplified-ui .fo-head,body.admin-workspace.simplified-ui .fo-payment{flex-wrap:wrap;gap:10px}
+ body.admin-workspace.simplified-ui .finance-entry-grid{grid-template-columns:1fr 1fr!important}
+ body.admin-workspace.simplified-ui .finance-entry-btn{min-width:0;padding:12px!important}
+ body.admin-workspace.simplified-ui .finance-entry-btn b{font-size:14px!important}
+ body.admin-workspace.simplified-ui .finance-entry-btn span{font-size:13px!important}
+ body.admin-workspace.simplified-ui .calendar-toolbar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:8px}
+ body.admin-workspace.simplified-ui .calendar-toolbar>*{min-width:0!important;width:100%;font-size:14px!important}
+}
+@media(prefers-reduced-motion:reduce){body.admin-workspace *,body.admin-workspace *:before,body.admin-workspace *:after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}

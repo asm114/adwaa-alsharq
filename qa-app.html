@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
-<head>
+<head><meta http-equiv="Content-Security-Policy" content="connect-src 'none'; worker-src 'none'; form-action 'none'">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0d4c3f">
@@ -1225,8 +1225,8 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <div id="resortStatusOptions" class="status-options"></div>
 </div></div>
 <script src="supabase-config.staging.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="tests/workspace-mock.js"></script>
+
 <script src="booking-financial-core.js?v=20260922-1"></script>
 <script src="booking-postponement.js?v=20260922-1"></script>
 <script src="customer-credit-core.js?v=20260920-3"></script>
@@ -3994,5 +3994,4 @@ document.addEventListener('DOMContentLoaded',()=>{renderHelpIcons();applyHelpVis
 <script src="portal-admin.js"></script>
 <script src="portal-final-admin.js"></script>
 <script src="admin-workspace.js?v=20260927-1"></script>
-</body>
-</html>
+<script src="tests/workspace-scenarios.js"></script></body></html>
