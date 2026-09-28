@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0d4c3f">
+  <title>إدارة بوابة عملاء أضواء الشرق</title>
+  <link rel="stylesheet" href="../portal-admin.css">
+  <style>
+    body{margin:0;background:#f7f5ef;color:#10251f;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Tahoma,Arial,sans-serif}
+    .standalone-header{padding:24px clamp(16px,4vw,40px);display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}
+    .standalone-header h1{margin:0;font-size:clamp(28px,5vw,48px);color:#123d32}
+    .standalone-header p{margin:6px 0 0;color:#73827c}
+    .auth-card{margin:0 clamp(16px,4vw,40px) 20px;padding:16px;border:1px solid #e1ddd2;border-radius:18px;background:#fff}
+    .auth-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end}
+    .auth-grid label{display:grid;gap:6px;font-weight:800;color:#123d32}
+    .auth-grid input{min-height:46px;border:1px solid #d7d2c5;border-radius:12px;padding:10px;font:inherit}
+    .auth-status{margin-top:10px;color:#73827c;font-weight:700}
+    .standalone-shell{padding:0 clamp(16px,4vw,40px) 40px}
+    @media(max-width:760px){.auth-grid{grid-template-columns:1fr}.standalone-header{padding-top:18px}}
+  </style>
+</head>
+<body>
+  <header class="standalone-header">
+    <div>
+      <p>منتجع أضواء الشرق</p>
+      <h1>إدارة بوابة العملاء</h1>
+      <p>لوحة مستقلة لإدارة بيانات البوابة فقط، دون حجوزات أو عملاء النظام الأساسي.</p>
+    </div>
+    <a class="secondary" href="../index.html" target="_blank" rel="noopener">معاينة البوابة</a>
+  </header>
+
+  <section class="auth-card" aria-label="تسجيل دخول المدير">
+    <form id="adminLoginForm" class="auth-grid">
+      <label>البريد الإلكتروني
+        <input id="adminEmail" type="email" autocomplete="username" required>
+      </label>
+      <label>كلمة المرور
+        <input id="adminPassword" type="password" autocomplete="current-password" required>
+      </label>
+      <button class="primary" type="submit">دخول المدير</button>
+    </form>
+    <div id="adminAuthStatus" class="auth-status" role="status">سجل دخول المدير لإدارة بيانات البوابة.</div>
+  </section>
+
+  <main class="standalone-shell">
+    <section class="portal-admin-card portal-summary-card">
+      <div class="portal-section-heading">
+        <div class="portal-section-icon">00</div>
+        <h3>ملخص بوابة العملاء</h3>
+        <p>بيانات مختصرة من جداول البوابة المستقلة.</p>
+      </div>
+      <div class="portal-summary-grid">
+        <div><span>إجمالي الزوار</span><strong id="portalSummaryVisitors">0</strong></div>
+        <div><span>الصور الظاهرة</span><strong id="portalSummaryImages">0</strong></div>
+        <div><span>الفترات غير المتاحة</span><strong id="portalSummaryUnavailable">0</strong></div>
+        <div><span>المواسم المفعلة</span><strong id="portalSummarySeasons">0</strong></div>
+        <div><span>الملاحظات الجديدة</span><strong id="portalSummaryFeedback">0</strong></div>
+      </div>
+    </section>
+
+    <section class="portal-admin-card portal-info-card">
+      <div class="portal-section-heading"><div class="portal-section-icon">01</div><h3>معلومات المنتجع</h3><p>البيانات العامة المسموح بعرضها في البوابة.</p></div>
+      <div id="portalResortInfoStatus" class="portal-inline-status" role="status">جاري التهيئة...</div>
+      <form id="portalResortInfoForm" class="portal-info-form" onsubmit="savePortalResortInfo(event)">
+        <label>اسم المنتجع<input id="portalResortName" required maxlength="120"></label>
+        <label>وصف مختصر<input id="portalShortDescription" required maxlength="220"></label>
+        <label class="portal-full">وصف تفصيلي<textarea id="portalDetailedDescription" required maxlength="2500"></textarea></label>
+        <label>وقت الدخول<input id="portalCheckinTime" required maxlength="80"></label>
+        <label>وقت الخروج<input id="portalCheckoutTime" required maxlength="80"></label>
+        <label>رابط خرائط Google<input id="portalMapsUrl" type="url" dir="ltr"></label>
+        <label>رابط واتساب<input id="portalWhatsappUrl" type="url" dir="ltr"></label>
+        <label>رابط إنستغرام<input id="portalInstagramUrl" type="url" dir="ltr"></label>
+        <label>عنوان المنتجع<input id="portalAddress" maxlength="220"></label>
+        <label class="portal-full">تعليمات الدخول<textarea id="portalCheckinInstructions" maxlength="1500"></textarea></label>
+        <div class="portal-full portal-feature-editor">
+          <label>مميزات المنتجع
+            <div class="portal-feature-input-row"><input id="portalFeatureInput" maxlength="120"><button id="portalAddFeatureButton" class="secondary" type="button">إضافة</button></div>
+          </label>
+          <div id="portalFeatureList" class="portal-feature-list" aria-live="polite"></div>
+        </div>
+        <label>استقبال طلبات الحجز<select id="portalRequestsOpen"><option value="true">مفتوح</option><option value="false">مغلق</option></select></label>
+        <label class="portal-full">رسالة إيقاف الطلبات<textarea id="portalClosedMessage" required maxlength="500"></textarea></label>
+        <div class="portal-full portal-form-actions"><button class="primary" type="submit">حفظ معلومات المنتجع</button></div>
+      </form>
+    </section>
+
+    <section class="portal-admin-card portal-images-card">
+      <div class="portal-section-heading"><div class="portal-section-icon">02</div><h3>الصور</h3><p>رفع الصور وتصنيفها وترتيبها وإدارة ظهورها.</p></div>
+      <div id="portalImagesStatus" class="portal-inline-status" role="status">جاري التهيئة...</div>
+      <form id="portalImageUploadForm" class="portal-image-form" onsubmit="uploadPortalImages(event)">
+        <label class="portal-full">اختيار صور<input id="portalImageFile" type="file" accept="image/jpeg,image/png,image/webp" multiple></label>
+        <div id="portalImagePreview" class="portal-image-preview">اختر صور JPG أو PNG أو WebP لمعاينتها قبل الحفظ.</div>
+        <label>التصنيف<select id="portalImageCategory"></select></label>
+        <label>العنوان<input id="portalImageTitle" maxlength="140"></label>
+        <label class="portal-full">الوصف<textarea id="portalImageDescription" maxlength="500"></textarea></label>
+        <label class="portal-full">النص البديل Alt Text<input id="portalImageAlt" maxlength="180"></label>
+        <label class="portal-checkbox"><input id="portalImageIsCover" type="checkbox"><span>تعيين كصورة غلاف</span></label>
+        <label class="portal-checkbox"><input id="portalImageIsVisible" type="checkbox" checked><span>إظهار الصورة في البوابة</span></label>
+        <div class="portal-full portal-form-actions"><button class="primary" type="submit">رفع جميع الصور</button></div>
+      </form>
+      <div class="portal-image-toolbar"><button class="secondary" type="button" onclick="loadPortalImages()">تحديث الصور</button><span class="meta">الحد الأقصى للصورة الأصلية 10MB.</span></div>
+      <div id="portalImagesList" class="portal-images-list" aria-live="polite"></div>
+    </section>
+
+    <section class="portal-admin-card portal-unavailable-card">
+      <div class="portal-section-heading"><div class="portal-section-icon">03</div><h3>التقويم والتواريخ غير المتاحة</h3><p>إدارة فترات عدم التوفر يدويًا.</p></div>
+      <div id="portalUnavailableStatus" class="portal-inline-status" role="status">جاري التهيئة...</div>
+      <form id="portalUnavailableForm" class="portal-unavailable-form" onsubmit="savePortalUnavailablePeriod(event)">
+        <input id="portalUnavailableId" type="hidden">
+        <label>من تاريخ<input id="portalUnavailableStart" type="date" required></label>
+        <label>إلى تاريخ<input id="portalUnavailableEnd" type="date" required></label>
+        <div class="portal-full portal-unavailable-preview" id="portalUnavailablePreview">اختر بداية ونهاية الفترة.</div>
+        <div class="portal-full portal-form-actions"><button class="secondary" type="button" onclick="resetPortalUnavailableForm()">إلغاء التعديل</button><button class="primary" type="submit">حفظ الفترة</button></div>
+      </form>
+      <div id="portalUnavailableList" class="portal-unavailable-list" aria-live="polite"></div>
+    </section>
+
+    <section class="portal-admin-card portal-pricing-card">
+      <div class="portal-section-heading"><div class="portal-section-icon">04</div><h3>الأسعار والمواسم</h3><p>إدارة الأسعار الأساسية والمواسم.</p></div>
+      <div id="portalPricingStatus" class="portal-inline-status" role="status">جاري التهيئة...</div>
+      <form id="portalPricingForm" class="portal-pricing-form" onsubmit="savePortalPricing(event)">
+        <label>سعر أيام الأسبوع<input id="portalWeekdayPrice" type="number" min="0" step="1"></label>
+        <label>سعر نهاية الأسبوع<input id="portalWeekendPrice" type="number" min="0" step="1"></label>
+        <div class="portal-full portal-form-actions"><button class="primary" type="submit">حفظ الأسعار الأساسية</button></div>
+      </form>
+      <div id="portalSeasonsStatus" class="portal-inline-status" role="status">جاري التهيئة...</div>
+      <form id="portalSeasonForm" class="portal-season-form" onsubmit="savePortalSeason(event)">
+        <input id="portalSeasonId" type="hidden">
+        <label>اسم الموسم<input id="portalSeasonName" maxlength="120" required></label>
+        <label>سعر الموسم<input id="portalSeasonPrice" type="number" min="0" step="1" required></label>
+        <label>بداية الموسم<input id="portalSeasonStart" type="date" required></label>
+        <label>نهاية الموسم<input id="portalSeasonEnd" type="date" required></label>
+        <label class="portal-checkbox"><input id="portalSeasonActive" type="checkbox" checked><span>الموسم مفعّل</span></label>
+        <div class="portal-full portal-season-preview" id="portalSeasonPreview">اختر بداية ونهاية الموسم.</div>
+        <div class="portal-full portal-form-actions"><button class="secondary" type="button" onclick="resetPortalSeasonForm()">إلغاء التعديل</button><button class="primary" type="submit">حفظ الموسم</button></div>
+      </form>
+      <div id="portalSeasonsList" class="portal-seasons-list" aria-live="polite"></div>
+    </section>
+
+    <section class="portal-admin-card portal-contact-card">
+      <div class="portal-section-heading"><div class="portal-section-icon">05</div><h3>التواصل</h3><p>إدارة بيانات التواصل العامة.</p></div>
+      <div id="portalContactStatus" class="portal-inline-status" role="status">جاري التهيئة...</div>
+      <form id="portalContactForm" class="portal-contact-form" onsubmit="savePortalContact(event)">
+        <label>رقم واتساب<input id="portalContactWhatsapp" inputmode="tel" dir="ltr" maxlength="24" required></label>
+        <label>رابط خرائط Google<input id="portalContactMapsUrl" type="url" dir="ltr" required></label>
+        <label>رابط إنستغرام<input id="portalContactInstagramUrl" type="url" dir="ltr" required></label>
+        <label>البريد الإلكتروني اختياري<input id="portalContactEmail" type="email" dir="ltr" maxlength="180"></label>
+        <label class="portal-full">أوقات التواصل<textarea id="portalContactHours" maxlength="500" required></textarea></label>
+        <div class="portal-full portal-form-actions"><button class="primary" type="submit">حفظ بيانات التواصل</button></div>
+      </form>
+    </section>
+
+    <section class="portal-admin-card">
+      <div class="portal-section-heading"><div class="portal-section-icon">06</div><h3>ملاحظات العملاء</h3><p>قائمة خاصة لا تظهر للعامة.</p></div>
+      <div id="portalFeedbackStatus" class="portal-inline-status" role="status">جاري التهيئة...</div>
+      <div id="portalFeedbackList" class="portal-feedback-list" aria-live="polite"></div>
+    </section>
+
+    <section class="portal-admin-card">
+      <div class="portal-section-heading"><div class="portal-section-icon">07</div><h3>النسخ والسجل</h3><p>تصدير JSON وسجل العمليات الخاصة بالبوابة.</p></div>
+      <div class="portal-form-actions"><button class="primary" type="button" onclick="exportCustomerPortalBackup()">إنشاء نسخة JSON</button></div>
+      <div id="portalActivityList" class="portal-activity-list" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL='https://ztqqdjryvecscidxxbfe.supabase.co';
+    const SUPABASE_PUBLISHABLE_KEY='sb_publishable_M3MQwFfxiMMKt_-tq-KAjQ_OQTtg2MD';
+    const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    window.supabaseClient=supabaseClient;
+    let currentUser=null;
+    function escapeHtml(value){const node=document.createElement('span');node.textContent=String(value??'');return node.innerHTML}
+    async function refreshAdminUser(){
+      const {data}=await supabaseClient.auth.getUser();
+      currentUser=data?.user||null;
+      document.getElementById('adminAuthStatus').textContent=currentUser?`مسجل كمدير: ${currentUser.email||currentUser.id}`:'سجل دخول المدير لإدارة بيانات البوابة.';
+    }
+    document.getElementById('adminLoginForm').addEventListener('submit',async event=>{
+      event.preventDefault();
+      const email=document.getElementById('adminEmail').value;
+      const password=document.getElementById('adminPassword').value;
+      const status=document.getElementById('adminAuthStatus');
+      status.textContent='جاري تسجيل الدخول...';
+      const {error}=await supabaseClient.auth.signInWithPassword({email,password});
+      if(error){status.textContent='تعذر تسجيل الدخول. تحقق من الحساب والصلاحية.';return}
+      await refreshAdminUser();
+    });
+    refreshAdminUser();
+  </script>
+  <script src="../portal-admin.js"></script>
+  <script src="../portal-final-admin.js"></script>
+  <script src="../portal-unavailable-calendar.js"></script>
+  <script src="../admin-sidebar.js"></script>
+</body>
+</html>

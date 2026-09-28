@@ -1,21 +1,53 @@
-# Customer Portal — Unified Repository Migration
+# بوابة عملاء منتجع أضواء الشرق
 
-This directory is the target location for the customer portal inside `asm114/adwaa-alsharq`.
+مشروع مستقل لبوابة العملاء العامة ولوحة إدارة بيانات البوابة.
 
-## Safety contract
-- The administration backend remains isolated from the customer-portal backend.
-- Administration Supabase production: `pgdvlklpyrvmwzitsmbw`.
-- Customer portal Supabase production: `ztqqdjryvecscidxxbfe`.
-- Do not repoint either application to the other database.
-- The existing portal repository remains the production/reference source until parity tests pass.
-- No production deployment may switch to this directory until both administration and portal tests pass.
+## الاستقلال
 
-## Migration source
-Current portal source: `asm114/adwaa-alsharq-customer-portal`.
+- لا يحتوي هذا المشروع على نظام الحجوزات الأساسي.
+- لا يقرأ `app_state`.
+- لا يقرأ أو يكتب `resort_bookings`.
+- لا ينقل بيانات العملاء أو الحجوزات.
+- يمكن تعطيل هذا المشروع أو حذفه دون تأثير على نظام الإدارة الأساسي.
 
-## Target layout
-- `customer-portal/` — customer-facing portal application
-- root application — administration/bookings
-- shared integration tests — verify booking-to-portal availability synchronization
+## الملفات الرئيسية
 
-Migration is intentionally staged so adding this directory cannot alter the current production runtime.
+- `index.html`: بوابة العملاء العامة.
+- `portal.css`: تصميم بوابة العملاء.
+- `portal.js`: قراءة بيانات البوابة العامة من Supabase.
+- `feedback.html`: صفحة إرسال ملاحظات العملاء.
+- `feedback.css`: تصميم صفحة الملاحظات.
+- `feedback.js`: إرسال ملاحظات العملاء دون عرضها للعامة.
+- `admin/index.html`: لوحة إدارة مستقلة لبيانات البوابة.
+- `portal-admin.css`: تصميم لوحة إدارة البوابة.
+- `portal-admin.js`: إدارة معلومات المنتجع والصور والتواريخ والأسعار والمواسم والتواصل.
+- `portal-final-admin.js`: إدارة ملخص البوابة والملاحظات والنسخ والسجل.
+- `supabase/migrations`: جداول وسياسات بوابة العملاء فقط.
+- `tests`: اختبارات الاستقلال والنطاق.
+
+## التشغيل المحلي
+
+```bash
+npm test
+python3 -m http.server 8080
+```
+
+ثم افتح:
+
+- البوابة: `http://localhost:8080/`
+- الإدارة: `http://localhost:8080/admin/`
+- الملاحظات: `http://localhost:8080/feedback.html`
+
+## Supabase
+
+هذا المشروع يستخدم جداول مستقلة باسم يبدأ بـ `customer_portal_`.
+لا تستخدم مفاتيح `service_role` في المتصفح.
+لا تطبق أي Migration على Production إلا بعد مراجعة واعتماد صريح.
+
+## Production
+
+مشروع Supabase الرسمي لبوابة العملاء هو `ztqqdjryvecscidxxbfe`.
+النظام الأساسي يعمل على مشروع منفصل هو `pgdvlklpyrvmwzitsmbw`.
+
+مصدر صلاحيات إدارة البوابة هو جدول `customer_portal_admins`.
+تم الإبقاء على اسم الدالة `is_resort_admin()` لتوافق سياسات RLS الحالية، لكنها تخص بوابة العملاء فقط داخل هذا المشروع.

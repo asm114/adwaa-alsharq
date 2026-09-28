@@ -1,0 +1,9 @@
+{
+  "name": "adwaa-alsharq-customer-portal",
+  "version": "9.8.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  }
+}
