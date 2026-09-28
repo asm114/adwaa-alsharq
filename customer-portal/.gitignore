@@ -1,0 +1,2 @@
+# Never commit operational or production backup exports to this public repository.
+/backups/
