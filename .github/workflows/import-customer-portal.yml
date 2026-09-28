@@ -1,0 +1,32 @@
+name: Import customer portal into unified branch
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout unified branch
+        uses: actions/checkout@v4
+        with:
+          ref: refactor/unify-customer-portal-20260928
+          fetch-depth: 0
+      - name: Checkout customer portal source
+        uses: actions/checkout@v4
+        with:
+          repository: asm114/adwaa-alsharq-customer-portal
+          ref: main
+          path: .portal-source
+      - name: Import portal safely
+        shell: bash
+        run: |
+          mkdir -p customer-portal
+          find customer-portal -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+          cp -R .portal-source/. customer-portal/
+          rm -rf customer-portal/.git customer-portal/.github
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add customer-portal
+          git commit -m "chore: import customer portal into unified repository" || exit 0
+          git push origin HEAD:refactor/unify-customer-portal-20260928
