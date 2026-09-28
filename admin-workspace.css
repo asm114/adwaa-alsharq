@@ -135,3 +135,20 @@ body.admin-workspace.simplified-ui #dashboard .quick-action-grid button{color:#0
  body.admin-workspace.simplified-ui .calendar-toolbar>*{min-width:0!important;width:100%;font-size:14px!important}
 }
 @media(prefers-reduced-motion:reduce){body.admin-workspace *,body.admin-workspace *:before,body.admin-workspace *:after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
+
+/* Mobile bottom navigation: centered, compact, and clear of content. */
+@media(max-width:700px){
+ body.admin-workspace.simplified-ui .app{padding-bottom:calc(92px + env(safe-area-inset-bottom))!important}
+ body.admin-workspace.simplified-ui #appRoot>nav{
+  left:8px!important;right:8px!important;inset-inline:8px!important;transform:none!important;
+  width:auto!important;max-width:none!important;bottom:max(6px,env(safe-area-inset-bottom))!important;
+  min-height:68px!important;height:auto!important;padding:5px 4px calc(5px + env(safe-area-inset-bottom))!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;border-radius:18px!important;
+ }
+ body.admin-workspace.simplified-ui #appRoot>nav>button{
+  min-width:0!important;height:56px!important;min-height:56px!important;
+  padding:5px 2px!important;font-size:11px!important;line-height:1.15!important;
+ }
+ body.admin-workspace.simplified-ui #appRoot>nav>button b{font-size:18px!important;margin:0 0 3px!important}
+}
