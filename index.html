@@ -229,6 +229,7 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
 @media(max-width:620px){.help-popover{align-items:flex-end;padding:10px}.help-popover-card{border-radius:18px 18px 12px 12px;padding:16px}.help-icon{flex-basis:24px!important;width:24px!important;height:24px!important;min-width:24px!important}.backup-management-actions .help-action{width:100%}.backup-management-actions .help-action>button,.backup-management-actions .help-action>label{flex:1;text-align:center;justify-content:center}}
 @media print{.help-icon,.help-popover,.help-inline,.help-action>.help-icon{display:none!important}}
 @media(min-width:621px){.protection-stats{grid-template-columns:repeat(6,minmax(0,1fr))}}
+.booking-period-tabs{display:flex;gap:8px;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--line)}.booking-period-tabs button{flex:1 1 150px;min-height:45px}
 </style>
 </head>
 <body>
@@ -342,7 +343,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 
 <section id="bookings" class="view">
   <div class="toolbar"><input id="search" placeholder="بحث بالاسم أو الجوال" oninput="renderBookings()"><select id="statusFilter" onchange="renderBookings()"><option value="">كل الحالات</option><option>مؤكد</option><option>غير مؤكد</option><option>مؤجل</option><option>تم الدخول</option><option>تم الخروج</option><option>ملغي</option></select></div>
-  <div class="section"><div class="section-head"><h3>الحجوزات</h3><button class="primary" onclick="openBooking()">+ حجز جديد</button></div><div id="bookingList" class="list"></div></div>
+  <div class="section"><div class="section-head"><h3>الحجوزات</h3><button class="primary" onclick="openBooking()">+ حجز جديد</button></div><div class="booking-period-tabs" role="group" aria-label="تصنيف الحجوزات"><button type="button" class="primary" data-booking-period="upcoming" onclick="setBookingPeriod('upcoming')">القادمة <span id="upcomingBookingCount"></span></button><button type="button" class="secondary" data-booking-period="finished" onclick="setBookingPeriod('finished')">المنتهية <span id="finishedBookingCount"></span></button><button type="button" class="secondary" data-booking-period="other" onclick="setBookingPeriod('other')">الملغاة والمؤجلة <span id="otherBookingCount"></span></button><button type="button" class="secondary" data-booking-period="all" onclick="setBookingPeriod('all')">جميع الحجوزات</button></div><div id="bookingList" class="list"></div></div>
 </section>
 
 <section id="customers" class="view">
@@ -1997,7 +1998,27 @@ function itemHTML(b){
     <span class="badge ${statusClass(b.status)}">${b.status}</span>
   </div>`
 }
-function renderBookings(){let q=(search?.value||'').trim(),s=statusFilter?.value||'';let arr=[...db.bookings].sort((a,b)=>b.date.localeCompare(a.date)).filter(b=>(!q||b.name.includes(q)||String(b.phone).includes(q)||String(b.code||'').includes(q))&&(!s||b.status===s));bookingList.innerHTML=arr.map(itemHTML).join('')||'<div class="empty">لا توجد نتائج</div>'}
+let bookingPeriod='upcoming';
+function bookingPeriodFor(b){
+  if(['ملغي','مؤجل'].includes(b.status))return 'other';
+  if(b.status==='تم الخروج')return 'finished';
+  const end=bookingEndDate(b);
+  if(end&&end<riyadhTodayISO())return 'finished';
+  return 'upcoming';
+}
+function setBookingPeriod(period){
+  if(!['upcoming','finished','other','all'].includes(period))return;
+  bookingPeriod=period;renderBookings();
+}
+function renderBookings(){
+  const q=(search?.value||'').trim().toLowerCase(),s=statusFilter?.value||'';
+  const counts={upcoming:0,finished:0,other:0};
+  (db.bookings||[]).forEach(b=>{counts[bookingPeriodFor(b)]++});
+  [['upcoming','upcomingBookingCount'],['finished','finishedBookingCount'],['other','otherBookingCount']].forEach(([period,id])=>{const el=document.getElementById(id);if(el)el.textContent='('+counts[period]+')'});
+  document.querySelectorAll('[data-booking-period]').forEach(btn=>{const active=btn.dataset.bookingPeriod===bookingPeriod;btn.classList.toggle('primary',active);btn.classList.toggle('secondary',!active);btn.setAttribute('aria-pressed',String(active))});
+  const arr=[...(db.bookings||[])].filter(b=>(bookingPeriod==='all'||bookingPeriodFor(b)===bookingPeriod)&&(!q||String(b.name||'').toLowerCase().includes(q)||String(b.phone||'').includes(q)||String(b.code||'').toLowerCase().includes(q))&&(!s||b.status===s)).sort((a,b)=>bookingPeriod==='upcoming'?String(a.date||'').localeCompare(String(b.date||'')):String(b.date||'').localeCompare(String(a.date||'')));
+  bookingList.innerHTML=arr.map(itemHTML).join('')||'<div class="empty">لا توجد حجوزات في هذا القسم</div>';
+}
 
 function addDaysISO(dateStr,days){
   const d=new Date(dateStr+'T12:00:00');
