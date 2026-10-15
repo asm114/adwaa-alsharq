@@ -4,8 +4,8 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 const source=fs.readFileSync(new URL('../supabase-config.staging.js',import.meta.url),'utf8');
 
-async function submit({portalResult=true,portalThrows=false,coreFails=false,recordType='family',days=1}={}){
-  const fields={bId:'',bCode:'100',bRecordType:recordType,bName:'PRIVATE',bPhone:'PRIVATE',bDate:'2026-10-18',bType:days>1?'مبيت':'يومي',bStayDays:String(days),bPaid:recordType==='family'?'0':'100',bTotal:recordType==='family'?'0':'500',bStatus:'مؤكد',bNotes:''};
+async function submit({portalResult=true,portalThrows=false,coreFails=false,recordType='family',days=1,status='مؤكد',existing=false,conflict=null}={}){
+  const fields={bId:existing?'new-id':'',bCode:'100',bRecordType:recordType,bName:'PRIVATE',bPhone:'PRIVATE',bDate:'2026-10-18',bType:days>1?'مبيت':'يومي',bStayDays:String(days),bPaid:recordType==='family'?'0':'100',bTotal:recordType==='family'?'0':'500',bStatus:status,bNotes:''};
   const elements=Object.fromEntries(Object.entries(fields).map(([key,value])=>[key,{value}]));
   const listeners={},statuses=[],events=[];
   let remote=null,writes=0;
@@ -22,8 +22,8 @@ async function submit({portalResult=true,portalThrows=false,coreFails=false,reco
   const document={readyState:'complete',getElementById:id=>elements[id]||null,body:{classList:{add(){}}},
     addEventListener:(type,callback)=>{listeners[type]=callback},createElement:()=>({}),head:{appendChild:script=>{script.onload()}}};
   const context=vm.createContext({window,document,URL,console,crypto:{randomUUID:()=> 'new-id'},localStorage:{setItem(){}},
-    db:{bookings:[],seq:100,settings:{}},remoteReady:false,lastSuccessfulWriteAt:'',lastSuccessfulReadAt:'',lastSyncError:'',
-    normalizeDB:value=>value,normalizeBookingCommission:value=>value,findBookingConflict:()=>null,
+    db:{bookings:existing?[{id:'new-id',code:'100',recordType:'family',date:'2026-10-18',status:'مؤكد',type:'يومي',stayDays:1,total:0,paid:0}]:[],seq:100,settings:{}},remoteReady:false,lastSuccessfulWriteAt:'',lastSuccessfulReadAt:'',lastSyncError:'',
+    normalizeDB:value=>value,normalizeBookingCommission:value=>value,findBookingConflict:()=>conflict,nextAvailableDate:()=>null,
     addAudit(){},invalidateCaches(){},ensureCleaningTaskForBooking(){},markRemoteStateConfirmed:async()=>{},scheduleRenderAll(){},
     setSyncStatus(){},closeModal:()=>events.push('close'),alert:message=>events.push('alert:'+message)});
   vm.runInContext(source,context);
@@ -56,4 +56,17 @@ test('administrative connection failure never starts portal synchronization',asy
   const h=await submit({coreFails:true});
   assert.ok(!h.events.includes('portal-sync'));
   assert.equal(h.window.__adwaaLastBookingSaveConfirmed.ok,false);
+});
+test('cancelling family presence can synchronize while another booking occupies the same day',async()=>{
+  const h=await submit({existing:true,status:'ملغي',conflict:{id:'other',name:'Synthetic overlapping booking'}});
+  assert.equal(h.window.__adwaaLastBookingSaveConfirmed.ok,true);
+  assert.equal(h.window.__adwaaLastBookingSaveConfirmed.portalSynced,true);
+  assert.equal(h.writes,1);
+  assert.equal(h.remote.bookings[0].status,'ملغي');
+});
+test('active family presence still rejects overlapping bookings before any write',async()=>{
+  const h=await submit({conflict:{id:'other',name:'Synthetic overlapping booking'}});
+  assert.equal(h.window.__adwaaLastBookingSaveConfirmed.ok,false);
+  assert.equal(h.writes,0);
+  assert.ok(!h.events.includes('portal-sync'));
 });

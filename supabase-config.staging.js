@@ -176,7 +176,9 @@ async function saveBookingAuthoritatively(event){
       alert('تنبيه: عمولة هذا الحجز مستلمة بالفعل. بقي سجلها محفوظًا ويجب على المدير مراجعته يدويًا.');
     }
 
-    const conflict=findBookingConflict(obj,obj.id);
+    // Cancelled/postponed records occupy no days. An existing overlapping record
+    // must not prevent cancellation and the synchronizer's ownership handoff.
+    const conflict=['ملغي','مؤجل'].includes(obj.status)?null:findBookingConflict(obj,obj.id);
     if(conflict){
       const alt=nextAvailableDate(obj.date);
       throw new Error(`يوجد تعارض مع حجز ${conflict.name} خلال فترة الحجز المطلوبة.${alt?` أقرب تاريخ متاح مبدئيًا: ${alt}`:''}`);
