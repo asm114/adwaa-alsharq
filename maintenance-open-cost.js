@@ -30,7 +30,7 @@ function enhanceCards(){
   const status=card.querySelector('.fo-status'),label='العمل مفتوح — التكلفة النهائية غير محددة';
   if(status&&status.textContent!==label)status.textContent=label;
   const add=card.querySelector('button[onclick^="openMaintenancePayment"]');
-  if(!add)card.querySelector('.fo-actions')?.insertAdjacentHTML('afterbegin',`<button class="primary" type="button" onclick="openMaintenancePayment('${esc(j.id)}')">+ إضافة دفعة</button>`);
+  if(!add&&!card.querySelector('.maintenance-add-payment')){const actions=card.querySelector('.fo-actions')||card.querySelector('button[onclick^="openMaintenanceJob"]')?.parentElement;if(actions)actions.insertAdjacentHTML('afterbegin',`<button class="primary maintenance-add-payment" type="button" onclick="openMaintenancePayment('${esc(j.id)}')">+ إضافة دفعة</button>`);}
  }
 }
 const baseOpenJob=window.openMaintenanceJob;window.openMaintenanceJob=function(id=''){prepareJobForm();const j=id?job(id):null,f=document.getElementById('maintenanceJobForm');f.reset();f.elements.id.value=j?.id||'';f.elements.title.value=j?.title||'';f.elements.vendor.value=j?.vendor||'';f.elements.total.value=finalKnown(j)?j.totalAmount:'';f.elements.date.value=j?.date||today();f.elements.note.value=j?.note||'';document.getElementById('maintenanceJobModalTitle').textContent=j?'تعديل الصيانة':'صيانة/مستحق جديد';document.getElementById('maintenanceJobModal')?.classList.add('open');document.body.classList.add('modal-open')};
