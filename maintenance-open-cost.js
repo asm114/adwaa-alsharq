@@ -22,7 +22,7 @@ function enhanceCards(){
  const list=document.getElementById('maintenanceList');if(!list)return;
  for(const card of list.querySelectorAll('.fo-card')){
   const edit=card.querySelector('button[onclick^="openMaintenanceJob"]'),m=edit?.getAttribute('onclick')?.match(/'([^']+)'/);
-  if(!m)continue;const j=job(m[1]);if(!j||finalKnown(j))continue;
+  if(!m)continue;const j=job(m[1]);if(!j)continue;
   // The observer sees our own writes too. Only change content that differs.
   const figs=card.querySelectorAll('.fo-figure');
   const values=[[figs[0],'<span>التكلفة النهائية</span><b>غير محددة بعد</b>'],[figs[2],'<span>المتبقي</span><b>يُحسب بعد تحديد النهائي</b>']];
