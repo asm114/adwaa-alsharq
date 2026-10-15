@@ -332,8 +332,17 @@ function ensureBookingModal(){
   modal.querySelector('.booking-confirmation-close').addEventListener('click',closeModal);
   modal.querySelector('.booking-confirmation-cancel').addEventListener('click',closeModal);
   modal.addEventListener('click',event=>{if(event.target===modal)closeModal();});
-  modal.querySelector('#bookingConfirmationWhatsapp').addEventListener('click',()=>{
-    if(!modal.querySelector('#bookingConfirmationWhatsapp').classList.contains('is-disabled'))setTimeout(closeModal,0);
+  modal.querySelector('#bookingConfirmationWhatsapp').addEventListener('click',async event=>{
+    event.preventDefault();
+    const button=event.currentTarget;
+    if(button.classList.contains('is-disabled')||button.getAttribute('aria-busy')==='true')return;
+    button.setAttribute('aria-busy','true');
+    try{
+      // Use the same fresh availability check as the selected-day request.
+      // The modal may have remained open while administration closed this day.
+      const submitted=await submitBookingRequest(modal._bookingDate);
+      if(submitted||isUnavailable(modal._bookingDate))closeModal();
+    }finally{button.setAttribute('aria-busy','false')}
   });
   modal._close=closeModal;
   return modal;
@@ -346,10 +355,8 @@ function openBookingConfirmation(iso,returnFocus){
   try{pricing=getDayPricing(iso,date);}catch(_){pricing=null;}
   const events=getSaudiCalendarEvents(iso);
   let canRequest=false;
-  let requestUrl='#';
   try{
-    canRequest=Boolean(portalContact?.whatsapp_number);
-    requestUrl=canRequest?createBookingRequestUrl(iso,pricing):'#';
+    canRequest=Boolean(portalContact?.whatsapp_number)&&!isUnavailable(iso);
   }catch(_){
     canRequest=false;
   }
@@ -374,7 +381,8 @@ function openBookingConfirmation(iso,returnFocus){
   }
 
   const whatsapp=modal.querySelector('#bookingConfirmationWhatsapp');
-  whatsapp.href=requestUrl;
+  whatsapp.href='#';
+  modal._bookingDate=iso;
   whatsapp.classList.toggle('is-disabled',!canRequest);
   whatsapp.setAttribute('aria-disabled',canRequest?'false':'true');
   whatsapp.textContent=canRequest?'إكمال الحجز عبر واتساب':'واتساب غير متاح حاليًا';
@@ -440,3 +448,4 @@ document.addEventListener('keydown',event=>{
 
 annotateSaudiHolidays();
 })();
+

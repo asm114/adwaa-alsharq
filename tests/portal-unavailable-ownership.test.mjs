@@ -22,7 +22,7 @@ test('المزامن المستقر يكتب ويحذف booking فقط ويعا�
   const stable=await read('portal-booking-sync-stable.js');
   assert.match(stable,/source_type:SOURCE_BOOKING,booking_id:owner/);
   assert.match(stable,/\.delete\(\)\.eq\('id',id\)\.eq\('source_type',SOURCE_BOOKING\)/);
-  assert.match(stable,/conflictingPeriodForDate\(periods,booking\.id,date\)/);
+  assert.match(stable,/const owned=ownedPeriodForDate\(periods,booking\.id,date\)/);
   assert.doesNotMatch(stable,/SOURCE_LEGACY/);
   assert.doesNotMatch(stable,/source_type\s*:\s*['"]legacy['"]/i);
   assert.doesNotMatch(stable,/source_type\s*:\s*['"]manual['"]/i);
@@ -35,3 +35,4 @@ test('المسار الرسمي يعطل reconciler القديم قبل تحمي
   assert.ok(guardIndex>=0);
   assert.ok(clientIndex>guardIndex);
 });
+

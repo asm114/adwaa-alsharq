@@ -176,7 +176,9 @@ async function saveBookingAuthoritatively(event){
       alert('تنبيه: عمولة هذا الحجز مستلمة بالفعل. بقي سجلها محفوظًا ويجب على المدير مراجعته يدويًا.');
     }
 
-    const conflict=findBookingConflict(obj,obj.id);
+    // Cancelled/postponed records occupy no days. An existing overlapping record
+    // must not prevent cancellation and the synchronizer's ownership handoff.
+    const conflict=['ملغي','مؤجل'].includes(obj.status)?null:findBookingConflict(obj,obj.id);
     if(conflict){
       const alt=nextAvailableDate(obj.date);
       throw new Error(`يوجد تعارض مع حجز ${conflict.name} خلال فترة الحجز المطلوبة.${alt?` أقرب تاريخ متاح مبدئيًا: ${alt}`:''}`);
@@ -211,10 +213,26 @@ async function saveBookingAuthoritatively(event){
     lastSyncError='';
     await markRemoteStateConfirmed(db);
     scheduleRenderAll();
-    setSyncStatus('تم الحفظ والمزامنة','ok');
+    setSyncStatus('تم حفظ الإدارة، جارٍ مزامنة توفر البوابة…','');
     const idInput=bookingField('bId');if(idInput)idInput.value=String(remote.id||obj.id);
     window.__adwaaLastBookingSaveConfirmed={ok:true,id:obj.id,code:obj.code,mode:'authoritative-submit',version:BOOKING_SAVE_VERSION,at:new Date().toISOString()};
-    showBookingSaveStatus('success','تم حفظ الحجز في Supabase','تمت الكتابة ثم إعادة القراءة والتأكد من الحجز بنجاح.');
+    // The authoritative submit bypasses window.saveBooking. Invoke the existing
+    // synchronizer only AFTER the administrative write/read has been confirmed.
+    // Portal failure must never roll back or repeat this successful booking write.
+    let portalSynced=false;
+    try{
+      portalSynced=typeof window.syncPortalAvailabilityFromBookings==='function'&&await window.syncPortalAvailabilityFromBookings()===true;
+    }catch(error){console.warn('تعذر مزامنة توفر بوابة العملاء بعد حفظ الإدارة',error)}
+    window.__adwaaLastBookingSaveConfirmed.portalSynced=portalSynced;
+    if(!portalSynced){
+      const message='تم حفظ السجل في الإدارة، لكن لم تكتمل مزامنة بوابة العملاء. أعد مزامنة التوفر بعد عودة الاتصال؛ لا تنشئ سجلًا آخر.';
+      setSyncStatus(message,'error');
+      showBookingSaveStatus('error','حُفظت الإدارة — فشلت مزامنة البوابة',message);
+      alert(message);
+      return false;
+    }
+    setSyncStatus('تم حفظ الإدارة ومزامنة بوابة العملاء','ok');
+    showBookingSaveStatus('success','تم حفظ السجل ومزامنة بوابة العملاء','تم تأكيد حفظ الإدارة وتحديث التوفر بنجاح.');
     closeModal('bookingModal');
     return true;
   }catch(error){
@@ -270,3 +288,4 @@ if(typeof document!=='undefined'){
   else bootBookingSave();
 }
 })();
+
