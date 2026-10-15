@@ -68,14 +68,23 @@ function enhance(){
   input.parentNode.insertBefore(wrap,input);wrap.appendChild(input);
 
   const button=document.createElement('button');button.type='button';button.className='secondary booking-date-picker-button';button.textContent='📅 اختيار من التقويم';
-  const native=document.createElement('input');native.type='date';native.id='bDateNativePicker';native.tabIndex=-1;native.setAttribute('aria-hidden','true');native.className='booking-date-native-picker';
+  const native=document.createElement('input');native.type='date';native.id='bDateNativePicker';native.tabIndex=-1;native.setAttribute('aria-label','اختيار تاريخ الحجز');native.className='booking-date-native-picker';
   wrap.appendChild(button);wrap.appendChild(native);
 
   button.addEventListener('click',()=>{
     syncPicker();
-    try{if(typeof native.showPicker==='function')native.showPicker();else native.click();}catch(_){native.click();}
+    // iPad/Safari requires the native date control to be a real, hit-testable
+    // element. Move it over the visible button for this user gesture.
+    native.classList.add('booking-date-native-picker-active');
+    try{
+      if(typeof native.showPicker==='function')native.showPicker();
+      else{native.focus();native.click();}
+    }catch(_){native.focus();native.click();}
   });
+  native.addEventListener('blur',()=>native.classList.remove('booking-date-native-picker-active'));
+  native.addEventListener('cancel',()=>native.classList.remove('booking-date-native-picker-active'));
   native.addEventListener('change',()=>{
+    native.classList.remove('booking-date-native-picker-active');
     if(!native.value)return;
     input.value=native.value;input.dataset.requestedBookingDate=native.value;input.setCustomValidity('');
     input.dispatchEvent(new Event('input',{bubbles:true}));
@@ -99,8 +108,9 @@ function enhance(){
 
   const style=document.createElement('style');style.id='bookingDateStabilityStyles';style.textContent=`
     .booking-date-stable-control{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
-    .booking-date-picker-button{white-space:nowrap}
-    .booking-date-native-picker{position:fixed!important;left:-9999px!important;top:-9999px!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
+    .booking-date-picker-button{white-space:nowrap;position:relative}
+    .booking-date-native-picker{position:absolute!important;inset:auto 0 0 auto!important;width:1px!important;height:1px!important;opacity:.001!important;pointer-events:none!important}
+    .booking-date-native-picker-active{inset:0!important;width:100%!important;height:100%!important;opacity:.001!important;pointer-events:auto!important;z-index:3!important}
     @media(max-width:620px){.booking-date-stable-control{grid-template-columns:1fr}.booking-date-picker-button{width:100%}}
   `;document.head.appendChild(style);
   return true;
