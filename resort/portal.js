@@ -2,6 +2,8 @@ const SUPABASE_URL='https://ztqqdjryvecscidxxbfe.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_M3MQwFfxiMMKt_-tq-KAjQ_OQTtg2MD';
 const portalClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 let unavailablePeriods=[];
+let availabilityReady=false;
+let bookingRequestInFlight=false;
 let portalPricing=null;
 let activeSeasons=[];
 let portalContact=null;
@@ -76,7 +78,7 @@ function formatHijri(iso){
 }
 
 function isUnavailable(iso){
-  return unavailablePeriods.some(period=>iso>=period.start_date&&iso<=period.end_date);
+  return !availabilityReady||unavailablePeriods.some(period=>iso>=period.start_date&&iso<=period.end_date);
 }
 
 function isWeekend(date){
@@ -220,6 +222,7 @@ function renderGallery(images){
 }
 
 function renderSelectedDay(iso,unavailable){
+  unavailable=unavailable||isUnavailable(iso);
   selectedDateIso=unavailable?null:iso;
   const date=new Date(`${iso}T12:00:00`);
   const pricing=unavailable?null:getDayPricing(iso,date);
@@ -230,11 +233,15 @@ function renderSelectedDay(iso,unavailable){
     <span>الهجري: ${escapeText(formatHijri(iso))}</span>
     ${!unavailable&&pricing&&hasPublicPrice(pricing.price)?`<span>السعر: ${escapeText(formatMoney(pricing.price))}</span>`:''}
     ${!unavailable&&pricing?.seasonName?`<span>الموسم: ${escapeText(pricing.seasonName)}</span>`:''}
-    ${canRequest?`<a id="bookingRequestButton" class="booking-request-button" href="${escapeText(createBookingRequestUrl(iso,pricing))}" target="_blank" rel="noopener">طلب الحجز</a>`:''}
+    ${canRequest?`<button id="bookingRequestButton" class="booking-request-button" type="button">طلب الحجز</button>`:''}
     ${!unavailable&&!canRequest?'<span class="booking-request-disabled">لا يمكن إنشاء رابط الطلب حتى تتوفر بيانات واتساب.</span>':''}
     ${!unavailable?'<small class="booking-request-note">طلب الحجز عبر واتساب غير مؤكد حتى موافقة الإدارة.</small>':''}
   `;
   selectedDayCard.className=`selected-day-card ${unavailable?'unavailable':'available'}`;
+  document.getElementById('bookingRequestButton')?.addEventListener('click',event=>{
+    event.preventDefault();
+    void submitBookingRequest(iso);
+  });
 }
 
 function clearSelectedDay(){
@@ -271,7 +278,7 @@ function renderCalendar(){
     button.addEventListener('click',()=>{
       calendarGrid.querySelectorAll('.calendar-day.selected').forEach(day=>day.classList.remove('selected'));
       button.classList.add('selected');
-      renderSelectedDay(button.dataset.date,false);
+      renderSelectedDay(button.dataset.date,isUnavailable(button.dataset.date));
     });
   });
 }
@@ -372,20 +379,46 @@ async function loadGallery(){
 }
 
 async function loadUnavailablePeriods(){
-  const {data,error}=await portalClient
-    .from('customer_portal_unavailable_periods')
-    .select('id,start_date,end_date')
-    .order('start_date',{ascending:true});
-  if(error){
+  try{
+    const {data,error}=await portalClient
+      .from('customer_portal_unavailable_periods')
+      .select('id,start_date,end_date')
+      .order('start_date',{ascending:true});
+    if(error)throw error;
+    if(!Array.isArray(data))throw new Error('Availability response is incomplete');
+    unavailablePeriods=data;
+    availabilityReady=true;
+    renderCalendar();
+    if(selectedDateIso&&isUnavailable(selectedDateIso))renderSelectedDay(selectedDateIso,true);
+    return true;
+  }catch(error){
     console.error(error);
-    unavailablePeriods=[];
-    selectedDayCard.textContent='تعذر تحميل التواريخ غير المتاحة الآن.';
+    // Keep known closures and fail closed, including an already selected day.
+    availabilityReady=false;
+    selectedDateIso=null;
+    renderCalendar();
+    selectedDayCard.textContent='تعذر التحقق من التوفر الآن. حاول مجددًا بعد عودة الاتصال.';
     selectedDayCard.className='selected-day-card unavailable';
     return false;
   }
-  unavailablePeriods=data||[];
-  renderCalendar();
-  return true;
+}
+
+async function submitBookingRequest(iso){
+  if(bookingRequestInFlight)return false;
+  bookingRequestInFlight=true;
+  try{
+    // A tab may have been open when an administrator closed the selected day.
+    // The portal sends a WhatsApp enquiry, not an administrative reservation.
+    if(!await loadUnavailablePeriods())return false;
+    if(isUnavailable(iso)){
+      renderSelectedDay(iso,true);
+      return false;
+    }
+    const url=createBookingRequestUrl(iso,getDayPricing(iso,new Date(`${iso}T12:00:00`)));
+    if(!url||url==='#')return false;
+    window.location.assign(url);
+    return true;
+  }finally{bookingRequestInFlight=false}
 }
 
 async function loadPricing(){
@@ -483,3 +516,4 @@ nextMonthButton.addEventListener('click',()=>{
 });
 countCustomerPortalVisit();
 loadPortal();
+
