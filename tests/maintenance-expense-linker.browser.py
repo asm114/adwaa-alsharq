@@ -45,6 +45,30 @@ def run(browser, width, label):
     page.goto('https://qa.invalid/index.html')
     page.wait_for_function("typeof openMaintenanceExpenseLinker==='function' && typeof persist==='function' && window.__adwaaBookingPersistUpdatePathInstalled")
     page.wait_for_timeout(800)
+    # Read-only display regression: four already-linked expenses, unknown final cost.
+    page.evaluate("""()=>{
+      const amounts=[1000,500,200,500],dates=['2026-09-15','2026-09-20','2026-09-26','2026-10-15'];
+      const payments=amounts.map((amount,i)=>({id:'tile-p'+i,expenseId:'tile-e'+i,amount,date:dates[i],linkedExistingExpense:i%2===0}));
+      db.maintenanceJobs=[{id:'tile',title:'بلاط المنتجع',vendor:'جمال الباكستاني',totalAmount:0,finalCostKnown:false,payments}];
+      db.expenses=payments.map(p=>({id:p.expenseId,amount:p.amount,date:p.date,maintenanceJobId:'tile',maintenancePaymentId:p.id}));
+      window.tileBefore={data:JSON.stringify(db),writes:QA.writes,balance:ResortAccountCore.currentBalance(db),movements:JSON.stringify(ResortAccountCore.buildMovements(db))};
+      renderAccountingNotes();
+    }""")
+    tile = page.locator('#maintenanceList .fo-card').filter(has=page.locator("button[onclick=\"openMaintenanceJob('tile')\"]"))
+    expect(tile.locator('.fo-figure').nth(0)).to_contain_text('غير محددة بعد')
+    expect(tile.locator('.fo-figure').nth(1)).to_contain_text('٢٬٢٠٠')
+    expect(tile.locator('.fo-figure').nth(2)).to_contain_text('يُحسب بعد تحديد النهائي')
+    assert page.evaluate("!ResortAccountCore.integrityIssues(db).some(x=>x.type==='maintenance_overpaid')")
+    assert page.evaluate("JSON.stringify(db)===tileBefore.data && QA.writes===tileBefore.writes && ResortAccountCore.currentBalance(db)===tileBefore.balance && JSON.stringify(ResortAccountCore.buildMovements(db))===tileBefore.movements")
+    # The open-cost MutationObserver must leave known final-cost cards intact.
+    page.evaluate("db.maintenanceJobs[0].finalCostKnown=true;db.maintenanceJobs[0].totalAmount=3000;renderAccountingNotes()")
+    page.wait_for_timeout(100)
+    expect(tile.locator('.fo-figure').nth(0)).not_to_contain_text('غير محددة')
+    expect(tile.locator('.fo-figure').nth(2)).to_contain_text('٨٠٠')
+    assert page.evaluate("!ResortAccountCore.integrityIssues(db).some(x=>x.type==='maintenance_overpaid')")
+    page.evaluate("db.maintenanceJobs[0].totalAmount=2000;renderAccountingNotes()")
+    assert page.evaluate("ResortAccountCore.integrityIssues(db).some(x=>x.type==='maintenance_overpaid')")
+    assert page.evaluate("QA.writes===tileBefore.writes && ResortAccountCore.currentBalance(db)===tileBefore.balance && JSON.stringify(ResortAccountCore.buildMovements(db))===tileBefore.movements")
     page.evaluate('''async()=>{
       db.maintenanceJobs=[{id:'m1',title:'صيانة كهرباء',vendor:'فني',totalAmount:1200,payments:[]},
         {id:'m2',title:'عمل مفتوح',vendor:'فني',totalAmount:0,finalCostKnown:false,payments:[]},
