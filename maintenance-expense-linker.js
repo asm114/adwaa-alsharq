@@ -86,7 +86,7 @@ async function confirmLinks(){
   if(!rows.length)return status('اختر مصروفًا واحدًا على الأقل.',true);
   if(rows.some(x=>!x)){renderCandidates();return status('أصبح أحد المصروفات غير مؤهل للربط. راجع الاختيار مجددًا.',true)}
   const paid=(j.payments||[]).reduce((s,p)=>s+parse(p.amount),0),total=rows.reduce((s,x)=>s+parse(x.amount),0);
-  if((j.finalCostKnown===true||parse(j.totalAmount)>0)&&paid+total>parse(j.totalAmount)+.009)return status('المصروفات المحددة تتجاوز المتبقي من تكلفة الصيانة. اختر مصروفًا مناسبًا أو راجع التكلفة النهائية.',true);
+  if(window.ResortAccountCore.maintenanceFinalCostKnown(j)&&paid+total>parse(j.totalAmount)+.009)return status('المصروفات المحددة تتجاوز المتبقي من تكلفة الصيانة. اختر مصروفًا مناسبًا أو راجع التكلفة النهائية.',true);
   if(!confirm(`ربط ${rows.length} مصروف بعمل «${j.title}» بإجمالي ${money(total)}؟ لن يتغير مبلغ المصروف أو تاريخه أو الرصيد.`))return;
  }
  setBusy(true);status('جاري حفظ الربط…');

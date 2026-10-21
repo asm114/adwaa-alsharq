@@ -104,17 +104,27 @@ function commissionMovement(row,source){
     at:snap.receivedAt||row?.commissionReceivedAt,sourceId:row?.id
   });
 }
+function maintenanceFinalCostKnown(job){
+  if(job?.finalCostKnown===false)return false;
+  const raw=String(job?.totalAmount??'').trim()
+    .replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-'٠'.charCodeAt(0)))
+    .replace(/[۰-۹]/g,c=>String(c.charCodeAt(0)-'۰'.charCodeAt(0)))
+    .replace(/٫/g,'.').replace(/[٬،,\u00a0\s]/g,'');
+  const valid=/^\d+(?:\.\d+)?$/.test(raw)&&Number.isFinite(Number(raw));
+  // Legacy jobs have no flag; retain their positive, recorded final cost.
+  return valid&&(job?.finalCostKnown===true||Number(raw)>0);
+}
 function maintenanceSummary(job){
-  const total=num(job?.totalAmount);
+  const known=maintenanceFinalCostKnown(job),total=known?num(job?.totalAmount):null;
   const paid=arr(job?.payments).reduce((sum,row)=>sum+num(row?.amount),0);
-  return {total,paid,remaining:Math.max(0,total-paid),status:paid<=0?'unpaid':paid+0.009>=total?'paid':'partial'};
+  return {total,paid,remaining:known?Math.max(0,total-paid):null,status:!known?'open':paid<=0?'unpaid':paid+0.009>=total?'paid':'partial'};
 }
 function maintenanceTotals(state,matcher){
   return arr(state?.maintenanceJobs).reduce((totals,job)=>{
     const summary=maintenanceSummary(job);
-    totals.total+=summary.total;
+    totals.total+=summary.total??0;
     totals.paid+=arr(job?.payments).filter(row=>typeof matcher!=='function'||matcher(dateValue(row?.date,row?.createdAt),row,job)).reduce((sum,row)=>sum+num(row?.amount),0);
-    totals.remaining+=summary.remaining;
+    totals.remaining+=summary.remaining??0;
     return totals;
   },{total:0,paid:0,remaining:0});
 }
@@ -257,7 +267,7 @@ function integrityIssues(state){
   const knownPayments=new Set();
   for(const job of arr(db.maintenanceJobs)){
     const summary=maintenanceSummary(job);
-    if(summary.paid>summary.total+0.01)issues.push({type:'maintenance_overpaid',id:text(job?.id),message:`${job?.title||'صيانة'}: المدفوع أكبر من إجمالي الصيانة`});
+    if(summary.total!==null&&summary.paid>summary.total+0.01)issues.push({type:'maintenance_overpaid',id:text(job?.id),message:`${job?.title||'صيانة'}: المدفوع أكبر من إجمالي الصيانة`});
     for(const payment of arr(job?.payments)){
       const paymentId=text(payment?.id);knownPayments.add(paymentId);
       const links=linkedExpenses.get(paymentId)||[];
@@ -268,7 +278,7 @@ function integrityIssues(state){
   for(const paymentId of linkedExpenses.keys())if(!knownPayments.has(paymentId))issues.push({type:'maintenance_orphan_expense',id:paymentId,message:'مصروف صيانة مرتبط بدفعة غير موجودة'});
   return issues;
 }
-const api={parseMoney,num,normalizeAccount,maintenanceSummary,maintenanceTotals,salaryRows,salaryTotals,isSalaryDuplicate,advanceTotals,financeSummary,buildMovements,balanceDetails,currentBalance,periodMovements,customerCashCollected,cashOutflow,integrityIssues};
+const api={parseMoney,num,normalizeAccount,maintenanceFinalCostKnown,maintenanceSummary,maintenanceTotals,salaryRows,salaryTotals,isSalaryDuplicate,advanceTotals,financeSummary,buildMovements,balanceDetails,currentBalance,periodMovements,customerCashCollected,cashOutflow,integrityIssues};
 root.ResortAccountCore=api;
 if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
