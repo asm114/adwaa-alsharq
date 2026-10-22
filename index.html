@@ -1993,10 +1993,26 @@ function itemHTML(b){
       <div class="task-actions" style="margin-top:9px">
         ${family?'':`<button class="secondary small" type="button" onclick="event.stopPropagation();createCleaningLink('${b.id}',false)">${cleanLabel}</button>`}
         ${cleaning?`<button class="primary small" type="button" onclick="event.stopPropagation();sendCleaningTaskToJameel('${b.id}')">واتساب جميل</button>`:''}
+        ${!family&&!['ملغي','مؤجل','تم الخروج'].includes(b.status)?`<button class="secondary small" type="button" onclick="event.stopPropagation();sendBookingPaymentExitReminder('${b.id}')">📲 تذكير بالسداد والخروج</button>`:''}
       </div>
     </div>
     <span class="badge ${statusClass(b.status)}">${b.status}</span>
   </div>`
+}
+function sendBookingPaymentExitReminder(id){
+  const b=(db.bookings||[]).find(item=>item.id===id);
+  if(!b||normalizeRecordType(b.recordType)==='family'||['ملغي','مؤجل','تم الخروج'].includes(b.status))return;
+  let phone=normalizePhone(b.phone);
+  if(phone.startsWith('00'))phone=phone.slice(2);
+  if(phone.startsWith('0'))phone='966'+phone.slice(1);
+  else if(phone.length===9&&phone.startsWith('5'))phone='966'+phone;
+  if(!/^9665[0-9]{8}$/.test(phone)){alert('رقم جوال العميل غير صالح لإرسال تذكير واتساب.');return;}
+  const remaining=getRemainingAmount(b);
+  const lines=['السلام عليكم ورحمة الله وبركاته',`عميلنا الكريم ${b.name||''}، نذكركم بحجزكم رقم ${b.code||''} في أضواء الشرق.`];
+  if(remaining>0)lines.push(`المبلغ المتبقي للسداد: ${money(remaining)}.`);
+  else lines.push('تم تسجيل سداد قيمة الحجز بالكامل، شكرًا لكم.');
+  lines.push('نود تذكيركم بأن موعد الخروج لا يتجاوز الساعة 3:00 صباحًا.','شاكرين لكم تعاونكم، أضواء الشرق.');
+  window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(lines.join('\\n')),'_blank','noopener');
 }
 let bookingPeriod='upcoming';
 function bookingPeriodFor(b){
