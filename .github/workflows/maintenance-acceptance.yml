@@ -6,8 +6,10 @@ on:
       - '**.html'
       - 'tests/**'
       - 'tools/prepare-maintenance-rollout.py'
+      - 'tools/supabase-backup-inventory.py'
       - 'supabase/migrations/**'
       - 'docs/maintenance-server-guard*'
+      - 'docs/maintenance-production-security-proposal.sql'
       - '.github/workflows/maintenance-acceptance.yml'
 permissions:
   contents: read
@@ -39,6 +41,8 @@ jobs:
         run: |
           python3 tests/persistence-postgres.py --container adwaa-maintenance-db-ci
           python3 tests/persistence-postgrest.py --container adwaa-maintenance-db-ci
+          python3 tests/production-security-postgres.py --container adwaa-maintenance-db-ci
+          python3 tests/backup-inventory.test.py
       - name: Remove disposable database
         if: always()
         run: docker rm -f adwaa-maintenance-db-ci || true
