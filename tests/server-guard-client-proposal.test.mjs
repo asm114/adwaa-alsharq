@@ -30,7 +30,8 @@ test('approval-only RPC client reconciles a lost response without a second opera
 const guardSql=readFileSync(new URL('../docs/maintenance-server-guard-proposal.sql',import.meta.url),'utf8');
 const rollbackSql=readFileSync(new URL('../docs/maintenance-server-guard-rollback.sql',import.meta.url),'utf8');
 test('guard proposal removes every direct browser mutation privilege and leaves SELECT available',()=>{
- assert.match(guardSql,/REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public\.app_state FROM PUBLIC, anon, authenticated;/);
+ assert.match(guardSql,/^REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public\.app_state FROM PUBLIC, anon, authenticated;/m);
+ assert.doesNotMatch(guardSql,/\\nREVOKE INSERT/);
  assert.match(guardSql,/REVOKE ALL ON FUNCTION public\.adwaa_cas_write_app_state_v1\(timestamptz,jsonb\) FROM PUBLIC, anon;/);
  assert.match(guardSql,/GRANT EXECUTE ON FUNCTION public\.adwaa_cas_write_app_state_v1\(timestamptz,jsonb\) TO authenticated;/);
  assert.doesNotMatch(guardSql,/\b(?:DROP TABLE|TRUNCATE TABLE|DELETE FROM public\.app_state)\b/i);
