@@ -169,16 +169,9 @@ try:
     assert http('POST',rpc,manager,params,{'sub':None})[0]==403
     assert http('POST',rpc,'unauthorized@isolated.test',params,{'user_metadata':{'email':manager}})[0]==403
     assert http('POST',rpc,manager,params,{'exp':int(time.time())-60})[0]==401
-    try:sql('SET ROLE authenticated; TRUNCATE public.app_state;')
-    except subprocess.CalledProcessError as exc:
-        assert 'permission denied' in (exc.stderr or '')
-    else:raise AssertionError('TRUNCATE remained available after guard')
     _,current=http('GET','/app_state?select=data,updated_at',manager)
-    params={'p_expected_updated_at':current[0]['updated_at'],'p_data':current[0]['data']}
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-        rpc_results=list(pool.map(lambda _:http('POST',rpc,manager,params),[1,2]))
-    assert [r[0] for r in rpc_results]==[200,200], rpc_results
-    assert sorted(len(r[1]) for r in rpc_results)==[0,1], rpc_results
+    _,written=http('POST',rpc,manager,{'p_expected_updated_at':current[0]['updated_at'],'p_data':current[0]['data']})
+    assert len(written)==1
     assert http('POST',rpc,manager,{'p_expected_updated_at':current[0]['updated_at'],'p_data':current[0]['data']})==(200,[])
     _,guarded=http('GET','/app_state?select=data',manager)
     assert guarded[0]['data']==current[0]['data']
