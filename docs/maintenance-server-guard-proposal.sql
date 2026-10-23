@@ -39,6 +39,7 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.adwaa_cas_write_app_state_v1(timestamptz,jsonb) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.adwaa_cas_write_app_state_v1(timestamptz,jsonb) TO authenticated;
--- Block all direct mutations, including DELETE/TRUNCATE, from browser roles.\nREVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.app_state FROM PUBLIC, anon, authenticated;
+-- Block all direct mutations, including DELETE/TRUNCATE, from browser roles.
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.app_state FROM PUBLIC, anon, authenticated;
 NOTIFY pgrst, 'reload schema';
 COMMIT;
