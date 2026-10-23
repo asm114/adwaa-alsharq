@@ -24,7 +24,7 @@ function setAboutText(id,value){const el=document.getElementById(id);if(el)el.te
 function formatDateTime(value){return value?new Date(value).toLocaleString('ar-SA'):'—'}
 function formatBytes(value){return Number(value)+' bytes'}
 function escapeHtml(value){const el=document.createElement('span');el.textContent=String(value??'');return el.innerHTML}
-function addAudit(action,entity,details,before,after){db.auditLog.push({id:crypto.randomUUID(),action,entity,details,before,after})}
+function addAudit(action,entity,details,before,after){db.auditLog.push({id:crypto.randomUUID(),action,entity,details:'عملية اختبار مصطنعة',before:null,after:null})}
 function money(value){return String(value)}
 function getPaidAmount(value){return Number(value.paid||0)}
 function getRemainingAmount(value){return Number(value.total||0)-getPaidAmount(value)}

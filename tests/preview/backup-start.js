@@ -29,6 +29,8 @@ async function startPreview(){
     if(!PREVIEW_LIVE){saveGoogleDriveState({folderId:'synthetic-folder'});}
     document.getElementById('previewControls').hidden=false;
     status.textContent='جلسة اختبار جاهزة — بيانات مصطنعة فقط';
-    renderDataProtectionCenter();previewLog('بدء الجلسة',PREVIEW_LIVE?'Drive الحقيقي متاح بعد OAuth المعتمد؛ Supabase وهمي':'كل الخدمات وهمية');
+    renderDataProtectionCenter();
+    if(PREVIEW_LIVE&&GOOGLE_DRIVE_CLIENT_ID==='PREVIEW_TEST_CLIENT_ID_REQUIRED'){document.getElementById('googleDriveConnectButton').disabled=true;setGoogleDriveMessage('Google الحي غير مفعّل: يحتاج المالك عميل OAuth تجريبيًا منفصلًا لهذا الأصل. لا تستخدم عميل الإنتاج.','')}
+    previewLog('بدء الجلسة',PREVIEW_LIVE?'Drive الحقيقي متاح بعد OAuth المعتمد؛ Supabase وهمي':'كل الخدمات وهمية');
   }catch(error){status.textContent=error.message||'تعذر بدء المعاينة'}finally{button.disabled=false}
 }

@@ -48,6 +48,7 @@ jobs:
           python3 tests/persistence-postgrest.py --container adwaa-maintenance-db-ci
           python3 tests/production-security-postgres.py --container adwaa-maintenance-db-ci
           python3 tests/backup-inventory.test.py
+          python3 tests/isolated-preview.test.py
       - name: Remove disposable database
         if: always()
         run: docker rm -f adwaa-maintenance-db-ci || true

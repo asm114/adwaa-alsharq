@@ -44,6 +44,14 @@ with tempfile.TemporaryDirectory(prefix='adwaa-preview-test-') as directory:
             expect(page.locator('#backupOperationMessage')).to_contain_text('الملفات')
             # CSP blocks even the native transport; application mocks are not the only fence.
             assert page.evaluate("__previewNativeFetch('https://pgdvlklpyrvmwzitsmbw.supabase.co/rest/v1/app_state').then(()=>false,()=>true)") is True
+            live=context.new_page();live.on('pageerror',lambda e:errors.append(str(e)))
+            live.goto((args.base_url.rstrip('/') if args.base_url else 'https://preview.invalid')+'/live/')
+            live.locator('#previewPassphrase').fill('isolated live test passphrase')
+            live.locator('#previewStart').click()
+            expect(live.locator('#previewReady')).to_contain_text('جلسة اختبار جاهزة')
+            expect(live.locator('#googleDriveConnectButton')).to_be_disabled()
+            expect(live.locator('#googleDriveMessage')).to_contain_text('غير مفعّل')
+            assert live.evaluate("__previewNativeFetch('https://pgdvlklpyrvmwzitsmbw.supabase.co/rest/v1/app_state').then(()=>false,()=>true)") is True
             assert not external,external
             assert not errors,errors
             assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1')
