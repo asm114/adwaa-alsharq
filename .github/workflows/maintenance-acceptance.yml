@@ -7,6 +7,7 @@ on:
       - 'tests/**'
       - 'tools/prepare-maintenance-rollout.py'
       - 'tools/supabase-backup-inventory.py'
+      - 'tools/build-isolated-backup-preview.py'
       - 'supabase/migrations/**'
       - 'docs/maintenance-server-guard*'
       - 'docs/maintenance-production-security-proposal.sql'
@@ -31,6 +32,8 @@ jobs:
           python3 tests/portal-acceptance.browser.py --engine webkit
           python3 tests/drive-backup.browser.py --engine chromium
           python3 tests/drive-backup.browser.py --engine webkit
+          python3 tests/isolated-preview.browser.py --engine chromium
+          python3 tests/isolated-preview.browser.py --engine webkit
       - name: Start disposable Postgres without network access
         run: |
           docker run --rm -d --network none --tmpfs /var/lib/postgresql/data -e POSTGRES_HOST_AUTH_METHOD=trust --name adwaa-maintenance-db-ci postgres:17-bookworm@sha256:858bb5e98eed02eb8cafbcdc007f9a65d1b613972028944a8ec2133ccaf80d27
