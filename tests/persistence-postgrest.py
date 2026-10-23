@@ -99,6 +99,13 @@ try:
     acl=read_acl()
     assert acl=='SELECT', f'Unexpected browser role privileges after guard: {acl!r}'
     assert http('DELETE','/app_state?id=eq.main',manager)[0]==403
+    # RLS does not protect TRUNCATE; exercise the actual SQL privilege as the browser role.
+    def assert_truncate_denied(stage):
+        probe=subprocess.run(docker+['exec','-i',args.container,'psql','-X','-v','ON_ERROR_STOP=1','-U','postgres'],
+                             input='SET ROLE authenticated; TRUNCATE TABLE public.app_state;',
+                             text=True,capture_output=True,env=env,timeout=15)
+        assert probe.returncode!=0 and 'permission denied' in probe.stderr.lower(), (stage,probe.returncode,probe.stderr)
+    assert_truncate_denied('guard')
     rpc='/rpc/adwaa_cas_write_app_state_v1'
     for _ in range(30):
         code,_=http('POST',rpc,manager,{'p_expected_updated_at':None,'p_data':baseline['data']})
@@ -115,9 +122,24 @@ try:
     assert http('POST',rpc,manager,{'p_expected_updated_at':current[0]['updated_at'],'p_data':current[0]['data']})==(200,[])
     _,guarded=http('GET','/app_state?select=data',manager)
     assert guarded[0]['data']==current[0]['data']
+    # Race two real authenticated RPC calls on one revision: exactly one may commit.
+    _,race_base=http('GET','/app_state?select=data,updated_at',manager)
+    assert len(race_base)==1
+    def rpc_race(index):
+        payload={**race_base[0]['data'],'rpcWinner':index}
+        return http('POST',rpc,manager,{'p_expected_updated_at':race_base[0]['updated_at'],'p_data':payload})
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        race_results=list(pool.map(rpc_race,[1,2]))
+    assert all(code==200 for code,_ in race_results),race_results
+    assert sorted(len(rows) for _,rows in race_results)==[0,1],race_results
+    _,race_after=http('GET','/app_state?select=data',manager)
+    assert race_after[0]['data']['rpcWinner'] in [1,2]
+    assert race_after[0]['data']['bookings']==race_base[0]['data']['bookings']
+    assert race_after[0]['data']['seq']==race_base[0]['data']['seq']
     sql((root/'docs/maintenance-server-guard-rollback.sql').read_text())
     restored_acl=subprocess.run(docker+['exec','-i',args.container,'psql','-X','-v','ON_ERROR_STOP=1','-qAt','-U','postgres'],input="select string_agg(privilege_type,',' order by privilege_type) from information_schema.role_table_grants where table_schema='public' and table_name='app_state' and grantee='authenticated';",text=True,capture_output=True,env=env,check=True).stdout.strip()
     assert restored_acl=='INSERT,SELECT,UPDATE', f'Rollback changed original browser privileges: {restored_acl!r}'
+    assert_truncate_denied('rollback')
     assert http('DELETE','/app_state?id=eq.main',manager)[0]==403
     restored_write=http('PATCH','/app_state?id=eq.main',manager,{'data':guarded[0]['data']})
     assert restored_write[0]==200, f'Rollback failed to restore direct PATCH: {restored_write!r}'
