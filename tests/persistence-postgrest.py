@@ -79,6 +79,10 @@ try:
     sql("create function auth.uid() returns uuid language sql stable as $$ select nullif(auth.jwt()->>'sub','')::uuid $$;")
     root=Path(__file__).resolve().parents[1]
     sql((root/'docs/maintenance-server-guard-proposal.sql').read_text())
+    # Verify the effective grants, not just HTTP PATCH behavior.
+    acl=subprocess.run(docker+['exec','-i',args.container,'psql','-X','-v','ON_ERROR_STOP=1','-qAt','-U','postgres'],input="select string_agg(privilege_type,',' order by privilege_type) from information_schema.role_table_grants where table_schema='public' and table_name='app_state' and grantee='authenticated';",text=True,capture_output=True,env=env,check=True).stdout.strip()
+    assert acl=='SELECT', f'Unexpected browser role privileges after guard: {acl!r}'
+    assert http('DELETE','/app_state?id=eq.main',manager)[0]==403
     rpc='/rpc/adwaa_cas_write_app_state_v1'
     for _ in range(30):
         code,_=http('POST',rpc,manager,{'p_expected_updated_at':None,'p_data':baseline['data']})
