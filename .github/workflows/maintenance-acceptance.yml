@@ -5,6 +5,7 @@ on:
       - '**.js'
       - '**.html'
       - 'tests/**'
+      - 'tools/prepare-maintenance-rollout.py'
       - 'supabase/migrations/**'
       - 'docs/maintenance-server-guard*'
       - '.github/workflows/maintenance-acceptance.yml'
@@ -24,6 +25,8 @@ jobs:
         run: |
           python3 tests/maintenance-acceptance.browser.py --engine chromium
           python3 tests/maintenance-acceptance.browser.py --engine webkit
+          python3 tests/portal-acceptance.browser.py --engine chromium
+          python3 tests/portal-acceptance.browser.py --engine webkit
       - name: Start disposable Postgres without network access
         run: |
           docker run --rm -d --network none --tmpfs /var/lib/postgresql/data -e POSTGRES_HOST_AUTH_METHOD=trust --name adwaa-maintenance-db-ci postgres:17-bookworm@sha256:858bb5e98eed02eb8cafbcdc007f9a65d1b613972028944a8ec2133ccaf80d27

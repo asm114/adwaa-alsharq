@@ -17,6 +17,26 @@ BEGIN
   IF observed_grants IS DISTINCT FROM 'INSERT,SELECT,UPDATE' THEN
     RAISE EXCEPTION 'Unexpected app_state authenticated privileges: %; stop for explicit ACL review', observed_grants;
   END IF;
+  -- Direct ACLs alone miss PUBLIC and inherited role grants. They survive
+  -- REVOKE from authenticated and can leave UPDATE/TRUNCATE reachable.
+  IF EXISTS (
+    SELECT 1 FROM unnest(ARRAY['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) AS permission
+    WHERE has_table_privilege('anon','public.app_state',permission)
+  ) OR EXISTS (
+    SELECT 1 FROM pg_class AS relation
+    CROSS JOIN LATERAL aclexplode(coalesce(relation.relacl,acldefault('r',relation.relowner))) AS acl
+    WHERE relation.oid='public.app_state'::regclass
+      AND acl.privilege_type <> 'SELECT'
+      AND acl.grantee <> 'authenticated'::regrole::oid
+      AND CASE WHEN acl.grantee=0 THEN true
+               ELSE pg_has_role('authenticated',acl.grantee,'USAGE') END
+  ) OR EXISTS (
+    SELECT 1 FROM pg_class AS relation
+    WHERE relation.oid='public.app_state'::regclass
+      AND pg_has_role('authenticated',relation.relowner,'USAGE')
+  ) THEN
+    RAISE EXCEPTION 'Unexpected app_state effective privileges; stop for explicit ACL review';
+  END IF;
 END;
 $preflight$;
 LOCK TABLE public.app_state IN ACCESS EXCLUSIVE MODE;
