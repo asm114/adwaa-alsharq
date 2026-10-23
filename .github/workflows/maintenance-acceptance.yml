@@ -1,0 +1,40 @@
+name: Maintenance isolated acceptance
+on:
+  pull_request:
+    paths:
+      - '**.js'
+      - '**.html'
+      - 'tests/**'
+      - 'supabase/migrations/**'
+      - '.github/workflows/maintenance-acceptance.yml'
+permissions:
+  contents: read
+jobs:
+  browser-and-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pinned browser test dependency
+        run: |
+          python3 -m pip install -r tests/requirements-browser.txt
+          python3 -m playwright install --with-deps chromium webkit
+      - name: Browser acceptance with all network requests intercepted
+        run: |
+          python3 tests/maintenance-acceptance.browser.py --engine chromium
+          python3 tests/maintenance-acceptance.browser.py --engine webkit
+      - name: Start disposable Postgres without network access
+        run: |
+          docker run --rm -d --network none --tmpfs /var/lib/postgresql/data -e POSTGRES_HOST_AUTH_METHOD=trust --name adwaa-maintenance-db-ci postgres:17-bookworm@sha256:858bb5e98eed02eb8cafbcdc007f9a65d1b613972028944a8ec2133ccaf80d27
+          for attempt in $(seq 1 30); do
+            if docker exec adwaa-maintenance-db-ci pg_isready -U postgres -h 127.0.0.1; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Real concurrency and policy tests using synthetic data
+        run: |
+          python3 tests/persistence-postgres.py --container adwaa-maintenance-db-ci
+          python3 tests/persistence-postgrest.py --container adwaa-maintenance-db-ci
+      - name: Remove disposable database
+        if: always()
+        run: docker rm -f adwaa-maintenance-db-ci || true
