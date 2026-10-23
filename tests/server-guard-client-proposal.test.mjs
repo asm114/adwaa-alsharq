@@ -26,3 +26,16 @@ test('approval-only RPC client reconciles a lost response without a second opera
  const {c,control}=harness(undefined,{source:candidate,rpc:true});control.writeError=true;
  assert.equal(await c.persist(),true);assert.equal(control.commits,1);assert.equal(control.writes,1);assert.equal(control.reads,1);
 });
+
+const guardSql=readFileSync(new URL('../docs/maintenance-server-guard-proposal.sql',import.meta.url),'utf8');
+const rollbackSql=readFileSync(new URL('../docs/maintenance-server-guard-rollback.sql',import.meta.url),'utf8');
+test('guard proposal removes every direct browser mutation privilege and leaves SELECT available',()=>{
+ assert.match(guardSql,/REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public\.app_state FROM PUBLIC, anon, authenticated;/);
+ assert.match(guardSql,/REVOKE ALL ON FUNCTION public\.adwaa_cas_write_app_state_v1\(timestamptz,jsonb\) FROM PUBLIC, anon;/);
+ assert.match(guardSql,/GRANT EXECUTE ON FUNCTION public\.adwaa_cas_write_app_state_v1\(timestamptz,jsonb\) TO authenticated;/);
+ assert.doesNotMatch(guardSql,/\b(?:DROP TABLE|TRUNCATE TABLE|DELETE FROM public\.app_state)\b/i);
+});
+test('emergency rollback documents restoring inspected privileges without touching financial rows',()=>{
+ assert.match(rollbackSql,/GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public\.app_state TO authenticated;/);
+ assert.doesNotMatch(rollbackSql,/\b(?:UPDATE public\.app_state|DELETE FROM public\.app_state|TRUNCATE TABLE)\b/i);
+});
