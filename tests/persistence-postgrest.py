@@ -100,7 +100,10 @@ try:
     _,guarded=http('GET','/app_state?select=data',manager)
     assert guarded[0]['data']==current[0]['data']
     sql((root/'docs/maintenance-server-guard-rollback.sql').read_text())
-    assert http('PATCH','/app_state?id=eq.main',manager,{'data':guarded[0]['data']})[0]==200
+    restored_acl=subprocess.run(docker+['exec','-i',args.container,'psql','-X','-v','ON_ERROR_STOP=1','-qAt','-U','postgres'],input="select bool_and(has_table_privilege('authenticated','public.app_state',privilege)) from unnest(array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) as privilege;",text=True,capture_output=True,env=env,check=True).stdout.strip()
+    assert restored_acl=='t', f'Rollback did not restore browser privileges: {restored_acl!r}'
+    restored_write=http('PATCH','/app_state?id=eq.main',manager,{'data':guarded[0]['data']})
+    assert restored_write[0]==200, f'Rollback failed to restore direct PATCH: {restored_write!r}'
     print(json.dumps({'legacy_client_gate':'server enforcement or complete client cutover still required','server_guard_proposal':'PASS: denies legacy direct writes, authorizes CAS RPC, rejects stale RPC, reversible without data change','result':'PASS','checks':['real PostgREST HTTP PATCH: one CAS winner','locally signed JWT policies','anon denied','other identity cannot read/write','delete denied','payments and sequence invariant'],'production_access':False}))
 finally:
     subprocess.run(docker+['rm','-f',rest],env=env,capture_output=True)

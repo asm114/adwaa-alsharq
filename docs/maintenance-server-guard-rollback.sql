@@ -5,7 +5,9 @@ BEGIN;
 SET LOCAL lock_timeout = '3s';
 SET LOCAL statement_timeout = '15s';
 LOCK TABLE public.app_state IN ACCESS EXCLUSIVE MODE;
--- Emergency rollback: restore the exact previously inspected browser-role ACL.\n-- This restores legacy direct writes and must be temporary until the cutover is repaired.\nGRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.app_state TO authenticated;
+-- Emergency rollback: restore the exact previously inspected browser-role ACL.
+-- This restores legacy direct writes and must be temporary until the cutover is repaired.
+GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.app_state TO authenticated;
 DROP FUNCTION public.adwaa_cas_write_app_state_v1(timestamptz,jsonb);
 NOTIFY pgrst, 'reload schema';
 COMMIT;

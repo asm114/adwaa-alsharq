@@ -37,6 +37,7 @@ test('guard proposal removes every direct browser mutation privilege and leaves 
  assert.doesNotMatch(guardSql,/\b(?:DROP TABLE|TRUNCATE TABLE|DELETE FROM public\.app_state)\b/i);
 });
 test('emergency rollback documents restoring inspected privileges without touching financial rows',()=>{
- assert.match(rollbackSql,/GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public\.app_state TO authenticated;/);
+ assert.match(rollbackSql,/^GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public\.app_state TO authenticated;/m);
+ assert.doesNotMatch(rollbackSql,/\\n/);
  assert.doesNotMatch(rollbackSql,/\b(?:UPDATE public\.app_state|DELETE FROM public\.app_state|TRUNCATE TABLE)\b/i);
 });
