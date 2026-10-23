@@ -1,9 +1,9 @@
 // Keep this app's cache isolated from other projects sharing the same GitHub Pages origin.
 const SCOPE_PATH=new URL(self.registration.scope).pathname.replace(/\/+$/,'')||'/';
 const CACHE_NAMESPACE=`adwaa-alsharq:${SCOPE_PATH}:`;
-const CACHE=`${CACHE_NAMESPACE}app-state-20261023-protected-1`;
+const CACHE=`${CACHE_NAMESPACE}app-state-20261023-protected-drive-2`;
 const FALLBACK='./index.html';
-const ASSETS=['./index.html','./local-data-protection.js?v=20261023-1','./booking-persist-update-path.js?v=20261023-2','./manifest.json','./supabase-config.staging.js','./booking-financial-core.js?v=20260922-1','./booking-postponement.js?v=20260922-1','./arabic-number-input.js?v=20260921-1','./booking-date-stability.js?v=20260922-1'];
+const ASSETS=['./index.html','./backup-flow-reliability.js?v=20261023-drive-1','./local-data-protection.js?v=20261023-1','./booking-persist-update-path.js?v=20261023-2','./manifest.json','./supabase-config.staging.js','./booking-financial-core.js?v=20260922-1','./booking-postponement.js?v=20260922-1','./arabic-number-input.js?v=20260921-1','./booking-date-stability.js?v=20260922-1'];
 
 function isAppShellRequest(request){
   const requestUrl=new URL(request.url);

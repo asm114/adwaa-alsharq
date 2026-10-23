@@ -1,6 +1,7 @@
 (()=>{
 'use strict';
-if(window.__adwaaBackupFlowReliabilityInstalled)return;
+if(window.__adwaaBackupFlowReliabilityVersion==='20261023-drive-1')return;
+window.__adwaaBackupFlowReliabilityVersion='20261023-drive-1';
 window.__adwaaBackupFlowReliabilityInstalled=true;
 
 let reliableBackupBusy=false;
@@ -92,8 +93,7 @@ async function createReliableBackup(type='يدوي',options={}){
     if(downloadFile&&!fileSaved){
       try{
         download(fileName,json,'application/json');
-        downloadRequested=true;
-        fileSaved=true;
+        downloadRequested=true; // A browser download request is not proof of a saved file.
         location=stored?'مخزن المتصفح الآمن + ملف تنزيل':'تم تجهيز ملف للتنزيل';
       }catch(error){
         directoryError=[directoryError,backupErrorText(error)].filter(Boolean).join(' — ');
@@ -101,7 +101,7 @@ async function createReliableBackup(type='يدوي',options={}){
     }
 
     const rollbackReady=stored||fileSaved;
-    if(!rollbackReady){
+    if(!rollbackReady&&(silent||!downloadRequested)){
       const detail=[vaultError,directoryError].filter(Boolean).join(' — ');
       throw new Error(`لم ينجح حفظ نسخة قابلة للاستعادة${detail?`: ${detail}`:'.'}`);
     }
@@ -115,11 +115,10 @@ async function createReliableBackup(type='يدوي',options={}){
     });
     addAudit('إنشاء','نسخة احتياطية',`${type} — Recovery ID: ${envelope.recoveryId} — ${formatBytes(size)} — تم فحص ${checked.summary.bookings} حجز${stored?'':' — الاعتماد على ملف التنزيل البديل'}`,null,{id,recoveryId:envelope.recoveryId,type,size,fileName,location,verified:true});
 
-    const metadataSync=await persistBackupMetadata();
-
-    let cloudResult={ok:false,skipped:true};
-    try{cloudResult=await syncBackupToGoogleDrive(vaultRecord)}
-    catch(error){cloudResult={ok:false,error:backupErrorText(error)}}
+    // Start independent destinations together: a failed metadata write cannot prevent Drive.
+    const [metadataAttempt,cloudResult]=await Promise.all([persistBackupMetadata(),
+      syncBackupToGoogleDrive(vaultRecord).catch(error=>({ok:false,error:backupErrorText(error)}))]);
+    const metadataSync=cloudResult?.metadataSync?.ok?{ok:true,error:''}:metadataAttempt;
 
     if(!silent){
       const lines=[];
@@ -127,9 +126,12 @@ async function createReliableBackup(type='يدوي',options={}){
       else if(downloadRequested)lines.push('🟡 تعذر تثبيت النسخة داخل مخزن المتصفح؛ تم تجهيز ملف تنزيل بديل. تأكد من ظهوره في ملفات الجهاز.');
       else lines.push(`✅ تم حفظ ملف النسخة في ${location}.`);
       lines.push(metadataSync.ok?'✅ تم تسجيل النسخة ومزامنة سجلها مع Supabase.':`🟡 النسخة نفسها سليمة، لكن تعذر مزامنة سجلها مع Supabase الآن: ${metadataSync.error}`);
-      if(cloudResult?.ok)lines.push('✅ تم رفع نسخة إلى Google Drive والتحقق منها.');
+      if(cloudResult?.ok){lines.push('✅ تم رفع نسخة إلى Google Drive والتحقق منها.');if(cloudResult.metadataSync?.ok===false)lines.push('🟡 سجل رفع Drive لم يتأكد في Supabase؛ ملف Drive مؤكد ومستقل.');}
+      else if(cloudResult?.skipped)lines.push('🟡 Google Drive: لم يبدأ الرفع؛ اضغط إعادة الاتصال ثم إعادة رفع النسخة المحلية نفسها.');
       else if(!cloudResult?.skipped&&!cloudResult?.busy&&cloudResult?.error)lines.push(`🟡 Google Drive لم يكتمل: ${cloudResult.error}`);
+      if(downloadRequested)lines.push('ℹ️ طُلب تنزيل الملف فقط؛ تحقق من تطبيق الملفات. لم يتأكد مكان حفظه.');
       if(directoryError)lines.push(`ℹ️ ملاحظة الحفظ الخارجي: ${directoryError}`);
+      if(checked.relationships.warnings.length)lines.push(`🟡 تحذيرات العلاقات: ${checked.relationships.warnings.join(' — ')}. لم تُحذف أو تُصلح سجلات تلقائيًا.`);
       const message=lines.join('\n');
       setBackupOperationMessage(message,metadataSync.ok&&stored?'success':'');
       alert(`نتيجة النسخ الاحتياطي:\n${message}\n\nاسم الملف: ${fileName}\nالحجم: ${formatBytes(size)}`);
