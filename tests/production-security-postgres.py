@@ -102,13 +102,14 @@ restore_container=args.container+'-restore'
 image=subprocess.check_output(docker+['inspect','--format','{{.Config.Image}}',args.container],env=env,text=True).strip()
 subprocess.run(docker+['run','--rm','-d','--network','none','--tmpfs','/var/lib/postgresql/data','-e','POSTGRES_HOST_AUTH_METHOD=trust','--name',restore_container,image],capture_output=True,env=env,check=True)
 def target_sql(query,allowed=True):
-    proc=subprocess.run(docker+['exec','-i',restore_container,'psql','-X','-qAt','-v','ON_ERROR_STOP=1','-U','postgres','-d','postgres'],input=query,text=True,capture_output=True,env=env,timeout=20)
+    proc=subprocess.run(docker+['exec','-i',restore_container,'psql','-h','127.0.0.1','-X','-qAt','-v','ON_ERROR_STOP=1','-U','postgres','-d','postgres'],input=query,text=True,capture_output=True,env=env,timeout=20)
     if allowed:assert proc.returncode==0,proc.stderr
     else:assert proc.returncode!=0 and 'permission denied' in proc.stderr,proc.stderr
     return proc.stdout.strip()
 try:
+    # Docker init uses a temporary Unix-only server. Require final TCP readiness.
     for attempt in range(60):
-        ready=subprocess.run(docker+['exec',restore_container,'pg_isready','-U','postgres'],capture_output=True,env=env).returncode==0
+        ready=subprocess.run(docker+['exec',restore_container,'pg_isready','-h','127.0.0.1','-U','postgres'],capture_output=True,env=env).returncode==0
         if ready:break
         time.sleep(.5)
     assert ready,'Isolated restore server did not start'
@@ -117,7 +118,7 @@ try:
     # All application roles, attributes and memberships come from the source dump.
     assert roles.decode().count('CREATE ROLE postgres;')==1
     target_sql(roles.decode().replace('CREATE ROLE postgres;','-- Existing initdb bootstrap role postgres'))
-    subprocess.run(docker+['exec','-i',restore_container,'pg_restore','-U','postgres','--exit-on-error','-d','postgres'],input=dump,capture_output=True,env=env,check=True)
+    subprocess.run(docker+['exec','-i',restore_container,'pg_restore','-h','127.0.0.1','-U','postgres','--exit-on-error','-d','postgres'],input=dump,capture_output=True,env=env,check=True)
     assert target_sql(snapshot_query)==original
     assert target_sql(manager+view_query)==before
     assert target_sql(other+'SELECT count(*) FROM public.reservation_financials;')=='0'
