@@ -78,9 +78,25 @@ try:
         subprocess.run(docker+['exec','-i',args.container,'psql','-X','-v','ON_ERROR_STOP=1','-U','postgres'],input=text,text=True,capture_output=True,env=env,check=True)
     sql("create function auth.uid() returns uuid language sql stable as $$ select nullif(auth.jwt()->>'sub','')::uuid $$;")
     root=Path(__file__).resolve().parents[1]
-    sql((root/'docs/maintenance-server-guard-proposal.sql').read_text())
+    guard_sql=(root/'docs/maintenance-server-guard-proposal.sql').read_text()
+    # Reproduce the live-production ACL drift using only the disposable database.
+    # A guard rollout must fail BEFORE touching grants or installing the RPC.
+    sql('GRANT DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.app_state TO authenticated;')
+    try:
+        sql(guard_sql)
+    except subprocess.CalledProcessError as exc:
+        assert 'Unexpected app_state authenticated privileges' in (exc.stderr or ''), (exc.stderr or '')[-1500:]
+    else:
+        raise AssertionError('Guard accepted an unreviewed production-like ACL')
+    acl_sql="select string_agg(privilege_type,',' order by privilege_type) from information_schema.role_table_grants where table_schema='public' and table_name='app_state' and grantee='authenticated';"
+    def read_acl():
+        return subprocess.run(docker+['exec','-i',args.container,'psql','-X','-v','ON_ERROR_STOP=1','-qAt','-U','postgres'],input=acl_sql,text=True,capture_output=True,env=env,check=True).stdout.strip()
+    assert read_acl()=='DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE'
+    sql("REVOKE DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.app_state FROM authenticated;")
+    assert read_acl()=='INSERT,SELECT,UPDATE'
+    sql(guard_sql)
     # Verify the effective grants, not just HTTP PATCH behavior.
-    acl=subprocess.run(docker+['exec','-i',args.container,'psql','-X','-v','ON_ERROR_STOP=1','-qAt','-U','postgres'],input="select string_agg(privilege_type,',' order by privilege_type) from information_schema.role_table_grants where table_schema='public' and table_name='app_state' and grantee='authenticated';",text=True,capture_output=True,env=env,check=True).stdout.strip()
+    acl=read_acl()
     assert acl=='SELECT', f'Unexpected browser role privileges after guard: {acl!r}'
     assert http('DELETE','/app_state?id=eq.main',manager)[0]==403
     rpc='/rpc/adwaa_cas_write_app_state_v1'
