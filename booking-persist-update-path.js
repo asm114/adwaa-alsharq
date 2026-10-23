@@ -21,7 +21,15 @@ const clone=value=>JSON.parse(JSON.stringify(value));
 let version=window.__adwaaStateVersion||null,accepted=null,pending=null,active=0;
 let resolveReady;const ready=new Promise(resolve=>resolveReady=resolve);
 function conflict(){return Object.assign(new Error('وصل تعديل من جهاز آخر. لم تتم الكتابة فوقه. احتفظ بمدخلاتك وحدّث البيانات للمراجعة.'),{code:'ADWAA_CONFLICT',outcome:'conflict'})}
+function validateState(value){
+  const invalid=()=>Object.assign(new Error('بنية بيانات النظام غير سليمة؛ لم يُسمح باستبدالها ببيانات فارغة.'),{code:'ADWAA_INVALID_STATE',outcome:'not-written'});
+  if(!value||typeof value!=='object'||Array.isArray(value)||!Array.isArray(value.bookings))throw invalid();
+  for(const name of ['expenses','maintenanceJobs','installmentPurchases','subscriptions','subscriptionDrafts','customerCredits','accountingNotes','notifications','auditLog','backupHistory']){
+    if(value[name]!==undefined&&!Array.isArray(value[name]))throw invalid();
+  }
+}
 function acceptRemote(row){
+  validateState(row?.data);
   if(!row?.updated_at||!Number.isFinite(Date.parse(row.updated_at)))throw new Error('نسخة السجل غير متاحة؛ لم يُسمح بالكتابة.');
   version=row.updated_at;window.__adwaaStateVersion=version;
   accepted=clone(row.data);pending=null;
@@ -30,11 +38,13 @@ async function readRow(){
   const result=await request(signal=>withSignal(supabaseClient.from('app_state').select('id,data,updated_at').eq('id',STATE_ROW_ID).maybeSingle(),signal));
   if(result.error)throw result.error;
   if(!result.data?.updated_at)throw new Error('تعذر قراءة سجل النظام وإصداره. لم تُنشأ بيانات تلقائيًا.');
+  validateState(result.data.data);
   return result.data;
 }
 const sameVersion=(a,b)=>!!a&&!!b&&Date.parse(a)===Date.parse(b);
 const nextVersion=base=>new Date(Math.max(Date.now(),Date.parse(base)+1)).toISOString();
 async function writeRow(snapshot,base,client=supabaseClient,rowId=STATE_ROW_ID,next=null){
+  validateState(snapshot);
   if(!base||!Number.isFinite(Date.parse(base)))throw new Error('لم تُقرأ نسخة السجل.');
   next=next||nextVersion(base);
   const payload={data:clone(snapshot),updated_at:next};
@@ -113,6 +123,7 @@ function install(){
   }
   const robustPersist=function(candidate){
     // Only the restore service supplies a candidate; ordinary callers use current db.
+    validateState(candidate||db);
     const snapshot=clone(normalizeDB(candidate||db));
     const ownerGeneration=generation;
     const operation=saveQueue.then(()=>performSave(snapshot,ownerGeneration));

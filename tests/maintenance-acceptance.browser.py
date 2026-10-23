@@ -45,6 +45,10 @@ def run(browser, width, height, engine):
     expect(page.locator('#bookingModal')).to_be_hidden()
     assert page.evaluate('db.bookings.length') == 1
     assert page.evaluate('ResortAccountCore.currentBalance(db)') == balance
+    # A deferred realtime snapshot is not applied without fetching its matching revision.
+    page.evaluate("openBooking(db.bookings[0].id);v92PendingRemoteData=JSON.parse(JSON.stringify(db));v92PendingRemoteData.bookings[0].notes='stale-realtime-data'")
+    page.evaluate('refreshBookingData()')
+    assert page.locator('#bNotes').input_value() != 'stale-realtime-data'
     # Contract/message operation IDs survive repeated clicks, failure, and retry.
     page.evaluate('openBooking(db.bookings[0].id);QA.fail=true;QA.delay=50')
     assert page.evaluate("async()=>await Promise.all([v92RecordOperation('contract','created'),v92RecordOperation('contract','created')])") == [False, False]
@@ -53,6 +57,12 @@ def run(browser, width, height, engine):
     assert page.evaluate("v92RecordOperation('contract','created')") is True
     assert page.evaluate("db.bookings[0].communicationActivity.filter(x=>x.event==='contract-created').length") == 1
     assert page.evaluate("db.bookings[0].communicationActivity.find(x=>x.event==='contract-created').id") == first_id
+    page.evaluate('QA.fail=true')
+    assert page.evaluate("v92RecordOperation('invoice','created')") is False
+    page.evaluate('QA.fail=false;refreshBookingData()')
+    page.wait_for_function("db.bookings[0].communicationActivity.filter(x=>x.event==='invoice-created').length===0")
+    assert page.evaluate("v92RecordOperation('invoice','created')") is True
+    assert page.evaluate("db.bookings[0].communicationActivity.filter(x=>x.event==='invoice-created').length") == 1
     assert page.evaluate("v92RecordOperation('invoice','sent')") is True
     # Generate the actual contract HTML in an intercepted popup; no external sharing.
     with page.expect_popup() as popup_info:

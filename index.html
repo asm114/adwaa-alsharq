@@ -1491,6 +1491,7 @@ function scheduleRenderAll(){
 function normalizeDB(value){
   const x=value&&typeof value==='object'?value:{};
   const normalizedSettings={
+    ...(x.settings&&typeof x.settings==='object'&&!Array.isArray(x.settings)?x.settings:{}),
     waNumber:x.settings?.waNumber||'',
     welcomeMsgDaily:x.settings?.welcomeMsgDaily||DEFAULT_WELCOME_DAILY,
     welcomeMsgStay:x.settings?.welcomeMsgStay||DEFAULT_WELCOME_STAY,
@@ -1503,6 +1504,7 @@ function normalizeDB(value){
   };
   const bookings=(Array.isArray(x.bookings)?x.bookings:[]).map(raw=>normalizeBookingCommission(raw,normalizedSettings));
   return {
+    ...x, // Preserve extension collections even before asynchronous feature modules install.
     bookings,
     expenses:Array.isArray(x.expenses)?x.expenses:[],
     cleaningTasks:Array.isArray(x.cleaningTasks)?x.cleaningTasks:[],
@@ -1533,14 +1535,14 @@ async function renderDataProtectionSyncStatus(){
   }catch(_){const el=document.getElementById('protectionSyncStatus');if(el)el.textContent='تعذر حساب مؤشر التطابق؛ راجع آخر نتيجة حفظ مؤكدة.'}
 }
 
-async function loadRemoteData(){
+async function loadRemoteData({discardConfirmed=false}={}){
   if(!currentUser){showLogin();return false}
   try{
     await window.AdwaaPersistence.request(()=>window.AdwaaPersistence.ready);
-    if(window.AdwaaPersistence.hasUnsavedChanges()&&!confirm('توجد تعديلات محلية غير مؤكدة. احتفظ بها أو صدّرها قبل تحديث البيانات. هل تريد استبدال عرض الصفحة بالبيانات البعيدة؟'))return false;
+    if(!discardConfirmed&&window.AdwaaPersistence.hasUnsavedChanges()&&!confirm('توجد تعديلات محلية غير مؤكدة. احتفظ بها أو صدّرها قبل تحديث البيانات. هل تريد استبدال عرض الصفحة بالبيانات البعيدة؟'))return false;
     const row=await window.AdwaaPersistence.readRow();
-    db=normalizeDB(row.data);
-    window.AdwaaPersistence.acceptRemote(row);window.__adwaaLastBookingSaveConfirmed=null;
+    const next=normalizeDB(row.data);
+    window.AdwaaPersistence.acceptRemote(row);db=next;window.__adwaaLastBookingSaveConfirmed=null;v92PendingRemoteData=null;
     invalidateCaches();remoteReady=true;lastSuccessfulReadAt=new Date().toISOString();lastSyncError='';
     try{Promise.resolve(markRemoteStateConfirmed(db)).catch(()=>{})}catch(_){}
     scheduleRenderAll();setSyncStatus('متصل ومتزامن بحساب المدير','ok');return true;
@@ -1574,14 +1576,14 @@ function subscribeRealtime(){
       const anyEditorOpen=!!document.querySelector('.modal.open');
       const currentId=document.getElementById('bId')?.value||'';
       if(anyEditorOpen||window.AdwaaPersistence.hasUnsavedChanges()){
-        v92PendingRemoteData=next;
+        v92PendingRemoteData=true; // Notification only; refresh always fetches data and its revision together.
         remoteReady=true;try{lastConfirmedRemoteHash=await dataStateHash(next)}catch(_){lastConfirmedRemoteHash=''};lastSyncError='وصل تحديث من Supabase ولم يُطبّق محليًا لحماية تعديلات الحجز المفتوح.';void renderDataProtectionSyncStatus();
         const requirement=document.getElementById('v92BookingRequirement');
         if(requirement){requirement.className='v92-requirement warn';requirement.textContent='🟠 وصل تحديث من جهاز آخر. لم يُطبّق على الحجز المفتوح حتى لا تضيع تعديلاتك؛ استخدم زر تحديث البيانات عند الاستعداد.';}
         if(typeof setSyncStatus==='function')setSyncStatus('وصل تحديث من جهاز آخر، وتم تأجيله لحماية التعديلات غير المحفوظة.','warning');
         return;
       }
-      db=normalizeDB(next);window.AdwaaPersistence.acceptRemote(payload.new);
+      const normalized=normalizeDB(next);window.AdwaaPersistence.acceptRemote(payload.new);db=normalized;
       remoteReady=true;lastSuccessfulReadAt=new Date().toISOString();lastSyncError='';try{await markRemoteStateConfirmed(db)}catch(_){};
       if(typeof renderAll==='function')renderAll();
       if(modalOpen&&currentId&&(db.bookings||[]).some(x=>x.id===currentId)&&typeof v92OriginalOpenBooking==='function'){
@@ -3791,6 +3793,7 @@ async function v92RecordOperation(type,action){
   if(!booking){alert('احفظ الحجز أولًا قبل تسجيل العملية.');return false}
   const key=`${booking.id}:${type}:${action}`;
   let pending=v92PendingOperations.get(key);
+  if(pending&&!booking.communicationActivity.some(item=>item.id===pending.id)){v92PendingOperations.delete(key);pending=null}
   if(pending?.promise)return pending.promise;
   if(!pending){
     const at=new Date().toISOString(),event=`${type}-${action}`,id=crypto.randomUUID();
@@ -3862,9 +3865,9 @@ function sendManualWhatsApp(type){
 function backToBookingDetails(){const sheet=document.querySelector('#bookingModal .sheet');if(sheet){sheet.scrollTo({top:0,behavior:'smooth'});setTimeout(()=>document.getElementById('bName')?.focus({preventScroll:true}),350);}}
 async function refreshBookingData(){
   const id=document.getElementById('bId')?.value||'';if(!id){alert('احفظ الحجز أولًا ثم استخدم تحديث البيانات.');return;}
-  if(v92BookingDirty&&!confirm('توجد تعديلات غير محفوظة. هل تريد تجاهلها وتحديث البيانات؟'))return;
+  if((v92BookingDirty||window.AdwaaPersistence.hasUnsavedChanges())&&!confirm('توجد تعديلات غير محفوظة. هل تريد تجاهلها وتحديث البيانات؟'))return;
   const button=document.activeElement?.tagName==='BUTTON'?document.activeElement:null;if(button)button.disabled=true;
-  try{if(v92PendingRemoteData){db=normalizeDB(v92PendingRemoteData);v92PendingRemoteData=null;void window.AdwaaLocalVault?.cache(db);if(typeof renderAll==='function')renderAll();}else if(typeof loadRemoteData==='function')await loadRemoteData();else if(typeof renderAll==='function')renderAll();const found=(db.bookings||[]).find(x=>x.id===id);if(!found){alert('لم يعد الحجز موجودًا في قاعدة البيانات.');return;}v92OriginalOpenBooking(id);v92BookingDirty=false;alert('تم تحديث بيانات الحجز بنجاح.');}
+  try{if(await loadRemoteData({discardConfirmed:true})!==true)return;v92PendingRemoteData=null;const found=(db.bookings||[]).find(x=>x.id===id);if(!found){alert('لم يعد الحجز موجودًا في قاعدة البيانات.');return;}v92OriginalOpenBooking(id);v92BookingDirty=false;alert('تم تحديث بيانات الحجز بنجاح.');}
   catch(err){console.error(err);alert('تعذر تحديث البيانات. تحقق من الاتصال ثم حاول مرة أخرى.');}
   finally{if(button)button.disabled=false;}
 }

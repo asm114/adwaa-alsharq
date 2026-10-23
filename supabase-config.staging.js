@@ -236,7 +236,7 @@ async function saveBookingAuthoritatively(event){
       const idInput=bookingField('bId');if(idInput&&pending)idInput.value=String(pending.id);
       try{window.BookingPaymentHistory?.loadBookingPayments?.()}catch(_){}
       remoteReady=false;
-      const outcome=window.__adwaaLastPersistResult?.outcome||'unknown';
+      const outcome=error?.outcome||window.__adwaaLastPersistResult?.outcome||'unknown';
       lastSyncError=outcome==='conflict'?String(error.message):'لم تتأكد نتيجة الحفظ. بقيت المدخلات محفوظة في الصفحة؛ تحقق من السجل قبل إعادة المحاولة.';
       window.__adwaaLastBookingSaveConfirmed={ok:false,outcome,id:pending?.id||'',code,mode:'authoritative-submit',version:BOOKING_SAVE_VERSION,at:new Date().toISOString()};
       setSyncStatus(lastSyncError,'warning');
