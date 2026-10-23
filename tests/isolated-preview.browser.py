@@ -38,6 +38,29 @@ with tempfile.TemporaryDirectory(prefix='adwaa-preview-test-') as directory:
             page.locator('#googleDriveRetryButton').click()
             expect(page.locator('#googleDriveRetryButton')).to_be_enabled(timeout=10000)
             assert page.evaluate('DriveQA.uploads')==1
+            # Exercise failure recovery on the exact shipped preview, not only the
+            # larger application fixture. A network error must retain the local
+            # encrypted record and retry that same record after connectivity returns.
+            page.locator('#metadataFailure').uncheck()
+            page.evaluate('DriveQA.failNetwork=true')
+            result=page.evaluate("async()=>{const r=await createBackup('يدوي',{downloadFile:false,silent:true});window.previewRetryId=r.id;return {local:r.stored,drive:r.cloudResult.ok,metadata:r.metadataSync.ok}}")
+            assert result=={'local':True,'drive':False,'metadata':True},result
+            assert page.evaluate('DriveQA.uploads')==1
+            assert page.evaluate('googleDriveUploadInProgress') is False
+            page.evaluate('DriveQA.failNetwork=false')
+            assert page.evaluate('retryLatestGoogleDriveBackup().then(r=>r.ok)') is True
+            assert page.evaluate('DriveQA.uploads')==2
+            assert page.evaluate('latestBackupRecord().id===previewRetryId') is True
+            # Unknown upload reply with a stale index: persisted allocated ID is
+            # authoritative. Retrying after losing the memory map cannot duplicate.
+            page.evaluate('DriveQA.failReply=true;DriveQA.hideIndex=true')
+            result=page.evaluate("async()=>{const r=await createBackup('يدوي',{downloadFile:false,silent:true});return {local:r.stored,drive:r.cloudResult.ok}}")
+            assert result=={'local':True,'drive':True},result
+            assert page.evaluate('DriveQA.uploads')==3
+            page.evaluate('googleDriveStableIds.clear()')
+            result=page.evaluate("async()=>{const r=await activeDataProtectionProvider().get(latestBackupRecord().id);return Promise.all([syncBackupToGoogleDrive(r),syncBackupToGoogleDrive(r)]).then(rows=>rows.map(x=>({ok:x.ok,busy:!!x.busy})))}")
+            assert sum(1 for r in result if r['ok'])==1 and any(r['busy'] for r in result),result
+            assert page.evaluate('DriveQA.uploads')==3
             assert page.evaluate('db.bookings[0].total')==1200
             assert page.evaluate('db.bookings[0].paid')==500
             page.evaluate("()=>{window.showDirectoryPicker=undefined;void renderBackupManagement();openBackupDirectory()}")
@@ -55,6 +78,6 @@ with tempfile.TemporaryDirectory(prefix='adwaa-preview-test-') as directory:
             assert not external,external
             assert not errors,errors
             assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1')
-            print(json.dumps({'engine':args.engine,'viewport':[width,height],'deployed':bool(args.base_url),'result':'PASS','checks':'synthetic only, production CSP deny, real backup code, encrypted vault, fake Drive/Supabase isolation, retry, Files guidance'}),flush=True)
+            print(json.dumps({'engine':args.engine,'viewport':[width,height],'deployed':bool(args.base_url),'result':'PASS','checks':'synthetic only, production CSP deny, real backup code, encrypted vault, fake Drive/Supabase isolation, network recovery, lost commit reply, persisted ID retry, duplicate presses, Files guidance'}),flush=True)
             context.close()
         browser.close()
