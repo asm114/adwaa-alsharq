@@ -51,4 +51,4 @@ jobs:
           python3 tests/isolated-preview.test.py
       - name: Remove disposable database
         if: always()
-        run: docker rm -f adwaa-maintenance-db-ci || true
+        run: docker rm -f adwaa-maintenance-db-ci-restore adwaa-maintenance-db-ci || true
