@@ -89,6 +89,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="booking-persist-update-path.js?v=20261023-2"></script>
 <script>
 const SUPABASE_URL='https://ztqqdjryvecscidxxbfe.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_M3MQwFfxiMMKt_-tq-KAjQ_OQTtg2MD';
@@ -97,6 +98,7 @@ const ROW_ID='main';
 const params=new URLSearchParams(location.search),taskId=params.get('task'),token=params.get('token');
 let places=[];
 function buildPlaces(){places=[{name:'المجلس أو الصالة',icon:'🛋️'},{name:'المطبخ الداخلي',icon:'🍽️'},{name:'المطبخ الخارجي',icon:'🔥'},{name:'المسبح',icon:'🏊'},{name:'دورات المياه',icon:'🚻'},{name:'الجلسات الخارجية',icon:'🌴'},{name:'مدخل المنتجع',icon:'🚪'}];if(task?.bookingType==='مبيت')places.push({name:'غرف النوم',icon:'🛏️'});}
+let stateRevision=null;
 let db=null,task=null,state={phase:'before',index:0,photos:[],issues:[]},currentPhoto=null,currentIssuePhoto=null,currentIssueTypes=[];
 
 function show(id){['loading','invalid','stages','start','work','issues','middle','finish'].forEach(x=>document.getElementById(x).classList.add('hidden'));document.getElementById(id).classList.remove('hidden')}
@@ -106,7 +108,8 @@ function fmt(x){return x?new Date(x).toLocaleString('ar-SA'):'-'}
 async function load(){
  if(!taskId||!token){show('invalid');syncState('بانتظار رابط مهمة');return}
  try{
-  const {data,error}=await client.from('app_state').select('data').eq('id',ROW_ID).maybeSingle();
+  const {data,error}=await window.AdwaaPersistence.request(signal=>window.AdwaaPersistence.withSignal(client.from('app_state').select('data,updated_at').eq('id',ROW_ID).maybeSingle(),signal));
+  stateRevision=data?.updated_at||null;
   if(error)throw error; db=data?.data; task=(db?.cleaningTasks||[]).find(t=>t.id===taskId&&t.token===token);
   if(!task)throw new Error('المهمة غير موجودة أو الرابط غير صالح');
   task.photos=Array.isArray(task.photos)?task.photos:[];task.issues=Array.isArray(task.issues)?task.issues:[];
@@ -122,8 +125,8 @@ async function saveRemote(){
  syncState('جاري الحفظ…');
  task.photos=state.photos;task.issues=state.issues;task.worker='جميل';
  const i=db.cleaningTasks.findIndex(t=>t.id===task.id);db.cleaningTasks[i]=task;
- const {error}=await client.from('app_state').upsert({id:ROW_ID,data:db,updated_at:new Date().toISOString()});
- if(error)throw error;syncState('تم الحفظ والمزامنة','ok');
+ const written=await window.AdwaaPersistence.writeRow(db,stateRevision,client,ROW_ID);
+ stateRevision=written.updated_at;syncState('تم الحفظ والمزامنة','ok');
 }
 function notifyManager(type,message){
  db.notifications=Array.isArray(db.notifications)?db.notifications:[];

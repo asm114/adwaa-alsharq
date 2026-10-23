@@ -66,7 +66,7 @@ function formatSupabaseError(prefix,error){
   return new Error(`${prefix}: ${message}${code?` [${code}]`:''}`);
 }
 
-async function writeStateAndVerifyBooking(booking){
+async function writeStateAndVerifyBooking(booking,evidence={}){
   const client=window.supabaseClient;
   if(!client)throw new Error('اتصال Supabase غير جاهز. سجّل الدخول من جديد ثم حاول الحفظ.');
   if(runtimeEnvironment==='production'&&window.ADWAA_SUPABASE_CONFIG?.projectRef!==PRODUCTION_PROJECT_REF){
@@ -78,30 +78,20 @@ async function writeStateAndVerifyBooking(booking){
   const normalizedLocal=(db.bookings||[]).find(item=>String(item?.id||'')===String(booking.id)||String(item?.code||'')===String(booking.code));
   const normalizedPayments=window.BookingFinancialCore?.normalizePaymentRows(normalizedLocal?.payments)||[];
   if(JSON.stringify(normalizedPayments)!==JSON.stringify(expectedPayments))throw new Error('تم إيقاف الحفظ لأن التطبيع غيّر سجل الدفعات قبل الكتابة.');
-  const payload={data:db,updated_at:new Date().toISOString()};
-  const updateResult=await client
-    .from('app_state')
-    .update(payload)
-    .eq('id','main')
-    .select('id')
-    .maybeSingle();
-  if(updateResult.error)throw formatSupabaseError('فشل UPDATE في Supabase',updateResult.error);
+  // Use the existing save service so booking writes share reconciliation and ordering.
+  if(!window.__adwaaBookingPersistUpdatePathInstalled||typeof window.persist!=='function')throw new Error('خدمة الحفظ لم تكتمل تهيئتها. انتظر قليلًا ثم أعد المحاولة.');
+  evidence.started=true;
+  const saved=await window.persist();
+  if(saved!==true)throw new Error('لم تؤكد خدمة الحفظ كتابة الحجز.');
 
-  if(!updateResult.data?.id){
-    const upsertResult=await client
-      .from('app_state')
-      .upsert({id:'main',...payload})
-      .select('id')
-      .maybeSingle();
-    if(upsertResult.error)throw formatSupabaseError('فشل UPSERT في Supabase',upsertResult.error);
-    if(!upsertResult.data?.id)throw new Error('Supabase لم يؤكد كتابة سجل app_state.');
-  }
-
-  const verifyResult=await client
+  // The save service has a database acknowledgement. Readback is an
+  // additional integrity check, whose failure must not roll back a committed write.
+  evidence.acknowledged=true;
+  const verifyResult=await window.AdwaaPersistence.request(signal=>window.AdwaaPersistence.withSignal(client
     .from('app_state')
     .select('data,updated_at')
     .eq('id','main')
-    .maybeSingle();
+    .maybeSingle(),signal));
   if(verifyResult.error)throw formatSupabaseError('فشل التحقق بعد الكتابة',verifyResult.error);
   const remoteRows=Array.isArray(verifyResult.data?.data?.bookings)?verifyResult.data.data.bookings:[];
   const remote=remoteRows.find(item=>String(item?.id||'')===String(booking.id)||String(item?.code||'')===String(booking.code));
@@ -123,8 +113,11 @@ async function saveBookingAuthoritatively(event){
   event.stopImmediatePropagation();
   if(window.__adwaaAuthoritativeBookingSaveBusy)return false;
   window.__adwaaAuthoritativeBookingSaveBusy=true;
+  const controls=[...(bookingField('bookingForm')?.querySelectorAll?.('input,select,textarea,button')||[]),...(document.querySelectorAll?.('button[type=submit][form=bookingForm]')||[])].map(control=>({control,disabled:control.disabled}));
+  controls.forEach(({control})=>control.disabled=true);
 
   const originalState=cloneState(db);
+  const writeEvidence={};
   const originalFormId=String(bookingField('bId')?.value||'');
   const code=String(bookingField('bCode')?.value||'').trim();
   showBookingSaveStatus('saving','جاري حفظ الحجز مباشرة في Supabase…','لن تُغلق الشاشة حتى يتم تأكيد القراءة من قاعدة البيانات.');
@@ -204,41 +197,67 @@ async function saveBookingAuthoritatively(event){
 
     invalidateCaches();
     ensureCleaningTaskForBooking(obj,previousStatus);
-    const remote=await writeStateAndVerifyBooking(obj);
+    const remote=await writeStateAndVerifyBooking(obj,writeEvidence);
 
-    try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(storageErr){console.warn('تعذر حفظ النسخة المحلية',storageErr)}
+    try{void window.AdwaaLocalVault?.cache(db)}catch(storageErr){console.warn('تعذر حفظ النسخة المحلية',storageErr)}
     remoteReady=true;
     lastSuccessfulWriteAt=new Date().toISOString();
     lastSuccessfulReadAt=lastSuccessfulWriteAt;
     lastSyncError='';
-    await markRemoteStateConfirmed(db);
     scheduleRenderAll();
     setSyncStatus('تم حفظ الإدارة، جارٍ مزامنة توفر البوابة…','');
     const idInput=bookingField('bId');if(idInput)idInput.value=String(remote.id||obj.id);
+    window.BookingPaymentHistory?.loadBookingPayments?.();
     window.__adwaaLastBookingSaveConfirmed={ok:true,id:obj.id,code:obj.code,mode:'authoritative-submit',version:BOOKING_SAVE_VERSION,at:new Date().toISOString()};
     // The authoritative submit bypasses window.saveBooking. Invoke the existing
     // synchronizer only AFTER the administrative write/read has been confirmed.
     // Portal failure must never roll back or repeat this successful booking write.
     let portalSynced=false;
     try{
-      portalSynced=typeof window.syncPortalAvailabilityFromBookings==='function'&&await window.syncPortalAvailabilityFromBookings()===true;
+      portalSynced=typeof window.syncPortalAvailabilityFromBookings==='function'&&await window.AdwaaPersistence.request(()=>window.syncPortalAvailabilityFromBookings())===true;
     }catch(error){console.warn('تعذر مزامنة توفر بوابة العملاء بعد حفظ الإدارة',error)}
     window.__adwaaLastBookingSaveConfirmed.portalSynced=portalSynced;
     if(!portalSynced){
       const message='تم حفظ السجل في الإدارة، لكن لم تكتمل مزامنة بوابة العملاء. أعد مزامنة التوفر بعد عودة الاتصال؛ لا تنشئ سجلًا آخر.';
-      setSyncStatus(message,'error');
-      showBookingSaveStatus('error','حُفظت الإدارة — فشلت مزامنة البوابة',message);
+      setSyncStatus(message,'warning');
+      showBookingSaveStatus('warning','تم الحفظ؛ مزامنة البوابة تحتاج مراجعة',message);
       alert(message);
-      return false;
+      return true;
     }
     setSyncStatus('تم حفظ الإدارة ومزامنة بوابة العملاء','ok');
     showBookingSaveStatus('success','تم حفظ السجل ومزامنة بوابة العملاء','تم تأكيد حفظ الإدارة وتحديث التوفر بنجاح.');
     closeModal('bookingModal');
     return true;
   }catch(error){
+    if(writeEvidence.started&&!writeEvidence.acknowledged){
+      // A transport failure may arrive after commit. Keep stable IDs and the draft
+      // until the existing persistence service can reconcile the attempted write.
+      const pending=db.bookings.find(item=>String(item.code||'')===code);
+      const idInput=bookingField('bId');if(idInput&&pending)idInput.value=String(pending.id);
+      try{window.BookingPaymentHistory?.loadBookingPayments?.()}catch(_){}
+      remoteReady=false;
+      const outcome=error?.outcome||window.__adwaaLastPersistResult?.outcome||'unknown';
+      lastSyncError=outcome==='conflict'?String(error.message):'لم تتأكد نتيجة الحفظ. بقيت المدخلات محفوظة في الصفحة؛ تحقق من السجل قبل إعادة المحاولة.';
+      window.__adwaaLastBookingSaveConfirmed={ok:false,outcome,id:pending?.id||'',code,mode:'authoritative-submit',version:BOOKING_SAVE_VERSION,at:new Date().toISOString()};
+      setSyncStatus(lastSyncError,'warning');
+      showBookingSaveStatus('warning',outcome==='conflict'?'تعارض تعديل بين جهازين':'نتيجة الحفظ غير مؤكدة',lastSyncError);
+      return false;
+    }
+    if(writeEvidence.acknowledged){
+      const saved=db.bookings.find(item=>String(item.code||'')===code);
+      const idInput=bookingField('bId');if(idInput&&saved)idInput.value=String(saved.id);
+      try{window.BookingPaymentHistory?.loadBookingPayments?.()}catch(_){}
+      remoteReady=true;
+      lastSyncError='تم تأكيد الكتابة، لكن تعذر إكمال التحقق اللاحق. راجع السجل قبل إجراء تعديل جديد.';
+      window.__adwaaLastBookingSaveConfirmed={ok:true,verified:false,id:saved?.id||'',code,mode:'authoritative-submit',version:BOOKING_SAVE_VERSION,at:new Date().toISOString()};
+      setSyncStatus(lastSyncError,'warning');
+      showBookingSaveStatus('warning','تمت الكتابة؛ يلزم التحقق من السجل',lastSyncError);
+      // Retain both the record ID and the form. A repeat submit edits this record.
+      return true;
+    }
     db=normalizeDB(originalState);
     invalidateCaches();
-    try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(_){}
+    try{void window.AdwaaLocalVault?.cache(db)}catch(_){}
     scheduleRenderAll();
     const idInput=bookingField('bId');if(idInput)idInput.value=originalFormId;
     remoteReady=false;
@@ -252,6 +271,8 @@ async function saveBookingAuthoritatively(event){
     return false;
   }finally{
     window.__adwaaAuthoritativeBookingSaveBusy=false;
+    controls.forEach(({control,disabled})=>control.disabled=disabled);
+    try{if(typeof renderSendStatus==='function')renderSendStatus()}catch(_){}
   }
 }
 

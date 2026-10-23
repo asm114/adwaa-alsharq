@@ -442,22 +442,17 @@ test('تقوية الميزات النهائية تنظف الرفع الفاش�
 test('فحص النظام يدعم app_state في Staging دون owner_id أو تعطيل RLS',async()=>{
   const [html,config]=await Promise.all([read('index.html'),read('supabase-config.staging.js')]);
   const legacyWrites=html.match(/\.upsert\(\{id:STATE_ROW_ID,data:(?:db|next),updated_at:/g)||[];
-  assert.equal(legacyWrites.length,3);
+  assert.equal(legacyWrites.length,0);
   assert.match(html,/async function runSystemDatabaseHealthCheck\(\)/);
   assert.match(html,/window\.ADWAA_SUPABASE_CONFIG/);
   assert.match(config,/STAGING_PROJECT_REF='ztqqdjryvecscidxxbfe'/);
   assert.match(config,/PRODUCTION_PROJECT_REF='pgdvlklpyrvmwzitsmbw'/);
   assert.match(config,/projectRef===PRODUCTION_PROJECT_REF/);
-  assert.match(html,/\.select\('data'\)/);
-  assert.match(html,/\.select\('id,data,updated_at'\)/);
-  assert.match(html,/\.update\(\{updated_at:row\.updated_at\}\)\.eq\('id',STATE_ROW_ID\)/);
-  assert.match(html,/written\.id===STATE_ROW_ID/);
-  assert.match(html,/تم تأكيد القراءة والكتابة على سجل المدير نفسه في Supabase/);
-  assert.match(html,/الكتابة الاختبارية ناجحة/);
-  assert.match(html,/المزامنة ناجحة/);
-  assert.match(html,/كتابة اختبارية غير متلفة/);
+  assert.match(html,/AdwaaPersistence\.readRow\(\)/);
+  assert.match(html,/فحص الصحة للقراءة فقط/);
+  assert.doesNotMatch(html,/\.upsert\(/);
   assert.doesNotMatch(html,/owner_id/);
   assert.doesNotMatch(html,/البيانات المحلية لا تطابق البيانات المقروءة من Supabase/);
-  assert.doesNotMatch(html,/هذا الفحص للقراءة فقط/);
+
   assert.doesNotMatch(html,/service_role/);
 });

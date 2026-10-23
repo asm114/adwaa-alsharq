@@ -118,46 +118,13 @@ function applyReconciliation(state,{at=new Date().toISOString()}={}){
   return {changed:changes.length>0,applied:[...new Set(applied)],already:[...new Set(already)],skipped,changes};
 }
 
-async function runBrowserRepair(){
-  if(typeof document==='undefined')return;
-  let tries=0;
-  const timer=setInterval(async()=>{
-    tries++;
-    const context=typeof root.__adwaaReconciliationContext==='function'?root.__adwaaReconciliationContext():null;
-    const db=context?.db,currentUser=context?.currentUser,persistFn=context?.persist;
-    if(!db||!currentUser||typeof persistFn!=='function'){if(tries>=40)clearInterval(timer);return}
-    clearInterval(timer);
-    db.resortAccount=root.ResortAccountCore?.normalizeAccount(db.resortAccount)||db.resortAccount||{};
-    if(num(db.resortAccount.bookingReconciliationVersion)>=VERSION)return;
-    try{
-      const backupKey='adwaaPreBookingReconciliation-'+PLAN_DATE+'-'+Date.now();
-      try{localStorage.setItem(backupKey,JSON.stringify(db))}catch(_){}
-      const result=applyReconciliation(db,{at:new Date().toISOString()});
-      db.resortAccount.bookingReconciliationVersion=VERSION;
-      db.resortAccount.bookingReconciliationAt=new Date().toISOString();
-      db.resortAccount.bookingReconciliationIssues=result.skipped.slice(0,50);
-      if(typeof root.addAudit==='function'){
-        for(const change of result.changes){
-          root.addAudit('تصحيح موثق','حجز',change.code+' — مصالحة مالية 2026-09-22',change.before,change.after);
-        }
-        root.addAudit('مصالحة','المنظومة المالية',
-          'مصالحة الحجوزات التاريخية: '+result.applied.length+' مصحح، '+result.already.length+' صحيح مسبقًا، '+result.skipped.length+' متجاوز للمراجعة',
-          null,{version:VERSION,applied:result.applied,already:result.already,skipped:result.skipped});
-      }
-      await persistFn();
-      root.__adwaaBookingReconciliationResult=result;
-      root.dispatchEvent(new CustomEvent('adwaa-booking-reconciliation',{detail:result}));
-    }catch(error){
-      console.error('Booking reconciliation failed',error);
-      root.__adwaaBookingReconciliationResult={error:String(error?.message||error)};
-    }
-  },250);
+// Financial history is reviewed on a clone. Browser startup cannot approve a repair.
+function previewReconciliation(state){
+  const candidate=clone(state);
+  const result=applyReconciliation(candidate);
+  return {...result,requiresApproval:true};
 }
-
-root.BookingFinancialReconciliation={VERSION,plans,postponedPlan,applyReconciliation};
+function blockedRepair(){throw new Error('التصحيح المالي التاريخي يتطلب مراجعة وموافقة مستقلة؛ التنفيذ التلقائي متوقف.')}
+root.BookingFinancialReconciliation={VERSION,plans,postponedPlan,preview:previewReconciliation,applyReconciliation:typeof document==='undefined'?applyReconciliation:blockedRepair};
 if(typeof module!=='undefined'&&module.exports)module.exports={VERSION,plans,postponedPlan,applyReconciliation};
-if(typeof document!=='undefined'){
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',runBrowserRepair,{once:true});
-  else runBrowserRepair();
-}
 })(typeof window!=='undefined'?window:globalThis);

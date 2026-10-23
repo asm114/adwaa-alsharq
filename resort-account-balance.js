@@ -198,8 +198,8 @@ async function deleteManual(id){
   if(typeof window.persist==='function')await window.persist();render();
 }
 
-async function repairFinanceOnce(){
-  const db=dbState();if(!db)return false;const acc=account();if(acc.financialRepairVersion>=2)return false;
+async function previewFinanceRepair(){
+  const source=dbState();if(!source)return false;const db=JSON.parse(JSON.stringify(source));const acc=Core.normalizeAccount(db.resortAccount);if(acc.financialRepairVersion>=2)return false;
   let changed=false;
   for(const booking of (db.bookings||[])){
     const payments=Array.isArray(booking?.payments)?booking.payments:[];
@@ -214,15 +214,11 @@ async function repairFinanceOnce(){
       const cash=payments.reduce((sum,row)=>sum+Math.max(0,Number(row?.amount||0)),0),expected=cash+credit,current=Math.max(0,Number(booking?.paid||0));
       if(Math.abs(expected-current)>0.01){
         const before=current;booking.paid=expected;changed=true;
-        if(typeof window.addAudit==='function')window.addAudit('تصحيح آلي','إجمالي سداد حجز',`#${booking.code||''}: ${money(before)} ← ${money(expected)}`,{paid:before},{paid:expected,cash,customerCreditApplied:credit});
+
       }
     }
   }
-  acc.financialRepairVersion=2;
-  if(typeof window.addAudit==='function')window.addAudit('فحص','المنظومة المالية',changed?'تم تصحيح توافق الدفعات مع أرصدة العملاء':'تم التحقق من توافق الدفعات مع أرصدة العملاء',null,{financialRepairVersion:2});
-  if(typeof window.persist==='function')await window.persist();
-  window.dispatchEvent(new Event('adwaa-finance-repaired'));
-  return true;
+  return {changed,requiresApproval:true,bookings:db.bookings};
 }
 
 function wrapRenderExpenses(){
@@ -235,7 +231,6 @@ function wrapRenderExpenses(){
 }
 async function initialize(){
   installStyles();ensureFinanceCards();ensureSection();ensureModals();wrapRenderExpenses();
-  try{await repairFinanceOnce()}catch(error){console.warn('تعذر تنفيذ فحص التوافق المالي',error)}
   render();
   let tries=0;const timer=setInterval(()=>{tries++;wrapRenderExpenses();ensureFinanceCards();ensureSection();render();if(tries>=20)clearInterval(timer)},500);
 }
@@ -243,7 +238,7 @@ window.openResortBalanceCalibration=openCalibration;
 window.openResortManualMovement=openManual;
 window.deleteResortManualMovement=deleteManual;
 window.renderResortAccount=render;
-window.ResortAccountBalance={render,repairFinanceOnce};
+window.ResortAccountBalance={render,previewFinanceRepair,repairFinanceOnce:async()=>{throw new Error('التصحيح المالي التلقائي متوقف؛ يلزم اعتماد مستقل.')}};
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(initialize,0),{once:true});else setTimeout(initialize,0);
 window.addEventListener('adwaa-subscription-updated',()=>setTimeout(render,0));

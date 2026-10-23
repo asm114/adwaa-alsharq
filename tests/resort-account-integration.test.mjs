@@ -74,5 +74,6 @@ test('finance repair v2 restores paid total from explicit cash payments plus app
   assert.match(js,/financialRepairVersion>=2/);
   assert.match(js,/expected=cash\+credit/);
   assert.match(js,/booking\.paid=expected/);
-  assert.match(js,/financialRepairVersion=2/);
+  assert.doesNotMatch(js,/financialRepairVersion=2/);
+  assert.match(js,/requiresApproval:true/);
 });

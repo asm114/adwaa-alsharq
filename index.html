@@ -504,6 +504,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
     <div class="backup-management-actions">
       <button id="selectBackupDirectoryButton" class="secondary" type="button" onclick="selectBackupDirectory(false)">📁 تحديد موقع النسخ الاحتياطية</button>
       <button id="changeBackupDirectoryButton" class="secondary" type="button" onclick="selectBackupDirectory(true)">🔁 تغيير موقع النسخ الاحتياطية</button>
+      <button class="secondary" type="button" onclick="shareLatestBackupFile()">مشاركة النسخة / حفظ في الملفات</button>
       <button id="openBackupDirectoryButton" class="secondary" type="button" onclick="openBackupDirectory()">📂 فتح مجلد النسخ الاحتياطية</button>
       <span class="help-action"><button class="primary" type="button" onclick="createManualBackup()">💾 إنشاء نسخة احتياطية الآن</button><span data-help="backup"></span></span>
       <span class="help-action"><label class="secondary">♻️ استعادة نسخة احتياطية<input id="aboutRestoreFileInput" type="file" accept=".json,application/json" onchange="importData(event)" hidden></label><span data-help="restore"></span></span>
@@ -603,6 +604,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
     <div class="release-info-head">
       <div><h3>☁️ النسخ السحابية على Google Drive</h3><div class="meta">طبقة إضافية اختيارية؛ تبقى النسخة المحلية هي الأساس حتى عند تعذر الرفع السحابي.</div></div>
       <div class="protection-actions" style="margin-top:0">
+        <button id="googleDriveRetryButton" type="button" class="secondary" onclick="retryLatestGoogleDriveBackup()">إعادة رفع النسخة المحلية نفسها</button>
         <button id="googleDriveConnectButton" class="primary" type="button" onclick="connectGoogleDrive()">ربط Google Drive</button>
         <button id="googleDriveRefreshButton" class="secondary" type="button" onclick="refreshGoogleDriveBackups()" disabled>⟳ تحديث النسخ</button>
       </div>
@@ -1228,6 +1230,8 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <script src="supabase-config.staging.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="local-data-protection.js?v=20261023-1"></script>
+<script src="booking-persist-update-path.js?v=20261023-2"></script>
 <script src="booking-financial-core.js?v=20260922-1"></script>
 <script src="booking-postponement.js?v=20260922-1"></script>
 <script src="customer-credit-core.js?v=20260920-3"></script>
@@ -1238,7 +1242,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <script src="deposit-refund-policy.js?v=20260921-2"></script>
 <script>
 const {url:SUPABASE_URL,publishableKey:SUPABASE_PUBLISHABLE_KEY,projectRef:SUPABASE_PROJECT_REF,environment:APP_ENVIRONMENT}=window.ADWAA_SUPABASE_CONFIG;
-const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{storage:window.AdwaaLocalVault.authStorage,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 window.supabaseClient=supabaseClient;
 const STATE_ROW_ID='main';
 // v9.8.0 — customer portal final release over the stable local provider.
@@ -1292,7 +1296,7 @@ const DEFAULT_WELCOME_STAY=`يسرّنا استقبالكم في منتجع أض
 ⏰ موعد الخروج الساعة 8:00 صباحًا، مع سماح حتى الساعة 10:00 صباحًا.
 
 نسعد بخدمتكم، ونتمنى لكم إقامة طيبة.`;
-function readLocalDB(){try{return JSON.parse(localStorage.getItem('adwaaDB')||'null')}catch(err){console.warn('تعذر قراءة النسخة المحلية',err);return null}}
+function readLocalDB(){return null} // Legacy caches are retained for protected recovery, never displayed before authorization.
 let db=readLocalDB()||{bookings:[],expenses:[],cleaningTasks:[],notifications:[],customerNotes:{},customerCredits:[],accountingNotes:[],resortAccount:{calibration:null,financialRepairVersion:0,manualMovements:[]},backupHistory:[],auditLog:[],settings:{waNumber:'',welcomeMsgDaily:DEFAULT_WELCOME_DAILY,welcomeMsgStay:DEFAULT_WELCOME_STAY,resortStatus:'ready',resortStatusUpdated:'',calendarMode:'both',commissionEnabled:true,commissionMethod:'per_day',commissionRate:100},seq:1};
 const HELP_CONTENT={
   contract:{title:'متى يُستخدم العقد؟',text:'يُرسل العقد بعد الاتفاق مع العميل على التاريخ والسعر، وقبل تأكيد الحجز نهائيًا. يوضح العقد الشروط وأوقات الدخول والخروج ومسؤولية الأضرار.'},
@@ -1410,6 +1414,13 @@ async function saveManagerCredentialPreference(email,password){
   }
 }
 function showLogin(){
+  googleDriveAccessToken='';googleDriveTokenExpiresAt=0;
+  if(window.__adwaaDriveRuntimeReady){googleDriveCancelAuth?.();googleDriveAuthAttempt++;googleDriveStableIds.clear()}
+  window.AdwaaLocalVault?.lock();window.AdwaaPersistence?.reset();
+  document.getElementById('localProtectionForm')?.reset();
+  document.querySelectorAll?.('.modal.open').forEach(modal=>modal.classList.remove('open'));
+  document.body.classList.remove('modal-open');
+  db=normalizeDB({});invalidateCaches();
   currentUser=null;
   document.getElementById('authGate')?.removeAttribute('hidden');
   document.getElementById('appRoot')?.classList.add('auth-locked');
@@ -1419,14 +1430,12 @@ function showLogin(){
 async function showApplication(user){
   currentUser=user||null;
   if(!currentUser){showLogin();return}
+  // Access to the protected row must succeed before revealing any customer data.
+  if(!await loadRemoteData()){showLogin();setAuthStatus('تعذر تأكيد صلاحية الوصول أو الاتصال. بقيت البيانات المحلية محفوظة دون عرض.','error');return}
   document.getElementById('authGate')?.setAttribute('hidden','');
   document.getElementById('appRoot')?.classList.remove('auth-locked');
-  const email=document.getElementById('signedInEmail');
-  if(email)email.textContent=currentUser.email||'حساب المدير';
-  renderAll();
-  await loadRemoteData();
-  subscribeRealtime();
-  hideLaunchSplash();
+  const email=document.getElementById('signedInEmail');if(email)email.textContent=currentUser.email||'حساب المدير';
+  renderAll();subscribeRealtime();hideLaunchSplash();renderLocalProtectionNotice();
 }
 async function loginManager(event){
   event?.preventDefault();
@@ -1455,6 +1464,8 @@ async function logoutManager(){
   if(!confirm('تسجيل الخروج من لوحة الإدارة؟'))return;
   try{await supabaseClient.auth.signOut()}catch(err){console.error(err)}
   if(realtimeChannel){try{await supabaseClient.removeChannel(realtimeChannel)}catch(_){} realtimeChannel=null}
+  window.AdwaaLocalVault?.lock();
+  db=normalizeDB({});invalidateCaches();try{renderAll()}catch(_){}
   showLogin();
 }
 async function initializeSecureApp(){
@@ -1487,6 +1498,7 @@ function scheduleRenderAll(){
 function normalizeDB(value){
   const x=value&&typeof value==='object'?value:{};
   const normalizedSettings={
+    ...(x.settings&&typeof x.settings==='object'&&!Array.isArray(x.settings)?x.settings:{}),
     waNumber:x.settings?.waNumber||'',
     welcomeMsgDaily:x.settings?.welcomeMsgDaily||DEFAULT_WELCOME_DAILY,
     welcomeMsgStay:x.settings?.welcomeMsgStay||DEFAULT_WELCOME_STAY,
@@ -1499,6 +1511,7 @@ function normalizeDB(value){
   };
   const bookings=(Array.isArray(x.bookings)?x.bookings:[]).map(raw=>normalizeBookingCommission(raw,normalizedSettings));
   return {
+    ...x, // Preserve extension collections even before asynchronous feature modules install.
     bookings,
     expenses:Array.isArray(x.expenses)?x.expenses:[],
     cleaningTasks:Array.isArray(x.cleaningTasks)?x.cleaningTasks:[],
@@ -1516,84 +1529,39 @@ function normalizeDB(value){
 
 async function dataStateHash(value){return sha256Text(JSON.stringify(normalizeDB(value)))}
 async function markRemoteStateConfirmed(value){
-  lastConfirmedRemoteHash=await dataStateHash(value);
-  void renderDataProtectionSyncStatus();
+  try{lastConfirmedRemoteHash=await dataStateHash(value)}catch(_){lastConfirmedRemoteHash=''}
+  try{Promise.resolve(renderDataProtectionSyncStatus()).catch(()=>{})}catch(_){}
 }
 async function renderDataProtectionSyncStatus(){
+  try{
   const el=document.getElementById('protectionSyncStatus');if(!el)return;
   const sequence=++protectionSyncCheckSequence,localHash=await dataStateHash(db);if(sequence!==protectionSyncCheckSequence)return;
   const synced=!!remoteReady&&!!lastConfirmedRemoteHash&&localHash===lastConfirmedRemoteHash;
   el.textContent=synced?'🟢 متزامن مع Supabase':'🔴 يوجد اختلاف أو تعذر تأكيد التطابق';
   el.title=synced?'آخر بيانات محلية تطابق آخر حالة مؤكدة مع Supabase.':lastSyncError||'البيانات المحلية لا تطابق آخر حالة مؤكدة مع Supabase.';
+  }catch(_){const el=document.getElementById('protectionSyncStatus');if(el)el.textContent='تعذر حساب مؤشر التطابق؛ راجع آخر نتيجة حفظ مؤكدة.'}
 }
 
-async function loadRemoteData(){
-  if(!currentUser){showLogin();return}
+async function loadRemoteData({discardConfirmed=false}={}){
+  if(!currentUser){showLogin();return false}
   try{
-    const {data,error}=await supabaseClient
-      .from('app_state')
-      .select('data')
-      .eq('id',STATE_ROW_ID)
-      .maybeSingle();
-
-    if(error) throw error;
-
-    if(data?.data){
-      const migrationBackup=await createPreMigrationBackupFromData(data.data,'commission-states-v1','نسخة تلقائية قبل توحيد حالات العمولة وأنواع السجلات');
-      db=normalizeDB(data.data);
-      if(migrationBackup){db.backupHistory=Array.isArray(db.backupHistory)?db.backupHistory:[];db.backupHistory.unshift(migrationBackup)}
-    }else{
-      db=normalizeDB(db);
-      const {error:insertError}=await supabaseClient
-        .from('app_state')
-        .upsert({id:STATE_ROW_ID,data:db,updated_at:new Date().toISOString()});
-      if(insertError) throw insertError;
-    }
-
-    invalidateCaches();
-    remoteReady=true;
-    lastSuccessfulReadAt=new Date().toISOString();lastSyncError='';
-    await markRemoteStateConfirmed(data?.data?normalizeDB(data.data):db);
-    try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(storageErr){console.warn('تعذر حفظ النسخة المحلية',storageErr)}
-    scheduleRenderAll();
-    setSyncStatus('متصل ومتزامن بحساب المدير','ok');
-    return true;
-  }catch(err){
-    console.error(err);
-    remoteReady=false;
-    lastSyncError=String(err?.message||err||'تعذر الاتصال بقاعدة البيانات');
-    void renderDataProtectionSyncStatus();
-    scheduleRenderAll();
-    const denied=String(err?.message||'').toLowerCase().includes('policy')||String(err?.code||'')==='42501';
-    setSyncStatus(denied?'تم رفض الوصول: فعّل سياسة حماية حساب المدير في Supabase.':'تعذر الاتصال بالسحابة؛ يعمل مؤقتًا من هذا الجهاز','error');
-    return false;
+    await window.AdwaaPersistence.request(()=>window.AdwaaPersistence.ready);
+    if(!discardConfirmed&&window.AdwaaPersistence.hasUnsavedChanges()&&!confirm('توجد تعديلات محلية غير مؤكدة. احتفظ بها أو صدّرها قبل تحديث البيانات. هل تريد استبدال عرض الصفحة بالبيانات البعيدة؟'))return false;
+    const row=await window.AdwaaPersistence.readRow();
+    const next=normalizeDB(row.data);
+    window.AdwaaPersistence.acceptRemote(row);db=next;window.__adwaaLastBookingSaveConfirmed=null;v92PendingRemoteData=null;
+    invalidateCaches();remoteReady=true;lastSuccessfulReadAt=new Date().toISOString();lastSyncError='';
+    try{Promise.resolve(markRemoteStateConfirmed(db)).catch(()=>{})}catch(_){}
+    scheduleRenderAll();setSyncStatus('متصل ومتزامن بحساب المدير','ok');return true;
+  }catch(error){
+    remoteReady=false;lastSyncError=String(error?.message||'تعذر الاتصال بقاعدة البيانات');
+    setSyncStatus(lastSyncError,'error');return false;
   }
 }
 
 async function persist(){
-  if(!currentUser){alert('انتهت جلسة الدخول. سجّل الدخول من جديد.');showLogin();return}
-  db=normalizeDB(db);
-  invalidateCaches();
-  try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(storageErr){console.warn('تعذر حفظ النسخة المحلية',storageErr)}
-  scheduleRenderAll();
-
-  try{
-    const {error}=await supabaseClient
-      .from('app_state')
-      .upsert({id:STATE_ROW_ID,data:db,updated_at:new Date().toISOString()});
-    if(error) throw error;
-    remoteReady=true;
-    lastSuccessfulWriteAt=new Date().toISOString();lastSyncError='';
-    await markRemoteStateConfirmed(db);
-    setSyncStatus('تم الحفظ والمزامنة','ok');
-  }catch(err){
-    console.error(err);
-    remoteReady=false;
-    lastSyncError=String(err?.message||err||'تعذر حفظ البيانات في قاعدة البيانات');
-    void renderDataProtectionSyncStatus();
-    setSyncStatus('تعذر رفع آخر تعديل؛ محفوظ مؤقتًا على هذا الجهاز','error');
-    alert('تعذر مزامنة آخر تعديل. تحقق من الاتصال وصلاحيات حساب المدير.');
-  }
+  await window.AdwaaPersistence.request(()=>window.AdwaaPersistence.ready);
+  return window.AdwaaPersistence.persist();
 }
 window.__adwaaReconciliationContext=()=>({db,currentUser,persist});
 
@@ -1612,17 +1580,18 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'app_state',filter:`id=eq.${STATE_ROW_ID}`},async payload=>{
       const next=payload.new?.data;if(!next)return;
       const modalOpen=document.getElementById('bookingModal')?.classList.contains('open');
+      const anyEditorOpen=!!document.querySelector('.modal.open');
       const currentId=document.getElementById('bId')?.value||'';
-      if(modalOpen&&v92BookingDirty){
-        v92PendingRemoteData=next;
-        remoteReady=true;lastConfirmedRemoteHash=await dataStateHash(next);lastSyncError='وصل تحديث من Supabase ولم يُطبّق محليًا لحماية تعديلات الحجز المفتوح.';void renderDataProtectionSyncStatus();
+      if(anyEditorOpen||window.AdwaaPersistence.hasUnsavedChanges()){
+        v92PendingRemoteData=true; // Notification only; refresh always fetches data and its revision together.
+        remoteReady=true;try{lastConfirmedRemoteHash=await dataStateHash(next)}catch(_){lastConfirmedRemoteHash=''};lastSyncError='وصل تحديث من Supabase ولم يُطبّق محليًا لحماية تعديلات الحجز المفتوح.';void renderDataProtectionSyncStatus();
         const requirement=document.getElementById('v92BookingRequirement');
         if(requirement){requirement.className='v92-requirement warn';requirement.textContent='🟠 وصل تحديث من جهاز آخر. لم يُطبّق على الحجز المفتوح حتى لا تضيع تعديلاتك؛ استخدم زر تحديث البيانات عند الاستعداد.';}
         if(typeof setSyncStatus==='function')setSyncStatus('وصل تحديث من جهاز آخر، وتم تأجيله لحماية التعديلات غير المحفوظة.','warning');
         return;
       }
-      db=normalizeDB(next);localStorage.setItem('adwaaDB',JSON.stringify(db));
-      remoteReady=true;lastSuccessfulReadAt=new Date().toISOString();lastSyncError='';await markRemoteStateConfirmed(db);
+      const normalized=normalizeDB(next);window.AdwaaPersistence.acceptRemote(payload.new);db=normalized;
+      remoteReady=true;lastSuccessfulReadAt=new Date().toISOString();lastSyncError='';try{await markRemoteStateConfirmed(db)}catch(_){};
       if(typeof renderAll==='function')renderAll();
       if(modalOpen&&currentId&&(db.bookings||[]).some(x=>x.id===currentId)&&typeof v92OriginalOpenBooking==='function'){
         v92OriginalOpenBooking(currentId);v92BookingDirty=false;
@@ -1725,16 +1694,14 @@ async function runSystemDatabaseHealthCheck(){
   databaseHealthCheck={connection:false,read:false,write:false,sync:false,checkedAt:new Date().toISOString(),error:''};
   try{
     if(!currentUser||!supabaseClient)throw new Error('سجّل الدخول بحساب المدير لإجراء الفحص.');
-    const {data:row,error:readError}=await supabaseClient.from('app_state').select('id,data,updated_at').eq('id',STATE_ROW_ID).maybeSingle();
-    if(readError)throw readError;
+    const row=await window.AdwaaPersistence.readRow();
     databaseHealthCheck.connection=true;databaseHealthCheck.read=true;lastSuccessfulReadAt=new Date().toISOString();
-    if(!row)throw new Error('لم يتم العثور على سجل النظام بعد تهيئته.');
-    const {data:written,error:writeError}=await supabaseClient.from('app_state').update({updated_at:row.updated_at}).eq('id',STATE_ROW_ID).select('id,data,updated_at').single();
-    if(writeError)throw writeError;
-    databaseHealthCheck.write=true;lastSuccessfulWriteAt=new Date().toISOString();
+    // Health checks never mutate the revision or probe writes with production data.
+    const written=row;
+    databaseHealthCheck.write=window.__adwaaLastPersistResult?.ok===true;
     const remoteHash=await dataStateHash(written.data);
     databaseHealthCheck.sync=!!written?.data&&written.id===STATE_ROW_ID;
-    if(!databaseHealthCheck.sync)throw new Error('تعذر تأكيد أن القراءة والكتابة تمت على سجل المدير نفسه في Supabase.');
+    if(!databaseHealthCheck.sync)throw new Error('تعذر تأكيد قراءة سجل المدير في Supabase.');
     remoteReady=true;lastConfirmedRemoteHash=remoteHash;lastSyncError='';setSyncStatus('متصل ومتزامن بحساب المدير','ok');
   }catch(err){
     databaseHealthCheck.error=String(err?.message||err||'فشل فحص قاعدة البيانات');lastSyncError=databaseHealthCheck.error;
@@ -1773,8 +1740,8 @@ function runSystemHealthChecks(){
   const checked=!!databaseHealthCheck.checkedAt,healthError=databaseHealthCheck.error||lastSyncError;
   add('قاعدة البيانات',databaseHealthCheck.connection?'ok':checked?'error':'warn',databaseHealthCheck.connection?'الاتصال ناجح':checked?'فشل الاتصال':'الاتصال لم يُفحص بعد',databaseHealthCheck.connection?'تم الوصول إلى مشروع Supabase بنجاح.':healthError||'اضغط «إعادة الفحص» لإجراء اختبار فعلي.');
   add('قاعدة البيانات',databaseHealthCheck.read?'ok':checked?'error':'warn',databaseHealthCheck.read?'القراءة ناجحة':checked?'فشلت القراءة':'القراءة لم تُفحص بعد',databaseHealthCheck.read?`آخر قراءة ناجحة: ${formatDateTime(lastSuccessfulReadAt)}`:healthError||'لم تُجرَ قراءة اختبارية بعد.');
-  add('قاعدة البيانات',databaseHealthCheck.write?'ok':checked?'error':'warn',databaseHealthCheck.write?'الكتابة الاختبارية ناجحة':checked?'فشلت الكتابة الاختبارية':'الكتابة لم تُفحص بعد',databaseHealthCheck.write?`آخر كتابة اختبارية ناجحة: ${formatDateTime(lastSuccessfulWriteAt)}`:healthError||'تُختبر الكتابة بتحديث غير متلف للسجل نفسه.');
-  add('قاعدة البيانات',databaseHealthCheck.sync?'ok':checked?'error':'warn',databaseHealthCheck.sync?'المزامنة ناجحة':checked?'فشلت المزامنة':'المزامنة لم تُفحص بعد',databaseHealthCheck.sync?'تم تأكيد القراءة والكتابة على سجل المدير نفسه في Supabase.':healthError||'لم يُتحقق من دورة المزامنة بعد.');
+  add('قاعدة البيانات',databaseHealthCheck.write?'ok':checked?'error':'warn',databaseHealthCheck.write?'توجد عملية حفظ مؤكدة في الجلسة':'لم يُنفّذ اختبار كتابة',databaseHealthCheck.write?`آخر حفظ مؤكد: ${formatDateTime(lastSuccessfulWriteAt)}`:'فحص الصحة للقراءة فقط؛ لا يغير البيانات أو الإصدار.');
+  add('قاعدة البيانات',databaseHealthCheck.sync?'ok':checked?'error':'warn',databaseHealthCheck.sync?'المزامنة ناجحة':checked?'فشلت المزامنة':'المزامنة لم تُفحص بعد',databaseHealthCheck.sync?'تمت قراءة سجل المدير؛ نتيجة الحفظ تعتمد على آخر عملية حفظ فعلية.':healthError||'لم يُتحقق من دورة المزامنة بعد.');
 
   const backups=[...(db.backupHistory||[])].filter(x=>x?.createdAt).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))),latestBackup=backups[0],backupAge=latestBackup?(Date.now()-new Date(latestBackup.createdAt).getTime())/86400000:Infinity;
   add('النسخ الاحتياطية',!latestBackup?'warn':latestBackup.stored===false?'warn':backupAge>7?'warn':'ok',!latestBackup?'لا توجد نسخة احتياطية مسجلة':latestBackup.stored===false?'آخر نسخة لم تُحفظ محليًا':backupAge>7?'النسخة الاحتياطية قديمة':'النسخة الاحتياطية حديثة',latestBackup?`آخر نسخة: ${formatDateTime(latestBackup.createdAt)} — ${latestBackup.type||'يدوية'}`:'أنشئ نقطة استعادة من شاشة حول النظام أو الإعدادات.');
@@ -2998,12 +2965,18 @@ function openCustomerProfile(value){
 }
 
 async function saveCustomerNotes(){
+  if(!window.FinanceOrganizer?.guardedSubmit)return;
+  const container=document.querySelector('#customerModal .sheet');
+  return window.FinanceOrganizer.guardedSubmit(async()=>{
+
   const key=customerProfileKey.value;
   if(!key)return;
   db.customerNotes=db.customerNotes||{};const before=db.customerNotes[key]||'';
   db.customerNotes[key]=customerAdminNotes.value.trim();addAudit('تعديل','ملاحظات عميل',key,{notes:before},{notes:db.customerNotes[key]});
   await persist();
   alert('تم حفظ ملاحظات العميل');
+
+  })({preventDefault(){},currentTarget:container});
 }
 
 function openCustomerWhatsApp(){
@@ -3200,10 +3173,10 @@ function openBackupVault(){
     request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('تعذر فتح مخزن النسخ'));
   });
 }
-async function backupVaultPut(record){const idb=await openBackupVault();return new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readwrite');tx.objectStore(BACKUP_STORE_NAME).put(record);tx.oncomplete=()=>{idb.close();resolve(true)};tx.onerror=()=>{idb.close();reject(tx.error)}})}
-async function backupVaultAdd(record){const idb=await openBackupVault();return new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readwrite');tx.objectStore(BACKUP_STORE_NAME).add(record);tx.oncomplete=()=>{idb.close();resolve(true)};tx.onerror=()=>{const error=tx.error;idb.close();reject(error)}})}
-async function backupVaultGet(id){try{const idb=await openBackupVault();return await new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readonly'),req=tx.objectStore(BACKUP_STORE_NAME).get(id);req.onsuccess=()=>{idb.close();resolve(req.result||null)};req.onerror=()=>{idb.close();reject(req.error)}})}catch(_){return null}}
-async function backupVaultList(){try{const idb=await openBackupVault();return await new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readonly'),req=tx.objectStore(BACKUP_STORE_NAME).getAll();req.onsuccess=()=>{idb.close();resolve((req.result||[]).filter(x=>x?.kind!=='directory'))};req.onerror=()=>{idb.close();reject(req.error)}})}catch(_){return []}}
+async function backupVaultPut(record){if(!currentUser)throw new Error('سجّل الدخول أولًا.');record=await window.AdwaaLocalVault.sealRecord(record);const idb=await openBackupVault();return new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readwrite');tx.objectStore(BACKUP_STORE_NAME).put(record);tx.oncomplete=()=>{idb.close();resolve(true)};tx.onerror=()=>{idb.close();reject(tx.error)}})}
+async function backupVaultAdd(record){if(!currentUser)throw new Error('سجّل الدخول أولًا.');record=await window.AdwaaLocalVault.sealRecord(record);const idb=await openBackupVault();return new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readwrite');tx.objectStore(BACKUP_STORE_NAME).add(record);tx.oncomplete=()=>{idb.close();resolve(true)};tx.onerror=()=>{const error=tx.error;idb.close();reject(error)}})}
+async function backupVaultGet(id){if(!currentUser)return null;try{const idb=await openBackupVault();return await new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readonly'),req=tx.objectStore(BACKUP_STORE_NAME).get(id);req.onsuccess=()=>{idb.close();Promise.resolve(window.AdwaaLocalVault.openRecord(req.result||null)).then(resolve,reject)};req.onerror=()=>{idb.close();reject(req.error)}})}catch(_){return null}}
+async function backupVaultList(){if(!currentUser)return [];try{const idb=await openBackupVault();return await new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readonly'),req=tx.objectStore(BACKUP_STORE_NAME).getAll();req.onsuccess=()=>{idb.close();Promise.all((req.result||[]).filter(x=>x?.kind!=='directory'&&(!x.scope||x.scope===window.AdwaaLocalVault.scope)).map(row=>window.AdwaaLocalVault.openRecord(row))).then(resolve,reject)};req.onerror=()=>{idb.close();reject(req.error)}})}catch(_){return []}}
 async function backupVaultAvailability(ids){try{const idb=await openBackupVault();return await new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readonly'),store=tx.objectStore(BACKUP_STORE_NAME),result={};ids.forEach(id=>{const req=store.getKey(id);req.onsuccess=()=>{result[id]=req.result!==undefined}});tx.oncomplete=()=>{idb.close();resolve(result)};tx.onerror=()=>{idb.close();reject(tx.error)}})}catch(_){return {}}}
 const DATA_PROTECTION_PROVIDERS={
   local:{
@@ -3224,6 +3197,8 @@ const DATA_PROTECTION_PROVIDERS={
 };
 function activeDataProtectionProvider(){return DATA_PROTECTION_PROVIDERS[DATA_PROTECTION_PROVIDER_ID]}
 let googleDriveFiles=[];
+let googleDriveAuthAttempt=0;let googleDriveCancelAuth=null;
+const googleDriveStableIds=new Map();window.__adwaaDriveRuntimeReady=true;
 function loadGoogleDriveState(){
   const fallback={accountName:'',accountEmail:'',folderId:'',folderName:GOOGLE_DRIVE_FOLDER_NAME,lastUploadAt:'',lastUploadStatus:'لم يبدأ',lastUploadOk:null,backupCount:null,lastError:''};
   try{return {...fallback,...JSON.parse(localStorage.getItem(GOOGLE_DRIVE_STATE_KEY)||'{}')}}catch(_){return fallback}
@@ -3239,7 +3214,7 @@ function setGoogleDriveMessage(message,type=''){
 }
 function setGoogleDriveBusy(busy){
   const card=document.getElementById('googleDriveCard'),connect=document.getElementById('googleDriveConnectButton'),refresh=document.getElementById('googleDriveRefreshButton');
-  card?.classList.toggle('drive-loading',!!busy);if(connect)connect.disabled=!!busy;if(refresh)refresh.disabled=!!busy||!googleDriveSessionActive()
+  card?.classList.toggle('drive-loading',!!busy);if(connect)connect.disabled=!!busy;const retry=document.getElementById('googleDriveRetryButton');if(retry)retry.disabled=!!busy||!googleDriveSessionActive();if(refresh)refresh.disabled=!!busy||!googleDriveSessionActive()
 }
 function renderGoogleDriveStatus(){
   const state=loadGoogleDriveState(),connected=googleDriveSessionActive();
@@ -3255,43 +3230,47 @@ function renderGoogleDriveStatus(){
   if(!connected&&document.getElementById('googleDriveBackupBody'))document.getElementById('googleDriveBackupBody').innerHTML='<tr><td colspan="5" class="empty">اربط Google Drive لعرض النسخ السحابية.</td></tr>'
 }
 async function recordGoogleDriveAudit(action,details,after=null){
-  try{addAudit(action,'Google Drive',details,null,after);await persist()}catch(err){console.warn('تعذر حفظ سجل Google Drive في Supabase',err)}
+  if(!currentUser)return {ok:false,error:'انتهت جلسة الدخول؛ لم تُزامن بيانات.'};
+  try{addAudit(action,'Google Drive',details,null,after);const ok=await persist();return {ok:ok===true}}
+  catch(_){return {ok:false,error:'لم يتأكد حفظ سجل العملية في Supabase؛ نتيجة ملف Drive مستقلة.'}}
 }
 function requestGoogleDriveAccessToken(){
+  googleDriveCancelAuth?.();
+  const ticket=++googleDriveAuthAttempt;
   return new Promise((resolve,reject)=>{
-    if(!window.google?.accounts?.oauth2){reject(new Error('مكتبة تسجيل الدخول من Google لم تكتمل. تحقق من الإنترنت ثم أعد المحاولة.'));return}
-    googleDriveTokenClient=google.accounts.oauth2.initTokenClient({
-      client_id:GOOGLE_DRIVE_CLIENT_ID,
-      scope:GOOGLE_DRIVE_SCOPE,
+    const fail=message=>{if(ticket!==googleDriveAuthAttempt)return;googleDriveAuthAttempt++;googleDriveCancelAuth=null;clearTimeout(timer);reject(new Error(message))};
+    const timer=setTimeout(()=>fail('لم يكتمل تجديد جلسة Google. اضغط إعادة الاتصال وحاول مجددًا.'),60000);
+    googleDriveCancelAuth=()=>fail('أُلغيت محاولة اتصال Google بعد انتهاء الجلسة أو بدء محاولة أخرى.');
+    if(!window.google?.accounts?.oauth2){fail('مكتبة Google لم تكتمل. تحقق من الاتصال ثم أعد المحاولة.');return}
+    try{googleDriveTokenClient=google.accounts.oauth2.initTokenClient({
+      client_id:GOOGLE_DRIVE_CLIENT_ID,scope:GOOGLE_DRIVE_SCOPE,
       callback:response=>{
-        if(response?.error){reject(new Error(response.error_description||response.error));return}
-        if(!response?.access_token){reject(new Error('لم تُرجع Google رمز وصول صالحًا.'));return}
-        if(google.accounts.oauth2.hasGrantedAllScopes&&!google.accounts.oauth2.hasGrantedAllScopes(response,GOOGLE_DRIVE_SCOPE)){reject(new Error('لم تُمنح صلاحية drive.file المطلوبة. لم يتم ربط Google Drive.'));return}
-        googleDriveAccessToken=response.access_token;googleDriveTokenExpiresAt=Date.now()+Math.max(60,Number(response.expires_in||3600))*1000;resolve(response)
-      },
-      error_callback:error=>reject(new Error(error?.message||error?.type||'أُغلقت نافذة Google قبل اكتمال الربط.'))
-    });
-    googleDriveTokenClient.requestAccessToken({prompt:'consent'})
+        if(ticket!==googleDriveAuthAttempt)return;
+        if(response?.error||!response?.access_token){fail('لم تكتمل موافقة Google. أعد الاتصال من الزر.');return}
+        if(google.accounts.oauth2.hasGrantedAllScopes&&!google.accounts.oauth2.hasGrantedAllScopes(response,GOOGLE_DRIVE_SCOPE)){fail('لم تُمنح صلاحية drive.file.');return}
+        googleDriveAuthAttempt++;googleDriveCancelAuth=null;clearTimeout(timer);
+        googleDriveAccessToken=response.access_token;googleDriveTokenExpiresAt=Date.now()+Number(response.expires_in||3600)*1000;resolve(true)
+      },error_callback:()=>fail('تعذر فتح نافذة Google أو أُغلقت. اضغط إعادة الاتصال مباشرة للسماح بالنافذة على Safari.')
+    })}catch(_){fail('تعذر تهيئة جلسة Google؛ أعد تحميل المكتبة ثم حاول مجددًا.');return}
+    try{googleDriveTokenClient.requestAccessToken({prompt:'select_account'})}catch(_){fail('تعذر فتح Google. اضغط إعادة الاتصال مباشرة.')}
   })
 }
 async function googleDriveFetch(url,options={}){
-  if(!googleDriveSessionActive())throw new Error('جلسة Google Drive غير متصلة أو انتهت. اضغط «ربط Google Drive» مرة أخرى.');
+  if(!trustedGoogleUploadUrl(url))throw new Error('رُفض عنوان اتصال لا يتبع Google.');
+  if(!googleDriveSessionActive())throw Object.assign(new Error('جلسة Drive منتهية. اضغط إعادة الاتصال ثم أعد رفع النسخة نفسها.'),{code:'DRIVE_AUTH_REQUIRED'});
   const headers=new Headers(options.headers||{});headers.set('Authorization',`Bearer ${googleDriveAccessToken}`);
-  const response=await fetch(url,{...options,headers});
-  if(response.status===401||response.status===403){
-    googleDriveAccessToken='';googleDriveTokenExpiresAt=0;renderGoogleDriveStatus()
-  }
-  if(!response.ok){
-    let reason='';try{const payload=await response.json();reason=payload?.error?.message||''}catch(_){reason=await response.text().catch(()=> '')}
-    throw new Error(reason||`فشل طلب Google Drive (${response.status})`)
-  }
+  let response;
+  try{response=await window.AdwaaPersistence.request(async signal=>{const raw=await fetch(url,{...options,headers,signal,redirect:'error'});const body=await raw.arrayBuffer();return new Response(body.byteLength?body:null,{status:raw.status,statusText:raw.statusText,headers:raw.headers})})}
+  catch(_){throw Object.assign(new Error('تعذر تأكيد استجابة Google Drive عبر الشبكة. النسخة المحلية مستقلة؛ أعد محاولة النسخة نفسها بعد التحقق من الاتصال.'),{code:'DRIVE_NETWORK_UNKNOWN'})}
+  if(response.status===401){googleDriveAccessToken='';googleDriveTokenExpiresAt=0;renderGoogleDriveStatus();throw Object.assign(new Error('رفضت Google رمز الجلسة. اضغط إعادة الاتصال ثم أعد رفع النسخة نفسها.'),{code:'DRIVE_AUTH_REQUIRED'})}
+  if(!response.ok)throw Object.assign(new Error(response.status===403?'رفض Google Drive الإذن أو الحصة المتاحة (403). تحقق من صلاحية drive.file والحصة؛ لم تُمحَ الجلسة.':`لم ينجح طلب Drive (${response.status}).`),{code:'DRIVE_HTTP_ERROR',status:response.status});
   return response
 }
 function googleDriveEscapedQuery(value){return String(value||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
 async function ensureGoogleDriveFolder(){
   const state=loadGoogleDriveState(),fields='id,name,createdTime,appProperties';
   if(state.folderId){
-    try{const response=await googleDriveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(state.folderId)}?fields=${encodeURIComponent(fields)}`),folder=await response.json();if(folder?.id)return folder}catch(_){}
+    try{const response=await googleDriveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(state.folderId)}?fields=${encodeURIComponent(fields)}`),folder=await response.json();if(folder?.id)return folder}catch(error){if(error.status!==404)throw error}
   }
   const marker="mimeType='application/vnd.google-apps.folder' and trashed=false and appProperties has { key='adwaaBackupFolder' and value='true' }";
   let response=await googleDriveFetch(`https://www.googleapis.com/drive/v3/files?spaces=drive&pageSize=10&fields=${encodeURIComponent(`files(${fields})`)}&q=${encodeURIComponent(marker)}`),payload=await response.json(),folder=payload.files?.[0];
@@ -3364,9 +3343,9 @@ async function multipartGoogleDriveUpload(record,metadata){
 }
 function uploadGoogleDriveChunk(sessionUrl,blob,start,total){
   return new Promise((resolve,reject)=>{
-    const end=start+blob.size-1,xhr=new XMLHttpRequest();xhr.open('PUT',sessionUrl,true);xhr.setRequestHeader('Authorization',`Bearer ${googleDriveAccessToken}`);xhr.setRequestHeader('Content-Type','application/json');xhr.setRequestHeader('Content-Range',`bytes ${start}-${end}/${total}`);
-    xhr.onload=()=>{if(xhr.status===200||xhr.status===201||xhr.status===308)resolve({status:xhr.status,body:xhr.responseText,range:xhr.getResponseHeader('Range')});else reject(new Error(`فشل رفع الجزء السحابي (${xhr.status}): ${xhr.responseText||'استجابة غير معروفة'}`))};
-    xhr.onerror=()=>reject(new Error('انقطع الاتصال أثناء رفع النسخة الكبيرة إلى Google Drive.'));xhr.send(blob)
+    const end=start+blob.size-1,xhr=new XMLHttpRequest();xhr.open('PUT',sessionUrl,true);xhr.timeout=30000;xhr.setRequestHeader('Authorization',`Bearer ${googleDriveAccessToken}`);xhr.setRequestHeader('Content-Type','application/json');xhr.setRequestHeader('Content-Range',`bytes ${start}-${end}/${total}`);
+    xhr.onload=()=>{if(xhr.status===401){googleDriveAccessToken='';googleDriveTokenExpiresAt=0;reject(Object.assign(new Error('انتهت جلسة Drive أثناء رفع الملف. أعد الاتصال ثم أعد محاولة النسخة نفسها.'),{code:'DRIVE_AUTH_REQUIRED'}));return}if(xhr.status===200||xhr.status===201||xhr.status===308)resolve({status:xhr.status,body:xhr.responseText,range:xhr.getResponseHeader('Range')});else reject(Object.assign(new Error(`فشل رفع الجزء السحابي (${xhr.status}): لم يتأكد استلام الجزء`),{status:xhr.status}))};
+    xhr.ontimeout=()=>reject(new Error('لم يتأكد رد رفع الجزء؛ أعد محاولة النسخة نفسها.'));xhr.onerror=()=>reject(new Error('انقطع الاتصال أثناء رفع النسخة الكبيرة إلى Google Drive.'));xhr.send(blob)
   })
 }
 function trustedGoogleUploadUrl(value){
@@ -3379,22 +3358,48 @@ async function resumableGoogleDriveUpload(record,metadata){
   let offset=0,result=null;
   while(offset<source.size){
     const chunk=source.slice(offset,Math.min(offset+GOOGLE_DRIVE_CHUNK_SIZE,source.size));let uploaded=null,lastError=null;
-    for(let attempt=1;attempt<=3&&!uploaded;attempt++)try{uploaded=await uploadGoogleDriveChunk(sessionUrl,chunk,offset,source.size)}catch(err){lastError=err;if(attempt<3)await new Promise(resolve=>setTimeout(resolve,attempt*500))}
+    for(let attempt=1;attempt<=3&&!uploaded;attempt++)try{uploaded=await uploadGoogleDriveChunk(sessionUrl,chunk,offset,source.size)}catch(err){if(err.code==='DRIVE_AUTH_REQUIRED'||err.status===403)throw err;lastError=err;if(attempt<3)await new Promise(resolve=>setTimeout(resolve,attempt*500))}
     if(!uploaded)throw lastError||new Error('تعذر استكمال رفع النسخة الكبيرة.');
     if(uploaded.status===200||uploaded.status===201){result=JSON.parse(uploaded.body||'{}');offset=source.size}
-    else{const confirmed=String(uploaded.range||'').match(/bytes=0-(\d+)/),next=confirmed?Number(confirmed[1])+1:offset+chunk.size;if(!Number.isFinite(next)||next<=offset)throw new Error('لم يؤكد Google تقدم جلسة الرفع القابل للاستكمال.');offset=next}
+    else{const confirmed=String(uploaded.range||'').match(/bytes=0-(\d+)/),next=confirmed?Number(confirmed[1])+1:NaN;if(!Number.isFinite(next)||next<=offset)throw new Error('لم يؤكد Google تقدم جلسة الرفع القابل للاستكمال.');offset=next}
   }
   if(!result?.id)throw new Error('اكتمل إرسال الأجزاء لكن لم يتم تأكيد إنشاء الملف في Google Drive.');return result
 }
 async function uploadBackupRecordToGoogleDrive(record){
-  if(!googleDriveSessionActive())throw new Error('Google Drive غير متصل. النسخة المحلية سليمة ولم تُرفع سحابيًا.');
-  const folder=await ensureGoogleDriveFolder(),recoveryId=String(record.recoveryId||record.id||''),existing=await findGoogleDriveBackupByRecoveryId(recoveryId,folder.id);
-  if(existing)return {...existing,alreadyExists:true};
-  const metadata=googleDriveFileMetadata(record,folder.id),size=new Blob([record.json]).size;
-  const uploaded=size>GOOGLE_DRIVE_RESUMABLE_THRESHOLD?await resumableGoogleDriveUpload(record,metadata):await multipartGoogleDriveUpload(record,metadata);
-  const verifyResponse=await googleDriveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(uploaded.id)}?fields=${encodeURIComponent('id,name,size,createdTime,appProperties')}`),verified=await verifyResponse.json();
-  if(Number(verified.size)!==size||verified.appProperties?.recoveryId!==recoveryId)throw new Error('تم الرفع لكن فشل التحقق من حجم الملف أو Recovery ID في Google Drive.');
-  return verified
+  const recoveryId=String(record.recoveryId||record.id||'');
+  if(!recoveryId)throw new Error('لا يوجد معرّف ثابت للنسخة.');
+  const folder=await ensureGoogleDriveFolder(),size=new Blob([record.json]).size;
+  const verify=async file=>{
+    if(!file?.id||Number(file.size)!==size||file.appProperties?.recoveryId!==recoveryId)throw new Error('لم يتأكد حجم ملف Drive ومعرّف النسخة؛ لا تعتبر الرفع ناجحًا.');
+    return file;
+  };
+  const existing=await findGoogleDriveBackupByRecoveryId(recoveryId,folder.id);
+  if(existing)return {...await verify(existing),alreadyExists:true};
+  let fileId=record.driveFileId||googleDriveStableIds.get(recoveryId);
+  if(!fileId){
+    const response=await googleDriveFetch('https://www.googleapis.com/drive/v3/files/generateIds?count=1&space=drive&type=files');
+    fileId=(await response.json()).ids?.[0];if(!fileId)throw new Error('لم يتأكد حجز معرّف ملف Drive.');
+    googleDriveStableIds.set(recoveryId,fileId);
+  }
+  const stored=await activeDataProtectionProvider().get(record.id);
+  if(stored&&stored.driveFileId!==fileId)await backupVaultPut({...stored,driveFileId:fileId});
+  // A preallocated Drive ID is reused even if indexing or the upload reply is delayed.
+  try{
+    const prior=await googleDriveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,name,size,createdTime,appProperties`);
+    return {...await verify(await prior.json()),alreadyExists:true};
+  }catch(error){if(error.status!==404)throw error}
+  const metadata={...googleDriveFileMetadata(record,folder.id),id:fileId};
+  try{size>GOOGLE_DRIVE_RESUMABLE_THRESHOLD?await resumableGoogleDriveUpload(record,metadata):await multipartGoogleDriveUpload(record,metadata)}
+  catch(error){
+    try{const response=await googleDriveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,name,size,createdTime,appProperties`);return await verify(await response.json())}catch(_){throw error}
+  }
+  const response=await googleDriveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,name,size,createdTime,appProperties`);
+  return verify(await response.json())
+}
+async function retryLatestGoogleDriveBackup(){
+  const latest=latestBackupRecord(),record=latest&&await activeDataProtectionProvider().get(latest.id);
+  if(!record){setGoogleDriveMessage('افتح حماية التخزين ثم اختر نسخة محفوظة على هذا الجهاز. لم تُنشأ نسخة جديدة.','error');return {ok:false}}
+  return syncBackupToGoogleDrive(record)
 }
 async function syncBackupToGoogleDrive(record){
   if(!googleDriveSessionActive()){
@@ -3407,12 +3412,13 @@ async function syncBackupToGoogleDrive(record){
   googleDriveUploadPromise=(async()=>{
     try{
       const file=await DATA_PROTECTION_PROVIDERS.googleDrive.save(record),at=new Date().toISOString(),status=file.alreadyExists?'النسخة موجودة مسبقًا في Google Drive':'تم الرفع والتحقق بنجاح';
-      saveGoogleDriveState({lastUploadAt:at,lastUploadStatus:status,lastUploadOk:true,lastError:''});
-      await recordGoogleDriveAudit(file.alreadyExists?'تأكيد وجود':'رفع نسخة',`${record.recoveryId||record.id} — ${status}`,{fileId:file.id,recoveryId:record.recoveryId||record.id,size:record.size});
-      setGoogleDriveMessage(status,'success');await refreshGoogleDriveBackups(false);return {ok:true,file}
+      googleDriveFiles=[file,...googleDriveFiles.filter(item=>item.id!==file.id)];renderGoogleDriveBackupList();
+      saveGoogleDriveState({lastUploadAt:at,lastUploadStatus:status,lastUploadOk:true,lastError:'',backupCount:googleDriveFiles.length});
+      const metadataSync=await recordGoogleDriveAudit(file.alreadyExists?'تأكيد وجود':'رفع نسخة',`${record.recoveryId||record.id} — ${status}`,{fileId:file.id,recoveryId:record.recoveryId||record.id,size:record.size});
+      setGoogleDriveMessage(metadataSync.ok?status:`${status} — لم تتأكد مزامنة سجل Supabase.`,metadataSync.ok?'success':'');return {ok:true,file,metadataSync}
     }catch(err){
-      const message=err.message||String(err);saveGoogleDriveState({lastUploadAt:new Date().toISOString(),lastUploadStatus:'فشل الرفع — النسخة المحلية سليمة',lastUploadOk:false,lastError:message});
-      setGoogleDriveMessage(`النسخة المحلية سليمة، لكن الرفع إلى Google Drive لم ينجح: ${message}`,'error');await recordGoogleDriveAudit('فشل رفع',`${record.recoveryId||record.id} — ${message}`);return {ok:false,error:message}
+      const message=err.message||String(err);saveGoogleDriveState({lastUploadAt:new Date().toISOString(),lastUploadStatus:'لم يتأكد الرفع — النسخة المحلية مستقلة',lastUploadOk:false,lastError:message});
+      setGoogleDriveMessage(`لم يتأكد رفع الملف إلى Google Drive: ${message}`,'error');await recordGoogleDriveAudit('فشل رفع',`${record.recoveryId||record.id} — ${message}`);return {ok:false,error:message}
     }finally{googleDriveUploadInProgress=false;googleDriveUploadPromise=null;setGoogleDriveBusy(false);renderGoogleDriveStatus()}
   })();
   return googleDriveUploadPromise
@@ -3433,17 +3439,71 @@ async function downloadGoogleDriveBackup(encodedId){
 }
 function backupDirectorySupported(){return typeof window.showDirectoryPicker==='function'}
 function setBackupOperationMessage(message,type=''){const box=document.getElementById('backupOperationMessage');if(!box)return;box.className=`notice backup-operation-message show ${type}`.trim();box.textContent=message}
+function renderLocalProtectionNotice(){
+  if(!currentUser)return;
+  const section=document.getElementById('dataProtection');if(!section)return;
+  let box=document.getElementById('localProtectionNotice');
+  if(!box){box=document.createElement('div');box.id='localProtectionNotice';box.className='notice';section.prepend(box)}
+  const vault=window.AdwaaLocalVault;
+  box.innerHTML=`<b>حماية البيانات على هذا الجهاز</b><p>${vault.unlocked()?'التخزين المحمي مفتوح لهذه الجلسة.':vault.configured()?'التخزين المحمي مقفل. لا تُكتب بيانات عملاء جديدة محليًا قبل فتحه.':'الحفظ المحلي للبيانات الحساسة متوقف حتى إعداد عبارة مرور. النسخ القديمة لم تُحذف.'}</p><button type="button" class="secondary" onclick="openLocalProtection()">${vault.configured()?'فتح ومراجعة حماية التخزين':'حماية البيانات والنسخ المحلية'}</button>${vault.hasCached()?'<button type="button" class="secondary" onclick="exportLegacyLocalRecovery(true)">تصدير آخر مسودة محلية</button>':''}${vault.recoveryKeys().length?'<button type="button" class="secondary" onclick="exportLegacyLocalRecovery()">تصدير نسخة الاسترداد المحلية القديمة</button>':''}`;
+}
+async function exportLegacyLocalRecovery(useDraft=false){
+  if(!currentUser)return;
+  try{
+    const vault=window.AdwaaLocalVault;
+    if(!vault.unlocked()){openLocalProtection();return}
+    if(!confirm('سيُنزل ملف بيانات محلية قديمة غير مشفر للاسترداد اليدوي. احفظه في مكان محمي. لن تُرفع البيانات أو تستبدل بيانات النظام.'))return;
+    const name=useDraft?vault.cacheKey:vault.recoveryKeys().sort().at(-1);
+    const value=await vault.decrypt(JSON.parse(localStorage.getItem(name)));
+    download('adwaa-legacy-local-recovery.json',JSON.stringify(value,null,2),'application/json');
+  }catch(error){alert(String(error?.message||'تعذر فتح نسخة الاسترداد.'))}
+}
+function openLocalProtection(){
+  if(!currentUser)return;
+  let modal=document.getElementById('localProtectionModal');
+  if(!modal){modal=document.createElement('div');modal.id='localProtectionModal';modal.className='modal';modal.innerHTML='<div class="sheet"><h2>حماية التخزين المحلي</h2><p>احفظ عبارة المرور في مدير كلمات المرور. لا يمكن استعادة النسخ المشفرة دونها. لن تُحذف النسخ القديمة عند فشل الحماية.</p><form id="localProtectionForm"><label>عبارة المرور<input name="passphrase" type="password" autocomplete="off" minlength="12" required></label><label>تأكيد عبارة المرور لأول إعداد<input name="confirmation" type="password" autocomplete="off"></label><p role="status" id="localProtectionStatus"></p><button class="primary" type="submit">فتح وحماية البيانات الموجودة</button><button type="button" onclick="closeModal(\'localProtectionModal\')">إلغاء</button></form></div>';document.body.append(modal);modal.querySelector('form').addEventListener('submit',protectExistingLocalData)}
+  modal.classList.add('open');
+}
+async function protectExistingLocalData(event){
+  event.preventDefault();if(!currentUser)return;
+  const form=event.currentTarget,status=document.getElementById('localProtectionStatus'),button=form.querySelector('[type=submit]');
+  if(button.disabled)return;button.disabled=true;
+  try{
+    const vault=window.AdwaaLocalVault;
+    if(vault.configured())await vault.unlock(form.elements.passphrase.value);
+    else{if(form.elements.passphrase.value!==form.elements.confirmation.value)throw new Error('عبارتا المرور غير متطابقتين.');await vault.create(form.elements.passphrase.value)}
+    await vault.migrateLocalStorage();
+    const idb=await openBackupVault();
+    const records=await new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readonly'),req=tx.objectStore(BACKUP_STORE_NAME).getAll();req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)});
+    const protectedRecords=[];
+    for(const record of records){if(record.scope&&record.scope!==vault.scope){protectedRecords.push(record);continue}const sealed=await vault.sealRecord(record);if(record.kind!=='directory'){const opened=await vault.openRecord(sealed);if(JSON.stringify(opened)!==JSON.stringify(await vault.openRecord(record)))throw new Error('فشل فحص نسخة مشفرة؛ بقيت النسخ الأصلية.')}protectedRecords.push(sealed)}
+    await new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readwrite');for(const record of protectedRecords)tx.objectStore(BACKUP_STORE_NAME).put(record);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});idb.close();
+    form.reset();status.textContent='تمت حماية البيانات المحلية والتحقق منها. النسخ المشفرة تحتاج عبارة المرور بعد إغلاق الجلسة.';renderLocalProtectionNotice();
+  }catch(error){status.textContent=String(error?.message||'تعذرت الحماية؛ لم تُحذف البيانات.')}finally{button.disabled=false}
+}
 async function getBackupDirectoryRecord(){return await backupVaultGet(BACKUP_DIRECTORY_RECORD_ID)}
 async function getDirectoryPermission(handle,request=false){if(!handle)return 'denied';try{const options={mode:'readwrite'},current=await handle.queryPermission(options);if(current==='granted'||!request)return current;return await handle.requestPermission(options)}catch(_){return 'denied'}}
 async function selectBackupDirectory(change=false){
-  if(!backupDirectorySupported()){setBackupOperationMessage(`هذا المتصفح لا يسمح للموقع باختيار مجلد الجهاز. سيستمر تنزيل النسخ كملفات، واحفظها داخل ${DEFAULT_BACKUP_PATH}.`,'error');return}
+  if(!backupDirectorySupported()){showBackupFilesHelp();return}
   try{const handle=await window.showDirectoryPicker({id:'adwaa-alsharq-backups',mode:'readwrite',startIn:'documents'}),permission=await getDirectoryPermission(handle,true);if(permission!=='granted')throw new Error('لم تمنح صلاحية الكتابة إلى المجلد.');const label=handle.name||'مجلد النسخ الاحتياطية';await backupVaultPut({id:BACKUP_DIRECTORY_RECORD_ID,kind:'directory',handle,label,updatedAt:new Date().toISOString()});localStorage.setItem(BACKUP_DIRECTORY_LABEL_KEY,label);setBackupOperationMessage(`${change?'تم تغيير':'تم تحديد'} مجلد النسخ الاحتياطية إلى «${label}». سيُستخدم تلقائيًا في المرات القادمة.`,'success');await renderBackupManagement()}
   catch(err){if(err?.name!=='AbortError')setBackupOperationMessage(`تعذر تحديد المجلد: ${err.message||'اختر مجلدًا آخر وحاول مرة أخرى.'}`,'error')}
 }
-async function openBackupDirectory(){const record=await getBackupDirectoryRecord();if(!record?.handle){setBackupOperationMessage(`لم يتم اختيار مجلد بعد. اختر المجلد النهائي داخل ${DEFAULT_BACKUP_PATH} أولًا.`,'error');return}setBackupOperationMessage('المتصفح يحمي مجلدات الجهاز ولا يسمح للموقع بفتح مستكشف الملفات مباشرة. المجلد المحفوظ هو «'+(record.label||record.handle.name)+'». افتحه من مستكشف الملفات، أو استخدم «تغيير موقع النسخ الاحتياطية».','')}
+function showBackupFilesHelp(){setBackupOperationMessage('على iPad وSafari: نزّل النسخة المحفوظة، ثم افتح تطبيق «الملفات» وابحث في «التنزيلات»، أو استخدم «مشاركة النسخة» ثم «حفظ في الملفات». الموقع لا يستطيع فتح مجلد الجهاز أو تأكيد اكتمال التنزيل. مجلد Google Drive منفصل عن مجلد الجهاز.','')}
+async function shareLatestBackupFile(){
+  try{
+  const latest=latestBackupRecord(),record=latest&&await activeDataProtectionProvider().get(latest.id);
+  if(!record){showBackupFilesHelp();return}
+  await verifyBackupPayload(record.envelope||JSON.parse(record.json));
+  const file=new File([record.json||JSON.stringify(record.envelope)],record.fileName,{type:'application/json'});
+  if(navigator.canShare?.({files:[file]})&&navigator.share)try{await navigator.share({files:[file]});setBackupOperationMessage('أُغلقت ورقة المشاركة؛ تحقق من الملف في الوجهة التي اخترتها. لا يؤكد الموقع حفظه.','');return}catch(error){if(error.name==='AbortError'){setBackupOperationMessage('أُلغيت المشاركة. النسخة المحلية باقية.','');return}}
+  download(file.name,await file.text(),'application/json');showBackupFilesHelp()
+  }catch(_){setBackupOperationMessage('تعذر تجهيز ملف المشاركة أو التحقق منه. بقيت النسخة الأصلية دون تغيير.','error')}
+}
+async function openBackupDirectory(){if(!backupDirectorySupported()){showBackupFilesHelp();return}const record=await getBackupDirectoryRecord();if(!record?.handle){setBackupOperationMessage(`لم يتم اختيار مجلد بعد. اختر المجلد النهائي داخل ${DEFAULT_BACKUP_PATH} أولًا.`,'error');return}setBackupOperationMessage('المتصفح يحمي مجلدات الجهاز ولا يسمح للموقع بفتح مستكشف الملفات مباشرة. المجلد المحفوظ هو «'+(record.label||record.handle.name)+'». افتحه من مستكشف الملفات، أو استخدم «تغيير موقع النسخ الاحتياطية».','')}
 async function renderBackupManagement(){
   const path=document.getElementById('backupLocationPath');if(!path)return;const status=document.getElementById('backupLocationStatus'),badge=document.getElementById('backupManagementBadge'),record=await getBackupDirectoryRecord();let permission='denied';if(record?.handle)permission=await getDirectoryPermission(record.handle,false);
   if(record?.handle){path.textContent=`المجلد المختار: ${record.label||record.handle.name} — المسار الكامل محمي بواسطة المتصفح`;status.className=`backup-location-status ${permission==='granted'?'ok':'warn'}`;status.textContent=permission==='granted'?'🟢 المجلد محفوظ وقابل للكتابة.':'🟡 المجلد محفوظ، وقد يطلب المتصفح تجديد الإذن عند الحفظ.';badge.className=`release-info-status ${permission==='granted'?'':'update'}`;badge.textContent=permission==='granted'?'🟢 جاهز':'🟡 يحتاج إذن'}else{path.textContent=DEFAULT_BACKUP_PATH;status.className='backup-location-status warn';status.textContent=backupDirectorySupported()?'🟡 مسار مقترح؛ اختر المجلد للسماح بالحفظ المباشر.':'🟡 الحفظ المباشر غير مدعوم؛ ستُنزل النسخة إلى الجهاز.';badge.className='release-info-status update';badge.textContent='🟡 تنزيل آمن'}
+  if(!backupDirectorySupported()){document.getElementById('selectBackupDirectoryButton').textContent='طريقة الحفظ في الملفات';document.getElementById('changeBackupDirectoryButton').hidden=true;document.getElementById('openBackupDirectoryButton').textContent='إرشادات فتح الملفات';path.textContent='تطبيق الملفات على iPad / التنزيلات';status.textContent='اختيار مجلد الجهاز غير مدعوم؛ استخدم التنزيل أو المشاركة دون ادعاء حفظ الملف.'}
   const latest=latestBackupRecord();setAboutText('backupLastFileName',latest?.fileName||'لا توجد نسخة');const date=latest?.createdAt?new Date(latest.createdAt):null,validDate=date&&!Number.isNaN(date.getTime());setAboutText('backupLastDate',validDate?date.toLocaleDateString('ar-SA',{calendar:'gregory'}):'—');setAboutText('backupLastTime',validDate?date.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'}):'—');setAboutText('backupLastSize',latest?formatBytes(latest.size):'—');setAboutText('backupLastStatus',latest?(latest.verified===false?'❌ لم تجتز الفحص':'✅ ناجحة وسليمة'):'—');setAboutText('backupLastLocation',latest?.location||'—')
 }
 function sanitizeBackupValue(value){if(Array.isArray(value))return value.map(sanitizeBackupValue);if(!value||typeof value!=='object')return value;const clean={};Object.entries(value).forEach(([key,item])=>{if(!/(?:password|passwd|secret|token|api[_-]?key|private[_-]?key)/i.test(key))clean[key]=sanitizeBackupValue(item)});return clean}
@@ -3522,7 +3582,7 @@ async function createBackup(type='يدوي',options={}){
   await persist();
   let cloudResult={ok:false,error:'لم يبدأ الرفع السحابي'};
   try{cloudResult=await syncBackupToGoogleDrive({id,recoveryId:envelope.recoveryId,envelope,json,size,fileName})}
-  catch(err){const message=err.message||String(err);cloudResult={ok:false,error:message};console.error('فشل سحابي مع بقاء النسخة المحلية سليمة',err);saveGoogleDriveState({lastUploadAt:new Date().toISOString(),lastUploadStatus:'فشل الرفع — النسخة المحلية سليمة',lastUploadOk:false,lastError:message});setGoogleDriveMessage(`النسخة المحلية سليمة، لكن الرفع إلى Google Drive لم ينجح: ${message}`,'error')}
+  catch(err){const message=err.message||String(err);cloudResult={ok:false,error:message};console.error('فشل سحابي مع بقاء النسخة المحلية سليمة',err);saveGoogleDriveState({lastUploadAt:new Date().toISOString(),lastUploadStatus:'لم يتأكد الرفع — النسخة المحلية مستقلة',lastUploadOk:false,lastError:message});setGoogleDriveMessage(`لم يتأكد رفع الملف إلى Google Drive: ${message}`,'error')}
   if(!silent){const detail=directoryError?` تم تنزيلها كبديل لأن: ${directoryError}`:` تم حفظها في ${location}.`,cloudDetail=cloudResult?.ok?'\nGoogle Drive: تم الرفع والتحقق بنجاح':cloudResult?.busy?'\nGoogle Drive: لم يبدأ رفع ثانٍ لأن عملية أخرى جارية':'\nGoogle Drive: لم تُرفع سحابيًا، والنسخة المحلية سليمة';setBackupOperationMessage(`تم إنشاء النسخة وفحص سلامتها بنجاح.${detail}`,'success');alert(`تم إنشاء النسخة الاحتياطية وفحصها بنجاح.\nاسم الملف: ${fileName}\nالحجم: ${formatBytes(size)}\nالحفظ: ${location}${directoryError?`\nتنبيه: ${directoryError}`:''}${cloudDetail}`)}
   renderBackupHistory();renderBackupManagement();renderDataProtectionCenter();
   return {id,recoveryId:envelope.recoveryId,envelope,json,size,stored,fileSaved,rollbackReady,fileName,location,verified:true,cloudResult};
@@ -3547,19 +3607,28 @@ async function createRequiredRestoreSafetyBackup(note){
 async function commitRestoredDataToSupabase(candidate){
   if(!currentUser)throw new Error('انتهت جلسة الدخول. سجّل الدخول ثم أعد المحاولة.');
   const next=normalizeDB(candidate),expectedHash=await dataStateHash(next);
+  let acknowledged=false;
   try{
-    const {error:writeError}=await supabaseClient.from('app_state').upsert({id:STATE_ROW_ID,data:next,updated_at:new Date().toISOString()});
-    if(writeError)throw writeError;
-    const {data:confirmed,error:readError}=await supabaseClient.from('app_state').select('data').eq('id',STATE_ROW_ID).maybeSingle();
-    if(readError)throw readError;
+    const saved=await window.AdwaaPersistence.persist(next);
+    if(saved!==true)throw new Error('لم تتأكد كتابة الاستعادة.');
+    acknowledged=true;db=next;invalidateCaches();
+    const confirmed=await window.AdwaaPersistence.readRow();
     if(!confirmed?.data)throw new Error('تم إرسال الاستعادة لكن تعذر قراءة البيانات من Supabase للتأكيد.');
     const confirmedHash=await dataStateHash(confirmed.data);
     if(!confirmedHash||confirmedHash!==expectedHash)throw new Error('لم تتطابق البيانات المقروءة من Supabase مع بيانات الاستعادة.');
   }catch(err){
-    remoteReady=false;lastSyncError=`فشلت الاستعادة أو تعذر تأكيدها: ${err?.message||err}`;setSyncStatus('لم تكتمل الاستعادة في Supabase؛ تم الاحتفاظ بالبيانات المحلية الحالية.','error');void renderDataProtectionSyncStatus();throw new Error(lastSyncError);
+    if(acknowledged){
+      window.__adwaaLastRestoreResult={ok:true,verified:false};
+      remoteReady=true;lastSyncError='تمت كتابة الاستعادة، لكن تعذر تأكيد القراءة اللاحقة. راجع البيانات قبل تعديل جديد.';
+      setSyncStatus(lastSyncError,'warning');scheduleRenderAll();return true;
+    }
+    if(window.__adwaaLastPersistResult?.outcome==='unknown'){db=next;invalidateCaches();scheduleRenderAll()}
+    window.__adwaaLastRestoreResult={ok:false,outcome:window.__adwaaLastPersistResult?.outcome||'unknown'};
+    remoteReady=false;lastSyncError=`لم تتأكد نتيجة الاستعادة: ${err?.message||err}`;setSyncStatus('نتيجة الاستعادة تحتاج مراجعة؛ لم تُنشأ محاولة كتابة مكررة.','error');void renderDataProtectionSyncStatus();throw new Error(lastSyncError);
   }
+  window.__adwaaLastRestoreResult={ok:true,verified:true};
   db=next;invalidateCaches();
-  try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(storageErr){console.warn('نجحت الاستعادة السحابية وتعذر تحديث النسخة المحلية الدائمة',storageErr)}
+  try{void window.AdwaaLocalVault?.cache(db)}catch(storageErr){console.warn('نجحت الاستعادة السحابية وتعذر تحديث النسخة المحلية الدائمة',storageErr)}
   remoteReady=true;lastSuccessfulWriteAt=new Date().toISOString();lastSuccessfulReadAt=lastSuccessfulWriteAt;lastSyncError='';lastConfirmedRemoteHash=expectedHash;
   setSyncStatus('تمت الاستعادة والمزامنة مع Supabase','ok');scheduleRenderAll();try{renderAll()}catch(renderErr){console.error('تمت الاستعادة لكن تعذر تحديث جزء من الواجهة',renderErr)}void renderDataProtectionSyncStatus();return true;
 }
@@ -3576,8 +3645,8 @@ async function restoreStoredBackup(id){
   if(!confirm(`تم فحص النسخة بنجاح.\nRecovery ID: ${recoveryId}\nاسم الملف: ${fileName}\nتاريخ الإنشاء: ${formatDateTime(record.envelope.createdAt)}\nالحجم: ${formatBytes(record.size)}\nالحجوزات: ${checked.summary.bookings}\nالمصروفات: ${checked.summary.expenses}\n\nتنبيه: الاستعادة ستستبدل البيانات الحالية. سيُنشئ النظام نسخة أمان أولًا.\nروابط عامل التنظيف القديمة ستتوقف بعد الاستعادة، ويلزم إعادة إرسال الروابط الجديدة.\n\nهل تؤكد الاستعادة؟`))return;
   try{await createRequiredRestoreSafetyBackup('نسخة تلقائية قبل استعادة سجل محفوظ')}
   catch(err){alert(`تم إلغاء الاستعادة بالكامل لأن نقطة الرجوع لم تُنشأ بنجاح.\n${err.message||err}`);return}
-  try{await applyRestorePayload(checked.data,`استعادة النسخة ${recoveryId} — ${formatDateTime(record.envelope.createdAt)}`);alert('تمت الاستعادة في Supabase وتأكيد تطابق البيانات بنجاح.')}
-  catch(err){alert(`لم تكتمل الاستعادة، ولم تُعتمد كعملية ناجحة.\n${err.message||err}\n\nاحتُفظ بالبيانات المحلية الحالية. راجع حالة المزامنة قبل أي إجراء آخر.`)}
+  try{await applyRestorePayload(checked.data,`استعادة النسخة ${recoveryId} — ${formatDateTime(record.envelope.createdAt)}`);alert(window.__adwaaLastRestoreResult?.verified?'تمت الاستعادة وتأكيد تطابق البيانات.':'تمت كتابة الاستعادة، لكن يلزم التحقق من السجل؛ لا تُعد العملية كأنها لم تُكتب.')}
+  catch(err){alert(`لم تكتمل الاستعادة، ولم تُعتمد كعملية ناجحة.\n${err.message||err}\n\nراجع حالة المزامنة ونقطة الرجوع قبل إعادة المحاولة أو أي إجراء آخر.`)}
 }
 function readJsonFile(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>{try{resolve(JSON.parse(r.result))}catch(_){reject(new Error('الملف ليس JSON صالحًا'))}};r.onerror=()=>reject(new Error('تعذر قراءة الملف'));r.readAsText(file)})}
 async function inspectBackupFile(ev){
@@ -3595,7 +3664,7 @@ async function importData(ev){
     catch(err){alert(`تم إلغاء الاستعادة بالكامل لأن نقطة الرجوع لم تُنشأ بنجاح.\n${err.message||err}`);return}
     const json=JSON.stringify(checked.envelope,null,2),recoveryId=checked.envelope.recoveryId||createRecoveryId(new Date(checked.envelope.createdAt||Date.now())),id=recoveryId,size=new Blob([json]).size;let stored=!!(await activeDataProtectionProvider().get(id));if(!stored)try{await activeDataProtectionProvider().save({id,recoveryId,envelope:checked.envelope,json,size,fileName:file.name});stored=true}catch(_){}
     const importedRecord={id,recoveryId,createdAt:checked.envelope.createdAt||new Date().toISOString(),size,user:checked.envelope.createdBy||'ملف مستورد',type:'مستورد',version:checked.envelope.version||'قديم',stored,fileName:file.name,location:'ملف مستورد',providerId:DATA_PROTECTION_PROVIDER_ID,verified:true,status:'سليمة'};
-    await applyRestorePayload(checked.data,`استعادة من الملف ${file.name}`,db.backupHistory.some(r=>r.id===id)?[]:[importedRecord]);alert('تمت الاستعادة في Supabase وتأكيد تطابق البيانات بنجاح.');
+    await applyRestorePayload(checked.data,`استعادة من الملف ${file.name}`,db.backupHistory.some(r=>r.id===id)?[]:[importedRecord]);alert(window.__adwaaLastRestoreResult?.verified?'تمت الاستعادة وتأكيد تطابق البيانات.':'تمت كتابة الاستعادة، لكن يلزم التحقق من السجل؛ لا تُعد العملية كأنها لم تُكتب.');
   }catch(err){alert('تعذر الاستعادة: '+err.message)}finally{ev.target.value=''}
 }
 function recoveryIdFor(record){return record?.recoveryId||record?.id||'نسخة قديمة بلا Recovery ID'}
@@ -3747,7 +3816,7 @@ function renderSendStatus(){
   const requirement=document.getElementById('v92BookingRequirement');
   const booking=v92EnsureState(v92Booking());
   const phone=booking&&typeof normalizePhone==='function'?normalizePhone(booking.phone):String(booking?.phone||'').replace(/\D/g,'');
-  const saved=!!booking,hasPhone=!!phone;
+  const saved=!!booking&&!(window.__adwaaLastBookingSaveConfirmed?.id===booking.id&&window.__adwaaLastBookingSaveConfirmed?.ok===false),hasPhone=!!phone;
   if(requirement){
     requirement.className='v92-requirement '+(saved?'ok':'bad');
     requirement.textContent=saved?(hasPhone?'🟢 الحجز محفوظ ومركز الإرسال جاهز.':'🟠 الحجز محفوظ، لكن يجب إضافة رقم جوال لتفعيل الإرسال.'):'🔴 احفظ الحجز أولًا لتفعيل مركز الإرسال.';
@@ -3770,17 +3839,35 @@ function renderSendStatus(){
   const summary=document.getElementById('sendStatus');if(summary)summary.innerHTML=saved?'':'<span class="send-chip">احفظ الحجز أولًا</span>';
   renderV92Activity(booking);
 }
+const v92PendingOperations=new Map();
 async function v92RecordOperation(type,action){
   const booking=v92EnsureState(v92Booking());
-  if(!booking){alert('احفظ الحجز أولًا قبل تسجيل العملية.');return false;}
-  const now=new Date().toISOString();
-  if(action==='created')booking.manualOperations[type].createdAt=now;
-  else{booking.manualOperations[type].sentAt=now;booking.manualMessages={...(booking.manualMessages||{}),[type]:now};}
-  const event=`${type}-${action}`;
-  booking.communicationActivity.unshift({id:crypto.randomUUID(),event,label:V92_ACTIVITY_LABELS[event]||event,at:now,user:typeof currentUserLabel==='function'?currentUserLabel():(currentUser?.email||'المدير')});
-  booking.communicationActivity=booking.communicationActivity.slice(0,100);booking.updatedAt=now;
-  if(typeof addAudit==='function')try{addAudit('تنفيذ','مركز الإرسال',V92_ACTIVITY_LABELS[event]||event,null,{bookingId:booking.id,event,at:now});}catch(_){ }
-  await persist();renderSendStatus();return true;
+  if(!booking){alert('احفظ الحجز أولًا قبل تسجيل العملية.');return false}
+  const key=`${booking.id}:${type}:${action}`;
+  let pending=v92PendingOperations.get(key);
+  if(pending&&!booking.communicationActivity.some(item=>item.id===pending.id)){v92PendingOperations.delete(key);pending=null}
+  if(pending?.promise)return pending.promise;
+  if(!pending){
+    const at=new Date().toISOString(),event=`${type}-${action}`,id=crypto.randomUUID();
+    if(action==='created')booking.manualOperations[type].createdAt=at;
+    else{booking.manualOperations[type].sentAt=at;booking.manualMessages={...(booking.manualMessages||{}),[type]:at}}
+    booking.communicationActivity.unshift({id,event,label:V92_ACTIVITY_LABELS[event]||event,at,user:typeof currentUserLabel==='function'?currentUserLabel():(currentUser?.email||'المدير')});
+    booking.communicationActivity=booking.communicationActivity.slice(0,100);booking.updatedAt=at;
+    if(typeof addAudit==='function')try{addAudit('تنفيذ','مركز الإرسال',V92_ACTIVITY_LABELS[event]||event,null,{bookingId:booking.id,event,at})}catch(_){}
+    pending={id,promise:null};v92PendingOperations.set(key,pending);
+  }
+  pending.promise=(async()=>{
+    try{
+      if(await persist()!==true)throw new Error('لم يتأكد حفظ سجل العملية.');
+      v92PendingOperations.delete(key);
+      try{renderSendStatus()}catch(_){}
+      return true;
+    }catch(error){
+      window.__adwaaBookingSaveStability?.showStatus('warning','سجل العملية غير مؤكد','بقيت العملية في الصفحة. أعد المحاولة دون إنشاء سجل مكرر.');
+      return false;
+    }finally{pending.promise=null}
+  })();
+  return pending.promise;
 }
 async function printBookingDocument(type){
   const booking=v92Booking();const form=typeof getBookingFromForm==='function'?getBookingFromForm():null;
@@ -3789,7 +3876,7 @@ async function printBookingDocument(type){
   if(!['contract','invoice'].includes(type))return;
   const w=window.open('','_blank');
   if(!w){alert('المتصفح منع نافذة إنشاء PDF. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.');return;}
-  try{w.document.open();w.document.write(bookingDocumentHTML(form,type));w.document.close();await v92RecordOperation(type,'created');}
+  try{w.document.open();w.document.write(bookingDocumentHTML(form,type));w.document.close();if(await v92RecordOperation(type,'created')!==true)alert('تم تجهيز المستند، لكن سجل إنشائه غير مؤكد. احتفظ بالصفحة وأعد التحقق.');}
   catch(err){console.error(err);try{w.close();}catch(_){ }alert('تعذر إنشاء المستند. لم تُسجل العملية.');}
 }
 async function markManualMessageSent(type){return v92RecordOperation(type,'sent');}
@@ -3830,9 +3917,9 @@ function sendManualWhatsApp(type){
 function backToBookingDetails(){const sheet=document.querySelector('#bookingModal .sheet');if(sheet){sheet.scrollTo({top:0,behavior:'smooth'});setTimeout(()=>document.getElementById('bName')?.focus({preventScroll:true}),350);}}
 async function refreshBookingData(){
   const id=document.getElementById('bId')?.value||'';if(!id){alert('احفظ الحجز أولًا ثم استخدم تحديث البيانات.');return;}
-  if(v92BookingDirty&&!confirm('توجد تعديلات غير محفوظة. هل تريد تجاهلها وتحديث البيانات؟'))return;
+  if((v92BookingDirty||window.AdwaaPersistence.hasUnsavedChanges())&&!confirm('توجد تعديلات غير محفوظة. هل تريد تجاهلها وتحديث البيانات؟'))return;
   const button=document.activeElement?.tagName==='BUTTON'?document.activeElement:null;if(button)button.disabled=true;
-  try{if(v92PendingRemoteData){db=normalizeDB(v92PendingRemoteData);v92PendingRemoteData=null;localStorage.setItem('adwaaDB',JSON.stringify(db));if(typeof renderAll==='function')renderAll();}else if(typeof loadRemoteData==='function')await loadRemoteData();else if(typeof renderAll==='function')renderAll();const found=(db.bookings||[]).find(x=>x.id===id);if(!found){alert('لم يعد الحجز موجودًا في قاعدة البيانات.');return;}v92OriginalOpenBooking(id);v92BookingDirty=false;alert('تم تحديث بيانات الحجز بنجاح.');}
+  try{if(await loadRemoteData({discardConfirmed:true})!==true)return;v92PendingRemoteData=null;const found=(db.bookings||[]).find(x=>x.id===id);if(!found){alert('لم يعد الحجز موجودًا في قاعدة البيانات.');return;}v92OriginalOpenBooking(id);v92BookingDirty=false;alert('تم تحديث بيانات الحجز بنجاح.');}
   catch(err){console.error(err);alert('تعذر تحديث البيانات. تحقق من الاتصال ثم حاول مرة أخرى.');}
   finally{if(button)button.disabled=false;}
 }
@@ -3878,7 +3965,7 @@ renderSendStatus();
 </div>
 <div class="modal" id="systemHealthModal" aria-label="تفاصيل فحص حالة النظام"><div class="sheet">
   <div class="sheet-head"><h2>تفاصيل فحص حالة النظام</h2><button class="close" type="button" onclick="closeModal('systemHealthModal')">×</button></div>
-  <div class="notice" style="margin-bottom:14px">ينفذ الفحص قراءة فعلية وكتابة اختبارية غير متلفة على سجل المدير، ثم يتحقق من تطابق المزامنة.</div>
+  <div class="notice" style="margin-bottom:14px">ينفذ الفحص قراءة فعلية دون كتابة أو تغيير إصدار السجل. تُعرض نتيجة آخر عملية حفظ مؤكدة بصورة منفصلة.</div>
   <div id="systemHealthDetails"></div>
   <div class="actions"><button class="secondary" type="button" onclick="runSystemDatabaseHealthCheck()">إعادة الفحص</button><button class="primary" type="button" onclick="closeModal('systemHealthModal')">إغلاق</button></div>
 </div></div>
@@ -4016,5 +4103,6 @@ document.addEventListener('DOMContentLoaded',()=>{renderHelpIcons();applyHelpVis
 <script src="portal-final-admin.js"></script>
 <script src="admin-workspace.js?v=20261006-3"></script>
 <script src="commission-visibility-policy.js?v=20260928-1"></script>
+<script src="backup-flow-reliability.js?v=20261023-drive-1"></script>
 </body>
 </html>
