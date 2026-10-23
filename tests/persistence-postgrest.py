@@ -85,7 +85,8 @@ try:
         if code!=404:break
         time.sleep(.2)
     assert code==400,code
-    assert http('PATCH','/app_state?id=eq.main',manager,{'data':{}})[0]==403
+    denied_direct=http('PATCH','/app_state?id=eq.main',manager,{'data':{}})
+    assert denied_direct[0]==403, f'Guard failed to deny direct PATCH: {denied_direct!r}'
     assert http('POST',rpc,'unauthorized@isolated.test',{'p_expected_updated_at':baseline['updated_at'],'p_data':baseline['data']})[0]==403
     assert http('POST',rpc,None,{'p_expected_updated_at':baseline['updated_at'],'p_data':baseline['data']})[0] in [401,403]
     _,current=http('GET','/app_state?select=data,updated_at',manager)
