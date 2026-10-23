@@ -16,7 +16,7 @@ SET search_path = pg_catalog
 AS $$
 DECLARE field_name text;
 BEGIN
-  -- Definer is deliberate: the caller loses direct UPDATE permission below.
+  -- Definer is deliberate: the caller loses all direct mutation permissions below.
   -- Authorization is still explicit, matching the existing signed-JWT manager policy.
   IF auth.uid() IS NULL OR lower(coalesce(auth.jwt()->>'email','')) <> lower('asm114@hotmail.com') THEN
     RAISE EXCEPTION 'Not authorized' USING ERRCODE = '42501';
@@ -39,6 +39,6 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.adwaa_cas_write_app_state_v1(timestamptz,jsonb) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.adwaa_cas_write_app_state_v1(timestamptz,jsonb) TO authenticated;
-REVOKE INSERT, UPDATE ON public.app_state FROM PUBLIC, anon, authenticated;
+-- Block all direct mutations, including DELETE/TRUNCATE, from browser roles.\nREVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.app_state FROM PUBLIC, anon, authenticated;
 NOTIFY pgrst, 'reload schema';
 COMMIT;
