@@ -4,6 +4,21 @@
 BEGIN;
 SET LOCAL lock_timeout = '3s';
 SET LOCAL statement_timeout = '15s';
+-- Fail closed if live ACLs differ from the reviewed migration baseline.
+-- Production ACLs must be inspected and reconciled before any authorized cutover.
+DO $preflight$
+DECLARE observed_grants text;
+BEGIN
+  SELECT string_agg(privilege_type, ',' ORDER BY privilege_type)
+    INTO observed_grants
+    FROM information_schema.role_table_grants
+    WHERE table_schema = 'public' AND table_name = 'app_state'
+      AND grantee = 'authenticated';
+  IF observed_grants IS DISTINCT FROM 'INSERT,SELECT,UPDATE' THEN
+    RAISE EXCEPTION 'Unexpected app_state authenticated privileges: %; stop for explicit ACL review', observed_grants;
+  END IF;
+END;
+$preflight$;
 LOCK TABLE public.app_state IN ACCESS EXCLUSIVE MODE;
 
 CREATE FUNCTION public.adwaa_cas_write_app_state_v1(
