@@ -15,13 +15,13 @@ async function submit({portalResult=true,portalThrows=false,coreFails=false,reco
     select(){return{eq(){return{maybeSingle:async()=>{events.push('core-read');return{data:{data:remote},error:null}}}}}},
     upsert(){throw new Error('unexpected upsert')}
   }}};
-  const window={location:{hostname:'asm114.github.io',pathname:'/adwaa-alsharq/'},supabaseClient:client,
+  const window={__adwaaStateVersion:'2026-10-23T00:00:00.000Z',location:{hostname:'asm114.github.io',pathname:'/adwaa-alsharq/'},supabaseClient:client,
     __adwaaBookingSaveStability:{showStatus(...args){statuses.push(args)}},
     syncPortalAvailabilityFromBookings:async()=>{events.push('portal-sync');assert.ok(remote?.bookings.length);if(portalThrows)throw new Error('portal disconnected');return portalResult},
     BookingPaymentHistory:{prepareBookingForSave:booking=>booking}};
   const document={readyState:'complete',getElementById:id=>elements[id]||null,body:{classList:{add(){}}},
     addEventListener:(type,callback)=>{listeners[type]=callback},createElement:()=>({}),head:{appendChild:script=>{script.onload()}}};
-  const context=vm.createContext({window,document,URL,console,crypto:{randomUUID:()=> 'new-id'},localStorage:{setItem(){}},
+  const context=vm.createContext({AbortController,setTimeout,clearTimeout,window,document,URL,console,crypto:{randomUUID:()=> 'new-id'},localStorage:{setItem(){}},
     currentUser:{id:'test'},persist:async()=>{},supabaseClient:client,STATE_ROW_ID:'main',lastConfirmedRemoteHash:'',renderDataProtectionSyncStatus:async()=>{},
     db:{bookings:existing?[{id:'new-id',code:'100',recordType:'family',date:'2026-10-18',status:'مؤكد',type:'يومي',stayDays:1,total:0,paid:0}]:[],seq:100,settings:{}},remoteReady:false,lastSuccessfulWriteAt:'',lastSuccessfulReadAt:'',lastSyncError:'',
     normalizeDB:value=>value,normalizeBookingCommission:value=>value,findBookingConflict:()=>conflict,nextAvailableDate:()=>null,
@@ -51,7 +51,7 @@ for(const portalThrows of [false,true])test(`portal failure is visible without r
   assert.equal(h.elements.bId.value,'new-id');
   assert.equal(h.window.__adwaaLastBookingSaveConfirmed.ok,true);
   assert.equal(h.window.__adwaaLastBookingSaveConfirmed.portalSynced,false);
-  assert.equal(h.statuses.at(-1)[0],'error');
+  assert.equal(h.statuses.at(-1)[0],'warning');
   assert.ok(h.events.some(event=>event.startsWith('alert:')));
   assert.ok(!h.events.includes('close'));
 });

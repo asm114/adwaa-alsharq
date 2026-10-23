@@ -35,7 +35,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 })();
 
 (()=>{
-  if(window.__adwaaBookingPersistUpdatePathLoader)return;
+  if(window.__adwaaBookingPersistUpdatePathInstalled||window.__adwaaBookingPersistUpdatePathLoader)return;
   window.__adwaaBookingPersistUpdatePathLoader=true;
   const script=document.createElement('script');
   script.async=false;

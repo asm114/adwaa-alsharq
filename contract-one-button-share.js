@@ -67,7 +67,7 @@ async function shareContract(){
     const documentData={...(booking||{}),...(form||{}),name,phone,date:bookingDate};
     const html=window.bookingDocumentHTML(documentData,'contract');
     const file=buildStaticContractFile(html,documentData,booking);
-    if(typeof window.v92RecordOperation==='function')await window.v92RecordOperation('contract','created');
+    if(typeof window.v92RecordOperation==='function'&&await window.v92RecordOperation('contract','created')!==true)throw new Error('لم يتأكد حفظ سجل إنشاء العقد. أعد المحاولة من الصفحة نفسها.');
     const shareText=`عقد ${name} — رقم العميل ${phone}`;
     if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
       await navigator.share({title:`عقد ${name}`,text:shareText,files:[file]});

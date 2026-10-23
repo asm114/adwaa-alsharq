@@ -31,16 +31,11 @@ async function persistBackupMetadata(){
   if(!currentUser)return {ok:false,error:'انتهت جلسة الدخول. النسخة المحلية لم تُحذف، لكن سجلها لم يُزامن.'};
   db=normalizeDB(db);
   invalidateCaches();
-  try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(error){console.warn('تعذر تحديث سجل النسخ في localStorage',error)}
+  try{void window.AdwaaLocalVault?.cache(db)}catch(error){console.warn('تعذر تحديث سجل النسخ في localStorage',error)}
   scheduleRenderAll();
   try{
-    const {error}=await supabaseClient.from('app_state').upsert({id:STATE_ROW_ID,data:db,updated_at:new Date().toISOString()});
-    if(error)throw error;
-    remoteReady=true;
-    lastSuccessfulWriteAt=new Date().toISOString();
-    lastSyncError='';
-    await markRemoteStateConfirmed(db);
-    setSyncStatus('تم الحفظ والمزامنة','ok');
+    const saved=await window.persist();
+    if(saved!==true)throw new Error('لم يتأكد حفظ سجل النسخة الاحتياطية.');
     return {ok:true,error:''};
   }catch(error){
     const message=backupErrorText(error);

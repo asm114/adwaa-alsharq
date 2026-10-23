@@ -1,16 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import vm from 'node:vm';
-import {readFile} from 'node:fs/promises';
-const source=await readFile(new URL('../booking-persist-update-path.js',import.meta.url),'utf8');
-function harness(){
- const state={bookings:[{id:'b1',total:1200,paid:500,payments:[{id:'p1',amount:500}]}],seq:2};
- const control={writes:0,reads:0,remote:null,writeError:false,commit:true,readError:false,delay:null,hashError:false,hashWait:false,status:[]};
- const c={db:state,currentUser:{id:'test'},persist:async()=>{},normalizeDB:x=>x,invalidateCaches(){},localStorage:{setItem(){}},scheduleRenderAll(){},alert(){},showLogin(){},STATE_ROW_ID:'main',remoteReady:false,lastSuccessfulWriteAt:'',lastSyncError:'',lastConfirmedRemoteHash:'',renderDataProtectionSyncStatus:async()=>{},setSyncStatus:(...x)=>control.status.push(x),console:{warn(){},error(){}},markRemoteStateConfirmed:async()=>{if(control.hashWait)await new Promise(()=>{});if(control.hashError)throw Error('hash unavailable')}};
- c.window=c;
- c.supabaseClient={from(){let payload;const q={update(p){payload=p;return q},upsert(p){payload=p;return q},eq(){return q},select(){return q},async maybeSingle(){if(payload){control.writes++;if(control.delay)await control.delay;if(control.commit)control.remote=structuredClone(payload.data);if(control.writeError)throw Error('lost response');return {data:{id:'main'},error:null}}control.reads++;if(control.readError)throw Error('offline');return {data:control.remote?{data:control.remote}:null,error:null}}};return q}};
- vm.runInNewContext(source,c);return {c,control};
-}
+import {harness} from './helpers/persistence-harness.mjs';
 test('acknowledged write remains successful when confirmation hash fails',async()=>{
  const {c,control}=harness();control.hashError=true;
  assert.equal(await c.persist(),true);assert.equal(control.writes,1);assert.equal(c.__adwaaLastPersistResult.ok,true);assert.equal(c.remoteReady,true);

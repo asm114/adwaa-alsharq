@@ -1228,6 +1228,8 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <script src="supabase-config.staging.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="local-data-protection.js?v=20261023-1"></script>
+<script src="booking-persist-update-path.js?v=20261023-2"></script>
 <script src="booking-financial-core.js?v=20260922-1"></script>
 <script src="booking-postponement.js?v=20260922-1"></script>
 <script src="customer-credit-core.js?v=20260920-3"></script>
@@ -1238,7 +1240,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <script src="deposit-refund-policy.js?v=20260921-2"></script>
 <script>
 const {url:SUPABASE_URL,publishableKey:SUPABASE_PUBLISHABLE_KEY,projectRef:SUPABASE_PROJECT_REF,environment:APP_ENVIRONMENT}=window.ADWAA_SUPABASE_CONFIG;
-const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{storage:window.AdwaaLocalVault.authStorage,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 window.supabaseClient=supabaseClient;
 const STATE_ROW_ID='main';
 // v9.8.0 — customer portal final release over the stable local provider.
@@ -1292,7 +1294,7 @@ const DEFAULT_WELCOME_STAY=`يسرّنا استقبالكم في منتجع أض
 ⏰ موعد الخروج الساعة 8:00 صباحًا، مع سماح حتى الساعة 10:00 صباحًا.
 
 نسعد بخدمتكم، ونتمنى لكم إقامة طيبة.`;
-function readLocalDB(){try{return JSON.parse(localStorage.getItem('adwaaDB')||'null')}catch(err){console.warn('تعذر قراءة النسخة المحلية',err);return null}}
+function readLocalDB(){return null} // Legacy caches are retained for protected recovery, never displayed before authorization.
 let db=readLocalDB()||{bookings:[],expenses:[],cleaningTasks:[],notifications:[],customerNotes:{},customerCredits:[],accountingNotes:[],resortAccount:{calibration:null,financialRepairVersion:0,manualMovements:[]},backupHistory:[],auditLog:[],settings:{waNumber:'',welcomeMsgDaily:DEFAULT_WELCOME_DAILY,welcomeMsgStay:DEFAULT_WELCOME_STAY,resortStatus:'ready',resortStatusUpdated:'',calendarMode:'both',commissionEnabled:true,commissionMethod:'per_day',commissionRate:100},seq:1};
 const HELP_CONTENT={
   contract:{title:'متى يُستخدم العقد؟',text:'يُرسل العقد بعد الاتفاق مع العميل على التاريخ والسعر، وقبل تأكيد الحجز نهائيًا. يوضح العقد الشروط وأوقات الدخول والخروج ومسؤولية الأضرار.'},
@@ -1410,6 +1412,8 @@ async function saveManagerCredentialPreference(email,password){
   }
 }
 function showLogin(){
+  window.AdwaaLocalVault?.lock();window.AdwaaPersistence?.reset();
+  db=normalizeDB({});invalidateCaches();
   currentUser=null;
   document.getElementById('authGate')?.removeAttribute('hidden');
   document.getElementById('appRoot')?.classList.add('auth-locked');
@@ -1419,14 +1423,12 @@ function showLogin(){
 async function showApplication(user){
   currentUser=user||null;
   if(!currentUser){showLogin();return}
+  // Access to the protected row must succeed before revealing any customer data.
+  if(!await loadRemoteData()){showLogin();setAuthStatus('تعذر تأكيد صلاحية الوصول أو الاتصال. بقيت البيانات المحلية محفوظة دون عرض.','error');return}
   document.getElementById('authGate')?.setAttribute('hidden','');
   document.getElementById('appRoot')?.classList.remove('auth-locked');
-  const email=document.getElementById('signedInEmail');
-  if(email)email.textContent=currentUser.email||'حساب المدير';
-  renderAll();
-  await loadRemoteData();
-  subscribeRealtime();
-  hideLaunchSplash();
+  const email=document.getElementById('signedInEmail');if(email)email.textContent=currentUser.email||'حساب المدير';
+  renderAll();subscribeRealtime();hideLaunchSplash();renderLocalProtectionNotice();
 }
 async function loginManager(event){
   event?.preventDefault();
@@ -1455,6 +1457,8 @@ async function logoutManager(){
   if(!confirm('تسجيل الخروج من لوحة الإدارة؟'))return;
   try{await supabaseClient.auth.signOut()}catch(err){console.error(err)}
   if(realtimeChannel){try{await supabaseClient.removeChannel(realtimeChannel)}catch(_){} realtimeChannel=null}
+  window.AdwaaLocalVault?.lock();
+  db=normalizeDB({});invalidateCaches();try{renderAll()}catch(_){}
   showLogin();
 }
 async function initializeSecureApp(){
@@ -1516,84 +1520,39 @@ function normalizeDB(value){
 
 async function dataStateHash(value){return sha256Text(JSON.stringify(normalizeDB(value)))}
 async function markRemoteStateConfirmed(value){
-  lastConfirmedRemoteHash=await dataStateHash(value);
+  try{lastConfirmedRemoteHash=await dataStateHash(value)}catch(_){lastConfirmedRemoteHash=''}
   try{Promise.resolve(renderDataProtectionSyncStatus()).catch(()=>{})}catch(_){}
 }
 async function renderDataProtectionSyncStatus(){
+  try{
   const el=document.getElementById('protectionSyncStatus');if(!el)return;
   const sequence=++protectionSyncCheckSequence,localHash=await dataStateHash(db);if(sequence!==protectionSyncCheckSequence)return;
   const synced=!!remoteReady&&!!lastConfirmedRemoteHash&&localHash===lastConfirmedRemoteHash;
   el.textContent=synced?'🟢 متزامن مع Supabase':'🔴 يوجد اختلاف أو تعذر تأكيد التطابق';
   el.title=synced?'آخر بيانات محلية تطابق آخر حالة مؤكدة مع Supabase.':lastSyncError||'البيانات المحلية لا تطابق آخر حالة مؤكدة مع Supabase.';
+  }catch(_){const el=document.getElementById('protectionSyncStatus');if(el)el.textContent='تعذر حساب مؤشر التطابق؛ راجع آخر نتيجة حفظ مؤكدة.'}
 }
 
 async function loadRemoteData(){
-  if(!currentUser){showLogin();return}
+  if(!currentUser){showLogin();return false}
   try{
-    const {data,error}=await supabaseClient
-      .from('app_state')
-      .select('data')
-      .eq('id',STATE_ROW_ID)
-      .maybeSingle();
-
-    if(error) throw error;
-
-    if(data?.data){
-      const migrationBackup=await createPreMigrationBackupFromData(data.data,'commission-states-v1','نسخة تلقائية قبل توحيد حالات العمولة وأنواع السجلات');
-      db=normalizeDB(data.data);
-      if(migrationBackup){db.backupHistory=Array.isArray(db.backupHistory)?db.backupHistory:[];db.backupHistory.unshift(migrationBackup)}
-    }else{
-      db=normalizeDB(db);
-      const {error:insertError}=await supabaseClient
-        .from('app_state')
-        .upsert({id:STATE_ROW_ID,data:db,updated_at:new Date().toISOString()});
-      if(insertError) throw insertError;
-    }
-
-    invalidateCaches();
-    remoteReady=true;
-    lastSuccessfulReadAt=new Date().toISOString();lastSyncError='';
-    await markRemoteStateConfirmed(data?.data?normalizeDB(data.data):db);
-    try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(storageErr){console.warn('تعذر حفظ النسخة المحلية',storageErr)}
-    scheduleRenderAll();
-    setSyncStatus('متصل ومتزامن بحساب المدير','ok');
-    return true;
-  }catch(err){
-    console.error(err);
-    remoteReady=false;
-    lastSyncError=String(err?.message||err||'تعذر الاتصال بقاعدة البيانات');
-    void renderDataProtectionSyncStatus();
-    scheduleRenderAll();
-    const denied=String(err?.message||'').toLowerCase().includes('policy')||String(err?.code||'')==='42501';
-    setSyncStatus(denied?'تم رفض الوصول: فعّل سياسة حماية حساب المدير في Supabase.':'تعذر الاتصال بالسحابة؛ يعمل مؤقتًا من هذا الجهاز','error');
-    return false;
+    await window.AdwaaPersistence.request(()=>window.AdwaaPersistence.ready);
+    if(window.AdwaaPersistence.hasUnsavedChanges()&&!confirm('توجد تعديلات محلية غير مؤكدة. احتفظ بها أو صدّرها قبل تحديث البيانات. هل تريد استبدال عرض الصفحة بالبيانات البعيدة؟'))return false;
+    const row=await window.AdwaaPersistence.readRow();
+    db=normalizeDB(row.data);
+    window.AdwaaPersistence.acceptRemote(row);window.__adwaaLastBookingSaveConfirmed=null;
+    invalidateCaches();remoteReady=true;lastSuccessfulReadAt=new Date().toISOString();lastSyncError='';
+    try{Promise.resolve(markRemoteStateConfirmed(db)).catch(()=>{})}catch(_){}
+    scheduleRenderAll();setSyncStatus('متصل ومتزامن بحساب المدير','ok');return true;
+  }catch(error){
+    remoteReady=false;lastSyncError=String(error?.message||'تعذر الاتصال بقاعدة البيانات');
+    setSyncStatus(lastSyncError,'error');return false;
   }
 }
 
 async function persist(){
-  if(!currentUser){alert('انتهت جلسة الدخول. سجّل الدخول من جديد.');showLogin();return}
-  db=normalizeDB(db);
-  invalidateCaches();
-  try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(storageErr){console.warn('تعذر حفظ النسخة المحلية',storageErr)}
-  scheduleRenderAll();
-
-  try{
-    const {error}=await supabaseClient
-      .from('app_state')
-      .upsert({id:STATE_ROW_ID,data:db,updated_at:new Date().toISOString()});
-    if(error) throw error;
-    remoteReady=true;
-    lastSuccessfulWriteAt=new Date().toISOString();lastSyncError='';
-    await markRemoteStateConfirmed(db);
-    setSyncStatus('تم الحفظ والمزامنة','ok');
-  }catch(err){
-    console.error(err);
-    remoteReady=false;
-    lastSyncError=String(err?.message||err||'تعذر حفظ البيانات في قاعدة البيانات');
-    void renderDataProtectionSyncStatus();
-    setSyncStatus('تعذر رفع آخر تعديل؛ محفوظ مؤقتًا على هذا الجهاز','error');
-    alert('تعذر مزامنة آخر تعديل. تحقق من الاتصال وصلاحيات حساب المدير.');
-  }
+  await window.AdwaaPersistence.request(()=>window.AdwaaPersistence.ready);
+  return window.AdwaaPersistence.persist();
 }
 window.__adwaaReconciliationContext=()=>({db,currentUser,persist});
 
@@ -1612,17 +1571,18 @@ function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'app_state',filter:`id=eq.${STATE_ROW_ID}`},async payload=>{
       const next=payload.new?.data;if(!next)return;
       const modalOpen=document.getElementById('bookingModal')?.classList.contains('open');
+      const anyEditorOpen=!!document.querySelector('.modal.open');
       const currentId=document.getElementById('bId')?.value||'';
-      if(modalOpen&&v92BookingDirty){
+      if(anyEditorOpen||window.AdwaaPersistence.hasUnsavedChanges()){
         v92PendingRemoteData=next;
-        remoteReady=true;lastConfirmedRemoteHash=await dataStateHash(next);lastSyncError='وصل تحديث من Supabase ولم يُطبّق محليًا لحماية تعديلات الحجز المفتوح.';void renderDataProtectionSyncStatus();
+        remoteReady=true;try{lastConfirmedRemoteHash=await dataStateHash(next)}catch(_){lastConfirmedRemoteHash=''};lastSyncError='وصل تحديث من Supabase ولم يُطبّق محليًا لحماية تعديلات الحجز المفتوح.';void renderDataProtectionSyncStatus();
         const requirement=document.getElementById('v92BookingRequirement');
         if(requirement){requirement.className='v92-requirement warn';requirement.textContent='🟠 وصل تحديث من جهاز آخر. لم يُطبّق على الحجز المفتوح حتى لا تضيع تعديلاتك؛ استخدم زر تحديث البيانات عند الاستعداد.';}
         if(typeof setSyncStatus==='function')setSyncStatus('وصل تحديث من جهاز آخر، وتم تأجيله لحماية التعديلات غير المحفوظة.','warning');
         return;
       }
-      db=normalizeDB(next);localStorage.setItem('adwaaDB',JSON.stringify(db));
-      remoteReady=true;lastSuccessfulReadAt=new Date().toISOString();lastSyncError='';await markRemoteStateConfirmed(db);
+      db=normalizeDB(next);window.AdwaaPersistence.acceptRemote(payload.new);
+      remoteReady=true;lastSuccessfulReadAt=new Date().toISOString();lastSyncError='';try{await markRemoteStateConfirmed(db)}catch(_){};
       if(typeof renderAll==='function')renderAll();
       if(modalOpen&&currentId&&(db.bookings||[]).some(x=>x.id===currentId)&&typeof v92OriginalOpenBooking==='function'){
         v92OriginalOpenBooking(currentId);v92BookingDirty=false;
@@ -1725,16 +1685,14 @@ async function runSystemDatabaseHealthCheck(){
   databaseHealthCheck={connection:false,read:false,write:false,sync:false,checkedAt:new Date().toISOString(),error:''};
   try{
     if(!currentUser||!supabaseClient)throw new Error('سجّل الدخول بحساب المدير لإجراء الفحص.');
-    const {data:row,error:readError}=await supabaseClient.from('app_state').select('id,data,updated_at').eq('id',STATE_ROW_ID).maybeSingle();
-    if(readError)throw readError;
+    const row=await window.AdwaaPersistence.readRow();
     databaseHealthCheck.connection=true;databaseHealthCheck.read=true;lastSuccessfulReadAt=new Date().toISOString();
-    if(!row)throw new Error('لم يتم العثور على سجل النظام بعد تهيئته.');
-    const {data:written,error:writeError}=await supabaseClient.from('app_state').update({updated_at:row.updated_at}).eq('id',STATE_ROW_ID).select('id,data,updated_at').single();
-    if(writeError)throw writeError;
-    databaseHealthCheck.write=true;lastSuccessfulWriteAt=new Date().toISOString();
+    // Health checks never mutate the revision or probe writes with production data.
+    const written=row;
+    databaseHealthCheck.write=window.__adwaaLastPersistResult?.ok===true;
     const remoteHash=await dataStateHash(written.data);
     databaseHealthCheck.sync=!!written?.data&&written.id===STATE_ROW_ID;
-    if(!databaseHealthCheck.sync)throw new Error('تعذر تأكيد أن القراءة والكتابة تمت على سجل المدير نفسه في Supabase.');
+    if(!databaseHealthCheck.sync)throw new Error('تعذر تأكيد قراءة سجل المدير في Supabase.');
     remoteReady=true;lastConfirmedRemoteHash=remoteHash;lastSyncError='';setSyncStatus('متصل ومتزامن بحساب المدير','ok');
   }catch(err){
     databaseHealthCheck.error=String(err?.message||err||'فشل فحص قاعدة البيانات');lastSyncError=databaseHealthCheck.error;
@@ -1773,8 +1731,8 @@ function runSystemHealthChecks(){
   const checked=!!databaseHealthCheck.checkedAt,healthError=databaseHealthCheck.error||lastSyncError;
   add('قاعدة البيانات',databaseHealthCheck.connection?'ok':checked?'error':'warn',databaseHealthCheck.connection?'الاتصال ناجح':checked?'فشل الاتصال':'الاتصال لم يُفحص بعد',databaseHealthCheck.connection?'تم الوصول إلى مشروع Supabase بنجاح.':healthError||'اضغط «إعادة الفحص» لإجراء اختبار فعلي.');
   add('قاعدة البيانات',databaseHealthCheck.read?'ok':checked?'error':'warn',databaseHealthCheck.read?'القراءة ناجحة':checked?'فشلت القراءة':'القراءة لم تُفحص بعد',databaseHealthCheck.read?`آخر قراءة ناجحة: ${formatDateTime(lastSuccessfulReadAt)}`:healthError||'لم تُجرَ قراءة اختبارية بعد.');
-  add('قاعدة البيانات',databaseHealthCheck.write?'ok':checked?'error':'warn',databaseHealthCheck.write?'الكتابة الاختبارية ناجحة':checked?'فشلت الكتابة الاختبارية':'الكتابة لم تُفحص بعد',databaseHealthCheck.write?`آخر كتابة اختبارية ناجحة: ${formatDateTime(lastSuccessfulWriteAt)}`:healthError||'تُختبر الكتابة بتحديث غير متلف للسجل نفسه.');
-  add('قاعدة البيانات',databaseHealthCheck.sync?'ok':checked?'error':'warn',databaseHealthCheck.sync?'المزامنة ناجحة':checked?'فشلت المزامنة':'المزامنة لم تُفحص بعد',databaseHealthCheck.sync?'تم تأكيد القراءة والكتابة على سجل المدير نفسه في Supabase.':healthError||'لم يُتحقق من دورة المزامنة بعد.');
+  add('قاعدة البيانات',databaseHealthCheck.write?'ok':checked?'error':'warn',databaseHealthCheck.write?'توجد عملية حفظ مؤكدة في الجلسة':'لم يُنفّذ اختبار كتابة',databaseHealthCheck.write?`آخر حفظ مؤكد: ${formatDateTime(lastSuccessfulWriteAt)}`:'فحص الصحة للقراءة فقط؛ لا يغير البيانات أو الإصدار.');
+  add('قاعدة البيانات',databaseHealthCheck.sync?'ok':checked?'error':'warn',databaseHealthCheck.sync?'المزامنة ناجحة':checked?'فشلت المزامنة':'المزامنة لم تُفحص بعد',databaseHealthCheck.sync?'تمت قراءة سجل المدير؛ نتيجة الحفظ تعتمد على آخر عملية حفظ فعلية.':healthError||'لم يُتحقق من دورة المزامنة بعد.');
 
   const backups=[...(db.backupHistory||[])].filter(x=>x?.createdAt).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))),latestBackup=backups[0],backupAge=latestBackup?(Date.now()-new Date(latestBackup.createdAt).getTime())/86400000:Infinity;
   add('النسخ الاحتياطية',!latestBackup?'warn':latestBackup.stored===false?'warn':backupAge>7?'warn':'ok',!latestBackup?'لا توجد نسخة احتياطية مسجلة':latestBackup.stored===false?'آخر نسخة لم تُحفظ محليًا':backupAge>7?'النسخة الاحتياطية قديمة':'النسخة الاحتياطية حديثة',latestBackup?`آخر نسخة: ${formatDateTime(latestBackup.createdAt)} — ${latestBackup.type||'يدوية'}`:'أنشئ نقطة استعادة من شاشة حول النظام أو الإعدادات.');
@@ -2998,12 +2956,18 @@ function openCustomerProfile(value){
 }
 
 async function saveCustomerNotes(){
+  if(!window.FinanceOrganizer?.guardedSubmit)return;
+  const container=document.querySelector('#customerModal .sheet');
+  return window.FinanceOrganizer.guardedSubmit(async()=>{
+
   const key=customerProfileKey.value;
   if(!key)return;
   db.customerNotes=db.customerNotes||{};const before=db.customerNotes[key]||'';
   db.customerNotes[key]=customerAdminNotes.value.trim();addAudit('تعديل','ملاحظات عميل',key,{notes:before},{notes:db.customerNotes[key]});
   await persist();
   alert('تم حفظ ملاحظات العميل');
+
+  })({preventDefault(){},currentTarget:container});
 }
 
 function openCustomerWhatsApp(){
@@ -3200,10 +3164,10 @@ function openBackupVault(){
     request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('تعذر فتح مخزن النسخ'));
   });
 }
-async function backupVaultPut(record){const idb=await openBackupVault();return new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readwrite');tx.objectStore(BACKUP_STORE_NAME).put(record);tx.oncomplete=()=>{idb.close();resolve(true)};tx.onerror=()=>{idb.close();reject(tx.error)}})}
-async function backupVaultAdd(record){const idb=await openBackupVault();return new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readwrite');tx.objectStore(BACKUP_STORE_NAME).add(record);tx.oncomplete=()=>{idb.close();resolve(true)};tx.onerror=()=>{const error=tx.error;idb.close();reject(error)}})}
-async function backupVaultGet(id){try{const idb=await openBackupVault();return await new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readonly'),req=tx.objectStore(BACKUP_STORE_NAME).get(id);req.onsuccess=()=>{idb.close();resolve(req.result||null)};req.onerror=()=>{idb.close();reject(req.error)}})}catch(_){return null}}
-async function backupVaultList(){try{const idb=await openBackupVault();return await new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readonly'),req=tx.objectStore(BACKUP_STORE_NAME).getAll();req.onsuccess=()=>{idb.close();resolve((req.result||[]).filter(x=>x?.kind!=='directory'))};req.onerror=()=>{idb.close();reject(req.error)}})}catch(_){return []}}
+async function backupVaultPut(record){if(!currentUser)throw new Error('سجّل الدخول أولًا.');record=await window.AdwaaLocalVault.sealRecord(record);const idb=await openBackupVault();return new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readwrite');tx.objectStore(BACKUP_STORE_NAME).put(record);tx.oncomplete=()=>{idb.close();resolve(true)};tx.onerror=()=>{idb.close();reject(tx.error)}})}
+async function backupVaultAdd(record){if(!currentUser)throw new Error('سجّل الدخول أولًا.');record=await window.AdwaaLocalVault.sealRecord(record);const idb=await openBackupVault();return new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readwrite');tx.objectStore(BACKUP_STORE_NAME).add(record);tx.oncomplete=()=>{idb.close();resolve(true)};tx.onerror=()=>{const error=tx.error;idb.close();reject(error)}})}
+async function backupVaultGet(id){if(!currentUser)return null;try{const idb=await openBackupVault();return await new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readonly'),req=tx.objectStore(BACKUP_STORE_NAME).get(id);req.onsuccess=()=>{idb.close();Promise.resolve(window.AdwaaLocalVault.openRecord(req.result||null)).then(resolve,reject)};req.onerror=()=>{idb.close();reject(req.error)}})}catch(_){return null}}
+async function backupVaultList(){if(!currentUser)return [];try{const idb=await openBackupVault();return await new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readonly'),req=tx.objectStore(BACKUP_STORE_NAME).getAll();req.onsuccess=()=>{idb.close();Promise.all((req.result||[]).filter(x=>x?.kind!=='directory'&&(!x.scope||x.scope===window.AdwaaLocalVault.scope)).map(row=>window.AdwaaLocalVault.openRecord(row))).then(resolve,reject)};req.onerror=()=>{idb.close();reject(req.error)}})}catch(_){return []}}
 async function backupVaultAvailability(ids){try{const idb=await openBackupVault();return await new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readonly'),store=tx.objectStore(BACKUP_STORE_NAME),result={};ids.forEach(id=>{const req=store.getKey(id);req.onsuccess=()=>{result[id]=req.result!==undefined}});tx.oncomplete=()=>{idb.close();resolve(result)};tx.onerror=()=>{idb.close();reject(tx.error)}})}catch(_){return {}}}
 const DATA_PROTECTION_PROVIDERS={
   local:{
@@ -3433,6 +3397,48 @@ async function downloadGoogleDriveBackup(encodedId){
 }
 function backupDirectorySupported(){return typeof window.showDirectoryPicker==='function'}
 function setBackupOperationMessage(message,type=''){const box=document.getElementById('backupOperationMessage');if(!box)return;box.className=`notice backup-operation-message show ${type}`.trim();box.textContent=message}
+function renderLocalProtectionNotice(){
+  if(!currentUser)return;
+  const section=document.getElementById('dataProtection');if(!section)return;
+  let box=document.getElementById('localProtectionNotice');
+  if(!box){box=document.createElement('div');box.id='localProtectionNotice';box.className='notice';section.prepend(box)}
+  const vault=window.AdwaaLocalVault;
+  box.innerHTML=`<b>حماية البيانات على هذا الجهاز</b><p>${vault.unlocked()?'التخزين المحمي مفتوح لهذه الجلسة.':vault.configured()?'التخزين المحمي مقفل. لا تُكتب بيانات عملاء جديدة محليًا قبل فتحه.':'الحفظ المحلي للبيانات الحساسة متوقف حتى إعداد عبارة مرور. النسخ القديمة لم تُحذف.'}</p><button type="button" class="secondary" onclick="openLocalProtection()">${vault.configured()?'فتح ومراجعة حماية التخزين':'حماية البيانات والنسخ المحلية'}</button>${vault.hasCached()?'<button type="button" class="secondary" onclick="exportLegacyLocalRecovery(true)">تصدير آخر مسودة محلية</button>':''}${vault.recoveryKeys().length?'<button type="button" class="secondary" onclick="exportLegacyLocalRecovery()">تصدير نسخة الاسترداد المحلية القديمة</button>':''}`;
+}
+async function exportLegacyLocalRecovery(useDraft=false){
+  if(!currentUser)return;
+  try{
+    const vault=window.AdwaaLocalVault;
+    if(!vault.unlocked()){openLocalProtection();return}
+    if(!confirm('سيُنزل ملف بيانات محلية قديمة غير مشفر للاسترداد اليدوي. احفظه في مكان محمي. لن تُرفع البيانات أو تستبدل بيانات النظام.'))return;
+    const name=useDraft?vault.cacheKey:vault.recoveryKeys().sort().at(-1);
+    const value=await vault.decrypt(JSON.parse(localStorage.getItem(name)));
+    download('adwaa-legacy-local-recovery.json',JSON.stringify(value,null,2),'application/json');
+  }catch(error){alert(String(error?.message||'تعذر فتح نسخة الاسترداد.'))}
+}
+function openLocalProtection(){
+  if(!currentUser)return;
+  let modal=document.getElementById('localProtectionModal');
+  if(!modal){modal=document.createElement('div');modal.id='localProtectionModal';modal.className='modal';modal.innerHTML='<div class="sheet"><h2>حماية التخزين المحلي</h2><p>احفظ عبارة المرور في مدير كلمات المرور. لا يمكن استعادة النسخ المشفرة دونها. لن تُحذف النسخ القديمة عند فشل الحماية.</p><form id="localProtectionForm"><label>عبارة المرور<input name="passphrase" type="password" autocomplete="off" minlength="12" required></label><label>تأكيد عبارة المرور لأول إعداد<input name="confirmation" type="password" autocomplete="off"></label><p role="status" id="localProtectionStatus"></p><button class="primary" type="submit">فتح وحماية البيانات الموجودة</button><button type="button" onclick="closeModal(\'localProtectionModal\')">إلغاء</button></form></div>';document.body.append(modal);modal.querySelector('form').addEventListener('submit',protectExistingLocalData)}
+  modal.classList.add('open');
+}
+async function protectExistingLocalData(event){
+  event.preventDefault();if(!currentUser)return;
+  const form=event.currentTarget,status=document.getElementById('localProtectionStatus'),button=form.querySelector('[type=submit]');
+  if(button.disabled)return;button.disabled=true;
+  try{
+    const vault=window.AdwaaLocalVault;
+    if(vault.configured())await vault.unlock(form.elements.passphrase.value);
+    else{if(form.elements.passphrase.value!==form.elements.confirmation.value)throw new Error('عبارتا المرور غير متطابقتين.');await vault.create(form.elements.passphrase.value)}
+    await vault.migrateLocalStorage();
+    const idb=await openBackupVault();
+    const records=await new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readonly'),req=tx.objectStore(BACKUP_STORE_NAME).getAll();req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)});
+    const protectedRecords=[];
+    for(const record of records){if(record.scope&&record.scope!==vault.scope){protectedRecords.push(record);continue}const sealed=await vault.sealRecord(record);if(record.kind!=='directory'){const opened=await vault.openRecord(sealed);if(JSON.stringify(opened)!==JSON.stringify(await vault.openRecord(record)))throw new Error('فشل فحص نسخة مشفرة؛ بقيت النسخ الأصلية.')}protectedRecords.push(sealed)}
+    await new Promise((resolve,reject)=>{const tx=idb.transaction(BACKUP_STORE_NAME,'readwrite');for(const record of protectedRecords)tx.objectStore(BACKUP_STORE_NAME).put(record);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});idb.close();
+    form.reset();status.textContent='تمت حماية البيانات المحلية والتحقق منها. النسخ المشفرة تحتاج عبارة المرور بعد إغلاق الجلسة.';renderLocalProtectionNotice();
+  }catch(error){status.textContent=String(error?.message||'تعذرت الحماية؛ لم تُحذف البيانات.')}finally{button.disabled=false}
+}
 async function getBackupDirectoryRecord(){return await backupVaultGet(BACKUP_DIRECTORY_RECORD_ID)}
 async function getDirectoryPermission(handle,request=false){if(!handle)return 'denied';try{const options={mode:'readwrite'},current=await handle.queryPermission(options);if(current==='granted'||!request)return current;return await handle.requestPermission(options)}catch(_){return 'denied'}}
 async function selectBackupDirectory(change=false){
@@ -3547,19 +3553,28 @@ async function createRequiredRestoreSafetyBackup(note){
 async function commitRestoredDataToSupabase(candidate){
   if(!currentUser)throw new Error('انتهت جلسة الدخول. سجّل الدخول ثم أعد المحاولة.');
   const next=normalizeDB(candidate),expectedHash=await dataStateHash(next);
+  let acknowledged=false;
   try{
-    const {error:writeError}=await supabaseClient.from('app_state').upsert({id:STATE_ROW_ID,data:next,updated_at:new Date().toISOString()});
-    if(writeError)throw writeError;
-    const {data:confirmed,error:readError}=await supabaseClient.from('app_state').select('data').eq('id',STATE_ROW_ID).maybeSingle();
-    if(readError)throw readError;
+    const saved=await window.AdwaaPersistence.persist(next);
+    if(saved!==true)throw new Error('لم تتأكد كتابة الاستعادة.');
+    acknowledged=true;db=next;invalidateCaches();
+    const confirmed=await window.AdwaaPersistence.readRow();
     if(!confirmed?.data)throw new Error('تم إرسال الاستعادة لكن تعذر قراءة البيانات من Supabase للتأكيد.');
     const confirmedHash=await dataStateHash(confirmed.data);
     if(!confirmedHash||confirmedHash!==expectedHash)throw new Error('لم تتطابق البيانات المقروءة من Supabase مع بيانات الاستعادة.');
   }catch(err){
-    remoteReady=false;lastSyncError=`فشلت الاستعادة أو تعذر تأكيدها: ${err?.message||err}`;setSyncStatus('لم تكتمل الاستعادة في Supabase؛ تم الاحتفاظ بالبيانات المحلية الحالية.','error');void renderDataProtectionSyncStatus();throw new Error(lastSyncError);
+    if(acknowledged){
+      window.__adwaaLastRestoreResult={ok:true,verified:false};
+      remoteReady=true;lastSyncError='تمت كتابة الاستعادة، لكن تعذر تأكيد القراءة اللاحقة. راجع البيانات قبل تعديل جديد.';
+      setSyncStatus(lastSyncError,'warning');scheduleRenderAll();return true;
+    }
+    if(window.__adwaaLastPersistResult?.outcome==='unknown'){db=next;invalidateCaches();scheduleRenderAll()}
+    window.__adwaaLastRestoreResult={ok:false,outcome:window.__adwaaLastPersistResult?.outcome||'unknown'};
+    remoteReady=false;lastSyncError=`لم تتأكد نتيجة الاستعادة: ${err?.message||err}`;setSyncStatus('نتيجة الاستعادة تحتاج مراجعة؛ لم تُنشأ محاولة كتابة مكررة.','error');void renderDataProtectionSyncStatus();throw new Error(lastSyncError);
   }
+  window.__adwaaLastRestoreResult={ok:true,verified:true};
   db=next;invalidateCaches();
-  try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(storageErr){console.warn('نجحت الاستعادة السحابية وتعذر تحديث النسخة المحلية الدائمة',storageErr)}
+  try{void window.AdwaaLocalVault?.cache(db)}catch(storageErr){console.warn('نجحت الاستعادة السحابية وتعذر تحديث النسخة المحلية الدائمة',storageErr)}
   remoteReady=true;lastSuccessfulWriteAt=new Date().toISOString();lastSuccessfulReadAt=lastSuccessfulWriteAt;lastSyncError='';lastConfirmedRemoteHash=expectedHash;
   setSyncStatus('تمت الاستعادة والمزامنة مع Supabase','ok');scheduleRenderAll();try{renderAll()}catch(renderErr){console.error('تمت الاستعادة لكن تعذر تحديث جزء من الواجهة',renderErr)}void renderDataProtectionSyncStatus();return true;
 }
@@ -3576,8 +3591,8 @@ async function restoreStoredBackup(id){
   if(!confirm(`تم فحص النسخة بنجاح.\nRecovery ID: ${recoveryId}\nاسم الملف: ${fileName}\nتاريخ الإنشاء: ${formatDateTime(record.envelope.createdAt)}\nالحجم: ${formatBytes(record.size)}\nالحجوزات: ${checked.summary.bookings}\nالمصروفات: ${checked.summary.expenses}\n\nتنبيه: الاستعادة ستستبدل البيانات الحالية. سيُنشئ النظام نسخة أمان أولًا.\nروابط عامل التنظيف القديمة ستتوقف بعد الاستعادة، ويلزم إعادة إرسال الروابط الجديدة.\n\nهل تؤكد الاستعادة؟`))return;
   try{await createRequiredRestoreSafetyBackup('نسخة تلقائية قبل استعادة سجل محفوظ')}
   catch(err){alert(`تم إلغاء الاستعادة بالكامل لأن نقطة الرجوع لم تُنشأ بنجاح.\n${err.message||err}`);return}
-  try{await applyRestorePayload(checked.data,`استعادة النسخة ${recoveryId} — ${formatDateTime(record.envelope.createdAt)}`);alert('تمت الاستعادة في Supabase وتأكيد تطابق البيانات بنجاح.')}
-  catch(err){alert(`لم تكتمل الاستعادة، ولم تُعتمد كعملية ناجحة.\n${err.message||err}\n\nاحتُفظ بالبيانات المحلية الحالية. راجع حالة المزامنة قبل أي إجراء آخر.`)}
+  try{await applyRestorePayload(checked.data,`استعادة النسخة ${recoveryId} — ${formatDateTime(record.envelope.createdAt)}`);alert(window.__adwaaLastRestoreResult?.verified?'تمت الاستعادة وتأكيد تطابق البيانات.':'تمت كتابة الاستعادة، لكن يلزم التحقق من السجل؛ لا تُعد العملية كأنها لم تُكتب.')}
+  catch(err){alert(`لم تكتمل الاستعادة، ولم تُعتمد كعملية ناجحة.\n${err.message||err}\n\nراجع حالة المزامنة ونقطة الرجوع قبل إعادة المحاولة أو أي إجراء آخر.`)}
 }
 function readJsonFile(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>{try{resolve(JSON.parse(r.result))}catch(_){reject(new Error('الملف ليس JSON صالحًا'))}};r.onerror=()=>reject(new Error('تعذر قراءة الملف'));r.readAsText(file)})}
 async function inspectBackupFile(ev){
@@ -3595,7 +3610,7 @@ async function importData(ev){
     catch(err){alert(`تم إلغاء الاستعادة بالكامل لأن نقطة الرجوع لم تُنشأ بنجاح.\n${err.message||err}`);return}
     const json=JSON.stringify(checked.envelope,null,2),recoveryId=checked.envelope.recoveryId||createRecoveryId(new Date(checked.envelope.createdAt||Date.now())),id=recoveryId,size=new Blob([json]).size;let stored=!!(await activeDataProtectionProvider().get(id));if(!stored)try{await activeDataProtectionProvider().save({id,recoveryId,envelope:checked.envelope,json,size,fileName:file.name});stored=true}catch(_){}
     const importedRecord={id,recoveryId,createdAt:checked.envelope.createdAt||new Date().toISOString(),size,user:checked.envelope.createdBy||'ملف مستورد',type:'مستورد',version:checked.envelope.version||'قديم',stored,fileName:file.name,location:'ملف مستورد',providerId:DATA_PROTECTION_PROVIDER_ID,verified:true,status:'سليمة'};
-    await applyRestorePayload(checked.data,`استعادة من الملف ${file.name}`,db.backupHistory.some(r=>r.id===id)?[]:[importedRecord]);alert('تمت الاستعادة في Supabase وتأكيد تطابق البيانات بنجاح.');
+    await applyRestorePayload(checked.data,`استعادة من الملف ${file.name}`,db.backupHistory.some(r=>r.id===id)?[]:[importedRecord]);alert(window.__adwaaLastRestoreResult?.verified?'تمت الاستعادة وتأكيد تطابق البيانات.':'تمت كتابة الاستعادة، لكن يلزم التحقق من السجل؛ لا تُعد العملية كأنها لم تُكتب.');
   }catch(err){alert('تعذر الاستعادة: '+err.message)}finally{ev.target.value=''}
 }
 function recoveryIdFor(record){return record?.recoveryId||record?.id||'نسخة قديمة بلا Recovery ID'}
@@ -3747,7 +3762,7 @@ function renderSendStatus(){
   const requirement=document.getElementById('v92BookingRequirement');
   const booking=v92EnsureState(v92Booking());
   const phone=booking&&typeof normalizePhone==='function'?normalizePhone(booking.phone):String(booking?.phone||'').replace(/\D/g,'');
-  const saved=!!booking,hasPhone=!!phone;
+  const saved=!!booking&&!(window.__adwaaLastBookingSaveConfirmed?.id===booking.id&&window.__adwaaLastBookingSaveConfirmed?.ok===false),hasPhone=!!phone;
   if(requirement){
     requirement.className='v92-requirement '+(saved?'ok':'bad');
     requirement.textContent=saved?(hasPhone?'🟢 الحجز محفوظ ومركز الإرسال جاهز.':'🟠 الحجز محفوظ، لكن يجب إضافة رقم جوال لتفعيل الإرسال.'):'🔴 احفظ الحجز أولًا لتفعيل مركز الإرسال.';
@@ -3770,17 +3785,34 @@ function renderSendStatus(){
   const summary=document.getElementById('sendStatus');if(summary)summary.innerHTML=saved?'':'<span class="send-chip">احفظ الحجز أولًا</span>';
   renderV92Activity(booking);
 }
+const v92PendingOperations=new Map();
 async function v92RecordOperation(type,action){
   const booking=v92EnsureState(v92Booking());
-  if(!booking){alert('احفظ الحجز أولًا قبل تسجيل العملية.');return false;}
-  const now=new Date().toISOString();
-  if(action==='created')booking.manualOperations[type].createdAt=now;
-  else{booking.manualOperations[type].sentAt=now;booking.manualMessages={...(booking.manualMessages||{}),[type]:now};}
-  const event=`${type}-${action}`;
-  booking.communicationActivity.unshift({id:crypto.randomUUID(),event,label:V92_ACTIVITY_LABELS[event]||event,at:now,user:typeof currentUserLabel==='function'?currentUserLabel():(currentUser?.email||'المدير')});
-  booking.communicationActivity=booking.communicationActivity.slice(0,100);booking.updatedAt=now;
-  if(typeof addAudit==='function')try{addAudit('تنفيذ','مركز الإرسال',V92_ACTIVITY_LABELS[event]||event,null,{bookingId:booking.id,event,at:now});}catch(_){ }
-  await persist();renderSendStatus();return true;
+  if(!booking){alert('احفظ الحجز أولًا قبل تسجيل العملية.');return false}
+  const key=`${booking.id}:${type}:${action}`;
+  let pending=v92PendingOperations.get(key);
+  if(pending?.promise)return pending.promise;
+  if(!pending){
+    const at=new Date().toISOString(),event=`${type}-${action}`,id=crypto.randomUUID();
+    if(action==='created')booking.manualOperations[type].createdAt=at;
+    else{booking.manualOperations[type].sentAt=at;booking.manualMessages={...(booking.manualMessages||{}),[type]:at}}
+    booking.communicationActivity.unshift({id,event,label:V92_ACTIVITY_LABELS[event]||event,at,user:typeof currentUserLabel==='function'?currentUserLabel():(currentUser?.email||'المدير')});
+    booking.communicationActivity=booking.communicationActivity.slice(0,100);booking.updatedAt=at;
+    if(typeof addAudit==='function')try{addAudit('تنفيذ','مركز الإرسال',V92_ACTIVITY_LABELS[event]||event,null,{bookingId:booking.id,event,at})}catch(_){}
+    pending={id,promise:null};v92PendingOperations.set(key,pending);
+  }
+  pending.promise=(async()=>{
+    try{
+      if(await persist()!==true)throw new Error('لم يتأكد حفظ سجل العملية.');
+      v92PendingOperations.delete(key);
+      try{renderSendStatus()}catch(_){}
+      return true;
+    }catch(error){
+      window.__adwaaBookingSaveStability?.showStatus('warning','سجل العملية غير مؤكد','بقيت العملية في الصفحة. أعد المحاولة دون إنشاء سجل مكرر.');
+      return false;
+    }finally{pending.promise=null}
+  })();
+  return pending.promise;
 }
 async function printBookingDocument(type){
   const booking=v92Booking();const form=typeof getBookingFromForm==='function'?getBookingFromForm():null;
@@ -3789,7 +3821,7 @@ async function printBookingDocument(type){
   if(!['contract','invoice'].includes(type))return;
   const w=window.open('','_blank');
   if(!w){alert('المتصفح منع نافذة إنشاء PDF. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.');return;}
-  try{w.document.open();w.document.write(bookingDocumentHTML(form,type));w.document.close();await v92RecordOperation(type,'created');}
+  try{w.document.open();w.document.write(bookingDocumentHTML(form,type));w.document.close();if(await v92RecordOperation(type,'created')!==true)alert('تم تجهيز المستند، لكن سجل إنشائه غير مؤكد. احتفظ بالصفحة وأعد التحقق.');}
   catch(err){console.error(err);try{w.close();}catch(_){ }alert('تعذر إنشاء المستند. لم تُسجل العملية.');}
 }
 async function markManualMessageSent(type){return v92RecordOperation(type,'sent');}
@@ -3832,7 +3864,7 @@ async function refreshBookingData(){
   const id=document.getElementById('bId')?.value||'';if(!id){alert('احفظ الحجز أولًا ثم استخدم تحديث البيانات.');return;}
   if(v92BookingDirty&&!confirm('توجد تعديلات غير محفوظة. هل تريد تجاهلها وتحديث البيانات؟'))return;
   const button=document.activeElement?.tagName==='BUTTON'?document.activeElement:null;if(button)button.disabled=true;
-  try{if(v92PendingRemoteData){db=normalizeDB(v92PendingRemoteData);v92PendingRemoteData=null;localStorage.setItem('adwaaDB',JSON.stringify(db));if(typeof renderAll==='function')renderAll();}else if(typeof loadRemoteData==='function')await loadRemoteData();else if(typeof renderAll==='function')renderAll();const found=(db.bookings||[]).find(x=>x.id===id);if(!found){alert('لم يعد الحجز موجودًا في قاعدة البيانات.');return;}v92OriginalOpenBooking(id);v92BookingDirty=false;alert('تم تحديث بيانات الحجز بنجاح.');}
+  try{if(v92PendingRemoteData){db=normalizeDB(v92PendingRemoteData);v92PendingRemoteData=null;void window.AdwaaLocalVault?.cache(db);if(typeof renderAll==='function')renderAll();}else if(typeof loadRemoteData==='function')await loadRemoteData();else if(typeof renderAll==='function')renderAll();const found=(db.bookings||[]).find(x=>x.id===id);if(!found){alert('لم يعد الحجز موجودًا في قاعدة البيانات.');return;}v92OriginalOpenBooking(id);v92BookingDirty=false;alert('تم تحديث بيانات الحجز بنجاح.');}
   catch(err){console.error(err);alert('تعذر تحديث البيانات. تحقق من الاتصال ثم حاول مرة أخرى.');}
   finally{if(button)button.disabled=false;}
 }
@@ -3878,7 +3910,7 @@ renderSendStatus();
 </div>
 <div class="modal" id="systemHealthModal" aria-label="تفاصيل فحص حالة النظام"><div class="sheet">
   <div class="sheet-head"><h2>تفاصيل فحص حالة النظام</h2><button class="close" type="button" onclick="closeModal('systemHealthModal')">×</button></div>
-  <div class="notice" style="margin-bottom:14px">ينفذ الفحص قراءة فعلية وكتابة اختبارية غير متلفة على سجل المدير، ثم يتحقق من تطابق المزامنة.</div>
+  <div class="notice" style="margin-bottom:14px">ينفذ الفحص قراءة فعلية دون كتابة أو تغيير إصدار السجل. تُعرض نتيجة آخر عملية حفظ مؤكدة بصورة منفصلة.</div>
   <div id="systemHealthDetails"></div>
   <div class="actions"><button class="secondary" type="button" onclick="runSystemDatabaseHealthCheck()">إعادة الفحص</button><button class="primary" type="button" onclick="closeModal('systemHealthModal')">إغلاق</button></div>
 </div></div>

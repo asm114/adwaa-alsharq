@@ -67,7 +67,7 @@ function validateEdit(row,{excludeDraftId='',excludeSubscriptionId=''}={}){
 }
 function snapshot(){const d=data();return d?{subscriptions:clone(d.subscriptions||[]),drafts:clone(d.subscriptionDrafts||[]),bookings:clone(d.bookings||[]),seq:d.seq}:null}
 function rollback(s){const d=data();if(!d||!s)return;d.subscriptions=s.subscriptions;d.subscriptionDrafts=s.drafts;d.bookings=s.bookings;d.seq=s.seq;window.renderAll?.();window.renderCustomers?.()}
-async function persistAndRender(){if(typeof window.persist==='function')await window.persist();window.renderAll?.();window.renderCustomers?.();window.dispatchEvent(new Event('adwaa-subscription-updated'))}
+async function persistAndRender(){if(typeof window.persist!=='function'||await window.persist()!==true)throw new Error('لم يتأكد الحفظ.');for(const render of [window.renderAll,window.renderCustomers])try{render?.()}catch(_){}window.dispatchEvent(new Event('adwaa-subscription-updated'))}
 
 function createVisitBooking(sub,date){
  const d=data();let b={
@@ -128,14 +128,14 @@ function closeEditor(){window.closeSubscriptionModal?.();clearEdit()}
 async function saveDraftEdit({close=true,silent=false}={}){
  const d=draftById(state.id);if(!d){alert('الحجز المبدئي غير موجود.');return false}
  const row=formData(),error=validateEdit(row,{excludeDraftId:d.id});if(error){alert(error);return false}
- const snap=snapshot();
+ const snap=snapshot();let attempted=false;
  try{
   Object.assign(d,row,{status:'holding',expiresAt:new Date(Date.now()+HOLD_MS).toISOString(),updatedAt:new Date().toISOString()});
-  await persistAndRender();
+  attempted=true;await persistAndRender();
   if(close)closeEditor();
   if(!silent)alert('✅ تم حفظ تعديل الحجز المبدئي وتجديد المهلة لمدة 24 ساعة.');
   return true;
- }catch(error){console.error('تعذر تعديل الحجز المبدئي',error);rollback(snap);alert('تعذر حفظ التعديل، وتمت إعادة البيانات كما كانت.');return false}
+ }catch(error){console.error('تعذر تعديل الحجز المبدئي',error);if(!attempted)rollback(snap);alert(attempted?'نتيجة الحفظ غير مؤكدة؛ بقيت التعديلات في الصفحة. راجع المزامنة قبل التكرار.':'تعذر تجهيز التعديل؛ لم تبدأ الكتابة.');return false}
 }
 async function convertDraftToOfficial(){
  const id=state.id;if(!await saveDraftEdit({close:false,silent:true}))return false;
@@ -149,13 +149,13 @@ async function saveOfficialEdit(){
  const error=validateEdit(row,{excludeSubscriptionId:sub.id});if(error){alert(error);return false}
  if(row.total<row.paid){alert(`الإجمالي الجديد لا يمكن أن يكون أقل من المدفوع (${money(row.paid)}).`);return false}
  if(!confirm(`حفظ تعديلات اشتراك ${sub.name||row.name}؟\n\nالزيارات: ${row.dates.length}\nالإجمالي: ${money(row.total)}\nالمدفوع يبقى: ${money(row.paid)}\nالمتبقي الجديد: ${money(Math.max(0,row.total-row.paid))}`))return false;
- const snap=snapshot();
+ const snap=snapshot();let attempted=false;
  try{
   Object.assign(sub,{name:row.name,phone:row.phone,type:row.type,typeLabel:row.typeLabel,visits:row.visits,dates:[...row.dates].sort(),total:row.total,note:row.note,remaining:Math.max(0,row.total-row.paid),paymentStatus:row.total-row.paid>0?'مدفوع جزئيًا':'مدفوع بالكامل',status:row.total-row.paid>0?'partial':'paid',updatedAt:new Date().toISOString()});
   reconcileVisitBookings(sub,sub.dates);
   const linked=drafts().find(x=>x.id===sub.draftId||x.subscriptionId===sub.id);if(linked)Object.assign(linked,{name:sub.name,phone:sub.phone,type:sub.type,typeLabel:sub.typeLabel,visits:sub.visits,dates:[...sub.dates],total:sub.total,paid:sub.paid,note:sub.note,updatedAt:sub.updatedAt});
-  await persistAndRender();closeEditor();alert('✅ تم حفظ تعديل الاشتراك وتحديث أيامه المرتبطة.');return true;
- }catch(error){console.error('تعذر تعديل الاشتراك الرسمي',error);rollback(snap);alert('تعذر حفظ التعديل، وتمت إعادة الاشتراك والحجوزات كما كانت.');return false}
+  attempted=true;await persistAndRender();closeEditor();alert('✅ تم حفظ تعديل الاشتراك وتحديث أيامه المرتبطة.');return true;
+ }catch(error){console.error('تعذر تعديل الاشتراك الرسمي',error);if(!attempted)rollback(snap);alert(attempted?'نتيجة حفظ الاشتراك غير مؤكدة؛ بقيت التعديلات للمراجعة دون إعادة إنشاء الحجوزات.':'تعذر تجهيز التعديل؛ لم تبدأ الكتابة.');return false}
 }
 
 function addEditButtons(){

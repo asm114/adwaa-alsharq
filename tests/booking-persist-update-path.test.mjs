@@ -14,17 +14,13 @@ test('مسار الحفظ المحسن يحمل بدون خطأ نحوي',async(
 test('الحفظ يحدث سجل main الموجود بدل الاعتماد على upsert في كل مرة',async()=>{
   const source=await read('booking-persist-update-path.js');
   assert.match(source,/\.update\(payload\)/);
-  assert.match(source,/\.eq\('id',STATE_ROW_ID\)/);
-  assert.match(source,/\.select\('id'\)/);
-  assert.match(source,/if\(!updateResult\.data\?\.id\)/);
+  assert.match(source,/\.eq\('id',rowId\)/);
+  assert.match(source,/\.select\('id,updated_at'\)/);
+  assert.match(source,/\.eq\('updated_at',base\)/);
 });
 
-test('upsert يستخدم فقط كمسار احتياطي عند غياب السجل',async()=>{
-  const source=await read('booking-persist-update-path.js');
-  const updateIndex=source.indexOf('.update(payload)');
-  const fallbackIndex=source.indexOf('.upsert({id:STATE_ROW_ID,...payload})');
-  assert.ok(updateIndex>=0);
-  assert.ok(fallbackIndex>updateIndex);
+test('missing records never fall back to unsafe upsert',async()=>{
+  assert.doesNotMatch(await read('booking-persist-update-path.js'),/\.upsert\(/);
 });
 
 test('فشل Supabase يخرج كخطأ حقيقي كي لا يظهر الحفظ ناجحًا',async()=>{

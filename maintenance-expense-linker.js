@@ -149,7 +149,7 @@ window.deleteMaintenancePayment=async function(jobId,pid){
  }catch(error){
   for(const k of Object.keys(x))delete x[k];Object.assign(x,oldExpense);j.payments=oldPayments;j.updatedAt=oldUpdated;
   // Keep the restored local link consistent with the app's local persistence on failure.
-  try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(_){}
+  try{void window.AdwaaLocalVault?.cache(db)}catch(_){}
   window.renderAccountingNotes?.();alert('تعذر تأكيد فك الربط. بقي المصروف دون حذف أو تغيير مبلغ؛ أعد المحاولة. '+String(error?.message||''));
  }finally{busy=false}
 };

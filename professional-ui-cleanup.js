@@ -112,6 +112,8 @@ function enhanceFinance(){
   const average=document.getElementById('expenseAverage')?.closest('.stat');if(average)average.classList.add('professional-secondary-stat');
 }
 function sortCustomerCards(){
+  // The existing explicit sort control owns ordering; never reorder its DOM later.
+  if(document.getElementById('customerSort'))return;
   const root=document.getElementById('customerList');if(!root||root.children.length<2)return;
   const start=new Date();start.setHours(0,0,0,0);
   const score=card=>{const heading=norm(card.querySelector('h4')?.textContent||''),matches=bookings().filter(b=>heading.includes(norm(b.name))&&!['ملغي','مؤجل'].includes(b.status)),future=matches.map(b=>String(b.date||'')).filter(d=>d&&new Date(`${d}T00:00:00`)>=start).sort();if(future.length)return new Date(`${future[0]}T00:00:00`).getTime();return Number.MAX_SAFE_INTEGER};

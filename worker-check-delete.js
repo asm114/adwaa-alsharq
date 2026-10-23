@@ -42,7 +42,7 @@ async function persistDismissal(bookingId,when){
   booking.workerCheckDismissedAt=when;
   try{
     if(typeof window.persist==='function')await window.persist();
-    else localStorage.setItem('adwaaDB',JSON.stringify(window.db));
+    else void window.AdwaaLocalVault?.cache(window.db);
   }catch(error){console.warn('تعذر حفظ إخفاء تنبيه تشييك العامل.',error)}
 }
 

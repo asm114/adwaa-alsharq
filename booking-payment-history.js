@@ -132,6 +132,8 @@
   function loadBookingPayments(){
     const id=String(document.getElementById('bId')?.value||''),code=String(document.getElementById('bCode')?.value||''),state=bookingState(),booking=id?(state?.bookings||[]).find(item=>String(item.id||'')===id):null;
     paymentDraft=normalizePayments(booking);paymentPanelOpen=false;paymentDraftReady=true;paymentDraftBookingId=id;paymentDraftBookingCode=code;renderPayments();
+    const depositInput=document.getElementById('bookingDepositAmount');
+    if(depositInput){const value=depositRow()?.amount;depositInput.value=value?String(value):'';depositInput.dataset.requestedDeposit=depositInput.value}
   }
 
   function normalizedDraftPayments(){syncDepositFromControls();return paymentDraft.map((item,index)=>({...item,amount:safeNumber(item.amount),order:index})).filter(item=>item.amount>0)}

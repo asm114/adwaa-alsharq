@@ -41,7 +41,7 @@ function addReminder(booking,stage){
   notifications().unshift(item);if(notifications().length>100)notifications().length=100;return item;
 }
 async function saveState(){
-  try{if(typeof window.persist==='function')await window.persist();else localStorage.setItem('adwaaDB',JSON.stringify(state()))}catch(error){console.warn('تعذر حفظ تنبيه باقي المبلغ',error)}
+  try{if(typeof window.persist==='function')await window.persist();else void window.AdwaaLocalVault?.cache(state())}catch(error){console.warn('تعذر حفظ تنبيه باقي المبلغ',error)}
   try{window.renderNotifications?.()}catch(_){}
 }
 function escapeText(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#039;'}[char]))}

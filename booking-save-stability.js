@@ -131,7 +131,7 @@ async function verifySavedBookingInSupabase(id,code,requested){
   try{if(typeof supabaseClient!=='undefined')client=supabaseClient}catch(_){}
   try{if(typeof STATE_ROW_ID!=='undefined'&&STATE_ROW_ID)rowId=STATE_ROW_ID}catch(_){}
   if(!client)throw new Error('تعذر الوصول إلى اتصال Supabase من شاشة الحجز. حدّث الصفحة وسجّل الدخول ثم حاول مرة أخرى.');
-  const {data,error}=await client.from('app_state').select('data').eq('id',rowId).maybeSingle();
+  const {data,error}=await window.AdwaaPersistence.request(signal=>window.AdwaaPersistence.withSignal(client.from('app_state').select('data').eq('id',rowId).maybeSingle(),signal));
   if(error)throw new Error(`فشل التحقق من Supabase: ${error.message||error.code||'خطأ غير معروف'}`);
   if(!data?.data)throw new Error('لم يرجع Supabase سجل النظام عند التحقق من الحفظ.');
   const remoteRows=Array.isArray(data.data.bookings)?data.data.bookings:[];

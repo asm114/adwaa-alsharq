@@ -14,8 +14,8 @@ HTML = (ROOT / 'index.html').read_text().replace(
 MOCK = (ROOT / 'tests/workspace-mock.js').read_text().replace(
     'if(payload){QA.writes++;',
     "if(!payload&&QA.failRead)return{data:null,error:{message:'isolated read failure'}};if(payload){QA.writes++;").replace(
-    'saved=structuredClone(payload.data)',
-    "{saved=structuredClone(payload.data);if(QA.loseWriteResponse)return{data:null,error:{message:'isolated lost write response'}}}")
+    'saved=structuredClone(payload.data);savedVersion=payload.updated_at',
+    "{saved=structuredClone(payload.data);savedVersion=payload.updated_at;if(QA.loseWriteResponse)return{data:null,error:{message:'isolated lost write response'}}}")
 
 
 def route(request):

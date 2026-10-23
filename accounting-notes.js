@@ -38,10 +38,8 @@ async function persistFinance(modalId){
   if(typeof window.persist!=='function')throw new Error('خدمة الحفظ غير جاهزة.');
   const saved=await window.persist();
   if(saved===false||window.__adwaaLastPersistResult?.ok===false)throw new Error('لم يتم تأكيد الحفظ. تحقق من الجلسة والاتصال.');
-  window.renderResortAccount?.();
-  if(typeof window.renderExpenses==='function')window.renderExpenses();
-  renderAllFinanceTools();
-  if(modalId)closeModal(modalId);
+  for(const refresh of [window.renderResortAccount,window.renderExpenses,renderAllFinanceTools])try{refresh?.()}catch(_){}
+  if(modalId)try{closeModal(modalId)}catch(_){}
 }
 
 // Keep the form open on failure, and retain IDs for idempotent retries.
@@ -50,7 +48,7 @@ function guardedSubmit(handler){return async function(event){
   event.preventDefault();const form=event.currentTarget;
   if(busyForms.has(form))return;
   busyForms.add(form);form.setAttribute('aria-busy','true');
-  const buttons=[...form.closest('.modal').querySelectorAll('button')].map(button=>({button,disabled:button.disabled}));
+  const buttons=[...(form.closest('.modal')||form).querySelectorAll('button')].map(button=>({button,disabled:button.disabled}));
   buttons.forEach(({button})=>button.disabled=true);
   let status=form.querySelector('.workspace-form-status');
   if(!status){status=document.createElement('div');status.className='workspace-form-status';status.setAttribute('role','status');form.append(status)}
@@ -59,6 +57,13 @@ function guardedSubmit(handler){return async function(event){
   catch(error){status.hidden=false;status.className='workspace-form-status error';status.textContent='تعذر تأكيد الحفظ. بقيت الحركة على هذا الجهاز؛ أعد المحاولة من هذا النموذج لتجنب تكرارها. '+String(error?.message||'');}
   finally{busyForms.delete(form);form.removeAttribute('aria-busy');buttons.forEach(({button,disabled})=>button.disabled=disabled)}
 };}
+
+function guardAction(handler,selector='#expenses'){
+  return function(...args){
+    const container=document.querySelector('.modal.open .sheet')||document.querySelector(selector);
+    return guardedSubmit(()=>handler.apply(this,args))({preventDefault(){},currentTarget:container});
+  };
+}
 
 function preserveMaintenanceState(){
   if(!Array.isArray(db.maintenanceJobs))db.maintenanceJobs=[];
@@ -171,10 +176,10 @@ async function saveAccountingPayment(event){event.preventDefault();const form=ev
 async function deletePayment(noteId,paymentId){const note=findNote(noteId),row=payments(note).find(item=>item.id===paymentId);if(!note||!row||!confirm(`حذف سداد ${money(row.amount)}؟ سيعاد المبلغ إلى المتبقي.`))return;note.payments=payments(note).filter(item=>item.id!==paymentId);note.updatedAt=now();addAudit('حذف','سداد ملاحظة حسابية',`${note.title} — ${money(row.amount)}`,row,null);await persistFinance();}
 
 function wrapOrdinaryExpenseEditor(){const original=window.openExpense;if(typeof original!=='function'||original.__financeSourcesWrapped)return;const wrapped=function(id){const row=id?expenses().find(item=>item.id===id):null;if(row?.maintenancePaymentId){openMaintenancePayment(row.maintenanceJobId,row.maintenancePaymentId);return}if(isSalary(row)){openSalaryExpense(row.id);return}return original.apply(this,arguments)};wrapped.__financeSourcesWrapped=true;window.openExpense=wrapped;}
-function install(){const save=window.saveExpense;if(typeof save==='function'&&!save.__financeSubmitGuard){const wrapped=guardedSubmit(save);wrapped.__financeSubmitGuard=true;window.saveExpense=wrapped}preserveMaintenanceState();installStyles();renderAllFinanceTools();wrapOrdinaryExpenseEditor();const base=window.renderExpenses;if(typeof base==='function'&&!base.__financeOrganizer){const wrapped=function(){const result=base.apply(this,arguments);setTimeout(renderAllFinanceTools,0);return result};wrapped.__financeOrganizer=true;window.renderExpenses=wrapped;}}
+function install(){if(typeof window.deleteExpense==='function'&&!window.deleteExpense.__financeDeleteGuard){const wrapped=guardAction(window.deleteExpense);wrapped.__financeDeleteGuard=true;window.deleteExpense=wrapped;try{deleteExpense=wrapped}catch(_){}}const save=window.saveExpense;if(typeof save==='function'&&!save.__financeSubmitGuard){const wrapped=guardedSubmit(save);wrapped.__financeSubmitGuard=true;window.saveExpense=wrapped}preserveMaintenanceState();installStyles();renderAllFinanceTools();wrapOrdinaryExpenseEditor();const base=window.renderExpenses;if(typeof base==='function'&&!base.__financeOrganizer){const wrapped=function(){const result=base.apply(this,arguments);setTimeout(renderAllFinanceTools,0);return result};wrapped.__financeOrganizer=true;window.renderExpenses=wrapped;}}
 
-window.openMaintenanceJob=openMaintenanceJob;window.deleteMaintenanceJob=deleteMaintenanceJob;window.openMaintenancePayment=openMaintenancePayment;window.deleteMaintenancePayment=deleteMaintenancePayment;window.openSalaryExpense=openSalaryExpense;window.deleteSalaryExpense=deleteSalaryExpense;
-window.openAccountingNote=openNote;window.deleteAccountingNote=deleteNote;window.openAccountingPayment=openPayment;window.deleteAccountingPayment=deletePayment;window.renderAccountingNotes=renderAllFinanceTools;
-window.AccountingNotes={summary,payments};window.FinanceOrganizer={summary,render:renderAllFinanceTools,guardedSubmit};
+window.openMaintenanceJob=openMaintenanceJob;window.deleteMaintenanceJob=guardAction(deleteMaintenanceJob);window.openMaintenancePayment=openMaintenancePayment;window.deleteMaintenancePayment=guardAction(deleteMaintenancePayment);window.openSalaryExpense=openSalaryExpense;window.deleteSalaryExpense=guardAction(deleteSalaryExpense);
+window.openAccountingNote=openNote;window.deleteAccountingNote=guardAction(deleteNote);window.openAccountingPayment=openPayment;window.deleteAccountingPayment=guardAction(deletePayment);window.renderAccountingNotes=renderAllFinanceTools;
+window.AccountingNotes={summary,payments};window.FinanceOrganizer={summary,render:renderAllFinanceTools,guardedSubmit,guardAction,persistFinance};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })();

@@ -1,9 +1,9 @@
 // Keep this app's cache isolated from other projects sharing the same GitHub Pages origin.
 const SCOPE_PATH=new URL(self.registration.scope).pathname.replace(/\/+$/,'')||'/';
 const CACHE_NAMESPACE=`adwaa-alsharq:${SCOPE_PATH}:`;
-const CACHE=`${CACHE_NAMESPACE}app-state-20260922-postponement-1`;
+const CACHE=`${CACHE_NAMESPACE}app-state-20261023-protected-1`;
 const FALLBACK='./index.html';
-const ASSETS=['./index.html','./manifest.json','./supabase-config.staging.js','./booking-financial-core.js?v=20260922-1','./booking-postponement.js?v=20260922-1','./arabic-number-input.js?v=20260921-1','./booking-date-stability.js?v=20260922-1'];
+const ASSETS=['./index.html','./local-data-protection.js?v=20261023-1','./booking-persist-update-path.js?v=20261023-2','./manifest.json','./supabase-config.staging.js','./booking-financial-core.js?v=20260922-1','./booking-postponement.js?v=20260922-1','./arabic-number-input.js?v=20260921-1','./booking-date-stability.js?v=20260922-1'];
 
 function isAppShellRequest(request){
   const requestUrl=new URL(request.url);
@@ -46,10 +46,12 @@ self.addEventListener('fetch',event=>{
     return;
   }
   const sameOrigin=new URL(event.request.url).origin===self.location.origin;
+  const url=new URL(event.request.url);
+  const staticAsset=/\.(?:js|css|png|jpg|jpeg|svg|ico|woff2?)$/i.test(url.pathname)||url.pathname.endsWith('/manifest.json');
   event.respondWith(
     fetch(event.request,sameOrigin?{cache:'no-store'}:{})
       .then(response=>{
-        if(response.ok&&sameOrigin){
+        if(response.ok&&sameOrigin&&staticAsset&&!/private|no-store/i.test(response.headers.get('cache-control')||'')){
           const copy=response.clone();
           caches.open(CACHE).then(cache=>cache.put(event.request,copy));
         }
