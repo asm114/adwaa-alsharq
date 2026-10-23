@@ -6,6 +6,7 @@ on:
       - '**.html'
       - 'tests/**'
       - 'supabase/migrations/**'
+      - 'docs/maintenance-server-guard*'
       - '.github/workflows/maintenance-acceptance.yml'
 permissions:
   contents: read

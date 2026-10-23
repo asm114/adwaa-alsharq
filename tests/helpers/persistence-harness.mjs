@@ -19,6 +19,11 @@ export function harness(shared={row:{id:'main',data:{bookings:[],seq:1},updated_
   if(control.writeError)throw Error('lost response');
   return{data:{id:'main',updated_at:payload.updated_at},error:null};
  }};return q}};
- vm.runInNewContext(source,c);c.AdwaaPersistence.acceptRemote(shared.row);
+ if(options.rpc)c.supabaseClient.rpc=(name,args)=>{
+  if(name!=='adwaa_cas_write_app_state_v1')throw Error('unexpected RPC');
+  const next=new Date(Math.max(Date.now(),Date.parse(args.p_expected_updated_at)+1)).toISOString();
+  return c.supabaseClient.from('app_state').update({data:args.p_data,updated_at:next}).eq('id','main').eq('updated_at',args.p_expected_updated_at);
+ };
+ vm.runInNewContext(options.source||source,c);c.AdwaaPersistence.acceptRemote(shared.row);
  return {c,control,shared};
 }

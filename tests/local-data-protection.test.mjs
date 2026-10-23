@@ -58,3 +58,14 @@ test('different deployment paths have separate vaults and active caches',async()
  await first.vault.create(pass);await second.vault.create(pass);
  const record=await first.vault.encrypt(data);await assert.rejects(second.vault.decrypt(record));
 });
+
+test('closing the session during key derivation cannot reopen the vault later',async()=>{
+ const {vault,storage}=setup();const pending=vault.create(pass);vault.lock();
+ await assert.rejects(pending);assert.equal(vault.unlocked(),false);assert.ok(!Object.keys(storage).some(k=>k.startsWith('adwaaLocalVault:')));
+});
+test('late unlock and decryption results are discarded after the vault locks',async()=>{
+ const {vault}=setup();await vault.create(pass);const sealed=await vault.encrypt(data);vault.lock();
+ const pending=vault.unlock(pass);vault.lock();await assert.rejects(pending);assert.equal(vault.unlocked(),false);
+ await vault.unlock(pass);const opened=vault.decrypt(sealed);vault.lock();await assert.rejects(opened);
+ await vault.unlock(pass);assert.equal(JSON.stringify(await vault.decrypt(sealed)),JSON.stringify(data));
+});

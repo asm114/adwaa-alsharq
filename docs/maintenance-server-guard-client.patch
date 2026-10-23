@@ -1,0 +1,25 @@
+--- a/booking-persist-update-path.js
++++ b/booking-persist-update-path.js
+@@ -45,15 +45,16 @@
+ const nextVersion=base=>new Date(Math.max(Date.now(),Date.parse(base)+1)).toISOString();
+ async function writeRow(snapshot,base,client=supabaseClient,rowId=STATE_ROW_ID,next=null){
+   validateState(snapshot);
+-  if(!base||!Number.isFinite(Date.parse(base)))throw new Error('لم تُقرأ نسخة السجل.');
+-  next=next||nextVersion(base);
+-  const payload={data:clone(snapshot),updated_at:next};
+-  const result=await request(signal=>withSignal(client.from('app_state').update(payload)
+-    .eq('id',rowId).eq('updated_at',base).select('id,updated_at').maybeSingle(),signal));
++  if(rowId!=='main'||!base||!Number.isFinite(Date.parse(base)))throw new Error('لم تُقرأ نسخة السجل.');
++  const result=await request(signal=>withSignal(client.rpc('adwaa_cas_write_app_state_v1',{
++    p_expected_updated_at:base,p_data:clone(snapshot)
++  }).maybeSingle(),signal));
+   if(result.error)throw result.error;
+   if(!result.data?.id)throw conflict();
+-  return {...result.data,updated_at:result.data.updated_at||next};
++  if(!result.data.updated_at)throw new Error('لم يؤكد الخادم إصدار الكتابة.');
++  return result.data;
+ }
++
+ function hasUnsavedChanges(){
+   if(active||pending)return true;
+   try{return accepted!==null&&!equivalent(normalizeDB(db),normalizeDB(accepted))}catch(_){return true}

@@ -7,7 +7,7 @@ const CACHE='adwaaDB:protected:'+scope;
 const RECOVERY='adwaaLegacyRecovery:v1:'+scope+':';
 const purpose='adwaa-local-vault-v1';
 const bytes=new TextEncoder(),decode=new TextDecoder();
-let key=null;let cacheQueue=Promise.resolve();
+let key=null,epoch=0;let cacheQueue=Promise.resolve();
 const encode=value=>btoa(String.fromCharCode(...value));
 const unbase=value=>Uint8Array.from(atob(value),x=>x.charCodeAt(0));
 const meta=()=>{try{return JSON.parse(localStorage.getItem(META)||'null')}catch(_){return null}};
@@ -18,8 +18,10 @@ async function derive(passphrase,salt){
 }
 async function encrypt(value){
   if(!key)throw new Error('افتح التخزين المحلي المحمي بعبارة المرور أولًا.');
+  const operationEpoch=epoch;
   const iv=crypto.getRandomValues(new Uint8Array(12));
   const data=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:bytes.encode(purpose+scope)},key,bytes.encode(JSON.stringify(value))));
+  if(operationEpoch!==epoch)throw new Error('أُغلق التخزين أثناء العملية.');
   // Chunk encoding avoids call-stack overflow with large backups/photos.
   let binary='';for(let i=0;i<data.length;i+=8192)binary+=String.fromCharCode(...data.subarray(i,i+8192));
   return {protected:purpose,scope,iv:encode(iv),ciphertext:btoa(binary)};
@@ -27,20 +29,29 @@ async function encrypt(value){
 async function decrypt(value){
   if(!key)throw new Error('التخزين المحلي مقفل. أدخل عبارة المرور لفتح النسخ المحمية.');
   if(value?.protected!==purpose)throw new Error('السجل المحلي غير محمي؛ راجع ترحيل النسخ القديمة.');
+  const operationEpoch=epoch;
   const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:unbase(value.iv),additionalData:bytes.encode(purpose+scope)},key,unbase(value.ciphertext));
+  if(operationEpoch!==epoch)throw new Error('أُغلق التخزين أثناء العملية.');
   return JSON.parse(decode.decode(plain));
 }
 async function unlock(passphrase){
   const record=meta();if(!record)throw new Error('لم تُهيأ حماية التخزين المحلي بعد.');
-  key=await derive(passphrase,record.salt);
-  try{const check=await decrypt(record.check);if(check.purpose!==purpose)throw new Error('invalid')}catch(_){key=null;throw new Error('عبارة المرور غير صحيحة أو بيانات الحماية تالفة. لم تُحذف أي بيانات.')}
+  const operationEpoch=++epoch;key=null;
+  const derived=await derive(passphrase,record.salt);
+  if(operationEpoch!==epoch)throw new Error('أُلغي فتح التخزين بعد إغلاق الجلسة.');
+  key=derived;
+  try{const check=await decrypt(record.check);if(check.purpose!==purpose)throw new Error('invalid')}catch(_){if(operationEpoch!==epoch)throw new Error('أُلغي فتح التخزين بعد إغلاق الجلسة.');key=null;throw new Error('عبارة المرور غير صحيحة أو بيانات الحماية تالفة. لم تُحذف أي بيانات.')}
 }
 async function create(passphrase){
   if(meta())throw new Error('توجد حماية سابقة. افتحها بعبارة المرور الحالية دون استبدال المفتاح.');
   if(String(passphrase).length<12)throw new Error('استخدم عبارة مرور من 12 حرفًا على الأقل، واحفظها في مدير كلمات المرور.');
+  const operationEpoch=++epoch;
   const salt=encode(crypto.getRandomValues(new Uint8Array(16)));
-  key=await derive(passphrase,salt);
+  const derived=await derive(passphrase,salt);
+  if(operationEpoch!==epoch)throw new Error('أُلغي إعداد التخزين بعد إغلاق الجلسة.');
+  key=derived;
   const check=await encrypt({purpose});
+  if(operationEpoch!==epoch)throw new Error('أُغلق التخزين أثناء الإعداد.');
   try{localStorage.setItem(META,JSON.stringify({salt,check}))}catch(error){key=null;throw error}
 }
 function legacyKeys(){return Object.keys(localStorage).filter(name=>name==='adwaaDB'||name.startsWith('adwaaPreBookingReconciliation-'))}
@@ -103,7 +114,7 @@ const authStorage={
   removeItem(name){memory.delete(name);try{sessionStorage.removeItem(name);if(name.startsWith(authKey))localStorage.removeItem(name)}catch(_){}}
 };
 window.AdwaaLocalVault={authStorage,create,unlock,encrypt,decrypt,migrateLocalStorage,sealRecord,openRecord,cache,
-  configured:()=>!!meta(),unlocked:()=>!!key,lock:()=>{key=null},
+  configured:()=>!!meta(),unlocked:()=>!!key,lock:()=>{epoch++;key=null},
   scope,cacheKey:CACHE,hasCached:()=>!!localStorage.getItem(CACHE),
   recoveryKeys:()=>Object.keys(localStorage).filter(name=>name.startsWith(RECOVERY)),
   legacyKeys:()=>legacyKeys().filter(name=>{try{return JSON.parse(localStorage.getItem(name))?.protected!==purpose}catch(_){return true}})};

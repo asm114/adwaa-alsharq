@@ -8,6 +8,7 @@ import hashlib
 import hmac
 import json
 import os
+from pathlib import Path
 import secrets
 import subprocess
 import time
@@ -29,7 +30,7 @@ subprocess.run(docker+['run','--rm','-d','--name',rest,'--network','container:'+
 
 def token(email):
     encode=lambda x:base64.urlsafe_b64encode(x).rstrip(b'=')
-    payload={'role':'authenticated','email':email,'exp':int(time.time())+300}
+    payload={'sub':'00000000-0000-4000-8000-000000000001','role':'authenticated','email':email,'exp':int(time.time())+300}
     signing=encode(b'{"alg":"HS256","typ":"JWT"}')+b'.'+encode(json.dumps(payload).encode())
     return (signing+b'.'+encode(hmac.new(secret.encode(),signing,hashlib.sha256).digest())).decode()
 
@@ -72,6 +73,29 @@ try:
     assert after[0]['data']['seq']==baseline['data']['seq']
     # Evidence for the rollout gate: unchanged legacy clients still hold UPDATE permission.
     assert http('PATCH','/app_state?id=eq.main',manager,{'data':{**after[0]['data'],'legacyBypassProbe':True}})[0]==200
-    print(json.dumps({'legacy_client_gate':'server enforcement or complete client cutover still required','result':'PASS','checks':['real PostgREST HTTP PATCH: one CAS winner','locally signed JWT policies','anon denied','other identity cannot read/write','delete denied','payments and sequence invariant'],'production_access':False}))
+    # Validate the approval-only server guard in this isolated database, not in the app.
+    def sql(text):
+        subprocess.run(docker+['exec','-i',args.container,'psql','-X','-v','ON_ERROR_STOP=1','-U','postgres'],input=text,text=True,capture_output=True,env=env,check=True)
+    sql("create function auth.uid() returns uuid language sql stable as $$ select nullif(auth.jwt()->>'sub','')::uuid $$;")
+    root=Path(__file__).resolve().parents[1]
+    sql((root/'docs/maintenance-server-guard-proposal.sql').read_text())
+    rpc='/rpc/adwaa_cas_write_app_state_v1'
+    for _ in range(30):
+        code,_=http('POST',rpc,manager,{'p_expected_updated_at':None,'p_data':baseline['data']})
+        if code!=404:break
+        time.sleep(.2)
+    assert code==400,code
+    assert http('PATCH','/app_state?id=eq.main',manager,{'data':{}})[0]==403
+    assert http('POST',rpc,'unauthorized@isolated.test',{'p_expected_updated_at':baseline['updated_at'],'p_data':baseline['data']})[0]==403
+    assert http('POST',rpc,None,{'p_expected_updated_at':baseline['updated_at'],'p_data':baseline['data']})[0] in [401,403]
+    _,current=http('GET','/app_state?select=data,updated_at',manager)
+    _,written=http('POST',rpc,manager,{'p_expected_updated_at':current[0]['updated_at'],'p_data':current[0]['data']})
+    assert len(written)==1
+    assert http('POST',rpc,manager,{'p_expected_updated_at':current[0]['updated_at'],'p_data':current[0]['data']})==(200,[])
+    _,guarded=http('GET','/app_state?select=data',manager)
+    assert guarded[0]['data']==current[0]['data']
+    sql((root/'docs/maintenance-server-guard-rollback.sql').read_text())
+    assert http('PATCH','/app_state?id=eq.main',manager,{'data':guarded[0]['data']})[0]==200
+    print(json.dumps({'legacy_client_gate':'server enforcement or complete client cutover still required','server_guard_proposal':'PASS: denies legacy direct writes, authorizes CAS RPC, rejects stale RPC, reversible without data change','result':'PASS','checks':['real PostgREST HTTP PATCH: one CAS winner','locally signed JWT policies','anon denied','other identity cannot read/write','delete denied','payments and sequence invariant'],'production_access':False}))
 finally:
     subprocess.run(docker+['rm','-f',rest],env=env,capture_output=True)

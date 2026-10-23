@@ -1413,6 +1413,9 @@ async function saveManagerCredentialPreference(email,password){
 }
 function showLogin(){
   window.AdwaaLocalVault?.lock();window.AdwaaPersistence?.reset();
+  document.getElementById('localProtectionForm')?.reset();
+  document.querySelectorAll?.('.modal.open').forEach(modal=>modal.classList.remove('open'));
+  document.body.classList.remove('modal-open');
   db=normalizeDB({});invalidateCaches();
   currentUser=null;
   document.getElementById('authGate')?.removeAttribute('hidden');
