@@ -32,7 +32,7 @@ test('production config owns booking submit and verifies Supabase before closing
   assert.match(config,/event\.stopImmediatePropagation\(\)/);
   assert.match(config,/writeStateAndVerifyBooking/);
   assert.match(config,/\.from\('app_state'\)/);
-  assert.match(config,/\.update\(payload\)/);
+  assert.match(config,/const saved=await window\.persist\(\)/);
   assert.match(config,/\.select\('data,updated_at'\)/);
   assert.match(config,/closeModal\('bookingModal'\)/);
   assert.ok(!config.includes('booking-save-direct-production.js?v=20260916-2'));

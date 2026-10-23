@@ -13,7 +13,7 @@ function injectStyles(){
   style.id='bookingSaveStabilityStyles';
   style.textContent=`
     #bookingSaveStatusToast{position:fixed;z-index:999999;top:max(18px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:min(520px,calc(100vw - 28px));display:none;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:16px;border:1px solid #d8e1dc;background:#fff;box-shadow:0 16px 45px rgba(15,32,40,.22);font-weight:800;line-height:1.6;direction:rtl}
-    #bookingSaveStatusToast.show{display:flex}#bookingSaveStatusToast.saving{border-color:#9db8ad;background:#f4fbf8;color:#164b3e}#bookingSaveStatusToast.success{border-color:#8bc8a8;background:#effbf5;color:#145c3d}#bookingSaveStatusToast.error{border-color:#e1a5a5;background:#fff1f1;color:#8b3030}
+    #bookingSaveStatusToast.show{display:flex}#bookingSaveStatusToast.saving{border-color:#9db8ad;background:#f4fbf8;color:#164b3e}#bookingSaveStatusToast.success{border-color:#8bc8a8;background:#effbf5;color:#145c3d}#bookingSaveStatusToast.warning{border-color:#d2b268;background:#fff9ea;color:#75510b}#bookingSaveStatusToast.error{border-color:#e1a5a5;background:#fff1f1;color:#8b3030}
     #bookingSaveStatusToast .save-status-icon{font-size:22px;line-height:1.2}#bookingSaveStatusToast .save-status-copy{display:grid;gap:2px}#bookingSaveStatusToast small{font-weight:650;opacity:.86}
     #bookingSaveStatusToast.saving .save-status-icon{animation:adwaaSaveSpin 1s linear infinite}@keyframes adwaaSaveSpin{to{transform:rotate(360deg)}}
   `;
@@ -29,7 +29,7 @@ function toast(){
 }
 function showStatus(state,title,detail='',autoHide=0){
   const node=toast();clearTimeout(toastTimer);node.className=`show ${state}`;
-  node.querySelector('.save-status-icon').textContent=state==='saving'?'⏳':state==='success'?'✅':'❌';
+  node.querySelector('.save-status-icon').textContent=state==='saving'?'⏳':state==='success'?'✅':state==='warning'?'⚠️':'❌';
   node.querySelector('b').textContent=title;node.querySelector('small').textContent=detail||'';
   if(autoHide)toastTimer=setTimeout(()=>node.className='',autoHide);
 }

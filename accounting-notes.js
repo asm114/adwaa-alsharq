@@ -175,6 +175,6 @@ function install(){const save=window.saveExpense;if(typeof save==='function'&&!s
 
 window.openMaintenanceJob=openMaintenanceJob;window.deleteMaintenanceJob=deleteMaintenanceJob;window.openMaintenancePayment=openMaintenancePayment;window.deleteMaintenancePayment=deleteMaintenancePayment;window.openSalaryExpense=openSalaryExpense;window.deleteSalaryExpense=deleteSalaryExpense;
 window.openAccountingNote=openNote;window.deleteAccountingNote=deleteNote;window.openAccountingPayment=openPayment;window.deleteAccountingPayment=deletePayment;window.renderAccountingNotes=renderAllFinanceTools;
-window.AccountingNotes={summary,payments};window.FinanceOrganizer={summary,render:renderAllFinanceTools};
+window.AccountingNotes={summary,payments};window.FinanceOrganizer={summary,render:renderAllFinanceTools,guardedSubmit};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })();

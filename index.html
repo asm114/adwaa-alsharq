@@ -1517,7 +1517,7 @@ function normalizeDB(value){
 async function dataStateHash(value){return sha256Text(JSON.stringify(normalizeDB(value)))}
 async function markRemoteStateConfirmed(value){
   lastConfirmedRemoteHash=await dataStateHash(value);
-  void renderDataProtectionSyncStatus();
+  try{Promise.resolve(renderDataProtectionSyncStatus()).catch(()=>{})}catch(_){}
 }
 async function renderDataProtectionSyncStatus(){
   const el=document.getElementById('protectionSyncStatus');if(!el)return;
