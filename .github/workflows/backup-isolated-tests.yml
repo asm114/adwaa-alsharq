@@ -1,0 +1,26 @@
+name: Backup isolated acceptance
+on:
+  pull_request:
+    paths:
+      - tools/backup/**
+      - tests/backup/**
+      - .github/workflows/database-backup.yml
+      - .github/workflows/backup-isolated-tests.yml
+permissions:
+  contents: read
+jobs:
+  synthetic-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - run: |
+          python3 -m venv "$RUNNER_TEMP/backup-tests"
+          "$RUNNER_TEMP/backup-tests/bin/pip" install -r tools/backup/requirements.txt
+          "$RUNNER_TEMP/backup-tests/bin/python" -m unittest discover -s tests/backup -p 'test_*.py' -v
+          "$RUNNER_TEMP/backup-tests/bin/python" tests/backup/restore_integration.py
+      - if: always()
+        run: |
+          docker ps -aq --filter 'name=adwaa-backup-source-' --filter 'name=adwaa-backup-restore-' | xargs -r docker rm -f

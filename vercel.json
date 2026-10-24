@@ -1,0 +1,7 @@
+{
+  "git": {
+    "deploymentEnabled": {
+      "ops/encrypted-daily-backup-20261024": false
+    }
+  }
+}

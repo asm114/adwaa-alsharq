@@ -1,0 +1,90 @@
+name: Encrypted PostgreSQL backup (manual approval only)
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Preflight, new backup plus restore, or restore latest backup
+        type: choice
+        options: [preflight, backup, restore]
+        default: preflight
+        required: true
+# Intentionally NO scheduled event. Activation is a separate approved change.
+permissions:
+  contents: read
+concurrency:
+  group: production-postgres-backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    environment: production-backup
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Install pinned backup dependencies
+        run: |
+          python3 -m venv "$RUNNER_TEMP/backup-venv"
+          "$RUNNER_TEMP/backup-venv/bin/pip" install -r tools/backup/requirements.txt
+      - name: Read-only export / encrypted private storage / isolated restore
+        env:
+          BACKUP_MODE: ${{ inputs.operation }}
+          PGHOST: ${{ secrets.BACKUP_PGHOST }}
+          PGPORT: '5432'
+          PGUSER: ${{ secrets.BACKUP_PGUSER }}
+          PGDATABASE: postgres
+          PGPASSWORD: ${{ secrets.BACKUP_PGPASSWORD }}
+          PGSSLMODE: verify-full
+          BACKUP_CA_PEM: ${{ secrets.BACKUP_CA_PEM }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.BACKUP_AWS_SESSION_TOKEN }}
+          AWS_DEFAULT_REGION: ${{ vars.BACKUP_AWS_REGION }}
+          AWS_EC2_METADATA_DISABLED: 'true'
+          BACKUP_BUCKET: ${{ vars.BACKUP_BUCKET }}
+          BACKUP_BUCKET_OWNER: ${{ vars.BACKUP_BUCKET_OWNER }}
+          BACKUP_MAX_DATABASE_BYTES: ${{ vars.BACKUP_MAX_DATABASE_BYTES || '1073741824' }}
+          BACKUP_RESTORE_IMAGE: ${{ vars.BACKUP_RESTORE_IMAGE }}
+          BACKUP_EXECUTION_APPROVED: ${{ vars.BACKUP_EXECUTION_APPROVED }}
+          BACKUP_RESTORE_APPROVED: ${{ vars.BACKUP_RESTORE_APPROVED }}
+          BACKUP_COST_APPROVED: ${{ vars.BACKUP_COST_APPROVED }}
+        run: |
+          set -euo pipefail
+          umask 077
+          export PGSSLROOTCERT="$RUNNER_TEMP/adwaa-postgres-ca.pem"
+          trap 'rm -f "$PGSSLROOTCERT"' EXIT
+          printf '%s' "$BACKUP_CA_PEM" > "$PGSSLROOTCERT"
+          "$RUNNER_TEMP/backup-venv/bin/python" tools/backup/backup.py "$BACKUP_MODE"
+      - name: Remove isolated target if the job was interrupted
+        if: always()
+        run: |
+          for kind in export restore; do
+            docker ps -aq --filter "name=adwaa-backup-$kind-" | xargs -r docker rm -f
+          done
+  notify-failure:
+    needs: backup
+    if: always() && needs.backup.result == 'failure'
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - name: Notify maintainers without database diagnostics
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ALERT_ASSIGNEE: ${{ vars.BACKUP_ALERT_ASSIGNEE || github.repository_owner }}
+          RUN_LINK: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          title='Production backup needs attention'
+          existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
+          body="Backup or restore did not pass. No success is certified. Review the protected run: $RUN_LINK. Do not paste database logs or credentials."
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body" --assignee "$ALERT_ASSIGNEE"
+          fi
