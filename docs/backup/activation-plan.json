@@ -1,0 +1,11 @@
+{
+  "enabled": false,
+  "daily_cron_utc": "0 0 * * *",
+  "timezone": "Asia/Riyadh",
+  "local_time": "03:00",
+  "retention_days": 30,
+  "deletion_enabled": false,
+  "requires_real_production_restore": true,
+  "requires_explicit_owner_approval": true,
+  "legacy_backup_retention": "never touched"
+}

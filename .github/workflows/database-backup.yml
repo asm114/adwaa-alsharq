@@ -5,7 +5,7 @@ on:
       operation:
         description: Preflight, new backup plus restore, or restore latest backup
         type: choice
-        options: [preflight, backup, restore]
+        options: [preflight, backup, restore, init-drive, retention-plan]
         default: preflight
         required: true
 # Intentionally NO scheduled event. Activation is a separate approved change.
@@ -30,7 +30,7 @@ jobs:
           "$RUNNER_TEMP/backup-venv/bin/pip" install -r tools/backup/requirements.txt
       - name: Read-only export / encrypted private storage / isolated restore
         env:
-          BACKUP_MODE: ${{ inputs.operation }}
+          BACKUP_MODE: ${{ inputs.operation || 'backup' }}
           PGHOST: ${{ secrets.BACKUP_PGHOST }}
           PGPORT: '5432'
           PGUSER: ${{ secrets.BACKUP_PGUSER }}
@@ -39,13 +39,17 @@ jobs:
           PGSSLMODE: verify-full
           BACKUP_CA_PEM: ${{ secrets.BACKUP_CA_PEM }}
           BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.BACKUP_AWS_SESSION_TOKEN }}
-          AWS_DEFAULT_REGION: ${{ vars.BACKUP_AWS_REGION }}
-          AWS_EC2_METADATA_DISABLED: 'true'
-          BACKUP_BUCKET: ${{ vars.BACKUP_BUCKET }}
-          BACKUP_BUCKET_OWNER: ${{ vars.BACKUP_BUCKET_OWNER }}
+          BACKUP_STORAGE_PROVIDER: drive
+          BACKUP_DRIVE_CLIENT_ID: ${{ secrets.BACKUP_DRIVE_CLIENT_ID }}
+          BACKUP_DRIVE_CLIENT_SECRET: ${{ secrets.BACKUP_DRIVE_CLIENT_SECRET }}
+          BACKUP_DRIVE_REFRESH_TOKEN: ${{ secrets.BACKUP_DRIVE_REFRESH_TOKEN }}
+          BACKUP_DRIVE_ACCOUNT: ${{ vars.BACKUP_DRIVE_ACCOUNT }}
+          BACKUP_DRIVE_FOLDER_ID: ${{ vars.BACKUP_DRIVE_FOLDER_ID }}
+          BACKUP_DRIVE_ESTIMATED_DAILY_BYTES: ${{ vars.BACKUP_DRIVE_ESTIMATED_DAILY_BYTES }}
+          BACKUP_DRIVE_SETUP_APPROVED: ${{ vars.BACKUP_DRIVE_SETUP_APPROVED }}
+          BACKUP_DRIVE_RETENTION_APPROVED: 'false'
+          BACKUP_PRODUCTION_RESTORE_VERIFIED: 'false'
+          BACKUP_SCHEDULE_APPROVED: 'false'
           BACKUP_MAX_DATABASE_BYTES: ${{ vars.BACKUP_MAX_DATABASE_BYTES || '1073741824' }}
           BACKUP_RESTORE_IMAGE: ${{ vars.BACKUP_RESTORE_IMAGE }}
           BACKUP_EXECUTION_APPROVED: ${{ vars.BACKUP_EXECUTION_APPROVED }}

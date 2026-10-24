@@ -1,3 +1,6 @@
 boto3==1.43.118
 cryptography==50.0.2
 psycopg[binary]==3.3.6
+google-auth==2.62.0
+google-auth-httplib2==0.4.4
+google-api-python-client==2.201.0

@@ -1,5 +1,8 @@
 """Real PG dump, encryption, independent restore; every row invented, no network."""
 import importlib.util,io,json,os,subprocess,tempfile,uuid,base64,time
+from unittest.mock import patch
+from test_drive_store import Service,Download,EMAIL,FOLDER
+import drive_store
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 spec=importlib.util.spec_from_file_location('backup',ROOT/'tools/backup/backup.py');b=importlib.util.module_from_spec(spec);spec.loader.exec_module(b)
@@ -47,8 +50,16 @@ try:
             b.seal(io.BytesIO(dump),Path(d)/(part+'.enc'),b.key(),b.PROJECT+'/'+backup_id+'/'+part)
         b.seal(io.BytesIO(json.dumps(verification).encode()),Path(d)/'verification.enc',b.key(),b.PROJECT+'/'+backup_id+'/verification')
         manifest={'project':b.PROJECT,'format':1,'backup_id':backup_id,'files':{p:b.digest(Path(d)/(p+'.enc')) for p in b.PARTS}}
+        # Round-trip the actual encrypted fixture through the Drive transport
+        # double, then restore exactly the downloaded files with real PostgreSQL.
+        service=Service();store=drive_store.DriveStore(service,FOLDER,EMAIL,10000000)
+        for part in b.PARTS:store.upload_file(str(Path(d)/(part+'.enc')),FOLDER,b.PREFIX+backup_id+'/'+part+'.enc')
+        store.put_object(Bucket=FOLDER,Key=b.PREFIX+backup_id+'/complete.json',Body=json.dumps(manifest).encode())
+        for part in b.PARTS:Path(d,part+'.enc').unlink()
+        with patch.object(drive_store,'MediaIoBaseDownload',Download):b.fetch_committed(store,FOLDER,EMAIL,manifest,d)
+        assert service.payloads['legacy']==b'previous JSON' and service.deleted==[]
         result=b.isolated_restore(d,manifest);assert result['restore_verified'] is True
         assert sql('SELECT last_value FROM reservations_id_seq').strip()==b'40'
         assert b.snapshot(conn)=={k:v for k,v in verification.items() if k not in ['project','backup_id','storage_files_included']}
-        print(json.dumps({'synthetic_independent_restore':'PASS','tables':len(verification['tables']),'production_access':False,'checks':['encrypted dump and roles','owners, RLS and ACL','old and new bookings, payments, expenses, installments, commissions','all row fingerprints and sequences equal; source unchanged']}))
+        print(json.dumps({'synthetic_independent_restore':'PASS','tables':len(verification['tables']),'production_access':False,'checks':['encrypted dump and roles via mocked Drive round-trip','owners, RLS and ACL','old and new bookings, payments, expenses, installments, commissions','all row fingerprints and sequences equal; source unchanged']}))
 finally:b.docker(['rm','-f',name])

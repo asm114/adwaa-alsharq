@@ -1,9 +1,10 @@
-"""Read-only PG17 export; authenticated encryption; private S3. No scheduled trigger.
+"""Read-only PG17 export; authenticated encryption; private Drive or explicit S3. No scheduled trigger.
 Only the isolated restore container ever executes SQL writes. Errors are redacted.
 """
 import base64,hashlib,io,json,os,re,secrets,subprocess,sys,tempfile,time,uuid
 from datetime import datetime,timezone
 from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parent))
 import boto3,psycopg
 from botocore.config import Config
 from botocore.exceptions import ClientError
@@ -146,6 +147,12 @@ def check_storage(s3,bucket,owner):
 def storage():
     require(env('BACKUP_COST_APPROVED')=='true','storage and runner costs not approved')
     require(env('BACKUP_EXECUTION_APPROVED')=='true','manual execution not approved')
+    provider=os.environ.get('BACKUP_STORAGE_PROVIDER','drive')
+    if provider=='drive':
+        from drive_store import DriveStore,authenticate
+        drive=DriveStore(authenticate(),env('BACKUP_DRIVE_FOLDER_ID'),env('BACKUP_DRIVE_ACCOUNT'),env('BACKUP_DRIVE_ESTIMATED_DAILY_BYTES'))
+        drive.preflight();return drive,drive.folder,drive.email
+    require(provider=='s3','unsupported backup storage provider')
     s3=boto3.client('s3',config=Config(connect_timeout=15,read_timeout=120,retries={'mode':'standard','max_attempts':4}));bucket=env('BACKUP_BUCKET');owner=env('BACKUP_BUCKET_OWNER')
     require(bool(re.fullmatch(r'\d{12}',owner)),'invalid expected bucket owner')
     check_storage(s3,bucket,owner)
@@ -195,6 +202,7 @@ def backup(s3,bucket,owner,directory):
     verification.update(project=PROJECT,backup_id=backup_id,storage_files_included=False)
     seal(io.BytesIO(json.dumps(verification).encode()),Path(directory)/'verification.enc',secret,PROJECT+'/'+backup_id+'/verification')
     manifest={'format':1,'project':PROJECT,'backup_id':backup_id,'files':{p:digest(Path(directory)/(p+'.enc')) for p in PARTS}}
+    if hasattr(s3,'ensure_capacity'):s3.ensure_capacity(sum(x['bytes'] for x in manifest['files'].values())+16384)
     root=PREFIX+backup_id+'/'
     for part in PARTS:
         s3.upload_file(str(Path(directory)/(part+'.enc')),bucket,root+part+'.enc',ExtraArgs={'ExpectedBucketOwner':owner,'ContentType':'application/octet-stream'})
@@ -282,12 +290,23 @@ def latest(s3,bucket,owner,directory):
 
 def main():
     os.umask(0o077)
-    require(len(sys.argv)==2 and sys.argv[1] in ['preflight','backup','restore'],'invalid mode')
+    require(len(sys.argv)==2 and sys.argv[1] in ['preflight','backup','restore','init-drive','retention-plan'],'invalid mode')
     require(os.environ.get('GITHUB_REF','').startswith('refs/heads/'),'branch ref required')
-    s3,bucket,owner=storage();mode=sys.argv[1]
+    mode=sys.argv[1]
+    if os.environ.get('GITHUB_EVENT_NAME')=='schedule':
+        require(os.environ.get('BACKUP_SCHEDULE_APPROVED')=='true' and os.environ.get('BACKUP_PRODUCTION_RESTORE_VERIFIED')=='true','scheduled execution awaits production restore and owner approval')
+        if os.environ.get('BACKUP_STORAGE_PROVIDER','drive')=='drive':require(os.environ.get('BACKUP_DRIVE_RETENTION_APPROVED')=='true','Drive retention activation not approved')
+    if mode=='init-drive':
+        require(env('BACKUP_EXECUTION_APPROVED')=='true' and env('BACKUP_COST_APPROVED')=='true' and env('BACKUP_DRIVE_SETUP_APPROVED')=='true','Drive setup not approved')
+        from drive_store import authenticate,initialize_folder
+        print('New dedicated PostgreSQL folder ID: '+initialize_folder(authenticate(),env('BACKUP_DRIVE_ACCOUNT')));return
+    s3,bucket,owner=storage()
+    if mode=='retention-plan':
+        require(hasattr(s3,'retention_plan'),'retention plan requires Drive')
+        print(json.dumps(s3.retention_plan()));return
     if mode=='preflight':
         with source_connection() as conn:require(conn.execute("SELECT to_regclass('public.app_state') IS NOT NULL").fetchone()==(True,),'app_state missing')
-        key();print('Read-only connection, TLS and private storage policy verified; no backup created.');return
+        key();print('Read-only connection, TLS and configured private storage verified; no backup created.');return
     require(env('BACKUP_RESTORE_APPROVED')=='true','restore target/capacity not approved')
     # Only encrypted artifacts in runner temp, never repository or Actions artifacts.
     temp_root=Path(env('RUNNER_TEMP')).resolve()
@@ -299,6 +318,7 @@ def main():
             fetch_committed(s3,bucket,owner,manifest,directory)
         result=isolated_restore(directory,manifest)
         s3.put_object(Bucket=bucket,Key=PREFIX+manifest['backup_id']+'/restore-ok.json',Body=json.dumps(result).encode(),ExpectedBucketOwner=owner,ContentType='application/json')
+        if hasattr(s3,'finish_retention'):print(json.dumps(s3.finish_retention(result)))
         print('Encrypted backup verification and isolated restore succeeded. Storage objects remain separately scoped.')
 if __name__=='__main__':
     try:main()

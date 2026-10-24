@@ -43,8 +43,8 @@ class BackupTests(unittest.TestCase):
         with patch.dict(os.environ,{},clear=True),patch.object(b.boto3,'client') as client,self.assertRaises(b.GateError):b.storage()
         client.assert_not_called()
     def test_export_process_receives_no_cloud_keys(self):
-        with patch.dict(os.environ,{'PGPASSWORD':'synthetic-pg','BACKUP_ENCRYPTION_KEY':'synthetic-key','AWS_SECRET_ACCESS_KEY':'synthetic-cloud'}):
-            result=b.pg_env();self.assertNotIn('BACKUP_ENCRYPTION_KEY',result);self.assertNotIn('AWS_SECRET_ACCESS_KEY',result);self.assertIn('default_transaction_read_only=on',result['PGOPTIONS'])
+        with patch.dict(os.environ,{'PGPASSWORD':'synthetic-pg','BACKUP_ENCRYPTION_KEY':'synthetic-key','AWS_SECRET_ACCESS_KEY':'synthetic-cloud','BACKUP_DRIVE_CLIENT_SECRET':'synthetic-drive-secret','BACKUP_DRIVE_REFRESH_TOKEN':'synthetic-refresh'}):
+            result=b.pg_env();self.assertNotIn('BACKUP_ENCRYPTION_KEY',result);self.assertNotIn('AWS_SECRET_ACCESS_KEY',result);self.assertNotIn('BACKUP_DRIVE_REFRESH_TOKEN',result);self.assertNotIn('BACKUP_DRIVE_CLIENT_SECRET',result);self.assertIn('default_transaction_read_only=on',result['PGOPTIONS'])
     def test_workflow_has_no_schedule_and_no_artifact_upload(self):
         text=(ROOT/'.github/workflows/database-backup.yml').read_text()
         self.assertNotIn('schedule:',text);self.assertNotIn('upload-artifact',text);self.assertNotIn('pull_request_target',text)
@@ -107,5 +107,8 @@ class BackupTests(unittest.TestCase):
             manifest={'format':1,'project':b.PROJECT,'backup_id':'20261024T000000Z-'+'a'*32,'files':{p:{'bytes':1,'sha256':'wrong'} for p in b.PARTS}}
             with self.assertRaises(b.GateError):b.isolated_restore(d,manifest)
             docker.assert_not_called()
+    def test_accidental_schedule_cannot_connect_without_approval(self):
+        with patch.dict(os.environ,{'GITHUB_REF':'refs/heads/main','GITHUB_EVENT_NAME':'schedule'},clear=True),patch.object(b.sys,'argv',['backup.py','backup']),patch.object(b,'storage') as storage,self.assertRaises(b.GateError):b.main()
+        storage.assert_not_called()
     def test_quote_untrusted_identifier(self):self.assertEqual(b.quote('x";DROP'),'"x"";DROP"')
 if __name__=='__main__':unittest.main()
