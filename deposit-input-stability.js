@@ -43,3 +43,25 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
   script.onerror=()=>console.warn('تعذر تحميل مسار حفظ الحجوزات المحسن');
   document.head.appendChild(script);
 })();
+
+// Pre-cutover loader only. These helpers are inert until an explicit
+// __adwaaBookingV2DualWrite.install({enable:true}) call is made after approval.
+(()=>{
+  if(window.__adwaaBookingV2HelperLoader)return;
+  window.__adwaaBookingV2HelperLoader=true;
+  const loadBridge=()=>{
+    if(window.__adwaaBookingV2DualWriteInstalled)return;
+    const bridge=document.createElement('script');
+    bridge.async=false;
+    bridge.src='booking-storage-v2-dualwrite.js?v=20260916-2';
+    bridge.onerror=()=>console.warn('تعذر تحميل جسر الحجوزات v2');
+    document.head.appendChild(bridge);
+  };
+  if(window.__adwaaBookingStorageV2Installed){loadBridge();return;}
+  const adapter=document.createElement('script');
+  adapter.async=false;
+  adapter.src='booking-storage-v2.js?v=20260916-2';
+  adapter.onload=loadBridge;
+  adapter.onerror=()=>console.warn('تعذر تحميل محول الحجوزات v2');
+  document.head.appendChild(adapter);
+})();
