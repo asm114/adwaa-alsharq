@@ -33,15 +33,25 @@ try:
         time.sleep(.5)
     assert ready
     sql('''CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN;
-    CREATE TABLE app_state(id text primary key,data jsonb);INSERT INTO app_state VALUES('main','{"seq":131,"bookings":[{"id":"old","total":1200,"paid":500}]}');
+    CREATE TABLE app_state(id text primary key,data jsonb);INSERT INTO app_state VALUES('main','{"seq":131,"bookings":[{"id":"old","total":1200,"paid":500}],"expenses":[{"id":"json-expense","amount":50}],"maintenance":[{"id":"json-maintenance","total":200}],"subscriptions":[{"id":"json-sub","total":800}],"installmentPurchases":[{"id":"json-plan","total":600}],"customers":[{"id":"json-customer","name":"synthetic"}],"commissions":[{"id":"json-commission","amount":30}]}');
     CREATE TABLE reservations(id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,total numeric,paid numeric); INSERT INTO reservations(total,paid) VALUES(1200,500),(900,900);
     CREATE TABLE payments(id integer primary key,reservation_id integer REFERENCES reservations(id),amount numeric); INSERT INTO payments VALUES(1,1,500),(2,2,900);
     CREATE TABLE expenses(id integer primary key,amount numeric);INSERT INTO expenses VALUES(1,300);
     CREATE TABLE maintenance(id integer primary key,total numeric,paid numeric);INSERT INTO maintenance VALUES(1,1200,700);
     CREATE TABLE commissions(id integer primary key,due numeric,received numeric);INSERT INTO commissions VALUES(1,180,80);
+    CREATE TABLE customers(id text primary key,name text);INSERT INTO customers VALUES('synthetic-customer','Invented Customer');
+    CREATE TABLE subscriptions(id text primary key,customer_id text REFERENCES customers(id),total numeric);INSERT INTO subscriptions VALUES('synthetic-sub','synthetic-customer',800);
+    CREATE TABLE installments(id text primary key,customer_id text REFERENCES customers(id),total numeric,paid numeric);INSERT INTO installments VALUES('synthetic-plan','synthetic-customer',600,100);
+    CREATE TABLE empty_history(id integer primary key);
+    CREATE SCHEMA private_finance;CREATE TABLE private_finance.ledger(id integer primary key,amount numeric);INSERT INTO private_finance.ledger VALUES(1,75);
     ALTER TABLE reservations ENABLE ROW LEVEL SECURITY; CREATE POLICY manager_only ON reservations TO authenticated USING (false);GRANT SELECT ON reservations TO authenticated;
     SELECT setval('reservations_id_seq',40,true);SELECT lo_from_bytea(90001,decode('0102030405','hex'));''')
     conn=FixtureConnection();verification=b.snapshot(conn)
+    expected={('public',n) for n in ['app_state','reservations','payments','expenses','maintenance','commissions','customers','subscriptions','installments','empty_history']}|{('private_finance','ledger')}
+    assert {(t['schema'],t['name']) for t in verification['tables']}==expected
+    assert next(t['rows'] for t in verification['tables'] if t['name']=='empty_history')==0
+    assert sql('SELECT sum(amount) FROM payments').strip()==b'1400'
+    assert sql('SELECT sum(total-paid) FROM installments').strip()==b'500'
     backup_id='20261024T000000Z-'+uuid.uuid4().hex;verification.update(project=b.PROJECT,backup_id=backup_id,storage_files_included=False)
     os.environ['BACKUP_ENCRYPTION_KEY']=base64.b64encode(os.urandom(32)).decode();os.environ['BACKUP_RESTORE_IMAGE']=b.IMAGE
     with tempfile.TemporaryDirectory() as d:
@@ -61,5 +71,5 @@ try:
         result=b.isolated_restore(d,manifest);assert result['restore_verified'] is True
         assert sql('SELECT last_value FROM reservations_id_seq').strip()==b'40'
         assert b.snapshot(conn)=={k:v for k,v in verification.items() if k not in ['project','backup_id','storage_files_included']}
-        print(json.dumps({'synthetic_independent_restore':'PASS','tables':len(verification['tables']),'production_access':False,'checks':['encrypted dump and roles via mocked Drive round-trip','owners, RLS and ACL','old and new bookings, payments, expenses, installments, commissions','all row fingerprints and sequences equal; source unchanged']}))
+        print(json.dumps({'synthetic_independent_restore':'PASS','tables':len(verification['tables']),'production_access':False,'checks':['encrypted dump and roles via mocked Drive round-trip','owners, RLS and ACL','app_state JSON and relational customers, bookings, payments, expenses, maintenance, subscriptions, installments, commissions; empty and non-public tables','all row fingerprints and sequences equal; source unchanged']}))
 finally:b.docker(['rm','-f',name])

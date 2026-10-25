@@ -276,21 +276,41 @@ def fetch_committed(s3,bucket,owner,manifest,directory):
         s3.download_file(bucket,root+part+'.enc',str(Path(directory)/(part+'.enc')),ExtraArgs={'ExpectedBucketOwner':owner})
     return manifest
 
-def latest(s3,bucket,owner,directory):
+def committed_manifest(s3,bucket,owner):
     candidates=[]
     for page in s3.get_paginator('list_objects_v2').paginate(Bucket=bucket,Prefix=PREFIX,ExpectedBucketOwner=owner):
         candidates.extend(x for x in page.get('Contents',[]) if x['Key'].endswith('/complete.json'))
     require(bool(candidates),'no completed backup found')
-    latest=max(candidates,key=lambda x:x['LastModified'])
-    require((datetime.now(timezone.utc)-latest['LastModified']).total_seconds()<172800,'latest backup older than 48 hours')
-    response=s3.get_object(Bucket=bucket,Key=latest['Key'],ExpectedBucketOwner=owner)
-    manifest=json.loads(response['Body'].read(65537));root=PREFIX+manifest['backup_id']+'/'
-    require(latest['Key']==root+'complete.json','manifest location mismatch')
-    return fetch_committed(s3,bucket,owner,manifest,directory)
+    newest=max(candidates,key=lambda x:x['LastModified'])
+    age=(datetime.now(timezone.utc)-newest['LastModified']).total_seconds()
+    require(0<=age<172800,'latest backup timestamp is future or older than 48 hours')
+    response=s3.get_object(Bucket=bucket,Key=newest['Key'],ExpectedBucketOwner=owner)
+    manifest=json.loads(response['Body'].read(65537))
+    backup_id=manifest.get('backup_id','')
+    require(bool(re.fullmatch(r'\d{8}T\d{6}Z-[a-f0-9]{32}',backup_id)),'invalid remote backup id')
+    require(manifest.get('project')==PROJECT and manifest.get('format')==1,'invalid remote manifest')
+    require(newest['Key']==PREFIX+backup_id+'/complete.json','manifest location mismatch')
+    logical=datetime.strptime(backup_id[:16],'%Y%m%dT%H%M%SZ').replace(tzinfo=timezone.utc)
+    require(0<=(datetime.now(timezone.utc)-logical).total_seconds()<172800,'backup identity timestamp is future or stale')
+    return manifest
+
+def health(s3,bucket,owner):
+    # Metadata-only liveness check; never decrypts or writes storage or PostgreSQL.
+    manifest=committed_manifest(s3,bucket,owner)
+    response=s3.get_object(Bucket=bucket,Key=PREFIX+manifest['backup_id']+'/restore-ok.json',ExpectedBucketOwner=owner)
+    evidence=json.loads(response['Body'].read(65537))
+    require(evidence.get('project')==PROJECT and evidence.get('backup_id')==manifest['backup_id'] and evidence.get('restore_verified') is True,'latest backup has no matching successful restore evidence')
+    require(type(evidence.get('tables_verified')) is int and evidence['tables_verified']>0,'restore evidence has no verified tables')
+    for part in PARTS:
+        require(s3.head_object(Bucket=bucket,Key=PREFIX+manifest['backup_id']+'/'+part+'.enc',ExpectedBucketOwner=owner)['ContentLength']==manifest['files'][part]['bytes'],'backup part missing or size differs')
+    return {'recent_restored_backup':True,'maximum_age_hours':48,'storage_files_verified':False}
+
+def latest(s3,bucket,owner,directory):
+    return fetch_committed(s3,bucket,owner,committed_manifest(s3,bucket,owner),directory)
 
 def main():
     os.umask(0o077)
-    require(len(sys.argv)==2 and sys.argv[1] in ['preflight','backup','restore','init-drive','retention-plan'],'invalid mode')
+    require(len(sys.argv)==2 and sys.argv[1] in ['preflight','backup','restore','init-drive','retention-plan','health'],'invalid mode')
     require(os.environ.get('GITHUB_REF','').startswith('refs/heads/'),'branch ref required')
     mode=sys.argv[1]
     if os.environ.get('GITHUB_EVENT_NAME')=='schedule':
@@ -301,6 +321,8 @@ def main():
         from drive_store import authenticate,initialize_folder
         print('New dedicated PostgreSQL folder ID: '+initialize_folder(authenticate(),env('BACKUP_DRIVE_ACCOUNT')));return
     s3,bucket,owner=storage()
+    if mode=='health':
+        print(json.dumps(health(s3,bucket,owner)));return
     if mode=='retention-plan':
         require(hasattr(s3,'retention_plan'),'retention plan requires Drive')
         print(json.dumps(s3.retention_plan()));return

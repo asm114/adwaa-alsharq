@@ -5,7 +5,7 @@ on:
       operation:
         description: Preflight, new backup plus restore, or restore latest backup
         type: choice
-        options: [preflight, backup, restore, init-drive, retention-plan]
+        options: [preflight, backup, restore, init-drive, retention-plan, health]
         default: preflight
         required: true
 # Intentionally NO scheduled event. Activation is a separate approved change.
@@ -70,7 +70,7 @@ jobs:
           done
   notify-failure:
     needs: backup
-    if: always() && needs.backup.result == 'failure'
+    if: always() && (needs.backup.result == 'failure' || needs.backup.result == 'cancelled')
     runs-on: ubuntu-24.04
     permissions:
       issues: write

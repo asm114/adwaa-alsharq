@@ -110,5 +110,34 @@ class BackupTests(unittest.TestCase):
     def test_accidental_schedule_cannot_connect_without_approval(self):
         with patch.dict(os.environ,{'GITHUB_REF':'refs/heads/main','GITHUB_EVENT_NAME':'schedule'},clear=True),patch.object(b.sys,'argv',['backup.py','backup']),patch.object(b,'storage') as storage,self.assertRaises(b.GateError):b.main()
         storage.assert_not_called()
+    def test_health_requires_fresh_matching_restore_and_all_parts(self):
+        now=b.datetime.now(b.timezone.utc)
+        backup_id=now.strftime('%Y%m%dT%H%M%SZ')+'-'+'a'*32
+        manifest={'project':b.PROJECT,'format':1,'backup_id':backup_id,'files':{p:{'bytes':3,'sha256':'unused-metadata-check'} for p in b.PARTS}}
+        evidence={'project':b.PROJECT,'backup_id':backup_id,'restore_verified':True,'tables_verified':11}
+        class Store:
+            def get_paginator(self,*args):return self
+            def paginate(self,**kw):return [{'Contents':[{'Key':b.PREFIX+backup_id+'/complete.json','LastModified':now}]}]
+            def get_object(self,**kw):return {'Body':io.BytesIO(json.dumps(evidence if kw['Key'].endswith('restore-ok.json') else manifest).encode())}
+            def head_object(self,**kw):return {'ContentLength':3}
+        store=Store()
+        self.assertTrue(b.health(store,'bucket','owner')['recent_restored_backup'])
+        for changes in [{'backup_id':'other'},{'project':'other'},{'restore_verified':False},{'tables_verified':0}]:
+            with patch.dict(evidence,changes),self.assertRaises(b.GateError):b.health(store,'bucket','owner')
+        with patch.object(store,'head_object',return_value={'ContentLength':4}),self.assertRaises(b.GateError):b.health(store,'bucket','owner')
+        original_get=store.get_object
+        def missing_restore(**kw):
+            if kw['Key'].endswith('restore-ok.json'):raise FileNotFoundError('synthetic missing restore marker')
+            return original_get(**kw)
+        with patch.object(store,'get_object',side_effect=missing_restore),self.assertRaises(FileNotFoundError):b.health(store,'bucket','owner')
+        from datetime import timedelta
+        for timestamp in [now-timedelta(hours=49),now+timedelta(hours=1)]:
+            with patch.object(store,'paginate',return_value=[{'Contents':[{'Key':b.PREFIX+backup_id+'/complete.json','LastModified':timestamp}]}]),self.assertRaises(b.GateError):b.health(store,'bucket','owner')
+
+    def test_health_mode_never_connects_to_database_or_restores(self):
+        with patch.dict(os.environ,{'GITHUB_REF':'refs/heads/main'},clear=True),patch.object(b.sys,'argv',['backup.py','health']),patch.object(b,'storage',return_value=(object(),'bucket','owner')),patch.object(b,'health',return_value={'recent_restored_backup':True}),patch.object(b,'source_connection') as source,patch.object(b,'isolated_restore') as restore:
+            b.main()
+        source.assert_not_called();restore.assert_not_called()
+
     def test_quote_untrusted_identifier(self):self.assertEqual(b.quote('x";DROP'),'"x"";DROP"')
 if __name__=='__main__':unittest.main()

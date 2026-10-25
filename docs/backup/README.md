@@ -87,3 +87,7 @@ Drive لا يوفر lifecycle/TTL مماثلًا لـS3. دالة الاحتفا
 الحالة: المسودة تدعم Drive، **غير مفعلة وغير معتمدة إنتاجيًا**. المطلوب للربط: عميل OAuth مستقل وgrant offline للحساب المحدد في Secrets، إعداد المجلد الجديد، ميزانية مساحة فعلية، اتصال PG مخول وهدف متوافق، ثم تجربة إنتاج ناجحة وموافقة تفعيل. المجلد والنسخ السابقة باقية دون تغيير، وPR #164 غير ممسوس.
 
 مراجع رسمية: [drive.file](https://developers.google.com/workspace/drive/api/guides/api-specific-auth)، [offline OAuth](https://developers.google.com/identity/protocols/oauth2/web-server)، [انتهاء refresh token في Testing](https://developers.google.com/identity/protocols/oauth2#expiration)، [حقول SHA-256](https://developers.google.com/workspace/drive/api/reference/rest/v3/files)، [حصص Drive](https://developers.google.com/workspace/drive/api/guides/limits)، [جدولة GitHub](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).
+
+## دليل استكمال التشغيل
+
+راجع [OPERATIONS.md](OPERATIONS.md) لأسماء Secrets وخطوات إدخالها الآمن، وحدود التغطية، وفحص `health` لحداثة آخر نسخة مثبتة الاستعادة، وإجراءات الاسترداد والتفعيل المعطّل. نجاح ملف اتصال Drive وحده لا يثبت نسخة قاعدة بيانات.
