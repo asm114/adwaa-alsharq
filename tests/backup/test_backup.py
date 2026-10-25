@@ -43,8 +43,8 @@ class BackupTests(unittest.TestCase):
         with patch.dict(os.environ,{},clear=True),patch.object(b.boto3,'client') as client,self.assertRaises(b.GateError):b.storage()
         client.assert_not_called()
     def test_export_process_receives_no_cloud_keys(self):
-        with patch.dict(os.environ,{'PGPASSWORD':'synthetic-pg','BACKUP_ENCRYPTION_KEY':'synthetic-key','AWS_SECRET_ACCESS_KEY':'synthetic-cloud','BACKUP_DRIVE_CLIENT_SECRET':'synthetic-drive-secret','BACKUP_DRIVE_REFRESH_TOKEN':'synthetic-refresh'}):
-            result=b.pg_env();self.assertNotIn('BACKUP_ENCRYPTION_KEY',result);self.assertNotIn('AWS_SECRET_ACCESS_KEY',result);self.assertNotIn('BACKUP_DRIVE_REFRESH_TOKEN',result);self.assertNotIn('BACKUP_DRIVE_CLIENT_SECRET',result);self.assertIn('default_transaction_read_only=on',result['PGOPTIONS'])
+        with patch.dict(os.environ,{'PGPASSWORD':'synthetic-pg','BACKUP_ENCRYPTION_KEY':'synthetic-key','AWS_SECRET_ACCESS_KEY':'synthetic-cloud','BACKUP_DRIVE_CLIENT_SECRET':'synthetic-drive-secret','BACKUP_DRIVE_REFRESH_TOKEN':'synthetic-refresh','BACKUP_STORAGE_API_KEY':'synthetic-storage'}):
+            result=b.pg_env();self.assertNotIn('BACKUP_ENCRYPTION_KEY',result);self.assertNotIn('AWS_SECRET_ACCESS_KEY',result);self.assertNotIn('BACKUP_DRIVE_REFRESH_TOKEN',result);self.assertNotIn('BACKUP_DRIVE_CLIENT_SECRET',result);self.assertNotIn('BACKUP_STORAGE_API_KEY',result);self.assertIn('default_transaction_read_only=on',result['PGOPTIONS'])
     def test_workflow_has_no_schedule_and_no_artifact_upload(self):
         text=(ROOT/'.github/workflows/database-backup.yml').read_text()
         self.assertNotIn('schedule:',text);self.assertNotIn('upload-artifact',text);self.assertNotIn('pull_request_target',text)
@@ -64,10 +64,11 @@ class BackupTests(unittest.TestCase):
             def head_object(self,**kw):return {'ContentLength':3}
             def put_object(self,**kw):self.events.append(kw['Key'])
         def export(command,path,*args):path.write_bytes(b'enc')
+        def capture(engine,conn,path,*args):path.write_bytes(b'enc');return {'inventory':{'buckets':[],'objects':[]},'files':[]}
         verification={'sequences':[],'roles':'[]','memberships':'[]'}
         for fail in [False,True]:
             store=Store(fail)
-            with tempfile.TemporaryDirectory() as d,patch.object(b,'source_connection',return_value=Conn()),patch.object(b,'snapshot',return_value=dict(verification)),patch.object(b,'export',side_effect=export),patch.object(b,'key',return_value=os.urandom(32)):
+            with tempfile.TemporaryDirectory() as d,patch.object(b,'source_connection',return_value=Conn()),patch.object(b,'snapshot',return_value=dict(verification)),patch.object(b,'export',side_effect=export),patch('storage_source.capture',side_effect=capture),patch.object(b,'key',return_value=os.urandom(32)):
                 if fail:
                     with self.assertRaises(OSError):b.backup(store,'bucket','123456789012',d)
                     self.assertFalse(any(x.endswith('complete.json') for x in store.events))
@@ -75,7 +76,7 @@ class BackupTests(unittest.TestCase):
                     # verification.enc has an authenticated header/payload/tag, not 3 bytes.
                     store.head_object=lambda **kw:{'ContentLength':Path(d,kw['Key'].split('/')[-1]).stat().st_size}
                     b.backup(store,'bucket','123456789012',d)
-                    self.assertTrue(store.events[-1].endswith('complete.json'));self.assertEqual(len(store.events),4)
+                    self.assertTrue(store.events[-1].endswith('complete.json'));self.assertEqual(len(store.events),5)
     def test_restore_fetches_remote_objects_and_rejects_changed_marker(self):
         backup_id='20261024T000000Z-'+'a'*32
         manifest={'project':b.PROJECT,'format':1,'backup_id':backup_id,'files':{p:{'bytes':3,'sha256':'x'} for p in b.PARTS}}
@@ -113,8 +114,8 @@ class BackupTests(unittest.TestCase):
     def test_health_requires_fresh_matching_restore_and_all_parts(self):
         now=b.datetime.now(b.timezone.utc)
         backup_id=now.strftime('%Y%m%dT%H%M%SZ')+'-'+'a'*32
-        manifest={'project':b.PROJECT,'format':1,'backup_id':backup_id,'files':{p:{'bytes':3,'sha256':'unused-metadata-check'} for p in b.PARTS}}
-        evidence={'project':b.PROJECT,'backup_id':backup_id,'restore_verified':True,'tables_verified':11}
+        manifest={'project':b.PROJECT,'format':2,'backup_id':backup_id,'files':{p:{'bytes':3,'sha256':'unused-metadata-check'} for p in b.FULL_PARTS}}
+        evidence={'project':b.PROJECT,'backup_id':backup_id,'restore_verified':True,'tables_verified':11,'storage_files_verified':True}
         class Store:
             def get_paginator(self,*args):return self
             def paginate(self,**kw):return [{'Contents':[{'Key':b.PREFIX+backup_id+'/complete.json','LastModified':now}]}]

@@ -10,6 +10,12 @@ permissions:
   contents: read
 jobs:
   synthetic-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [core, portal]
+    env:
+      BACKUP_TARGET: ${{ matrix.target }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:

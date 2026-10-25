@@ -12,10 +12,10 @@ from googleapiclient.http import MediaFileUpload,MediaIoBaseUpload,MediaIoBaseDo
 import httplib2
 
 SCOPE='https://www.googleapis.com/auth/drive.file'
-PROJECT='pgdvlklpyrvmwzitsmbw'
+from targets import PROJECT
 PREFIX='adwaa/'+PROJECT+'/'
 BID=r'\d{8}T\d{6}Z-[a-f0-9]{32}'
-OBJECTS=('database.enc','roles.enc','verification.enc','complete.json','restore-ok.json')
+OBJECTS=('database.enc','roles.enc','verification.enc','storage.enc','complete.json','restore-ok.json')
 FIELDS='id,name,mimeType,size,sha256Checksum,createdTime,appProperties,parents,shared,trashed,owners(emailAddress),permissions(type,role,deleted),driveId,capabilities(canAddChildren,canListChildren)'
 class DriveError(Exception):pass
 

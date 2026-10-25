@@ -10,11 +10,21 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 from cryptography.hazmat.primitives.ciphers import Cipher,algorithms,modes
 
-PROJECT='pgdvlklpyrvmwzitsmbw'
+from targets import PROJECT,REQUIRED_TABLES,identity_confirmed
 PREFIX='adwaa/'+PROJECT+'/'
 IMAGE='postgres:17-bookworm@sha256:858bb5e98eed02eb8cafbcdc007f9a65d1b613972028944a8ec2133ccaf80d27'
 MAGIC=b'ADWABK01'
 PARTS=('database','roles','verification')
+FULL_PARTS=PARTS+('storage',)
+
+def archive_parts(manifest):
+    require(manifest.get('format') in (1,2),'unsupported archive format')
+    parts=FULL_PARTS if manifest['format']==2 else PARTS
+    require(set(manifest.get('files',{}))==set(parts),'archive parts incomplete or unexpected')
+    return parts
+
+def identity_query():
+    return 'SELECT '+ ' AND '.join("to_regclass('public."+name+"') IS NOT NULL" for name in REQUIRED_TABLES)
 class GateError(Exception):pass
 
 def require(condition,message):
@@ -30,14 +40,26 @@ def key():
     require(len(value)==32,'encryption key must encode exactly 32 random bytes')
     return value
 
+class SealedWriter:
+    def __init__(self,destination,secret,aad):
+        nonce=secrets.token_bytes(12)
+        self.cipher=Cipher(algorithms.AES(secret),modes.GCM(nonce)).encryptor()
+        self.cipher.authenticate_additional_data(aad.encode())
+        self.out=open(destination,'xb');os.chmod(destination,0o600);self.out.write(MAGIC+nonce)
+    def __enter__(self):return self
+    def write(self,value):self.out.write(self.cipher.update(value));return len(value)
+    def __exit__(self,kind,*args):
+        try:
+            if kind is None:self.out.write(self.cipher.finalize());self.out.write(self.cipher.tag)
+        finally:self.out.close()
+
+def engine():
+    from types import SimpleNamespace
+    return SimpleNamespace(SealedWriter=SealedWriter,source_connection=source_connection,docker=docker)
+
 def seal(source,destination,secret,aad):
-    nonce=secrets.token_bytes(12)
-    cipher=Cipher(algorithms.AES(secret),modes.GCM(nonce)).encryptor()
-    cipher.authenticate_additional_data(aad.encode())
-    with open(destination,'xb') as out:
-        os.chmod(destination,0o600);out.write(MAGIC+nonce)
-        while chunk:=source.read(1024*1024):out.write(cipher.update(chunk))
-        out.write(cipher.finalize());out.write(cipher.tag)
+    with SealedWriter(destination,secret,aad) as out:
+        while chunk:=source.read(1024*1024):out.write(chunk)
 
 def unseal(path,sink,secret,aad):
     with open(path,'rb') as source:
@@ -94,6 +116,7 @@ def source_connection():
     valid_direct=host=='db.'+PROJECT+'.supabase.co'
     valid_pool=bool(re.fullmatch(r'aws-[a-z0-9-]+\.pooler\.supabase\.com',host)) and user.endswith('.'+PROJECT)
     require((valid_direct or valid_pool) and port=='5432','wrong project, host, or transaction pooler')
+    require(identity_confirmed(),'project identity confirmation required')
     env('PGPASSWORD');require(env('PGDATABASE')=='postgres','unexpected database');env('PGSSLROOTCERT')
     require(not any(os.environ.get(k) for k in ['PGSERVICE','PGSERVICEFILE','PGHOSTADDR']),'service overrides prohibited')
     connection=psycopg.connect(connect_timeout=20,options='-c default_transaction_read_only=on -c statement_timeout=1800000')
@@ -159,7 +182,7 @@ def storage():
     return s3,bucket,owner
 
 def snapshot(conn):
-    require(conn.execute("SELECT to_regclass('public.app_state') IS NOT NULL").fetchone()==(True,),'app_state missing')
+    require(conn.execute(identity_query()).fetchone()==(True,),'target identity tables missing')
     require(conn.execute("SELECT count(*) FROM pg_foreign_table").fetchone()==(0,),'foreign tables require separate coverage')
     require(conn.execute("SELECT count(*) FROM pg_tablespace WHERE spcname NOT IN ('pg_default','pg_global')").fetchone()==(0,),'custom tablespaces require a separate restore plan')
     tables=conn.execute("SELECT n.nspname,c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind IN ('r','m') AND n.nspname !~ '^pg_' AND n.nspname<>'information_schema' ORDER BY 1,2").fetchall()
@@ -187,11 +210,14 @@ def snapshot(conn):
 
 def backup(s3,bucket,owner,directory):
     secret=key();backup_id=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')+'-'+uuid.uuid4().hex
+    started=datetime.now(timezone.utc).isoformat()
     with source_connection() as conn:
         snapshot_id=conn.execute('SELECT pg_export_snapshot()').fetchone()[0]
         verification=snapshot(conn)
         for part,command in [('database',['pg_dump','--format=custom','--snapshot='+snapshot_id,'--no-password','--lock-wait-timeout=30s']),('roles',['pg_dumpall','--roles-only','--no-role-passwords','--no-password'])]:
             export(command,Path(directory)/(part+'.enc'),secret,PROJECT+'/'+backup_id+'/'+part)
+        from storage_source import capture
+        storage_verification=capture(engine(),conn,Path(directory)/'storage.enc',secret,PROJECT+'/'+backup_id+'/storage')
         # Sequences are not MVCC: fail rather than certify a moving allocation.
         current=[]
         for seq in verification['sequences']:
@@ -199,12 +225,12 @@ def backup(s3,bucket,owner,directory):
         require(current==[s['value'] for s in verification['sequences']],'sequences changed during export; retry in an approved quiet window')
         with source_connection() as current:
             require(current.execute(role_query()).fetchone()[0]==verification['roles'] and current.execute(membership_query()).fetchone()[0]==verification['memberships'],'roles changed during export')
-    verification.update(project=PROJECT,backup_id=backup_id,storage_files_included=False)
+    verification.update(project=PROJECT,backup_id=backup_id,storage_files_included=True,storage=storage_verification,capture_started=started,capture_finished=datetime.now(timezone.utc).isoformat())
     seal(io.BytesIO(json.dumps(verification).encode()),Path(directory)/'verification.enc',secret,PROJECT+'/'+backup_id+'/verification')
-    manifest={'format':1,'project':PROJECT,'backup_id':backup_id,'files':{p:digest(Path(directory)/(p+'.enc')) for p in PARTS}}
+    manifest={'format':2,'project':PROJECT,'backup_id':backup_id,'files':{p:digest(Path(directory)/(p+'.enc')) for p in FULL_PARTS}}
     if hasattr(s3,'ensure_capacity'):s3.ensure_capacity(sum(x['bytes'] for x in manifest['files'].values())+16384)
     root=PREFIX+backup_id+'/'
-    for part in PARTS:
+    for part in FULL_PARTS:
         s3.upload_file(str(Path(directory)/(part+'.enc')),bucket,root+part+'.enc',ExtraArgs={'ExpectedBucketOwner':owner,'ContentType':'application/octet-stream'})
         head=s3.head_object(Bucket=bucket,Key=root+part+'.enc',ExpectedBucketOwner=owner)
         require(head['ContentLength']==manifest['files'][part]['bytes'],'uploaded length not confirmed')
@@ -216,10 +242,10 @@ def docker(command,**kwargs):
     return subprocess.run(['docker','--host=unix:///var/run/docker.sock']+command,check=True,capture_output=True,timeout=1800,**kwargs)
 
 def isolated_restore(directory,manifest):
-    require(manifest.get('project')==PROJECT and manifest.get('format')==1,'wrong archive project/format')
+    require(manifest.get('project')==PROJECT and manifest.get('format') in (1,2),'wrong archive project/format')
     backup_id=manifest['backup_id'];require(bool(re.fullmatch(r'\d{8}T\d{6}Z-[a-f0-9]{32}',backup_id)),'invalid backup id')
     secret=key()
-    for part in PARTS:require(digest(Path(directory)/(part+'.enc'))==manifest['files'][part],'ciphertext SHA-256 or size mismatch')
+    for part in archive_parts(manifest):require(digest(Path(directory)/(part+'.enc'))==manifest['files'][part],'ciphertext SHA-256 or size mismatch')
     data=io.BytesIO();unseal(Path(directory)/'verification.enc',data,secret,PROJECT+'/'+backup_id+'/verification')
     verification=json.loads(data.getvalue());require(verification['project']==PROJECT and verification['backup_id']==backup_id,'verification identity mismatch')
     image=env('BACKUP_RESTORE_IMAGE');require(bool(re.fullmatch(r'[a-zA-Z0-9./:_-]+@sha256:[a-f0-9]{64}',image)),'restore image must be approved and digest pinned')
@@ -232,7 +258,7 @@ def isolated_restore(directory,manifest):
             time.sleep(.5)
         require(ready,'restore server not ready')
         def sql(query):return docker(['exec','-i',name,'psql','-h','127.0.0.1','-X','-qAt','-v','ON_ERROR_STOP=1','-U','postgres','-d','postgres'],input=(CANONICAL+query).encode()).stdout.decode().strip()
-        for part in ['roles','database']:
+        for part in (['roles','database','storage'] if manifest['format']==2 else ['roles','database']):
             target='/tmp/'+part
             process=subprocess.Popen(['docker','--host=unix:///var/run/docker.sock','exec','-i',name,'sh','-c','umask 077; cat > '+target],stdin=subprocess.PIPE,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
             try:unseal(Path(directory)/(part+'.enc'),process.stdin,secret,PROJECT+'/'+backup_id+'/'+part)
@@ -260,17 +286,22 @@ def isolated_restore(directory,manifest):
                 if not chunk:break
                 h.update(chunk);offset+=len(chunk)
             require(offset==obj['bytes'] and h.hexdigest()==obj['sha256'],'large object mismatch')
-        return {'restore_verified':True,'backup_id':backup_id,'project':PROJECT,'tables_verified':len(verification['tables']),'storage_files_verified':False}
+        storage_result={'storage_files_verified':False,'storage_service_restore_verified':False}
+        if manifest['format']==2:
+            from storage_source import restore
+            require(verification.get('storage_files_included') is True,'Storage verification absent')
+            storage_result=restore(engine(),name,verification['storage'])
+        return {'restore_verified':True,'backup_id':backup_id,'project':PROJECT,'tables_verified':len(verification['tables']),**storage_result}
     finally:docker(['rm','-f',name])
 
 def fetch_committed(s3,bucket,owner,manifest,directory):
     backup_id=manifest.get('backup_id','')
     require(bool(re.fullmatch(r'\d{8}T\d{6}Z-[a-f0-9]{32}',backup_id)),'invalid remote backup id')
-    require(manifest.get('project')==PROJECT and manifest.get('format')==1,'invalid remote manifest')
+    require(manifest.get('project')==PROJECT and manifest.get('format') in (1,2),'invalid remote manifest')
     root=PREFIX+backup_id+'/'
     response=s3.get_object(Bucket=bucket,Key=root+'complete.json',ExpectedBucketOwner=owner)
     require(json.loads(response['Body'].read(65537))==manifest,'remote commit marker differs')
-    for part in PARTS:
+    for part in archive_parts(manifest):
         head=s3.head_object(Bucket=bucket,Key=root+part+'.enc',ExpectedBucketOwner=owner)
         require(head['ContentLength']==manifest['files'][part]['bytes'] and head['ContentLength']<=2147483648,'remote encrypted size exceeds budget or manifest')
         s3.download_file(bucket,root+part+'.enc',str(Path(directory)/(part+'.enc')),ExtraArgs={'ExpectedBucketOwner':owner})
@@ -288,7 +319,7 @@ def committed_manifest(s3,bucket,owner):
     manifest=json.loads(response['Body'].read(65537))
     backup_id=manifest.get('backup_id','')
     require(bool(re.fullmatch(r'\d{8}T\d{6}Z-[a-f0-9]{32}',backup_id)),'invalid remote backup id')
-    require(manifest.get('project')==PROJECT and manifest.get('format')==1,'invalid remote manifest')
+    require(manifest.get('project')==PROJECT and manifest.get('format') in (1,2),'invalid remote manifest')
     require(newest['Key']==PREFIX+backup_id+'/complete.json','manifest location mismatch')
     logical=datetime.strptime(backup_id[:16],'%Y%m%dT%H%M%SZ').replace(tzinfo=timezone.utc)
     require(0<=(datetime.now(timezone.utc)-logical).total_seconds()<172800,'backup identity timestamp is future or stale')
@@ -301,9 +332,10 @@ def health(s3,bucket,owner):
     evidence=json.loads(response['Body'].read(65537))
     require(evidence.get('project')==PROJECT and evidence.get('backup_id')==manifest['backup_id'] and evidence.get('restore_verified') is True,'latest backup has no matching successful restore evidence')
     require(type(evidence.get('tables_verified')) is int and evidence['tables_verified']>0,'restore evidence has no verified tables')
-    for part in PARTS:
+    for part in archive_parts(manifest):
         require(s3.head_object(Bucket=bucket,Key=PREFIX+manifest['backup_id']+'/'+part+'.enc',ExpectedBucketOwner=owner)['ContentLength']==manifest['files'][part]['bytes'],'backup part missing or size differs')
-    return {'recent_restored_backup':True,'maximum_age_hours':48,'storage_files_verified':False}
+    require(manifest['format']==2 and evidence.get('storage_files_verified') is True,'latest backup is not database plus Storage verified')
+    return {'recent_restored_backup':True,'maximum_age_hours':48,'storage_files_verified':True,'storage_service_restore_verified':False}
 
 def latest(s3,bucket,owner,directory):
     return fetch_committed(s3,bucket,owner,committed_manifest(s3,bucket,owner),directory)
@@ -313,6 +345,7 @@ def main():
     require(len(sys.argv)==2 and sys.argv[1] in ['preflight','backup','restore','init-drive','retention-plan','health'],'invalid mode')
     require(os.environ.get('GITHUB_REF','').startswith('refs/heads/'),'branch ref required')
     mode=sys.argv[1]
+    require(os.environ.get('BACKUP_DRIVE_RETENTION_APPROVED')!='true','retention is disabled for comprehensive backups')
     if os.environ.get('GITHUB_EVENT_NAME')=='schedule':
         require(os.environ.get('BACKUP_SCHEDULE_APPROVED')=='true' and os.environ.get('BACKUP_PRODUCTION_RESTORE_VERIFIED')=='true','scheduled execution awaits production restore and owner approval')
         if os.environ.get('BACKUP_STORAGE_PROVIDER','drive')=='drive':require(os.environ.get('BACKUP_DRIVE_RETENTION_APPROVED')=='true','Drive retention activation not approved')
@@ -327,8 +360,13 @@ def main():
         require(hasattr(s3,'retention_plan'),'retention plan requires Drive')
         print(json.dumps(s3.retention_plan()));return
     if mode=='preflight':
-        with source_connection() as conn:require(conn.execute("SELECT to_regclass('public.app_state') IS NOT NULL").fetchone()==(True,),'app_state missing')
-        key();print('Read-only connection, TLS and configured private storage verified; no backup created.');return
+        with source_connection() as conn:require(conn.execute(identity_query()).fetchone()==(True,),'target identity tables missing')
+        from storage_source import Source,inventory
+        source=Source()
+        try:
+            with source_connection() as conn:source.check_buckets(inventory(conn)['buckets'])
+        finally:source.close()
+        key();print('Read-only target identity, TLS, Storage inventory and private destination verified; no backup created.');return
     require(env('BACKUP_RESTORE_APPROVED')=='true','restore target/capacity not approved')
     # Only encrypted artifacts in runner temp, never repository or Actions artifacts.
     temp_root=Path(env('RUNNER_TEMP')).resolve()
@@ -336,12 +374,14 @@ def main():
     with tempfile.TemporaryDirectory(prefix='adwaa-encrypted-',dir=temp_root) as directory:
         manifest=backup(s3,bucket,owner,directory) if mode=='backup' else latest(s3,bucket,owner,directory)
         if mode=='backup':
-            for part in PARTS:(Path(directory)/(part+'.enc')).unlink()
+            for part in archive_parts(manifest):(Path(directory)/(part+'.enc')).unlink()
             fetch_committed(s3,bucket,owner,manifest,directory)
         result=isolated_restore(directory,manifest)
         s3.put_object(Bucket=bucket,Key=PREFIX+manifest['backup_id']+'/restore-ok.json',Body=json.dumps(result).encode(),ExpectedBucketOwner=owner,ContentType='application/json')
-        if hasattr(s3,'finish_retention'):print(json.dumps(s3.finish_retention(result)))
-        print('Encrypted backup verification and isolated restore succeeded. Storage objects remain separately scoped.')
+        if result.get('storage_files_verified'):
+            print('Database and Storage byte restore verified in isolation; Supabase service reattachment remains unverified.')
+        else:
+            print('Legacy database-only restore verified; Storage was not included. No comprehensive success is certified.')
 if __name__=='__main__':
     try:main()
     except GateError as error:

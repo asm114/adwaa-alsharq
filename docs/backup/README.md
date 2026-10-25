@@ -1,3 +1,5 @@
+> تحديث التطوير المحلي: راجع [COMPREHENSIVE.md](COMPREHENSIVE.md) لتعريف الهدفين وصيغة format=2 وStorage وأسماء Secrets الجديدة. الأقسام القديمة أدناه تصف النسخة السابقة ذات القاعدة الواحدة. لا جدولة أو حذف مفعّل.
+
 # نسخ PostgreSQL إلى Google Drive — مسودة غير مفعلة
 
 هذا PR #165 مستقل عن PR #164. لم تُغير الواجهة أو JSON backups أو الحجوزات أو المالية أو التسلسل. Drive هو الوجهة الافتراضية بدل AWS في workflow. أُعيد استعمال محرك pg_dump وAES-256-GCM والتحقق والاستعادة الموجود؛ أُضيف transport adapter فقط. دعم S3 محفوظ كخيار صريح في السكربت (`BACKUP_STORAGE_PROVIDER=s3`)، دون fallback تلقائي عند خطأ Drive؛ [مرجعه السابق](S3-optional.md) وقوالب IAM/lifecycle لم تُطبق.
