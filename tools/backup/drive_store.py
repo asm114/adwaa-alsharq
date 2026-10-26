@@ -24,7 +24,13 @@ SAFE_CODES=frozenset({
     'OAUTH_SCOPE_REJECTED','DRIVE_CLIENT_INIT_FAILED','DRIVE_ACCOUNT_READ_FAILED',
     'DRIVE_ACCOUNT_MISMATCH','DRIVE_FOLDER_LOOKUP_FAILED','DRIVE_FOLDER_LOOKUP_AMBIGUOUS',
     'DRIVE_FOLDER_CREATE_UNCONFIRMED','DRIVE_NEW_FOLDER_VALIDATION_FAILED',
-    'DRIVE_EXISTING_FOLDER_VALIDATION_FAILED','DRIVE_FOLDER_METADATA_INVALID'})
+    'DRIVE_EXISTING_FOLDER_VALIDATION_FAILED','DRIVE_FOLDER_METADATA_INVALID',
+    'DRIVE_QUOTA_UNCONFIRMED','DRIVE_SPACE_INSUFFICIENT','DRIVE_BUNDLE_LIMIT_EXCEEDED',
+    'DRIVE_TARGET_NOT_PRIVATE','DRIVE_OWNER_MISMATCH','DRIVE_PERMISSION_METADATA_MISSING',
+    'DRIVE_SHARING_NOT_OWNER_ONLY','DRIVE_FOLDER_NAMESPACE_MISMATCH','DRIVE_FOLDER_NOT_WRITABLE',
+    'DRIVE_FILE_NAMESPACE_MISMATCH','DRIVE_DUPLICATE_OBJECT','DRIVE_EXISTING_OBJECT_CONFLICT',
+    'DRIVE_UPLOAD_UNCONFIRMED','DRIVE_METADATA_READ_FAILED','DRIVE_AUDIT_FAILED',
+    'DRIVE_AUDIT_METADATA_INVALID','DRIVE_PAGINATION_INVALID'})
 class DriveError(Exception):
     def __init__(self,message,code='DRIVE_GATE_FAILED'):
         super().__init__(message)
@@ -35,8 +41,8 @@ def safe_diagnostic(error):
     return error.code if type(error) is DriveError and error.code in SAFE_CODES else 'DRIVE_GATE_FAILED'
 
 
-def require(value,message):
-    if not value:raise DriveError(message)
+def require(value,message,code='DRIVE_GATE_FAILED'):
+    if not value:raise DriveError(message,code)
 def env(name):
     value=os.environ.get(name,'')
     if not value:raise DriveError('missing Drive configuration','DRIVE_CONFIG_MISSING')
@@ -78,19 +84,20 @@ class DriveStore:
         require(self.daily_bytes>0,'approved daily Drive size estimate required')
     def _identity(self):
         about=self.service.about().get(fields='user(emailAddress),storageQuota(limit,usage)').execute(num_retries=3)
-        require(about['user']['emailAddress'].lower()==self.email,'wrong Google account')
-        quota=about.get('storageQuota',{});require('limit' in quota and 'usage' in quota,'Drive quota could not be confirmed')
+        require(about['user']['emailAddress'].lower()==self.email,'wrong Google account','DRIVE_ACCOUNT_MISMATCH')
+        quota=about.get('storageQuota',{});require('limit' in quota and 'usage' in quota,'Drive quota could not be confirmed','DRIVE_QUOTA_UNCONFIRMED')
         return int(quota['limit'])-int(quota['usage'])
     def _private(self,file,folder=False):
-        require(not file.get('trashed') and not file.get('shared') and not file.get('driveId'),'Drive target must be private My Drive')
+        require(not file.get('trashed') and not file.get('shared') and not file.get('driveId'),'Drive target must be private My Drive','DRIVE_TARGET_NOT_PRIVATE')
         owners=file.get('owners',[])
-        require(len(owners)==1 and owners[0].get('emailAddress','').lower()==self.email,'Drive owner mismatch')
+        require(len(owners)==1 and owners[0].get('emailAddress','').lower()==self.email,'Drive owner mismatch','DRIVE_OWNER_MISMATCH')
         permissions=[p for p in file.get('permissions',[]) if not p.get('deleted')]
-        require(bool(permissions) and all(p.get('type')=='user' and p.get('role')=='owner' for p in permissions),'Drive sharing is not owner-only')
+        require(bool(permissions),'Drive permission metadata missing','DRIVE_PERMISSION_METADATA_MISSING')
+        require(all(p.get('type')=='user' and p.get('role')=='owner' for p in permissions),'Drive sharing is not owner-only','DRIVE_SHARING_NOT_OWNER_ONLY')
         if folder:
-            require(file.get('mimeType')=='application/vnd.google-apps.folder' and file.get('appProperties',{}).get('adwaaPgBackupTarget')==PROJECT,'dedicated marked PostgreSQL folder required; never use legacy folder')
-            require(file.get('capabilities',{}).get('canAddChildren') is True,'Drive folder is not writable')
-        else:require(self.folder in file.get('parents',[]) and file.get('appProperties',{}).get('adwaaPgBackup')==PROJECT,'Drive file outside dedicated namespace')
+            require(file.get('mimeType')=='application/vnd.google-apps.folder' and file.get('appProperties',{}).get('adwaaPgBackupTarget')==PROJECT,'dedicated marked PostgreSQL folder required; never use legacy folder','DRIVE_FOLDER_NAMESPACE_MISMATCH')
+            require(file.get('capabilities',{}).get('canAddChildren') is True,'Drive folder is not writable','DRIVE_FOLDER_NOT_WRITABLE')
+        else:require(self.folder in file.get('parents',[]) and file.get('appProperties',{}).get('adwaaPgBackup')==PROJECT,'Drive file outside dedicated namespace','DRIVE_FILE_NAMESPACE_MISMATCH')
         return file
     def _metadata(self,file_id,folder=False):
         return self._private(self.service.files().get(fileId=file_id,fields=FIELDS).execute(num_retries=3),folder)
@@ -108,14 +115,62 @@ class DriveStore:
     def preflight(self):
         free=self._identity();self._metadata(self.folder,True)
         managed=sum(int(r.get('size',0)) for r in self._list())
-        require(free>=self.daily_bytes and free+managed>=31*self.daily_bytes,'Drive space insufficient for approved 30-day budget plus one in-flight backup')
+        require(free>=self.daily_bytes and free+managed>=31*self.daily_bytes,'Drive space insufficient for approved 30-day budget plus one in-flight backup','DRIVE_SPACE_INSUFFICIENT')
+
+    def audit_existing(self):
+        """GET/list only. Markers are observations, never a success certificate.
+
+        Inspect all children to count unmarked files without exposing their names.
+        Preserve malformed/unconfirmed rows; never create, download, or delete.
+        """
+        self._metadata(self.folder,True)
+        query="'"+escaped(self.folder)+"' in parents and trashed=false"
+        token=None;seen=set();rows=[]
+        while True:
+            try:
+                page=self.service.files().list(q=query,pageSize=1000,pageToken=token,
+                    fields='nextPageToken,files('+FIELDS+')').execute(num_retries=3)
+            except Exception:raise DriveError('audit listing failed','DRIVE_AUDIT_FAILED') from None
+            rows.extend(page.get('files',[]));token=page.get('nextPageToken')
+            require(len(rows)<=10000,'audit bound exceeded','DRIVE_AUDIT_METADATA_INVALID')
+            if not token:break
+            require(token not in seen,'audit pagination invalid','DRIVE_PAGINATION_INVALID');seen.add(token)
+        files=[];groups={};unclassified=0
+        for row in rows:
+            props=row.get('appProperties',{});file_id=row.get('id','')
+            if props.get('adwaaPgBackup')!=PROJECT:
+                unclassified+=1;continue
+            try:backup_id,part=split_key(props.get('objectKey',''))
+            except DriveError:
+                unclassified+=1;continue
+            require(isinstance(file_id,str) and re.fullmatch(r'[A-Za-z0-9_-]{8,200}',file_id),'invalid file ID','DRIVE_AUDIT_METADATA_INVALID')
+            try:size=int(row.get('size',-1))
+            except (ValueError,TypeError):raise DriveError('invalid size','DRIVE_AUDIT_METADATA_INVALID') from None
+            require(size>=0,'size missing','DRIVE_AUDIT_METADATA_INVALID')
+            try:self._private(row);code='DRIVE_OBJECT_METADATA_OK'
+            except DriveError as error:code=safe_diagnostic(error)
+            sha=row.get('sha256Checksum','')
+            files.append({'file_id':file_id,'backup_id':backup_id,'part':part,'bytes':size,
+                          'sha256_available':isinstance(sha,str) and bool(re.fullmatch(r'[a-f0-9]{64}',sha)),
+                          'metadata_code':code})
+            groups.setdefault(backup_id,[]).append(part)
+        summaries=[]
+        for backup_id,parts in sorted(groups.items()):
+            summaries.append({'backup_id':backup_id,'file_count':len(parts),
+                              'duplicate_parts':len(parts)-len(set(parts)),
+                              'complete_marker_present':'complete.json' in parts,
+                              'restore_marker_present':'restore-ok.json' in parts,
+                              'restore_verified':False,
+                              'status':'OBSERVED_UNVERIFIED'})
+        return {'read_only':True,'managed_files':files,'groups':summaries,
+                'unclassified_file_count':unclassified,'deletion_enabled':False}
     def ensure_capacity(self,size):
-        require(size<=self.daily_bytes,'encrypted bundle exceeds approved daily estimate')
-        require(self._identity()>=size,'Drive free space insufficient')
+        require(size<=self.daily_bytes,'encrypted bundle exceeds approved daily estimate','DRIVE_BUNDLE_LIMIT_EXCEEDED')
+        require(self._identity()>=size,'Drive free space insufficient','DRIVE_SPACE_INSUFFICIENT')
     def _find(self,key):
         split_key(key);files=self._list(key)
         files=[f for f in files if f.get('appProperties',{}).get('objectKey')==key]
-        require(len(files)<=1,'duplicate Drive object key; manual review required')
+        require(len(files)<=1,'duplicate Drive object key; manual review required','DRIVE_DUPLICATE_OBJECT')
         if not files:return None
         file=self._metadata(files[0]['id']);require(file['appProperties'].get('objectKey')==key,'Drive key mismatch')
         return file
@@ -123,7 +178,7 @@ class DriveStore:
         backup_id,part=split_key(key)
         existing=self._find(key)
         if existing:
-            require(int(existing.get('size',-1))==size and existing.get('sha256Checksum')==sha,'refuse overwrite of an existing Drive backup')
+            require(int(existing.get('size',-1))==size and existing.get('sha256Checksum')==sha,'refuse overwrite of an existing Drive backup','DRIVE_EXISTING_OBJECT_CONFLICT')
             return existing
         file_id=self.ids.get(key)
         if file_id:
@@ -145,14 +200,17 @@ class DriveStore:
         except Exception:
             # A lost final reply is not failure proof. Confirm the reserved file ID.
             pass
+        last_code='DRIVE_UPLOAD_UNCONFIRMED'
         for attempt in range(3):
             try:
                 file=self._metadata(file_id)
                 require(file.get('sha256Checksum')==sha and int(file.get('size',-1))==size and file['appProperties'].get('objectKey')==key,'Drive checksum/size/key not confirmed')
                 return file
-            except Exception:
+            except Exception as error:
+                last_code=safe_diagnostic(error) if isinstance(error,DriveError) else 'DRIVE_METADATA_READ_FAILED'
+                if last_code=='DRIVE_GATE_FAILED':last_code='DRIVE_UPLOAD_UNCONFIRMED'
                 if attempt<2:time.sleep(attempt+1)
-        raise DriveError('Drive upload not confirmed; reserved ID retained, no duplicate retry')
+        raise DriveError('Drive upload not confirmed; reserved ID retained, no duplicate retry',last_code)
     # Compatibility adapter: the encrypted backup engine is unchanged.
     def upload_file(self,path,bucket,key,ExtraArgs=None):
         require(bucket==self.folder,'wrong folder')

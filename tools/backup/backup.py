@@ -16,6 +16,10 @@ IMAGE='postgres:17-bookworm@sha256:858bb5e98eed02eb8cafbcdc007f9a65d1b6139720289
 MAGIC=b'ADWABK01'
 PARTS=('database','roles','verification')
 FULL_PARTS=PARTS+('storage',)
+PROGRESS=None
+
+def progress(stage):
+    if PROGRESS is not None:PROGRESS(stage)
 
 def archive_parts(manifest):
     require(manifest.get('format') in (1,2),'unsupported archive format')
@@ -35,9 +39,17 @@ def env(name):
     require(bool(value),'missing configuration: '+name)
     return value
 
+class EncryptionKeyError(GateError):
+    def __init__(self,code):
+        self.code=code
+        super().__init__(code)
+
 def key():
-    value=base64.b64decode(env('BACKUP_ENCRYPTION_KEY'),validate=True)
-    require(len(value)==32,'encryption key must encode exactly 32 random bytes')
+    raw=os.environ.get('BACKUP_ENCRYPTION_KEY','')
+    if not raw:raise EncryptionKeyError('ENCRYPTION_KEY_MISSING')
+    try:value=base64.b64decode(raw,validate=True)
+    except (ValueError,TypeError):raise EncryptionKeyError('ENCRYPTION_KEY_INVALID_BASE64') from None
+    if len(value)!=32:raise EncryptionKeyError('ENCRYPTION_KEY_INVALID_LENGTH')
     return value
 
 class SealedWriter:
@@ -210,14 +222,17 @@ def snapshot(conn):
     return result
 
 def backup(s3,bucket,owner,directory):
+    progress('source_snapshot')
     secret=key();backup_id=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')+'-'+uuid.uuid4().hex
     started=datetime.now(timezone.utc).isoformat()
     with source_connection() as conn:
         snapshot_id=conn.execute('SELECT pg_export_snapshot()').fetchone()[0]
         verification=snapshot(conn)
         for part,command in [('database',['pg_dump','--format=custom','--snapshot='+snapshot_id,'--no-password','--lock-wait-timeout=30s']),('roles',['pg_dumpall','--roles-only','--no-role-passwords','--no-password'])]:
+            progress('export_'+part)
             export(command,Path(directory)/(part+'.enc'),secret,PROJECT+'/'+backup_id+'/'+part)
         from storage_source import capture
+        progress('storage_capture')
         storage_verification=capture(engine(),conn,Path(directory)/'storage.enc',secret,PROJECT+'/'+backup_id+'/storage')
         # Sequences are not MVCC: fail rather than certify a moving allocation.
         current=[]
@@ -232,10 +247,12 @@ def backup(s3,bucket,owner,directory):
     if hasattr(s3,'ensure_capacity'):s3.ensure_capacity(sum(x['bytes'] for x in manifest['files'].values())+16384)
     root=PREFIX+backup_id+'/'
     for part in FULL_PARTS:
+        progress('drive_upload_'+part)
         s3.upload_file(str(Path(directory)/(part+'.enc')),bucket,root+part+'.enc',ExtraArgs={'ExpectedBucketOwner':owner,'ContentType':'application/octet-stream'})
         head=s3.head_object(Bucket=bucket,Key=root+part+'.enc',ExpectedBucketOwner=owner)
         require(head['ContentLength']==manifest['files'][part]['bytes'],'uploaded length not confirmed')
     # Commit marker last. The next restore downloads, hashes and authenticates all parts.
+    progress('drive_commit_marker')
     s3.put_object(Bucket=bucket,Key=root+'complete.json',Body=json.dumps(manifest).encode(),ExpectedBucketOwner=owner,ContentType='application/json')
     return manifest
 
@@ -358,6 +375,7 @@ def main():
         require(env('BACKUP_COST_APPROVED')=='true' and env('BACKUP_DRIVE_SETUP_APPROVED')=='true','Drive setup not approved')
         from drive_store import authenticate,initialize_folder
         print('New dedicated PostgreSQL folder ID: '+initialize_folder(authenticate(),env('BACKUP_DRIVE_ACCOUNT')));return
+    progress('drive_preflight')
     s3,bucket,owner=storage()
     if mode=='health':
         print(json.dumps(health(s3,bucket,owner)));return
@@ -380,8 +398,11 @@ def main():
         manifest=backup(s3,bucket,owner,directory) if mode=='backup' else latest(s3,bucket,owner,directory)
         if mode=='backup':
             for part in archive_parts(manifest):(Path(directory)/(part+'.enc')).unlink()
+            progress('drive_readback')
             fetch_committed(s3,bucket,owner,manifest,directory)
+        progress('isolated_restore')
         result=isolated_restore(directory,manifest)
+        progress('restore_evidence_upload')
         s3.put_object(Bucket=bucket,Key=PREFIX+manifest['backup_id']+'/restore-ok.json',Body=json.dumps(result).encode(),ExpectedBucketOwner=owner,ContentType='application/json')
         if result.get('storage_files_verified'):
             print('Database and Storage byte restore verified in isolation; Supabase service reattachment remains unverified.')

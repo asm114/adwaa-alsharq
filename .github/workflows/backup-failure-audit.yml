@@ -1,0 +1,65 @@
+name: Read-only failure audit (key format and existing Drive files)
+# No repository-variable approval is changed or bypassed in the older workflows.
+# This dedicated setup run is authorized by review of its exact push SHA in the
+# existing protected production-backup environment. No capture permission exists.
+on:
+  push:
+    branches: [ops/encrypted-daily-backup-20261024]
+    paths:
+      - .github/workflows/backup-failure-audit.yml
+      - tools/backup/failure_audit.py
+permissions:
+  contents: read
+concurrency:
+  group: production-backup-failure-audit
+  cancel-in-progress: false
+jobs:
+  audit:
+    if: >-
+      github.event_name == 'push' &&
+      github.repository == 'asm114/adwaa-alsharq' &&
+      github.ref == 'refs/heads/ops/encrypted-daily-backup-20261024' &&
+      github.event.after == github.sha
+    environment: production-backup
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: core
+            secret_prefix: CORE
+          - target: portal
+            secret_prefix: PORTAL
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify reviewed push commit
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Install pinned dependencies
+        run: |
+          python3 -m venv "$RUNNER_TEMP/first-setup-venv"
+          "$RUNNER_TEMP/first-setup-venv/bin/pip" install -r tools/backup/requirements.txt
+      - name: Read-only partial-file inventory, quota and key-format diagnosis
+        env:
+          BACKUP_TARGET: ${{ matrix.target }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets[format('BACKUP_{0}_ENCRYPTION_KEY', matrix.secret_prefix)] }}
+          BACKUP_DRIVE_CLIENT_ID: ${{ secrets.BACKUP_DRIVE_CLIENT_ID }}
+          BACKUP_DRIVE_CLIENT_SECRET: ${{ secrets.BACKUP_DRIVE_CLIENT_SECRET }}
+          BACKUP_DRIVE_REFRESH_TOKEN: ${{ secrets.BACKUP_DRIVE_REFRESH_TOKEN }}
+          BACKUP_DRIVE_ACCOUNT: ${{ vars.BACKUP_DRIVE_ACCOUNT }}
+          BACKUP_COST_APPROVED: ${{ vars.BACKUP_COST_APPROVED }}
+          BACKUP_EXECUTION_APPROVED: 'false'
+          BACKUP_RESTORE_APPROVED: 'false'
+          BACKUP_DRIVE_RETENTION_APPROVED: 'false'
+          BACKUP_SCHEDULE_APPROVED: 'false'
+        run: |
+          set -euo pipefail
+          umask 077
+          "$RUNNER_TEMP/first-setup-venv/bin/python" tools/backup/failure_audit.py

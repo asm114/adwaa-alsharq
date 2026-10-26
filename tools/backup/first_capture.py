@@ -49,14 +49,18 @@ def capture(report):
         engine.require(measured <= plan['storage_max'], 'Storage exceeds measured capacity budget')
         report.update(storage_objects_before=len(data['objects']), storage_bytes_before=measured,
                       vault_rows=conn.execute('SELECT count(*) FROM vault.secrets').fetchone()[0])
+    report['stage'] = 'encryption_key_validation'
     engine.key()  # Validate key format before export, without returning it.
     report['stage'] = 'encrypted_capture_and_isolated_restore'
     original = sys.argv
+    previous_progress = engine.PROGRESS
     try:
+        engine.PROGRESS = lambda stage: report.update(engine_stage=stage)
         sys.argv = ['backup.py', 'backup']
         result = engine.main()
     finally:
         sys.argv = original
+        engine.PROGRESS = previous_progress
     engine.require(result.get('restore_verified') is True and result.get('storage_files_verified') is True,
                    'independent restore evidence missing')
     report.update(result)
@@ -72,6 +76,8 @@ def main():
               'production_modified': False}
     try:
         capture(report)
+    except engine.EncryptionKeyError as error:
+        report['code'] = error.code
     except engine.SourceError as error:
         report['code'] = error.code
     except engine.psycopg.Error as error:
