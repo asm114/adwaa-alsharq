@@ -8,6 +8,7 @@ from test_storage_source import Response
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 spec=importlib.util.spec_from_file_location('backup',ROOT/'tools/backup/backup.py');b=importlib.util.module_from_spec(spec);spec.loader.exec_module(b)
+fixture_image=os.environ.get('BACKUP_TEST_RESTORE_IMAGE',b.IMAGE)
 name='adwaa-backup-source-'+uuid.uuid4().hex[:12]
 def sql(query):return b.docker(['exec','-i',name,'psql','-h','127.0.0.1','-X','-qAt','-v','ON_ERROR_STOP=1','-U','postgres','-d','postgres'],input=query.encode()).stdout
 class Result:
@@ -29,13 +30,15 @@ class FixtureConnection:
         return Result([tuple(row.values()) for row in rows])
     def cursor(self):return self
     def copy(self,query):return Copy(query)
-b.docker(['run','--rm','-d','--network','none','--tmpfs','/var/lib/postgresql/data','-e','POSTGRES_HOST_AUTH_METHOD=trust','--name',name,b.IMAGE])
+b.docker(['run','--rm','-d','--network','none','--tmpfs','/var/lib/postgresql/data','-e','POSTGRES_HOST_AUTH_METHOD=trust','--name',name,fixture_image])
 try:
     for _ in range(60):
         ready=subprocess.run(['docker','--host=unix:///var/run/docker.sock','exec',name,'pg_isready','-h','127.0.0.1','-U','postgres'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0
         if ready:break
         time.sleep(.5)
     assert ready
+    if os.environ.get('BACKUP_TEST_RESTORE_IMAGE'):
+        sql("CREATE SCHEMA extensions;CREATE EXTENSION pg_stat_statements WITH SCHEMA extensions VERSION '1.11';CREATE EXTENSION pgcrypto WITH SCHEMA extensions VERSION '1.3';CREATE EXTENSION \"uuid-ossp\" WITH SCHEMA extensions VERSION '1.1';CREATE EXTENSION supabase_vault VERSION '0.3.1';INSERT INTO vault.secrets(secret) VALUES('synthetic-opaque-ciphertext');")
     sql('''CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN;
     CREATE TABLE app_state(id text primary key,data jsonb);INSERT INTO app_state VALUES('main','{"seq":131,"bookings":[{"id":"old","total":1200,"paid":500}],"expenses":[{"id":"json-expense","amount":50}],"maintenance":[{"id":"json-maintenance","total":200}],"subscriptions":[{"id":"json-sub","total":800}],"installmentPurchases":[{"id":"json-plan","total":600}],"customers":[{"id":"json-customer","name":"synthetic"}],"commissions":[{"id":"json-commission","amount":30}]}');
     CREATE TABLE reservations(id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,total numeric,paid numeric); INSERT INTO reservations(total,paid) VALUES(1200,500),(900,900);
@@ -62,12 +65,13 @@ try:
     expected={('public',n) for n in ['app_state','reservations','payments','expenses','maintenance','commissions','customers','subscriptions','installments','empty_history']}|{('private_finance','ledger')}
     expected|={('storage','buckets'),('storage','objects')}
     if b.PROJECT=='ztqqdjryvecscidxxbfe':expected|={('public',t) for t in ['customer_portal_resort_info','customer_portal_unavailable_periods','customer_portal_admins']}
+    if os.environ.get('BACKUP_TEST_RESTORE_IMAGE'):expected.add(('vault','secrets'))
     assert {(t['schema'],t['name']) for t in verification['tables']}==expected
     assert next(t['rows'] for t in verification['tables'] if t['name']=='empty_history')==0
     assert sql('SELECT sum(amount) FROM payments').strip()==b'1400'
     assert sql('SELECT sum(total-paid) FROM installments').strip()==b'500'
     backup_id='20261024T000000Z-'+uuid.uuid4().hex;verification.update(project=b.PROJECT,backup_id=backup_id,storage_files_included=True)
-    os.environ['BACKUP_ENCRYPTION_KEY']=base64.b64encode(os.urandom(32)).decode();os.environ['BACKUP_RESTORE_IMAGE']=b.IMAGE
+    os.environ['BACKUP_ENCRYPTION_KEY']=base64.b64encode(os.urandom(32)).decode();os.environ['BACKUP_RESTORE_IMAGE']=fixture_image
     os.environ['BACKUP_CONFIRMED_PROJECT_REF']=b.PROJECT;os.environ['BACKUP_STORAGE_API_KEY']='sb_secret_synthetic-integration-only'
     with tempfile.TemporaryDirectory() as d:
         for part,command in [('database',['pg_dump','-U','postgres','-Fc','postgres']),('roles',['pg_dumpall','-U','postgres','--roles-only','--no-role-passwords'])]:

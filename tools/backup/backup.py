@@ -249,7 +249,7 @@ def isolated_restore(directory,manifest):
     for part in archive_parts(manifest):require(digest(Path(directory)/(part+'.enc'))==manifest['files'][part],'ciphertext SHA-256 or size mismatch')
     data=io.BytesIO();unseal(Path(directory)/'verification.enc',data,secret,PROJECT+'/'+backup_id+'/verification')
     verification=json.loads(data.getvalue());require(verification['project']==PROJECT and verification['backup_id']==backup_id,'verification identity mismatch')
-    image=env('BACKUP_RESTORE_IMAGE');require(bool(re.fullmatch(r'[a-zA-Z0-9./:_-]+@sha256:[a-f0-9]{64}',image)),'restore image must be approved and digest pinned')
+    image=env('BACKUP_RESTORE_IMAGE');require(bool(re.fullmatch(r'(?:[a-zA-Z0-9./:_-]+@)?sha256:[a-f0-9]{64}',image)),'restore image must be approved and digest pinned')
     name='adwaa-backup-restore-'+uuid.uuid4().hex[:12]
     docker(['run','--rm','-d','--network','none','--memory','4g','--cpus','2','--pids-limit','256','--tmpfs','/var/lib/postgresql/data:rw,noexec,nosuid,size=4g','--tmpfs','/tmp:rw,noexec,nosuid,size=4g','-e','POSTGRES_HOST_AUTH_METHOD=trust','--name',name,image])
     try:
@@ -292,7 +292,7 @@ def isolated_restore(directory,manifest):
             from storage_source import restore
             require(verification.get('storage_files_included') is True,'Storage verification absent')
             storage_result=restore(engine(),name,verification['storage'])
-        return {'restore_verified':True,'backup_id':backup_id,'project':PROJECT,'tables_verified':len(verification['tables']),**storage_result}
+        return {'restore_verified':True,'backup_id':backup_id,'project':PROJECT,'tables_verified':len(verification['tables']),'rows_verified':sum(t['rows'] for t in verification['tables']),'sequences_verified':len(verification['sequences']),'large_objects_verified':len(verification['large_objects']),**storage_result}
     finally:docker(['rm','-f',name])
 
 def fetch_committed(s3,bucket,owner,manifest,directory):
@@ -387,6 +387,8 @@ def main():
             print('Database and Storage byte restore verified in isolation; Supabase service reattachment remains unverified.')
         else:
             print('Legacy database-only restore verified; Storage was not included. No comprehensive success is certified.')
+        result['encrypted_files'] = manifest['files']
+        return result
 if __name__=='__main__':
     try:main()
     except GateError as error:

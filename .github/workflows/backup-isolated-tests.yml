@@ -23,6 +23,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - name: Build and pin the production-compatible restore image for synthetic tests
+        run: |
+          set -euo pipefail
+          docker build -f tools/backup/restore-image.Dockerfile -t adwaa-ci-restore:tested tools/backup
+          image=$(docker image inspect adwaa-ci-restore:tested --format '{{.Id}}')
+          echo "BACKUP_TEST_RESTORE_IMAGE=$image" >> "$GITHUB_ENV"
       - run: |
           python3 -m venv "$RUNNER_TEMP/backup-tests"
           "$RUNNER_TEMP/backup-tests/bin/pip" install -r tools/backup/requirements.txt
