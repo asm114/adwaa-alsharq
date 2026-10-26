@@ -29,6 +29,7 @@ def prepare(report):
     print(json.dumps({'target': TARGET, 'folder_id': report['folder_id'], 'code': 'DRIVE_FOLDER_READY'}), flush=True)
     report['stage'] = 'source_connection'
     with engine.source_connection() as conn:
+        report['client_tls_verified'] = True
         engine.require(conn.execute(engine.identity_query()).fetchone() == (True,), 'identity tables missing')
         report['database_bytes'] = conn.execute('SELECT pg_database_size(current_database())').fetchone()[0]
         report['server_version_num'] = conn.execute('SHOW server_version_num').fetchone()[0]

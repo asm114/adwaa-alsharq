@@ -80,6 +80,17 @@ def probe_tcp(host):
     raise SourceError(failures[0] if failures and len(set(failures)) == 1 else 'PG_TCP_FAILED')
 
 
+def verify_client_tls(connection, host, ca):
+    # PQsslInUse describes this libpq client's socket, including when its peer is
+    # Supavisor. pg_stat_ssl instead describes the PostgreSQL backend's peer.
+    need(connection.pgconn.ssl_in_use is True, 'PG_TLS_NOT_ACTIVE')
+    parameters = connection.info.get_parameters()
+    need(parameters.get('sslmode') == 'verify-full' and
+         parameters.get('host') == host and
+         parameters.get('sslrootcert') == ca, 'PG_TLS_VERIFY_FAILED')
+    # Never return or log the connection parameters.
+
+
 def classify(error):
     if isinstance(error, SourceError):
         return error.code

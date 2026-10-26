@@ -77,9 +77,38 @@ class SourceDiagnosticTests(unittest.TestCase):
 
     def test_connection_failure_closes_resource_and_uses_fixed_code(self):
         connection = MagicMock()
+        connection.pgconn.ssl_in_use = True
+        connection.info.get_parameters.return_value = {'sslmode': 'verify-full', 'host': 'synthetic', 'sslrootcert': 'synthetic-ca'}
         connection.execute.side_effect = RuntimeError('permission denied SYNTHETIC-SECRET')
-        with patch.object(b, 'validate_config', return_value='synthetic'), patch.object(b, 'probe_tcp'), patch.object(b.psycopg, 'connect', return_value=connection):
+        with patch.dict(os.environ, {'PGUSER': 'synthetic', 'PGPASSWORD': 'synthetic-password', 'PGSSLROOTCERT': 'synthetic-ca'}), patch.object(b, 'validate_config', return_value='synthetic'), patch.object(b, 'probe_tcp'), patch.object(b.psycopg, 'connect', return_value=connection):
             with self.assertRaises(d.SourceError) as error:b.source_connection()
             self.assertEqual(error.exception.code, 'PG_PERMISSION_DENIED')
             connection.close.assert_called_once()
             self.assertTrue(connection.read_only)
+
+    def test_unencrypted_client_rejected_before_any_sql(self):
+        connection = MagicMock()
+        connection.pgconn.ssl_in_use = False
+        with patch.dict(os.environ, {'PGUSER': 'synthetic', 'PGPASSWORD': 'synthetic-password', 'PGSSLROOTCERT': 'synthetic-ca'}), patch.object(b, 'validate_config', return_value='synthetic'), patch.object(b, 'probe_tcp'), patch.object(b.psycopg, 'connect', return_value=connection) as connect:
+            with self.assertRaises(d.SourceError) as error:b.source_connection()
+            self.assertEqual(error.exception.code, 'PG_TLS_NOT_ACTIVE')
+            connection.execute.assert_not_called()
+            connection.close.assert_called_once()
+            self.assertEqual(connect.call_args.kwargs['sslmode'], 'verify-full')
+            self.assertEqual(connect.call_args.kwargs['sslrootcert'], 'synthetic-ca')
+            self.assertEqual(connect.call_args.kwargs['host'], 'synthetic')
+
+    def test_pooler_client_tls_independent_of_backend_stat_view(self):
+        connection = MagicMock()
+        connection.pgconn.ssl_in_use = True
+        host = 'aws-0-synthetic.pooler.supabase.com'
+        connection.info.get_parameters.return_value = {'sslmode': 'verify-full', 'host': host, 'sslrootcert': 'synthetic-ca'}
+        connection.execute.side_effect = [None, MagicMock(fetchone=lambda: (100,)), MagicMock(fetchone=lambda: ('170006',)), MagicMock(fetchone=lambda: (True,))]
+        with patch.dict(os.environ, {'PGUSER': 'synthetic', 'PGPASSWORD': 'synthetic-password', 'PGSSLROOTCERT': 'synthetic-ca'}), patch.object(b, 'validate_config', return_value=host), patch.object(b, 'probe_tcp'), patch.object(b.psycopg, 'connect', return_value=connection):
+            self.assertIs(b.source_connection(), connection)
+        self.assertTrue(connection.read_only)
+        self.assertNotIn('pg_stat_ssl', str(connection.execute.call_args_list))
+        for key, wrong in [('sslmode', 'require'), ('host', 'other'), ('sslrootcert', 'other')]:
+            connection.info.get_parameters.return_value = {'sslmode': 'verify-full', 'host': host, 'sslrootcert': 'synthetic-ca', key: wrong}
+            with self.assertRaises(d.SourceError) as error:d.verify_client_tls(connection, host, 'synthetic-ca')
+            self.assertEqual(error.exception.code, 'PG_TLS_VERIFY_FAILED')

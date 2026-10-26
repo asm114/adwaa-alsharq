@@ -25,7 +25,7 @@ def archive_parts(manifest):
 
 def identity_query():
     return 'SELECT '+ ' AND '.join("to_regclass('public."+name+"') IS NOT NULL" for name in REQUIRED_TABLES)
-from source_diagnostics import GateError, SourceError, need as source_need, validate_config, probe_tcp, classify as source_code
+from source_diagnostics import GateError, SourceError, need as source_need, validate_config, probe_tcp, verify_client_tls, classify as source_code
 
 def require(condition,message):
     if not condition:raise GateError(message)
@@ -115,13 +115,13 @@ def source_connection():
     probe_tcp(host)
     connection=None
     try:
-        connection=psycopg.connect(connect_timeout=20,options='-c default_transaction_read_only=on -c statement_timeout=1800000')
+        connection=psycopg.connect(host=host,port=5432,user=env('PGUSER'),password=env('PGPASSWORD'),dbname='postgres',sslmode='verify-full',sslrootcert=env('PGSSLROOTCERT'),connect_timeout=20,options='-c default_transaction_read_only=on -c statement_timeout=1800000')
+        verify_client_tls(connection,host,env('PGSSLROOTCERT'))
         connection.read_only=True;connection.isolation_level=psycopg.IsolationLevel.REPEATABLE_READ
         connection.execute(CANONICAL)
         size=connection.execute('SELECT pg_database_size(current_database())').fetchone()[0]
         source_need(size<=int(os.environ.get('BACKUP_MAX_DATABASE_BYTES','1073741824')),'PG_DATABASE_TOO_LARGE')
         source_need(connection.execute('SHOW server_version_num').fetchone()[0].startswith('17'),'PG_VERSION_UNSUPPORTED')
-        source_need(connection.execute('SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid()').fetchone()==(True,),'PG_TLS_NOT_ACTIVE')
         source_need(connection.execute("SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname=current_user").fetchone()==(True,),'PG_RLS_BYPASS_REQUIRED')
         return connection
     except Exception as error:
