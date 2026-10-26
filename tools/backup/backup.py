@@ -147,11 +147,13 @@ _SCHEMA_KEYS={
 _SCHEMA_ATTRIBUTES=frozenset(('name','schema','table','owner','acl','type','version',
     'definition','valid','args','enabled'))
 
-def schema_differences(expected,actual):
+def schema_differences(expected,actual,keys=None,attributes=None):
     """Bounded structural differences; does NOT change comparison acceptance."""
     result={}
     def encoded(value):return json.dumps(value,sort_keys=True,separators=(',',':'))
-    for section,identity in _SCHEMA_KEYS.items():
+    keys=_SCHEMA_KEYS if keys is None else keys
+    attributes=_SCHEMA_ATTRIBUTES if attributes is None else attributes
+    for section,identity in keys.items():
         left=expected.get(section);right=actual.get(section)
         if left==right:continue
         if not isinstance(left,list) or not isinstance(right,list):
@@ -176,8 +178,8 @@ def schema_differences(expected,actual):
         for key in sorted(x.keys()&y.keys()):
             if len(x[key])!=1 or len(y[key])!=1:continue
             ordinal,before=x[key][0];after=y[key][0][1]
-            fields=sorted(k for k in _SCHEMA_ATTRIBUTES if (k in before)!=(k in after) or before.get(k)!=after.get(k))
-            if any(before.get(k)!=after.get(k) for k in (before.keys()|after.keys())-_SCHEMA_ATTRIBUTES):fields.append('unrecognized_attribute')
+            fields=sorted(k for k in attributes if (k in before)!=(k in after) or before.get(k)!=after.get(k))
+            if any(before.get(k)!=after.get(k) for k in (before.keys()|after.keys())-attributes):fields.append('unrecognized_attribute')
             if fields:
                 changed.update(fields)
                 if len(samples)<20:samples.append({'source_ordinal':ordinal,'changed_attributes':fields})
@@ -185,6 +187,21 @@ def schema_differences(expected,actual):
         summary['changed_object_samples']=samples
         result[section]=summary
     return result
+
+_METADATA_KEYS={'catalog':('schema','name'),
+    'policies':('schemaname','tablename','policyname'),
+    'roles':('name',),'memberships':('role','member','grantor')}
+_METADATA_ATTRIBUTES=_SCHEMA_ATTRIBUTES|frozenset(('rls','force_rls','options',
+    'schemaname','tablename','policyname','permissive','roles','cmd','qual','with_check',
+    'superuser','inherit','login','bypassrls','create_role','create_db',
+    'role','member','grantor','admin','set'))
+
+def metadata_differences(field,expected,actual):
+    if field=='schema':return schema_differences(expected,actual)
+    left=json.loads(expected) if isinstance(expected,str) else expected
+    right=json.loads(actual) if isinstance(actual,str) else actual
+    return schema_differences({field:left},{field:right},
+        {field:_METADATA_KEYS[field]},_METADATA_ATTRIBUTES)
 
 CANONICAL="SET timezone='UTC';SET datestyle='ISO,YMD';SET extra_float_digits=3;"
 
@@ -421,10 +438,10 @@ def isolated_restore(directory,manifest):
         # must match in ONE consistent context; no ACL/data differences waived.
         contexts=[('ROLE_DEFAULT',''),('SUPABASE_PATH','SET search_path TO "$user", public, extensions;'),('PUBLIC_EXTENSIONS','SET search_path TO public, extensions;'),('CATALOG_ONLY','SET search_path TO pg_catalog;')]
         last_error=None
-        comparison_diagnostics=[]
+        comparison_diagnostics=[];metadata_diagnostics=[];best_failure=None
         for render_context,setting in contexts:
             sql_prefix=CANONICAL+setting
-            last_error=None
+            failures=[];context_differences={}
             for field,query in metadata_queries:
                 progress('restore_verify_'+field)
                 try:actual=sql(query)
@@ -437,14 +454,25 @@ def isolated_restore(directory,manifest):
                         expected=normalized_metadata(expected,field,sql)
                     except Exception:raise RestoreError('RESTORE_ACL_PARSE_FAILED') from None
                 if actual!=expected:
-                    last_error=RestoreError('RESTORE_'+field.upper()+'_MISMATCH')
+                    failure=RestoreError('RESTORE_'+field.upper()+'_MISMATCH')
+                    differences=metadata_differences(field,expected,actual)
+                    context_differences.update(differences)
                     if field=='schema':
-                        last_error.fields=[k for k in _SCHEMA_KEYS if actual.get(k)!=expected.get(k)]
-                        comparison_diagnostics.append({'render_context':render_context,'sections':schema_differences(expected,actual)})
-                    break
-            if last_error is None:break
+                        failure.fields=[k for k in _SCHEMA_KEYS if actual.get(k)!=expected.get(k)]
+                        comparison_diagnostics.append({'render_context':render_context,'sections':differences})
+                    failures.append(failure)
+            metadata_diagnostics.append({'render_context':render_context,'differences':context_differences})
+            if not failures:
+                last_error=None;break
+            # Prefer the context with the fewest failing metadata categories.
+            # Never mask a later genuine mismatch with a deparser mismatch from
+            # CATALOG_ONLY, and never combine passing fields across contexts.
+            if best_failure is None or len(failures)<best_failure[0]:
+                best_failure=(len(failures),failures[0])
+            last_error=best_failure[1]
         if last_error is not None:
             last_error.diagnostics=comparison_diagnostics
+            last_error.metadata_diagnostics=metadata_diagnostics
             last_error.replayed_metadata=extension_metadata
             # pg_restore header is inspected in memory only; never emit the
             # table-of-contents body (it can contain sensitive identifiers).

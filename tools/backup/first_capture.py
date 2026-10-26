@@ -83,6 +83,7 @@ def main():
         report['code'] = error.code
         if hasattr(error,'fields'):report['comparison_fields'] = error.fields
         if hasattr(error,'diagnostics'):report['schema_diagnostics'] = error.diagnostics
+        if hasattr(error,'metadata_diagnostics'):report['metadata_diagnostics'] = error.metadata_diagnostics
         if hasattr(error,'versions'):report['postgres_versions'] = error.versions
         if hasattr(error,'replayed_metadata'):report['replayed_metadata'] = error.replayed_metadata
     except engine.EncryptionKeyError as error:

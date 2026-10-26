@@ -36,6 +36,7 @@ jobs:
           "$RUNNER_TEMP/backup-tests/bin/python" -m unittest discover -s tests/backup -p 'test_*.py' -v
           "$RUNNER_TEMP/backup-tests/bin/python" tests/backup/restore_integration.py
           BACKUP_TEST_EXPECT_SCHEMA_MISMATCH=true "$RUNNER_TEMP/backup-tests/bin/python" tests/backup/restore_integration.py
+          BACKUP_TEST_EXPECT_MEMBERSHIP_MISMATCH=true "$RUNNER_TEMP/backup-tests/bin/python" tests/backup/restore_integration.py
       - if: always()
         run: |
           docker ps -aq --filter 'name=adwaa-backup-source-' --filter 'name=adwaa-backup-restore-' | xargs -r docker rm -f

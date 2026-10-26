@@ -75,6 +75,10 @@ try:
     # pg_dump emits ACL deltas relative to pg_init_privs, not their full grants.
     # This catalog write is ONLY in the disposable synthetic source fixture.
     sql("GRANT USAGE ON SCHEMA \"Z_order\" TO anon;GRANT USAGE ON SCHEMA a_order TO authenticated WITH GRANT OPTION;SET ROLE authenticated;GRANT USAGE ON SCHEMA a_order TO anon;RESET ROLE;INSERT INTO pg_init_privs(objoid,classoid,objsubid,privtype,initprivs) SELECT oid,'pg_namespace'::regclass,0,'e',nspacl FROM pg_namespace WHERE nspname IN ('Z_order','a_order');")
+    if b.PROJECT=='ztqqdjryvecscidxxbfe':
+        # Provider initial table ACLs and role OID order must survive restoring
+        # into a fresh cluster with a different role creation order.
+        sql("GRANT SELECT ON public.customers TO authenticated;INSERT INTO pg_init_privs(objoid,classoid,objsubid,privtype,initprivs) SELECT oid,'pg_class'::regclass,0,'e',relacl FROM pg_class WHERE oid='public.customers'::regclass;CREATE ROLE z_policy_actor NOLOGIN;CREATE ROLE a_policy_actor NOLOGIN;ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;CREATE POLICY synthetic_multi_role ON public.customers TO a_policy_actor,z_policy_actor USING(false);")
     from restore_metadata import acl_values,literal
     def parse_acl(acl):
         return acl_values([{'acl':acl,'owner':source_user,'kind':'r'}],lambda query:sql(query).decode())[0]
@@ -118,6 +122,8 @@ try:
         if os.environ.get('BACKUP_TEST_EXPECT_SCHEMA_MISMATCH')=='true':
             altered=json.loads(verification['schema']);altered['schemas'][0]['owner']='invented-owner-must-not-be-logged'
             verification['schema']=json.dumps(altered)
+        if os.environ.get('BACKUP_TEST_EXPECT_MEMBERSHIP_MISMATCH')=='true':
+            verification['memberships']=json.dumps([{'role':'authenticated','member':'anon','grantor':source_user,'admin':False,'inherit':True,'set':True}])
         b.seal(io.BytesIO(json.dumps(verification).encode()),Path(d)/'verification.enc',b.key(),b.PROJECT+'/'+backup_id+'/verification')
         manifest={'project':b.PROJECT,'format':2,'backup_id':backup_id,'files':{p:b.digest(Path(d)/(p+'.enc')) for p in b.FULL_PARTS}}
         # Round-trip the actual encrypted fixture through the Drive transport
@@ -128,6 +134,15 @@ try:
         for part in b.FULL_PARTS:Path(d,part+'.enc').unlink()
         with patch.object(drive_store,'MediaIoBaseDownload',Download):b.fetch_committed(store,FOLDER,EMAIL,manifest,d)
         assert service.payloads['legacy']==b'previous JSON' and service.deleted==[]
+        if os.environ.get('BACKUP_TEST_EXPECT_MEMBERSHIP_MISMATCH')=='true':
+            try:b.isolated_restore(d,manifest)
+            except b.RestoreError as error:
+                assert error.code=='RESTORE_MEMBERSHIPS_MISMATCH'
+                assert len(error.metadata_diagnostics)==4
+                assert any(set(row['differences'])=={'memberships'} for row in error.metadata_diagnostics)
+                print(json.dumps({'synthetic_membership_mismatch_rejected':True,'correct_failure_not_masked':True,'production_access':False}))
+                raise SystemExit(0)
+            raise AssertionError('Changed membership was incorrectly accepted')
         if os.environ.get('BACKUP_TEST_EXPECT_SCHEMA_MISMATCH')=='true':
             try:b.isolated_restore(d,manifest)
             except b.RestoreError as error:
@@ -142,6 +157,7 @@ try:
             raise AssertionError('Changed schema owner was incorrectly accepted')
         result=b.isolated_restore(d,manifest);assert result['restore_verified'] is True
         assert result['schema_acls_restored']==2
+        assert result['relation_acls_restored']==(1 if b.PROJECT=='ztqqdjryvecscidxxbfe' else 0)
         assert sum(len(row['missing_grants_replayed']) for row in result['schema_acl_restore_diagnostics'])==3
         assert all(row['extra_grants_removed']==[] for row in result['schema_acl_restore_diagnostics'])
         assert sum(grant['grantable'] for row in result['schema_acl_restore_diagnostics'] for grant in row['missing_grants_replayed'])==1

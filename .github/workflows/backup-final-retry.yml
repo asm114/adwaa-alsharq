@@ -1,9 +1,10 @@
-name: Restore existing captures including provider-initial schema grants
+name: Restore existing Portal capture with complete metadata diagnostics
 # Reviewer approval is bound to this exact push SHA. Fixed operation only.
 # No schedule, retention, folder creation, merge or deployment.
 # Extension ownership and full recorded schema grants are restored in isolation.
 # pg_dump ACL deltas alone do not replay provider-initial schema privileges.
-# Both targets restore committed four-part captures only. No production
+# Core restore was verified by run 40398433591 and is not repeated.
+# Portal restores its committed four-part capture only. No production
 # credentials are provided; partial groups and old files remain untouched.
 on:
   push:
@@ -27,8 +28,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - target: core
-            secret_prefix: CORE
           - target: portal
             secret_prefix: PORTAL
     runs-on: ubuntu-24.04
@@ -66,6 +65,7 @@ jobs:
           "$RUNNER_TEMP/first-capture-venv/bin/python" -m unittest discover -s tests/backup -p 'test_*.py'
           "$RUNNER_TEMP/first-capture-venv/bin/python" tests/backup/restore_integration.py
           BACKUP_TEST_EXPECT_SCHEMA_MISMATCH=true "$RUNNER_TEMP/first-capture-venv/bin/python" tests/backup/restore_integration.py
+          BACKUP_TEST_EXPECT_MEMBERSHIP_MISMATCH=true "$RUNNER_TEMP/first-capture-venv/bin/python" tests/backup/restore_integration.py
       - name: Restore existing committed capture only; no source credentials
         env:
           BACKUP_TARGET: ${{ matrix.target }}

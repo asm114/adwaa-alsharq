@@ -65,9 +65,11 @@ class ExistingRecoveryTests(unittest.TestCase):
         for term in ['PGHOST:','PGPASSWORD:','BACKUP_STORAGE_API_KEY:','schedule:','backup.py backup','first_capture.py']:
             self.assertNotIn(term,text)
 
-    def test_final_retry_restores_both_committed_without_source_credentials(self):
+    def test_final_retry_restores_portal_only_without_source_credentials(self):
         text=(ROOT/'.github/workflows/backup-final-retry.yml').read_text()
         self.assertIn('tools/backup/recover_existing.py',text)
+        self.assertNotIn('- target: core',text)
+        self.assertIn('- target: portal',text)
         for forbidden in ['PGHOST:','PGPASSWORD:','BACKUP_STORAGE_API_KEY:','first_capture.py','schedule:', 'init-drive']:
             self.assertNotIn(forbidden,text)
         for required in ['environment: production-backup','github.event.after == github.sha',

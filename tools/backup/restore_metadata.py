@@ -60,10 +60,9 @@ def restore_extension_metadata(engine,container,verification,sql,bootstrap):
     """pg_dump recreates extensions but does not restore member ownership.
 
     Reapply the original owner/ACL recorded in the authenticated verification.
-    Only pg_depend-confirmed extension objects are eligible. Application
-    objects are not repaired from expected values; strict comparison detects
-    their mismatches. Schema grants are also replayed from the full recorded
-    ACL when pg_dump omitted provider-initial grants. Schema owners and all
+    Only pg_depend-confirmed extension objects have ownership replayed.
+    Recorded schema/relation grants are replayed when pg_dump omitted
+    provider-initial grants. Application owners, RLS, options and all
     definitions are never replaced or ignored.
     """
     expected=engine.application_schema_metadata(verification['schema'])
@@ -106,8 +105,27 @@ def restore_extension_metadata(engine,container,verification,sql,bootstrap):
         signature=engine.quote(row['schema'])+'.'+engine.quote(row['name'])
         clause=('SEQUENCE' if row['kind']=='S' else 'TABLE')+' '+signature
         alter={'r':'TABLE','p':'TABLE','v':'VIEW','m':'MATERIALIZED VIEW','S':'SEQUENCE'}[row['kind']]+' '+signature
-        pairs.append(({**row,'acl_kind':'S' if row['kind']=='S' else 'r',
+        pairs.append(({**row,'extension_member':True,'acl_kind':'S' if row['kind']=='S' else 'r',
                        'object_clause':clause,'alter_clause':alter},source_relations[key]))
+    extension_relation_keys={(r['schema'],r['name']) for r in relations}
+    all_relations=json.loads(sql("""SELECT coalesce(jsonb_agg(jsonb_build_object(
+      'schema',n.nspname,'name',c.relname,'kind',c.relkind,
+      'owner',pg_get_userbyid(c.relowner),'acl',c.relacl::text)),'[]')::text
+      FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+      WHERE n.nspname !~ '^pg_' AND n.nspname<>'information_schema'
+        AND c.relkind IN ('r','p','v','m','S')"""))
+    ordinals={(r['schema'],r['name']):i for i,r in enumerate(json.loads(verification['catalog']))}
+    for row in all_relations:
+        key=(row['schema'],row['name']);source_relation=source_relations.get(key)
+        if key in extension_relation_keys or source_relation is None:continue
+        # As for schemas, restore only original grants, never an unexpected
+        # application owner, RLS flags, definitions, options, or missing objects.
+        if row['owner']!=source_relation['owner']:continue
+        signature=engine.quote(row['schema'])+'.'+engine.quote(row['name'])
+        clause=('SEQUENCE' if row['kind']=='S' else 'TABLE')+' '+signature
+        pairs.append(({**row,'acl_kind':'S' if row['kind']=='S' else 'r',
+                       'object_clause':clause,'alter_clause':None,
+                       'source_ordinal':ordinals[key]},source_relation))
     schemas=json.loads(sql("SELECT coalesce(jsonb_agg(jsonb_build_object('name',nspname,'owner',pg_get_userbyid(nspowner),'acl',nspacl::text)),'[]')::text FROM pg_namespace WHERE nspname !~ '^pg_' AND nspname<>'information_schema'"))
     source_schemas={r['name']:r for r in expected['schemas'] or []}
     for row in schemas:
@@ -121,7 +139,7 @@ def restore_extension_metadata(engine,container,verification,sql,bootstrap):
     entries=acl_values(requests,sql)
     commands=['BEGIN;']
     repaired={'f':0,'r':0,'S':0,'n':0}
-    schema_diagnostics=[]
+    schema_diagnostics=[];relation_diagnostics=[];extension_relation_repairs=0
     for i,(target,source_row) in enumerate(pairs):
         old,new=entries[2*i:2*i+2]
         if target['owner']==source_row['owner'] and old==new:continue
@@ -129,8 +147,11 @@ def restore_extension_metadata(engine,container,verification,sql,bootstrap):
         owner=source_row['owner'];clause=target['object_clause']
         if target['alter_clause'] is not None:
             commands.append('ALTER '+target['alter_clause']+' OWNER TO '+engine.quote(owner)+';')
-        else:
+        elif target['acl_kind']=='n':
             schema_diagnostics.append(schema_acl_diagnostic(target['name'],old,new))
+        else:
+            relation_diagnostics.append({'source_ordinal':target['source_ordinal'],**schema_acl_diagnostic(target['schema'],old,new)})
+        if target.get('extension_member'):extension_relation_repairs+=1
         grantees={e['grantee'] for e in old+new}|{owner,None}
         for grantee in sorted(grantees,key=lambda r:('' if r is None else r)):
             role='PUBLIC' if grantee is None else engine.quote(grantee)
@@ -157,7 +178,8 @@ def restore_extension_metadata(engine,container,verification,sql,bootstrap):
         raise MetadataRestoreError(code,schema_diagnostics) from None
 
     return {'extension_routines_checked':len(matches),'extension_routines_restored':repaired['f'],
-            'extension_relations_checked':len(relations),'extension_relations_restored':repaired['r']+repaired['S'],
+            'extension_relations_checked':len(relations),'extension_relations_restored':extension_relation_repairs,
+            'relation_acls_restored':len(relation_diagnostics),'relation_acl_restore_diagnostics':relation_diagnostics,
             'schema_acls_restored':repaired['n'],'schema_acl_restore_diagnostics':schema_diagnostics}
 
 
