@@ -140,5 +140,42 @@ class BackupTests(unittest.TestCase):
             b.main()
         source.assert_not_called();restore.assert_not_called()
 
+    def test_drive_setup_needs_no_general_execution_permission(self):
+        from contextlib import redirect_stdout
+        import drive_store
+        for general in [None,'false']:
+            config={'GITHUB_REF':'refs/heads/ops/encrypted-daily-backup-20261024','BACKUP_COST_APPROVED':'true','BACKUP_DRIVE_SETUP_APPROVED':'true','BACKUP_DRIVE_ACCOUNT':'synthetic@example.invalid'}
+            if general is not None:config['BACKUP_EXECUTION_APPROVED']=general
+            with self.subTest(general=general),patch.dict(os.environ,config,clear=True),patch.object(b.sys,'argv',['backup.py','init-drive']),patch.object(drive_store,'authenticate',return_value=object()) as auth,patch.object(drive_store,'initialize_folder',return_value='synthetic-folder') as folder,patch.object(b,'storage') as storage,patch.object(b,'source_connection') as source,redirect_stdout(io.StringIO()):
+                b.main()
+                auth.assert_called_once();folder.assert_called_once();storage.assert_not_called();source.assert_not_called()
+
+    def test_drive_setup_still_requires_both_scoped_approvals(self):
+        import drive_store
+        for flags in [{},{'BACKUP_COST_APPROVED':'true'},{'BACKUP_DRIVE_SETUP_APPROVED':'true'},{'BACKUP_COST_APPROVED':'false','BACKUP_DRIVE_SETUP_APPROVED':'true'},{'BACKUP_COST_APPROVED':'true','BACKUP_DRIVE_SETUP_APPROVED':'false'}]:
+            config={'GITHUB_REF':'refs/heads/ops/encrypted-daily-backup-20261024','BACKUP_EXECUTION_APPROVED':'true',**flags}
+            with self.subTest(flags=flags),patch.dict(os.environ,config,clear=True),patch.object(b.sys,'argv',['backup.py','init-drive']),patch.object(drive_store,'authenticate') as auth,patch.object(drive_store,'initialize_folder') as folder,self.assertRaises(b.GateError):b.main()
+            auth.assert_not_called();folder.assert_not_called()
+
+    def test_setup_approval_never_authorizes_backup_or_restore(self):
+        import drive_store
+        for operation in ['backup','restore']:
+            config={'GITHUB_REF':'refs/heads/main','BACKUP_COST_APPROVED':'true','BACKUP_DRIVE_SETUP_APPROVED':'true','BACKUP_EXECUTION_APPROVED':'false'}
+            with self.subTest(operation=operation),patch.dict(os.environ,config,clear=True),patch.object(b.sys,'argv',['backup.py',operation]),patch.object(drive_store,'authenticate') as auth,patch.object(b,'source_connection') as source,patch.object(b,'backup') as backup,patch.object(b,'isolated_restore') as restore,self.assertRaises(b.GateError):b.main()
+            auth.assert_not_called();source.assert_not_called();backup.assert_not_called();restore.assert_not_called()
+
+    def test_protected_setup_has_exact_sha_review_and_fixed_operations(self):
+        import re
+        text=(ROOT/'.github/workflows/backup-protected-setup.yml').read_text()
+        init=text.split('  initialize-drive:',1)[1].split('  read-only-preflight:',1)[0]
+        self.assertNotIn('BACKUP_EXECUTION_APPROVED',init)
+        for flag in ['BACKUP_DRIVE_SETUP_APPROVED','BACKUP_COST_APPROVED']:self.assertIn(flag,init)
+        self.assertEqual(text.count('vars.BACKUP_SETUP_APPROVED_SHA == github.sha'),2)
+        self.assertEqual(text.count('environment: production-backup'),2)
+        self.assertEqual(text.count('ref: ${{ github.sha }}'),2)
+        self.assertEqual(set(re.findall(r'backup\.py ([a-z-]+)',text)),{'init-drive','preflight'})
+        self.assertIn('branches: [ops/encrypted-daily-backup-20261024]',text)
+        self.assertNotIn('schedule:',text)
+
     def test_quote_untrusted_identifier(self):self.assertEqual(b.quote('x";DROP'),'"x"";DROP"')
 if __name__=='__main__':unittest.main()

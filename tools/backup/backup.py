@@ -350,7 +350,7 @@ def main():
         require(os.environ.get('BACKUP_SCHEDULE_APPROVED')=='true' and os.environ.get('BACKUP_PRODUCTION_RESTORE_VERIFIED')=='true','scheduled execution awaits production restore and owner approval')
         if os.environ.get('BACKUP_STORAGE_PROVIDER','drive')=='drive':require(os.environ.get('BACKUP_DRIVE_RETENTION_APPROVED')=='true','Drive retention activation not approved')
     if mode=='init-drive':
-        require(env('BACKUP_EXECUTION_APPROVED')=='true' and env('BACKUP_COST_APPROVED')=='true' and env('BACKUP_DRIVE_SETUP_APPROVED')=='true','Drive setup not approved')
+        require(env('BACKUP_COST_APPROVED')=='true' and env('BACKUP_DRIVE_SETUP_APPROVED')=='true','Drive setup not approved')
         from drive_store import authenticate,initialize_folder
         print('New dedicated PostgreSQL folder ID: '+initialize_folder(authenticate(),env('BACKUP_DRIVE_ACCOUNT')));return
     s3,bucket,owner=storage()
