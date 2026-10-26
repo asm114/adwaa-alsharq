@@ -10,6 +10,7 @@ from google_auth_httplib2 import AuthorizedHttp,Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload,MediaIoBaseUpload,MediaIoBaseDownload
 import httplib2
+from google.auth.exceptions import RefreshError
 
 SCOPE='https://www.googleapis.com/auth/drive.file'
 from targets import PROJECT
@@ -17,19 +18,44 @@ PREFIX='adwaa/'+PROJECT+'/'
 BID=r'\d{8}T\d{6}Z-[a-f0-9]{32}'
 OBJECTS=('database.enc','roles.enc','verification.enc','storage.enc','complete.json','restore-ok.json')
 FIELDS='id,name,mimeType,size,sha256Checksum,createdTime,appProperties,parents,shared,trashed,owners(emailAddress),permissions(type,role,deleted),driveId,capabilities(canAddChildren,canListChildren)'
-class DriveError(Exception):pass
+SAFE_CODES=frozenset({
+    'DRIVE_GATE_FAILED','DRIVE_CONFIG_MISSING','OAUTH_INVALID_GRANT','OAUTH_INVALID_CLIENT',
+    'OAUTH_ACCESS_DENIED','OAUTH_INVALID_SCOPE','OAUTH_REFRESH_FAILED','OAUTH_SCOPE_UNCONFIRMED',
+    'OAUTH_SCOPE_REJECTED','DRIVE_CLIENT_INIT_FAILED','DRIVE_ACCOUNT_READ_FAILED',
+    'DRIVE_ACCOUNT_MISMATCH','DRIVE_FOLDER_LOOKUP_FAILED','DRIVE_FOLDER_LOOKUP_AMBIGUOUS',
+    'DRIVE_FOLDER_CREATE_UNCONFIRMED','DRIVE_NEW_FOLDER_VALIDATION_FAILED',
+    'DRIVE_EXISTING_FOLDER_VALIDATION_FAILED'})
+class DriveError(Exception):
+    def __init__(self,message,code='DRIVE_GATE_FAILED'):
+        super().__init__(message)
+        self.code=code if code in SAFE_CODES else 'DRIVE_GATE_FAILED'
+
+def safe_diagnostic(error):
+    # Never serialize exception text, HTTP bodies, request URLs or credentials.
+    return error.code if type(error) is DriveError and error.code in SAFE_CODES else 'DRIVE_GATE_FAILED'
+
 
 def require(value,message):
     if not value:raise DriveError(message)
 def env(name):
-    value=os.environ.get(name,'');require(bool(value),'missing Drive configuration: '+name);return value
+    value=os.environ.get(name,'')
+    if not value:raise DriveError('missing Drive configuration','DRIVE_CONFIG_MISSING')
+    return value
 
 def authenticate():
     # Fixed endpoint; never accept a token URI, access token or service account JSON.
     creds=Credentials(token=None,refresh_token=env('BACKUP_DRIVE_REFRESH_TOKEN'),token_uri='https://oauth2.googleapis.com/token',client_id=env('BACKUP_DRIVE_CLIENT_ID'),client_secret=env('BACKUP_DRIVE_CLIENT_SECRET'),scopes=[SCOPE])
-    creds.refresh(Request(httplib2.Http(timeout=60)))
-    require(creds.granted_scopes is not None and set(creds.granted_scopes)=={SCOPE},'Drive granted scope is not confirmed as drive.file only')
-    return build('drive','v3',http=AuthorizedHttp(creds,http=httplib2.Http(timeout=60)),cache_discovery=False)
+    try:creds.refresh(Request(httplib2.Http(timeout=60)))
+    except RefreshError as error:
+        reason=next((x.get('error') for x in error.args if isinstance(x,dict)),None)
+        if not isinstance(reason,str):reason=None
+        code={'invalid_grant':'OAUTH_INVALID_GRANT','invalid_client':'OAUTH_INVALID_CLIENT','unauthorized_client':'OAUTH_INVALID_CLIENT','access_denied':'OAUTH_ACCESS_DENIED','invalid_scope':'OAUTH_INVALID_SCOPE'}.get(reason,'OAUTH_REFRESH_FAILED')
+        raise DriveError('Google refresh rejected; details suppressed',code) from None
+    except Exception:raise DriveError('Google refresh failed; details suppressed','OAUTH_REFRESH_FAILED') from None
+    if creds.granted_scopes is None:raise DriveError('Google did not confirm granted scopes','OAUTH_SCOPE_UNCONFIRMED')
+    if set(creds.granted_scopes)!={SCOPE}:raise DriveError('Granted scope is not exclusively drive.file','OAUTH_SCOPE_REJECTED')
+    try:return build('drive','v3',http=AuthorizedHttp(creds,http=httplib2.Http(timeout=60)),cache_discovery=False)
+    except Exception:raise DriveError('Drive client initialization failed','DRIVE_CLIENT_INIT_FAILED') from None
 
 def escaped(value):return value.replace('\\','\\\\').replace("'","\\'")
 def stamp(value):return datetime.fromisoformat(value.replace('Z','+00:00'))
@@ -196,14 +222,28 @@ class DriveStore:
                 self.service.files().delete(fileId=file['id']).execute(num_retries=0);deleted+=1
         return {**plan,'deletion_enabled':True,'deleted_managed_objects':deleted}
 
-def initialize_folder(service,email):
-    about=service.about().get(fields='user(emailAddress)').execute(num_retries=3)
-    require(about['user']['emailAddress'].lower()==email.lower(),'wrong Google account')
+def inspect_folders(service,email):
+    """Read-only: same application/project marker, never adopt by display name."""
+    try:about=service.about().get(fields='user(emailAddress)').execute(num_retries=3)
+    except Exception:raise DriveError('Drive account read failed','DRIVE_ACCOUNT_READ_FAILED') from None
+    if about.get('user',{}).get('emailAddress','').lower()!=email.lower():
+        raise DriveError('wrong Google account','DRIVE_ACCOUNT_MISMATCH')
     query="mimeType='application/vnd.google-apps.folder' and trashed=false and appProperties has { key='adwaaPgBackupTarget' and value='"+PROJECT+"' }"
-    folders=service.files().list(q=query,pageSize=100,fields='nextPageToken,files(id,appProperties)').execute(num_retries=3)
+    try:folders=service.files().list(q=query,pageSize=100,fields='nextPageToken,files(id,appProperties)').execute(num_retries=3)
+    except Exception:raise DriveError('Drive folder lookup failed','DRIVE_FOLDER_LOOKUP_FAILED') from None
     rows=[r for r in folders.get('files',[]) if r.get('appProperties',{}).get('adwaaPgBackupTarget')==PROJECT]
-    require(not folders.get('nextPageToken') and len(rows)<=1,'ambiguous dedicated Drive folder; review required')
+    if folders.get('nextPageToken') or len(rows)>1:raise DriveError('ambiguous dedicated folder','DRIVE_FOLDER_LOOKUP_AMBIGUOUS')
+    return rows
+
+def initialize_folder(service,email):
+    rows=inspect_folders(service,email)
+    created=not rows
     if rows:file=rows[0]
-    else:file=service.files().create(body={'name':'Adwaa PostgreSQL Encrypted Backups','mimeType':'application/vnd.google-apps.folder','appProperties':{'adwaaPgBackupTarget':PROJECT}},fields='id').execute(num_retries=0)
-    DriveStore(service,file['id'],email,1)._metadata(file['id'],True)
+    else:
+        try:file=service.files().create(body={'name':'Adwaa PostgreSQL Encrypted Backups','mimeType':'application/vnd.google-apps.folder','appProperties':{'adwaaPgBackupTarget':PROJECT}},fields='id').execute(num_retries=0)
+        except Exception:raise DriveError('Folder creation outcome unknown; inspect before retry','DRIVE_FOLDER_CREATE_UNCONFIRMED') from None
+    try:DriveStore(service,file['id'],email,1)._metadata(file['id'],True)
+    except Exception:
+        code='DRIVE_NEW_FOLDER_VALIDATION_FAILED' if created else 'DRIVE_EXISTING_FOLDER_VALIDATION_FAILED'
+        raise DriveError('Folder validation failed; inspect before retry',code) from None
     return file['id']

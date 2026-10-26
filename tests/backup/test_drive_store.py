@@ -125,4 +125,61 @@ class DriveTests(unittest.TestCase):
             creds=type('C',(),{'refresh':lambda self,*a:None,'granted_scopes':scopes})()
             with self.subTest(scopes=scopes),patch.dict(os.environ,{'BACKUP_DRIVE_REFRESH_TOKEN':'synthetic','BACKUP_DRIVE_CLIENT_ID':'synthetic','BACKUP_DRIVE_CLIENT_SECRET':'synthetic'}),patch.object(d,'Credentials',return_value=creds),patch.object(d,'build') as build,self.assertRaises(d.DriveError):d.authenticate()
             build.assert_not_called()
+    def test_oauth_errors_are_fixed_codes_not_exception_payloads(self):
+        from google.auth.exceptions import RefreshError
+        cases=[('invalid_grant','OAUTH_INVALID_GRANT'),('invalid_client','OAUTH_INVALID_CLIENT'),('access_denied','OAUTH_ACCESS_DENIED'),('invalid_scope','OAUTH_INVALID_SCOPE'),('unknown-sensitive-value','OAUTH_REFRESH_FAILED')]
+        for reason,expected in cases:
+            creds=type('C',(),{'refresh':lambda self,*a:None})()
+            with self.subTest(reason=expected),patch.dict(os.environ,{'BACKUP_DRIVE_REFRESH_TOKEN':'synthetic','BACKUP_DRIVE_CLIENT_ID':'synthetic','BACKUP_DRIVE_CLIENT_SECRET':'synthetic'}),patch.object(d,'Credentials',return_value=creds),patch.object(creds,'refresh',side_effect=RefreshError('SYNTHETIC-DO-NOT-LOG',{'error':reason,'error_description':'SYNTHETIC-DO-NOT-LOG'})),patch.object(d,'build') as build:
+                with self.assertRaises(d.DriveError) as error:d.authenticate()
+                self.assertEqual(d.safe_diagnostic(error.exception),expected)
+                self.assertNotIn('SYNTHETIC',d.safe_diagnostic(error.exception));build.assert_not_called()
+        self.assertEqual(d.safe_diagnostic(d.DriveError('SYNTHETIC',code='SYNTHETIC')),'DRIVE_GATE_FAILED')
+    def test_cli_reports_only_allowlisted_code_without_exception_secrets(self):
+        import contextlib,runpy
+        stderr=io.StringIO()
+        config={'GITHUB_REF':'refs/heads/ops/encrypted-daily-backup-20261024','BACKUP_COST_APPROVED':'true','BACKUP_DRIVE_SETUP_APPROVED':'true','BACKUP_DRIVE_ACCOUNT':EMAIL}
+        path=Path(__file__).resolve().parents[2]/'tools/backup/backup.py'
+        with patch.dict(os.environ,config,clear=True),patch.object(sys,'argv',['backup.py','init-drive']),patch.object(d,'authenticate',side_effect=d.DriveError('SYNTHETIC-SECRET-DO-NOT-LOG','OAUTH_INVALID_GRANT')),contextlib.redirect_stderr(stderr),self.assertRaises(SystemExit) as exit:
+            runpy.run_path(str(path),run_name='__main__')
+        self.assertEqual(exit.exception.code,1)
+        self.assertIn('Drive diagnostic code: OAUTH_INVALID_GRANT',stderr.getvalue())
+        self.assertNotIn('SYNTHETIC-SECRET',stderr.getvalue())
+
+    def test_real_google_credentials_scope_confirmation_remains_fail_closed(self):
+        from datetime import timedelta
+        from google.auth import _helpers
+        for response,expected in [({},'OAUTH_SCOPE_UNCONFIRMED'),({'scope':d.SCOPE},None),({'scope':d.SCOPE+' https://www.googleapis.com/auth/drive'},'OAUTH_SCOPE_REJECTED')]:
+            grant=('synthetic-access','synthetic-refresh',_helpers.utcnow()+timedelta(hours=1),response,None)
+            with self.subTest(expected=expected),patch.dict(os.environ,{'BACKUP_DRIVE_REFRESH_TOKEN':'synthetic','BACKUP_DRIVE_CLIENT_ID':'synthetic','BACKUP_DRIVE_CLIENT_SECRET':'synthetic'}),patch('google.oauth2.reauth.refresh_grant',return_value=grant),patch.object(d,'build',return_value='synthetic-service') as build:
+                if expected:
+                    with self.assertRaises(d.DriveError) as error:d.authenticate()
+                    self.assertEqual(d.safe_diagnostic(error.exception),expected);build.assert_not_called()
+                else:self.assertEqual(d.authenticate(),'synthetic-service');build.assert_called_once()
+    def test_read_only_folder_inspection_never_creates_or_modifies(self):
+        with patch.object(self.service,'list',return_value=Request(lambda:{'files':[self.service.rows[FOLDER]]})),patch.object(self.service,'create') as create:
+            rows=d.inspect_folders(self.service,EMAIL)
+            self.assertEqual(rows[0]['id'],FOLDER);create.assert_not_called()
+        self.assertEqual(self.service.deleted,[])
+        with self.assertRaises(d.DriveError) as error:d.inspect_folders(self.service,'different@example.invalid')
+        self.assertEqual(d.safe_diagnostic(error.exception),'DRIVE_ACCOUNT_MISMATCH')
+    def test_created_folder_failure_is_reported_and_reused_not_duplicated(self):
+        calls=[]
+        def create(body,**kwargs):
+            calls.append(body);file=metadata('created-before-validation');file.update(mimeType=body['mimeType'],appProperties=body['appProperties']);self.service.rows[file['id']]=file
+            return Request(lambda:{'id':file['id']})
+        def listing(**kwargs):return Request(lambda:{'files':[row for key,row in self.service.rows.items() if key not in [FOLDER,'legacy']]})
+        with patch.object(self.service,'list',side_effect=listing),patch.object(self.service,'create',side_effect=create),patch.object(d.DriveStore,'_metadata',side_effect=TimeoutError('SYNTHETIC-DO-NOT-LOG')):
+            with self.assertRaises(d.DriveError) as error:d.initialize_folder(self.service,EMAIL)
+            self.assertEqual(d.safe_diagnostic(error.exception),'DRIVE_NEW_FOLDER_VALIDATION_FAILED')
+        with patch.object(self.service,'list',side_effect=listing),patch.object(self.service,'create',side_effect=create):
+            self.assertEqual(d.initialize_folder(self.service,EMAIL),'created-before-validation')
+        self.assertEqual(len(calls),1);self.assertEqual(self.service.payloads['legacy'],b'previous JSON')
+    def test_ambiguous_create_and_lookup_fail_without_retrying_writes(self):
+        with patch.object(self.service,'list',return_value=Request(lambda:{'files':[]})),patch.object(self.service,'create',side_effect=TimeoutError('SYNTHETIC-DO-NOT-LOG')) as create:
+            with self.assertRaises(d.DriveError) as error:d.initialize_folder(self.service,EMAIL)
+            self.assertEqual(d.safe_diagnostic(error.exception),'DRIVE_FOLDER_CREATE_UNCONFIRMED');self.assertEqual(create.call_count,1)
+        with patch.object(self.service,'list',side_effect=TimeoutError('SYNTHETIC-DO-NOT-LOG')),patch.object(self.service,'create') as create:
+            with self.assertRaises(d.DriveError) as error:d.initialize_folder(self.service,EMAIL)
+            self.assertEqual(d.safe_diagnostic(error.exception),'DRIVE_FOLDER_LOOKUP_FAILED');create.assert_not_called()
 if __name__=='__main__':unittest.main()

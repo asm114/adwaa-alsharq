@@ -386,6 +386,10 @@ if __name__=='__main__':
     try:main()
     except GateError as error:
         print('Backup safety gate: '+str(error),file=sys.stderr);sys.exit(1)
-    except Exception:
+    except Exception as error:
+        if os.environ.get('BACKUP_STORAGE_PROVIDER','drive')=='drive':
+            from drive_store import DriveError,safe_diagnostic
+            if isinstance(error,DriveError):
+                print('Drive diagnostic code: '+safe_diagnostic(error),file=sys.stderr);sys.exit(1)
         print('Backup operation failed. No secrets or database diagnostics are logged. Check approved connectivity, scope, capacity, credentials and provider status.',file=sys.stderr)
         sys.exit(1)
