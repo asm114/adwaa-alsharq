@@ -1,4 +1,4 @@
-name: First capture preparation (folders and read-only source checks)
+name: First capture preparation (existing folders and read-only source checks)
 # No repository-variable approval is changed or bypassed in the older workflows.
 # This dedicated setup run is authorized by review of its exact push SHA in the
 # existing protected production-backup environment. No capture permission exists.
@@ -8,6 +8,8 @@ on:
     paths:
       - .github/workflows/backup-first-setup.yml
       - tools/backup/prepare_first_capture.py
+      - tools/backup/source_diagnostics.py
+      - tools/backup/backup.py
 permissions:
   contents: read
 concurrency:
@@ -46,7 +48,7 @@ jobs:
         run: |
           python3 -m venv "$RUNNER_TEMP/first-setup-venv"
           "$RUNNER_TEMP/first-setup-venv/bin/pip" install -r tools/backup/requirements.txt
-      - name: Marked folders and read-only source readiness only
+      - name: Inspect existing folders and diagnose read-only source readiness only
         env:
           BACKUP_TARGET: ${{ matrix.target }}
           BACKUP_CONFIRMED_PROJECT_REF: ${{ vars[format('BACKUP_{0}_CONFIRMED_PROJECT_REF', matrix.secret_prefix)] }}

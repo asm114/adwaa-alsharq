@@ -1,4 +1,4 @@
-"""Create/reuse only marked Drive folders and measure read-only source readiness.
+"""Inspect only existing marked Drive folders and measure read-only source readiness.
 
 No dump, object download/upload, database writes, restore or retention operations.
 The existing backup engine remains the only capture/restore implementation.
@@ -10,7 +10,7 @@ import re
 import sys
 
 import backup as engine
-from drive_store import authenticate, initialize_folder, DriveError, safe_diagnostic
+from drive_store import authenticate, inspection_report, DriveError, safe_diagnostic
 from storage_source import Source, inventory
 from targets import TARGET
 
@@ -22,7 +22,9 @@ def prepare(report):
                  'BACKUP_DRIVE_RETENTION_APPROVED', 'BACKUP_SCHEDULE_APPROVED'):
         engine.require(os.environ.get(name) == 'false', 'capture and restore must remain disabled')
     report['stage'] = 'drive_folder'
-    report['folder_id'] = initialize_folder(authenticate(), engine.env('BACKUP_DRIVE_ACCOUNT'))
+    folders = inspection_report(authenticate(), engine.env('BACKUP_DRIVE_ACCOUNT'))
+    engine.require(folders['folder_count'] == 1, 'exactly one existing marked folder required')
+    report['folder_id'] = folders['folder_ids'][0]
     # Immediately preserve the successful ID even if later source checks fail.
     print(json.dumps({'target': TARGET, 'folder_id': report['folder_id'], 'code': 'DRIVE_FOLDER_READY'}), flush=True)
     report['stage'] = 'source_connection'
@@ -58,6 +60,10 @@ def main():
               'stage': 'approval_gates', 'code': 'FIRST_CAPTURE_PREPARATION_FAILED'}
     try:
         prepare(report)
+    except engine.SourceError as error:
+        report['code'] = error.code
+    except engine.psycopg.Error as error:
+        report['code'] = engine.source_code(error)
     except DriveError as error:
         report['code'] = safe_diagnostic(error)
     except Exception:

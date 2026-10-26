@@ -25,7 +25,7 @@ def archive_parts(manifest):
 
 def identity_query():
     return 'SELECT '+ ' AND '.join("to_regclass('public."+name+"') IS NOT NULL" for name in REQUIRED_TABLES)
-class GateError(Exception):pass
+from source_diagnostics import GateError, SourceError, need as source_need, validate_config, probe_tcp, classify as source_code
 
 def require(condition,message):
     if not condition:raise GateError(message)
@@ -111,23 +111,24 @@ def schema_query():
 CANONICAL="SET timezone='UTC';SET datestyle='ISO,YMD';SET extra_float_digits=3;"
 
 def source_connection():
-    require(os.environ.get('PGSSLMODE')=='verify-full','TLS verify-full is required')
-    host=env('PGHOST');user=env('PGUSER');port=env('PGPORT')
-    valid_direct=host=='db.'+PROJECT+'.supabase.co'
-    valid_pool=bool(re.fullmatch(r'aws-[a-z0-9-]+\.pooler\.supabase\.com',host)) and user.endswith('.'+PROJECT)
-    require((valid_direct or valid_pool) and port=='5432','wrong project, host, or transaction pooler')
-    require(identity_confirmed(),'project identity confirmation required')
-    env('PGPASSWORD');require(env('PGDATABASE')=='postgres','unexpected database');env('PGSSLROOTCERT')
-    require(not any(os.environ.get(k) for k in ['PGSERVICE','PGSERVICEFILE','PGHOSTADDR']),'service overrides prohibited')
-    connection=psycopg.connect(connect_timeout=20,options='-c default_transaction_read_only=on -c statement_timeout=1800000')
-    connection.read_only=True;connection.isolation_level=psycopg.IsolationLevel.REPEATABLE_READ
-    connection.execute(CANONICAL)
-    size=connection.execute('SELECT pg_database_size(current_database())').fetchone()[0]
-    require(size<=int(os.environ.get('BACKUP_MAX_DATABASE_BYTES','1073741824')),'database exceeds approved restore capacity budget')
-    require(connection.execute('SHOW server_version_num').fetchone()[0].startswith('17'),'source must be PG17')
-    require(connection.execute('SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid()').fetchone()==(True,),'TLS not active')
-    require(connection.execute("SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname=current_user").fetchone()==(True,),'backup role cannot bypass RLS; no partial-row backup allowed')
-    return connection
+    host=validate_config(PROJECT,identity_confirmed)
+    probe_tcp(host)
+    connection=None
+    try:
+        connection=psycopg.connect(connect_timeout=20,options='-c default_transaction_read_only=on -c statement_timeout=1800000')
+        connection.read_only=True;connection.isolation_level=psycopg.IsolationLevel.REPEATABLE_READ
+        connection.execute(CANONICAL)
+        size=connection.execute('SELECT pg_database_size(current_database())').fetchone()[0]
+        source_need(size<=int(os.environ.get('BACKUP_MAX_DATABASE_BYTES','1073741824')),'PG_DATABASE_TOO_LARGE')
+        source_need(connection.execute('SHOW server_version_num').fetchone()[0].startswith('17'),'PG_VERSION_UNSUPPORTED')
+        source_need(connection.execute('SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid()').fetchone()==(True,),'PG_TLS_NOT_ACTIVE')
+        source_need(connection.execute("SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname=current_user").fetchone()==(True,),'PG_RLS_BYPASS_REQUIRED')
+        return connection
+    except Exception as error:
+        if connection is not None:
+            try:connection.close()
+            except Exception:pass
+        raise SourceError(source_code(error)) from None
 
 def pg_env():
     # Do not pass cloud/encryption credentials to export subprocesses.

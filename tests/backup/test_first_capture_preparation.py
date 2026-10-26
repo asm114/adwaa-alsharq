@@ -30,7 +30,7 @@ class FirstCapturePreparationTests(unittest.TestCase):
         inventory = {'buckets': [{'id': 'synthetic-private'}],
                      'objects': [{'name': 'SENSITIVE-NAME', 'metadata': {'size': 12}}]}
         out = io.StringIO()
-        with patch.dict(os.environ, CONFIG, clear=True), patch.object(p, 'authenticate'), patch.object(p, 'initialize_folder', return_value='synthetic-folder'), patch.object(p.engine, 'source_connection') as connect, patch.object(p, 'inventory', return_value=inventory), patch.object(p, 'Source') as source, patch.object(p.engine, 'backup') as capture, patch.object(p.engine, 'isolated_restore') as restore, contextlib.redirect_stdout(out):
+        with patch.dict(os.environ, CONFIG, clear=True), patch.object(p, 'authenticate'), patch.object(p, 'inspection_report', return_value={'folder_count': 1, 'folder_ids': ['synthetic-folder']}), patch.object(p.engine, 'source_connection') as connect, patch.object(p, 'inventory', return_value=inventory), patch.object(p, 'Source') as source, patch.object(p.engine, 'backup') as capture, patch.object(p.engine, 'isolated_restore') as restore, contextlib.redirect_stdout(out):
             connect.return_value.__enter__.return_value = conn
             self.assertEqual(p.main(), 0)
             capture.assert_not_called()
@@ -47,12 +47,19 @@ class FirstCapturePreparationTests(unittest.TestCase):
 
     def test_failure_preserves_folder_id_and_hides_exception(self):
         out = io.StringIO()
-        with patch.dict(os.environ, CONFIG, clear=True), patch.object(p, 'authenticate'), patch.object(p, 'initialize_folder', return_value='synthetic-folder'), patch.object(p.engine, 'source_connection', side_effect=RuntimeError('SYNTHETIC-SECRET')), contextlib.redirect_stdout(out):
+        with patch.dict(os.environ, CONFIG, clear=True), patch.object(p, 'authenticate'), patch.object(p, 'inspection_report', return_value={'folder_count': 1, 'folder_ids': ['synthetic-folder']}), patch.object(p.engine, 'source_connection', side_effect=RuntimeError('SYNTHETIC-SECRET')), contextlib.redirect_stdout(out):
             self.assertEqual(p.main(), 1)
         self.assertNotIn('SYNTHETIC-SECRET', out.getvalue())
         report = json.loads(out.getvalue().splitlines()[-1])
         self.assertEqual(report['folder_id'], 'synthetic-folder')
         self.assertEqual(report['stage'], 'source_connection')
+
+    def test_fixed_database_diagnostic_and_no_folder_creation(self):
+        out = io.StringIO()
+        with patch.dict(os.environ, CONFIG, clear=True), patch.object(p, 'authenticate'), patch.object(p, 'inspection_report', return_value={'folder_count': 1, 'folder_ids': ['synthetic-folder']}), patch.object(p.engine, 'source_connection', side_effect=p.engine.SourceError('PG_TLS_VERIFY_FAILED')), contextlib.redirect_stdout(out):
+            self.assertEqual(p.main(), 1)
+        self.assertEqual(json.loads(out.getvalue().splitlines()[-1])['code'], 'PG_TLS_VERIFY_FAILED')
+        self.assertNotIn('initialize_folder', (ROOT / 'tools/backup/prepare_first_capture.py').read_text())
 
     def test_permissions_fail_before_any_network(self):
         for change in [{'BACKUP_COST_APPROVED': 'false'}, {'BACKUP_DRIVE_SETUP_APPROVED': 'false'}, {'BACKUP_EXECUTION_APPROVED': 'true'}, {'BACKUP_RESTORE_APPROVED': 'true'}, {'BACKUP_DRIVE_RETENTION_APPROVED': 'true'}, {'BACKUP_SCHEDULE_APPROVED': 'true'}]:
