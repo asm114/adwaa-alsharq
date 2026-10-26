@@ -167,15 +167,31 @@ class BackupTests(unittest.TestCase):
     def test_protected_setup_has_exact_sha_review_and_fixed_operations(self):
         import re
         text=(ROOT/'.github/workflows/backup-protected-setup.yml').read_text()
-        init=text.split('  initialize-drive:',1)[1].split('  read-only-preflight:',1)[0]
-        self.assertNotIn('BACKUP_EXECUTION_APPROVED',init)
-        for flag in ['BACKUP_DRIVE_SETUP_APPROVED','BACKUP_COST_APPROVED']:self.assertIn(flag,init)
-        self.assertEqual(text.count('vars.BACKUP_SETUP_APPROVED_SHA == github.sha'),2)
-        self.assertEqual(text.count('environment: production-backup'),2)
-        self.assertEqual(text.count('ref: ${{ github.sha }}'),2)
-        self.assertEqual(set(re.findall(r'backup\.py ([a-z-]+)',text)),{'init-drive','preflight'})
-        self.assertIn('branches: [ops/encrypted-daily-backup-20261024]',text)
-        self.assertNotIn('schedule:',text)
+        self.assertNotIn('BACKUP_EXECUTION_APPROVED',text)
+        for flag in ['BACKUP_DRIVE_SETUP_APPROVED','BACKUP_COST_APPROVED']:self.assertIn(flag,text)
+        self.assertEqual(text.count('vars.BACKUP_SETUP_APPROVED_SHA == github.sha'),1)
+        self.assertIn('inputs.approved_sha == github.sha',text)
+        self.assertEqual(text.count('environment: production-backup'),1)
+        self.assertEqual(text.count('ref: ${{ github.sha }}'),1)
+        self.assertEqual(set(re.findall(r'backup\.py ([a-z-]+)',text)),{'init-drive'})
+        self.assertIn('options: [init-drive]',text)
+        for event in ['push:','pull_request:','schedule:']:self.assertNotIn(event,text)
+        self.assertNotIn('PGPASSWORD',text)
+        self.assertNotIn('BACKUP_STORAGE_API_KEY',text)
+        self.assertIn('BACKUP_DRIVE_RETENTION_APPROVED: \'false\'',text)
+
+    def test_manual_setup_condition_rejects_wrong_event_operation_ref_or_sha(self):
+        from types import SimpleNamespace
+        text=(ROOT/'.github/workflows/backup-protected-setup.yml').read_text()
+        condition=text.split('    if: >-',1)[1].split('    environment:',1)[0].strip().replace('&&',' and ')
+        defaults={'event':'workflow_dispatch','operation':'init-drive','requested':'a'*40,'sha':'a'*40,'approved':'a'*40,'mode':'init-drive','repo':'asm114/adwaa-alsharq','ref':'refs/heads/ops/encrypted-daily-backup-20261024'}
+        def permits(**overrides):
+            values={**defaults,**overrides}
+            context={'github':SimpleNamespace(event_name=values['event'],repository=values['repo'],ref=values['ref'],sha=values['sha']),'inputs':SimpleNamespace(operation=values['operation'],approved_sha=values['requested']),'vars':SimpleNamespace(BACKUP_SETUP_MODE=values['mode'],BACKUP_SETUP_APPROVED_SHA=values['approved'])}
+            return eval('('+condition+')',{'__builtins__':{}},context)
+        self.assertTrue(permits())
+        for override in [{'event':'push'},{'event':'schedule'},{'operation':'backup'},{'operation':'restore'},{'operation':'preflight'},{'operation':''},{'requested':''},{'requested':'b'*40},{'approved':''},{'approved':'b'*40},{'mode':'preflight'},{'repo':'other/repo'},{'ref':'refs/heads/main'},{'ref':'refs/pull/165/merge'}]:
+            with self.subTest(override=override):self.assertFalse(permits(**override))
 
     def test_quote_untrusted_identifier(self):self.assertEqual(b.quote('x";DROP'),'"x"";DROP"')
 if __name__=='__main__':unittest.main()
