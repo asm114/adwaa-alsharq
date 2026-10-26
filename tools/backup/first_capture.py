@@ -81,6 +81,7 @@ def main():
         report['code'] = 'RESTORE_GCM_AUTHENTICATION_FAILED'
     except engine.RestoreError as error:
         report['code'] = error.code
+        if hasattr(error,'fields'):report['comparison_fields'] = error.fields
     except engine.EncryptionKeyError as error:
         report['code'] = error.code
     except engine.SourceError as error:

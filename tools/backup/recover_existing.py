@@ -112,6 +112,7 @@ def main():
         report['code'] = 'RESTORE_GCM_AUTHENTICATION_FAILED'
     except (engine.RestoreError, engine.EncryptionKeyError, engine.SourceError) as error:
         report['code'] = error.code
+        if isinstance(error,engine.RestoreError) and hasattr(error,'fields'):report['comparison_fields'] = error.fields
     except DriveError as error:
         report['code'] = safe_diagnostic(error)
     except engine.GateError as error:

@@ -17,6 +17,7 @@ jobs:
     env:
       BACKUP_TARGET: ${{ matrix.target }}
       BACKUP_TEST_RESTRICTED_POSTGRES: 'true'
+      BACKUP_TEST_RENDER_CONTEXT: 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:

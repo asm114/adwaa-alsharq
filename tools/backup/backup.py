@@ -33,7 +33,7 @@ from source_diagnostics import GateError, SourceError, need as source_need, vali
 
 class RestoreError(GateError):
     def __init__(self,code):
-        self.code=code if code in {'RESTORE_ROLES_FAILED','RESTORE_DATABASE_FAILED','RESTORE_SUPERUSER_VERIFIER_UNAVAILABLE','RESTORE_STAGING_PROCESS_FAILED','RESTORE_STAGING_TIMEOUT','RESTORE_STAGING_TRANSPORT_FAILED'} else 'RESTORE_FAILED'
+        self.code=code if code in {'RESTORE_ROLES_FAILED','RESTORE_DATABASE_FAILED','RESTORE_SUPERUSER_VERIFIER_UNAVAILABLE','RESTORE_STAGING_PROCESS_FAILED','RESTORE_STAGING_TIMEOUT','RESTORE_STAGING_TRANSPORT_FAILED','RESTORE_SCHEMA_MISMATCH','RESTORE_CATALOG_MISMATCH','RESTORE_POLICIES_MISMATCH','RESTORE_ROLES_MISMATCH','RESTORE_MEMBERSHIPS_MISMATCH','RESTORE_INSPECTION_ROLE_INVALID','RESTORE_METADATA_QUERY_FAILED'} else 'RESTORE_FAILED'
         super().__init__(self.code)
 
 def require(condition,message):
@@ -117,13 +117,24 @@ def membership_query():
 def schema_query():
     return """SELECT jsonb_build_object(
       'schemas',(SELECT jsonb_agg(jsonb_build_object('name',nspname,'owner',pg_get_userbyid(nspowner),'acl',nspacl::text) ORDER BY nspname) FROM pg_namespace WHERE nspname !~ '^pg_' AND nspname<>'information_schema'),
-      'defaults',(SELECT jsonb_agg(jsonb_build_object('owner',pg_get_userbyid(d.defaclrole),'schema',n.nspname,'type',defaclobjtype,'acl',defaclacl::text) ORDER BY n.nspname,defaclobjtype,pg_get_userbyid(d.defaclrole)) FROM pg_default_acl d LEFT JOIN pg_namespace n ON n.oid=d.defaclnamespace),
+      'defaults',(SELECT jsonb_agg(jsonb_build_object('owner',pg_get_userbyid(d.defaclrole),'schema',n.nspname,'type',defaclobjtype,'acl',defaclacl::text) ORDER BY n.nspname,defaclobjtype,pg_get_userbyid(d.defaclrole)) FROM pg_default_acl d LEFT JOIN pg_namespace n ON n.oid=d.defaclnamespace WHERE n.nspname IS NULL OR n.nspname<>'information_schema'),
       'extensions',(SELECT jsonb_agg(jsonb_build_object('name',extname,'version',extversion) ORDER BY extname) FROM pg_extension),
-      'constraints',(SELECT jsonb_agg(jsonb_build_object('schema',n.nspname,'table',c.relname,'name',a.conname,'definition',pg_get_constraintdef(a.oid),'valid',a.convalidated) ORDER BY n.nspname,c.relname,a.conname) FROM pg_constraint a JOIN pg_class c ON c.oid=a.conrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname !~ '^pg_'),
+      'constraints',(SELECT jsonb_agg(jsonb_build_object('schema',n.nspname,'table',c.relname,'name',a.conname,'definition',pg_get_constraintdef(a.oid),'valid',a.convalidated) ORDER BY n.nspname,c.relname,a.conname) FROM pg_constraint a JOIN pg_class c ON c.oid=a.conrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname !~ '^pg_' AND n.nspname<>'information_schema'),
       'routines',(SELECT jsonb_agg(jsonb_build_object('schema',n.nspname,'name',p.proname,'args',pg_get_function_identity_arguments(p.oid),'definition',pg_get_functiondef(p.oid),'owner',pg_get_userbyid(p.proowner),'acl',p.proacl::text) ORDER BY n.nspname,p.proname,pg_get_function_identity_arguments(p.oid)) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname !~ '^pg_' AND n.nspname<>'information_schema' AND p.prokind IN ('f','p','w')),
       'views',(SELECT jsonb_agg(jsonb_build_object('schema',n.nspname,'name',c.relname,'definition',pg_get_viewdef(c.oid,true)) ORDER BY n.nspname,c.relname) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind IN ('v','m') AND n.nspname !~ '^pg_' AND n.nspname<>'information_schema'),
-      'triggers',(SELECT jsonb_agg(jsonb_build_object('schema',n.nspname,'table',c.relname,'name',t.tgname,'enabled',t.tgenabled,'definition',pg_get_triggerdef(t.oid)) ORDER BY n.nspname,c.relname,t.tgname) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE NOT t.tgisinternal AND n.nspname !~ '^pg_')
+      'triggers',(SELECT jsonb_agg(jsonb_build_object('schema',n.nspname,'table',c.relname,'name',t.tgname,'enabled',t.tgenabled,'definition',pg_get_triggerdef(t.oid)) ORDER BY n.nspname,c.relname,t.tgname) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE NOT t.tgisinternal AND n.nspname !~ '^pg_' AND n.nspname<>'information_schema')
     )::text"""
+
+def application_schema_metadata(value):
+    data=json.loads(value) if isinstance(value,str) else value
+    data=dict(data)
+    # Older verifications inadvertently included standard information_schema
+    # objects that pg_dump does not export. Keep EVERY application entry,
+    # including application views referring to information_schema in their SQL.
+    for field in ('defaults','constraints','views','triggers'):
+        if isinstance(data.get(field),list):
+            data[field]=[row for row in data[field] if row.get('schema')!='information_schema']
+    return data
 
 CANONICAL="SET timezone='UTC';SET datestyle='ISO,YMD';SET extra_float_digits=3;"
 
@@ -328,7 +339,8 @@ def isolated_restore(directory,manifest):
             if ready:break
             time.sleep(.5)
         require(ready,'restore server not ready')
-        def sql(query):return docker(['exec',name,'psql','-h','127.0.0.1','-X','-qAt','-v','ON_ERROR_STOP=1','-U',reader_user,'-d','postgres','-c',CANONICAL+query]).stdout.decode().strip()
+        sql_prefix=CANONICAL
+        def sql(query):return docker(['exec',name,'psql','-h','127.0.0.1','-X','-qAt','-v','ON_ERROR_STOP=1','-U',reader_user,'-d','postgres','-c',sql_prefix+query]).stdout.decode().strip()
         for part in (['roles','database','storage'] if manifest['format']==2 else ['roles','database']):
             target='/tmp/'+part
             # GCM framing is 8-byte magic + 12-byte nonce + 16-byte tag.
@@ -341,7 +353,34 @@ def isolated_restore(directory,manifest):
         except subprocess.CalledProcessError:raise RestoreError('RESTORE_ROLES_FAILED') from None
         try:docker(['exec',name,'pg_restore','-h','127.0.0.1','-U',reader_user,'--exit-on-error','-d','postgres','/tmp/database'])
         except subprocess.CalledProcessError:raise RestoreError('RESTORE_DATABASE_FAILED') from None
-        for field,query in [('schema',schema_query()),('catalog',catalog_query()),('policies',policies_query()),('roles',role_query()),('memberships',membership_query())]:require(sql(query)==verification[field],'restored '+field+' mismatch')
+        bootstrap_user=reader_user
+        declared=os.environ.get('BACKUP_INSPECTION_ROLE') or os.environ.get('PGUSER','')
+        if declared:
+            declared=declared.removesuffix('.'+PROJECT)
+            eligible_readers={r['name'] for r in roles if r['login'] and (r['superuser'] or r['bypassrls'])}
+            if declared not in eligible_readers:raise RestoreError('RESTORE_INSPECTION_ROLE_INVALID')
+            reader_user=declared
+        metadata_queries=[('schema',schema_query()),('catalog',catalog_query()),('policies',policies_query()),('roles',role_query()),('memberships',membership_query())]
+        # Deparser qualification depends on session search_path. All metadata
+        # must match in ONE consistent context; no ACL/data differences waived.
+        contexts=[('ROLE_DEFAULT',''),('SUPABASE_PATH','SET search_path TO "$user", public, extensions;'),('PUBLIC_EXTENSIONS','SET search_path TO public, extensions;'),('CATALOG_ONLY','SET search_path TO pg_catalog;')]
+        last_error=None
+        for render_context,setting in contexts:
+            sql_prefix=CANONICAL+setting
+            last_error=None
+            for field,query in metadata_queries:
+                progress('restore_verify_'+field)
+                try:actual=sql(query)
+                except subprocess.CalledProcessError:raise RestoreError('RESTORE_METADATA_QUERY_FAILED') from None
+                expected=verification[field]
+                if field=='schema':actual=application_schema_metadata(actual);expected=application_schema_metadata(expected)
+                if actual!=expected:
+                    last_error=RestoreError('RESTORE_'+field.upper()+'_MISMATCH')
+                    if field=='schema':last_error.fields=[k for k in ['schemas','defaults','extensions','constraints','routines','views','triggers'] if actual.get(k)!=expected.get(k)]
+                    break
+            if last_error is None:break
+        if last_error is not None:raise last_error
+        reader_user=bootstrap_user;sql_prefix=CANONICAL
         for table in verification['tables']:
             query=table_copy(table['schema'],table['name'])
             # Stream plaintext only inside the isolated target; no data in logs.
@@ -365,7 +404,7 @@ def isolated_restore(directory,manifest):
             from storage_source import restore
             require(verification.get('storage_files_included') is True,'Storage verification absent')
             storage_result=restore(engine(),name,verification['storage'])
-        return {'restore_verified':True,'backup_id':backup_id,'project':PROJECT,'tables_verified':len(verification['tables']),'rows_verified':sum(t['rows'] for t in verification['tables']),'sequences_verified':len(verification['sequences']),'large_objects_verified':len(verification['large_objects']),**storage_result}
+        return {'restore_verified':True,'backup_id':backup_id,'project':PROJECT,'tables_verified':len(verification['tables']),'rows_verified':sum(t['rows'] for t in verification['tables']),'sequences_verified':len(verification['sequences']),'large_objects_verified':len(verification['large_objects']),'metadata_render_context':render_context,**storage_result}
     finally:docker(['rm','-f',name])
 
 def fetch_committed(s3,bucket,owner,manifest,directory):

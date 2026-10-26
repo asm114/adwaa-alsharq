@@ -53,6 +53,13 @@ def env(name):
     if not value:raise DriveError('missing Drive configuration','DRIVE_CONFIG_MISSING')
     return value
 
+def drive_http():
+    transport=httplib2.Http(timeout=60)
+    # Google resumable upload's 308 means Resume Incomplete, not a redirect.
+    # Passing a custom Http bypasses googleapiclient.http.build_http's same fix.
+    transport.redirect_codes=transport.redirect_codes-{308}
+    return transport
+
 def authenticate():
     # Fixed endpoint; never accept a token URI, access token or service account JSON.
     creds=Credentials(token=None,refresh_token=env('BACKUP_DRIVE_REFRESH_TOKEN'),token_uri='https://oauth2.googleapis.com/token',client_id=env('BACKUP_DRIVE_CLIENT_ID'),client_secret=env('BACKUP_DRIVE_CLIENT_SECRET'),scopes=[SCOPE])
@@ -65,7 +72,7 @@ def authenticate():
     except Exception:raise DriveError('Google refresh failed; details suppressed','OAUTH_REFRESH_FAILED') from None
     if creds.granted_scopes is None:raise DriveError('Google did not confirm granted scopes','OAUTH_SCOPE_UNCONFIRMED')
     if set(creds.granted_scopes)!={SCOPE}:raise DriveError('Granted scope is not exclusively drive.file','OAUTH_SCOPE_REJECTED')
-    try:return build('drive','v3',http=AuthorizedHttp(creds,http=httplib2.Http(timeout=60)),cache_discovery=False)
+    try:return build('drive','v3',http=AuthorizedHttp(creds,http=drive_http()),cache_discovery=False)
     except Exception:raise DriveError('Drive client initialization failed','DRIVE_CLIENT_INIT_FAILED') from None
 
 def upload_diagnostic(error):

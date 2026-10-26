@@ -11,7 +11,7 @@ spec=importlib.util.spec_from_file_location('backup',ROOT/'tools/backup/backup.p
 fixture_image=os.environ.get('BACKUP_TEST_RESTORE_IMAGE',b.IMAGE)
 source_user='supabase_admin' if os.environ.get('BACKUP_TEST_RESTRICTED_POSTGRES')=='true' else 'postgres'
 name='adwaa-backup-source-'+uuid.uuid4().hex[:12]
-def sql(query):return b.docker(['exec',name,'psql','-h','127.0.0.1','-X','-qAt','-v','ON_ERROR_STOP=1','-U',source_user,'-d','postgres','-c',query]).stdout
+def sql(query):return b.docker(['exec',name,'psql','-h','127.0.0.1','-X','-qAt','-v','ON_ERROR_STOP=1','-U',source_user,'-d','postgres','-c',('SET search_path TO public,extensions;' if os.environ.get('BACKUP_TEST_RENDER_CONTEXT')=='true' else '')+query]).stdout
 class Result:
     def __init__(self,rows):self.rows=rows
     def fetchone(self):return self.rows[0]
@@ -53,7 +53,7 @@ try:
     CREATE TABLE installments(id text primary key,customer_id text REFERENCES customers(id),total numeric,paid numeric);INSERT INTO installments VALUES('synthetic-plan','synthetic-customer',600,100);
     CREATE TABLE empty_history(id integer primary key);
     CREATE SCHEMA private_finance;CREATE TABLE private_finance.ledger(id integer primary key,amount numeric);INSERT INTO private_finance.ledger VALUES(1,75);
-    ALTER TABLE reservations ENABLE ROW LEVEL SECURITY; CREATE POLICY manager_only ON reservations TO authenticated USING (false);GRANT SELECT ON reservations TO authenticated;
+    ALTER TABLE reservations ENABLE ROW LEVEL SECURITY; CREATE POLICY manager_only ON reservations TO authenticated USING (false);GRANT SELECT ON reservations TO authenticated;GRANT SELECT ON reservations TO anon;
     SELECT setval('reservations_id_seq',40,true);SELECT lo_from_bytea(90001,decode('0102030405','hex'));''')
     if b.PROJECT=='ztqqdjryvecscidxxbfe':
         sql("CREATE TABLE customer_portal_resort_info(id text primary key);INSERT INTO customer_portal_resort_info VALUES('main');CREATE TABLE customer_portal_unavailable_periods(id text primary key);CREATE TABLE customer_portal_admins(id text primary key);")
@@ -63,6 +63,8 @@ try:
     for i,((bucket,path),payload) in enumerate(object_data.items()):
         literal=lambda value:"'"+value.replace("'","''")+"'"
         sql("INSERT INTO storage.objects VALUES("+','.join(literal(x) for x in [str(i),bucket,path,'v1','2026-10-25T00:00:00Z',json.dumps({'size':len(payload)})])+"::jsonb);")
+    if os.environ.get('BACKUP_TEST_RENDER_CONTEXT')=='true':
+        sql("CREATE DOMAIN extensions.synthetic_identifier AS text;CREATE FUNCTION public.synthetic_echo(value extensions.synthetic_identifier) RETURNS extensions.synthetic_identifier LANGUAGE SQL AS 'SELECT value';")
     conn=FixtureConnection();verification=b.snapshot(conn)
     expected={('public',n) for n in ['app_state','reservations','payments','expenses','maintenance','commissions','customers','subscriptions','installments','empty_history']}|{('private_finance','ledger')}
     expected|={('storage','buckets'),('storage','objects')}
@@ -99,9 +101,10 @@ try:
         with patch.object(drive_store,'MediaIoBaseDownload',Download):b.fetch_committed(store,FOLDER,EMAIL,manifest,d)
         assert service.payloads['legacy']==b'previous JSON' and service.deleted==[]
         result=b.isolated_restore(d,manifest);assert result['restore_verified'] is True
+        if os.environ.get('BACKUP_TEST_RENDER_CONTEXT')=='true':assert result['metadata_render_context']!='ROLE_DEFAULT'
         assert result['storage_files_verified'] is True and result['storage_objects_verified']==3 and result['storage_buckets_verified']==3
         assert result['storage_service_restore_verified'] is False
         assert sql('SELECT last_value FROM reservations_id_seq').strip()==b'40'
         assert b.snapshot(conn)=={k:v for k,v in verification.items() if k not in ['project','backup_id','storage_files_included','storage']}
-        print(json.dumps({'synthetic_independent_restore':'PASS','project_target':os.environ.get('BACKUP_TARGET','core'),'tables':len(verification['tables']),'storage_objects':result['storage_objects_verified'],'storage_buckets':result['storage_buckets_verified'],'storage_service_restore_verified':False,'production_access':False,'checks':['encrypted dump and roles via mocked Drive round-trip','owners, RLS and ACL','app_state JSON and relational customers, bookings, payments, expenses, maintenance, subscriptions, installments, commissions; empty and non-public tables','all row fingerprints and sequences equal; source unchanged','encrypted Storage contents reconstructed into isolated tmpfs and SHA-256 matched; mocked source HTTP and Drive, not live Supabase service recovery']}))
+        print(json.dumps({'synthetic_independent_restore':'PASS','project_target':os.environ.get('BACKUP_TARGET','core'),'tables':len(verification['tables']),'storage_objects':result['storage_objects_verified'],'storage_buckets':result['storage_buckets_verified'],'storage_service_restore_verified':False,'production_access':False,'metadata_render_context':result['metadata_render_context'],'checks':['encrypted dump and roles via mocked Drive round-trip','owners, RLS and ACL','app_state JSON and relational customers, bookings, payments, expenses, maintenance, subscriptions, installments, commissions; empty and non-public tables','all row fingerprints and sequences equal; source unchanged','encrypted Storage contents reconstructed into isolated tmpfs and SHA-256 matched; mocked source HTTP and Drive, not live Supabase service recovery']}))
 finally:b.docker(['rm','-f',name])
