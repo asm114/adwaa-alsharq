@@ -1,9 +1,18 @@
-"""Restore extension-owned metadata omitted by pg_dump; compare parsed ACLs.
+"""Restore recorded extension metadata and provider schema ACLs; parse ACLs.
 
 Only used inside the disposable, network-isolated restore server. Never executes
-SQL against the source. No SQL text, identifiers or ACL values are logged.
+SQL against the source. No SQL text or custom identifiers are logged.
+Grant diagnostics use fixed public schema/role allowlists only.
 """
 import json
+import re
+import subprocess
+
+
+class MetadataRestoreError(Exception):
+    def __init__(self,code,diagnostics):
+        self.code=code;self.diagnostics=diagnostics
+        super().__init__(code)
 
 
 def literal(value):
@@ -53,7 +62,9 @@ def restore_extension_metadata(engine,container,verification,sql,bootstrap):
     Reapply the original owner/ACL recorded in the authenticated verification.
     Only pg_depend-confirmed extension objects are eligible. Application
     objects are not repaired from expected values; strict comparison detects
-    their mismatches. Definitions are never replaced or ignored.
+    their mismatches. Schema grants are also replayed from the full recorded
+    ACL when pg_dump omitted provider-initial grants. Schema owners and all
+    definitions are never replaced or ignored.
     """
     expected=engine.application_schema_metadata(verification['schema'])
     source={(r['schema'],r['name'],r['args']):r for r in expected['routines'] or []}
@@ -97,25 +108,40 @@ def restore_extension_metadata(engine,container,verification,sql,bootstrap):
         alter={'r':'TABLE','p':'TABLE','v':'VIEW','m':'MATERIALIZED VIEW','S':'SEQUENCE'}[row['kind']]+' '+signature
         pairs.append(({**row,'acl_kind':'S' if row['kind']=='S' else 'r',
                        'object_clause':clause,'alter_clause':alter},source_relations[key]))
+    schemas=json.loads(sql("SELECT coalesce(jsonb_agg(jsonb_build_object('name',nspname,'owner',pg_get_userbyid(nspowner),'acl',nspacl::text)),'[]')::text FROM pg_namespace WHERE nspname !~ '^pg_' AND nspname<>'information_schema'"))
+    source_schemas={r['name']:r for r in expected['schemas'] or []}
+    for row in schemas:
+        source_schema=source_schemas.get(row['name'])
+        # Never repair a missing schema or an unexpected schema owner. The full
+        # comparison must reject these; only original recorded grants are replayed.
+        if source_schema is None or row['owner']!=source_schema['owner']:continue
+        pairs.append(({**row,'acl_kind':'n','object_clause':'SCHEMA '+engine.quote(row['name']),
+                       'alter_clause':None},source_schema))
     requests=[{'acl':r['acl'],'owner':r['owner'],'kind':pair[0]['acl_kind']} for pair in pairs for r in pair]
     entries=acl_values(requests,sql)
     commands=['BEGIN;']
-    repaired={'f':0,'r':0,'S':0}
+    repaired={'f':0,'r':0,'S':0,'n':0}
+    schema_diagnostics=[]
     for i,(target,source_row) in enumerate(pairs):
         old,new=entries[2*i:2*i+2]
         if target['owner']==source_row['owner'] and old==new:continue
         repaired[target['acl_kind']]+=1
         owner=source_row['owner'];clause=target['object_clause']
-        commands.append('ALTER '+target['alter_clause']+' OWNER TO '+engine.quote(owner)+';')
+        if target['alter_clause'] is not None:
+            commands.append('ALTER '+target['alter_clause']+' OWNER TO '+engine.quote(owner)+';')
+        else:
+            schema_diagnostics.append(schema_acl_diagnostic(target['name'],old,new))
         grantees={e['grantee'] for e in old+new}|{owner,None}
         for grantee in sorted(grantees,key=lambda r:('' if r is None else r)):
             role='PUBLIC' if grantee is None else engine.quote(grantee)
-            commands.append('REVOKE ALL PRIVILEGES ON '+clause+' FROM '+role+';')
+            commands.append('REVOKE ALL PRIVILEGES ON '+clause+' FROM '+role+' CASCADE;')
         # Owner grants (and grant options) precede delegated grants. Unsupported
         # chains fail closed; the final full ACL comparison is still mandatory.
-        allowed={'f':{'EXECUTE'},'S':{'USAGE','SELECT','UPDATE'},
+        allowed={'n':{'CREATE','USAGE'},'f':{'EXECUTE'},'S':{'USAGE','SELECT','UPDATE'},
                  'r':{'SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER','MAINTAIN'}}[target['acl_kind']]
-        for entry in sorted(new,key=lambda e:(e['grantor']!=owner,not e['grantable'],json.dumps(e,sort_keys=True))):
+        try:ordered=grant_order(new,owner)
+        except ValueError:raise MetadataRestoreError('RESTORE_GRANT_CHAIN_UNRESOLVED',schema_diagnostics) from None
+        for entry in ordered:
             if entry['privilege'] not in allowed:raise ValueError('unexpected object privilege')
             role='PUBLIC' if entry['grantee'] is None else engine.quote(entry['grantee'])
             commands.extend(['SET LOCAL ROLE '+engine.quote(entry['grantor'])+';',
@@ -123,7 +149,51 @@ def restore_extension_metadata(engine,container,verification,sql,bootstrap):
     commands.append('COMMIT;')
     payload='\n'.join(commands).encode()
     engine.stage_file(container,'/tmp/extension-metadata',len(payload),lambda sink:sink.write(payload))
-    engine.docker(['exec',container,'psql','-h','127.0.0.1','-X','-v','ON_ERROR_STOP=1','-U',bootstrap,'-d','postgres','-f','/tmp/extension-metadata'])
+    try:
+        engine.docker(['exec',container,'psql','-h','127.0.0.1','-X','-v','ON_ERROR_STOP=1','-v','VERBOSITY=sqlstate','-U',bootstrap,'-d','postgres','-f','/tmp/extension-metadata'])
+    except subprocess.CalledProcessError as error:
+        state=re.search(rb'ERROR:\s+([0-9A-Z]{5})\b',error.stderr or b'')
+        code='RESTORE_METADATA_PERMISSION_DENIED' if state and state.group(1)==b'42501' else 'RESTORE_METADATA_REPLAY_FAILED'
+        raise MetadataRestoreError(code,schema_diagnostics) from None
 
     return {'extension_routines_checked':len(matches),'extension_routines_restored':repaired['f'],
-            'extension_relations_checked':len(relations),'extension_relations_restored':repaired['r']+repaired['S']}
+            'extension_relations_checked':len(relations),'extension_relations_restored':repaired['r']+repaired['S'],
+            'schema_acls_restored':repaired['n'],'schema_acl_restore_diagnostics':schema_diagnostics}
+
+
+def schema_acl_diagnostic(name,before,after):
+    from collections import Counter
+    known_roles={'postgres','supabase_admin','anon','authenticated','service_role',
+                 'authenticator','dashboard_user','supabase_auth_admin',
+                 'supabase_storage_admin','supabase_read_only_user','pg_database_owner'}
+    known_schemas={'auth','extensions','graphql','graphql_public','net','public',
+                   'realtime','storage','supabase_functions','supabase_migrations','vault'}
+    aliases={}
+    def role(value):
+        if value is None:return 'PUBLIC'
+        if value in known_roles:return value
+        if value not in aliases:aliases[value]='OTHER_ROLE_'+str(len(aliases)+1)
+        return aliases[value]
+    def safe(entry):
+        return {'grantor':role(entry['grantor']),'grantee':role(entry['grantee']),
+                'privilege':entry['privilege'],'grantable':entry['grantable']}
+    encoded=lambda row:json.dumps(row,sort_keys=True)
+    old=Counter(encoded(row) for row in before);new=Counter(encoded(row) for row in after)
+    return {'schema':name if name in known_schemas else 'CUSTOM_SCHEMA',
+            'restored_grants_before_replay':len(before),'recorded_source_grants':len(after),
+            'missing_grants_replayed':[safe(json.loads(row)) for row in (new-old).elements()],
+            'extra_grants_removed':[safe(json.loads(row)) for row in (old-new).elements()]}
+
+
+def grant_order(entries,owner):
+    """Rebuild grant-option chains from their owner root without dropping grants."""
+    pending=sorted(entries,key=lambda e:(not e['grantable'],json.dumps(e,sort_keys=True)))
+    granted=set();ordered=[]
+    while pending:
+        progress=False
+        for entry in pending[:]:
+            if entry['grantor']==owner or (entry['grantor'],entry['privilege']) in granted:
+                ordered.append(entry);pending.remove(entry);progress=True
+                if entry['grantable']:granted.add((entry['grantee'],entry['privilege']))
+        if not progress:raise ValueError('unresolvable grant-option chain')
+    return ordered

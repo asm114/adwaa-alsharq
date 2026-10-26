@@ -71,6 +71,10 @@ try:
         ns=b.quote(namespace)
         sql(f"CREATE SCHEMA {ns};CREATE TABLE {ns}.sample(id integer PRIMARY KEY);CREATE VIEW {ns}.sample_view AS SELECT id FROM {ns}.sample;CREATE FUNCTION {ns}.sample_trigger() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END';CREATE TRIGGER sample_trigger BEFORE INSERT ON {ns}.sample FOR EACH ROW EXECUTE FUNCTION {ns}.sample_trigger();ALTER DEFAULT PRIVILEGES IN SCHEMA {ns} GRANT SELECT ON TABLES TO anon;")
     sql('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO authenticated;ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO anon;GRANT USAGE ON SCHEMA private_finance TO authenticated WITH GRANT OPTION;GRANT USAGE ON SCHEMA private_finance TO anon;')
+    # Provider-seeded initial ACLs are not part of a blank PostgreSQL cluster.
+    # pg_dump emits ACL deltas relative to pg_init_privs, not their full grants.
+    # This catalog write is ONLY in the disposable synthetic source fixture.
+    sql("GRANT USAGE ON SCHEMA \"Z_order\" TO anon;GRANT USAGE ON SCHEMA a_order TO authenticated WITH GRANT OPTION;SET ROLE authenticated;GRANT USAGE ON SCHEMA a_order TO anon;RESET ROLE;INSERT INTO pg_init_privs(objoid,classoid,objsubid,privtype,initprivs) SELECT oid,'pg_namespace'::regclass,0,'e',nspacl FROM pg_namespace WHERE nspname IN ('Z_order','a_order');")
     from restore_metadata import acl_values,literal
     def parse_acl(acl):
         return acl_values([{'acl':acl,'owner':source_user,'kind':'r'}],lambda query:sql(query).decode())[0]
@@ -137,10 +141,14 @@ try:
                 raise SystemExit(0)
             raise AssertionError('Changed schema owner was incorrectly accepted')
         result=b.isolated_restore(d,manifest);assert result['restore_verified'] is True
+        assert result['schema_acls_restored']==2
+        assert sum(len(row['missing_grants_replayed']) for row in result['schema_acl_restore_diagnostics'])==3
+        assert all(row['extra_grants_removed']==[] for row in result['schema_acl_restore_diagnostics'])
+        assert sum(grant['grantable'] for row in result['schema_acl_restore_diagnostics'] for grant in row['missing_grants_replayed'])==1
         if os.environ.get('BACKUP_TEST_RENDER_CONTEXT')=='true':assert result['metadata_render_context']!='ROLE_DEFAULT'
         assert result['storage_files_verified'] is True and result['storage_objects_verified']==3 and result['storage_buckets_verified']==3
         assert result['storage_service_restore_verified'] is False
         assert sql('SELECT last_value FROM reservations_id_seq').strip()==b'40'
         assert b.snapshot(conn)=={k:v for k,v in verification.items() if k not in ['project','backup_id','storage_files_included','storage']}
-        print(json.dumps({'synthetic_independent_restore':'PASS','project_target':os.environ.get('BACKUP_TARGET','core'),'tables':len(verification['tables']),'storage_objects':result['storage_objects_verified'],'storage_buckets':result['storage_buckets_verified'],'storage_service_restore_verified':False,'production_access':False,'metadata_render_context':result['metadata_render_context'],'checks':['encrypted dump and roles via mocked Drive round-trip','owners, RLS and ACL','app_state JSON and relational customers, bookings, payments, expenses, maintenance, subscriptions, installments, commissions; empty and non-public tables','all row fingerprints and sequences equal; source unchanged','encrypted Storage contents reconstructed into isolated tmpfs and SHA-256 matched; mocked source HTTP and Drive, not live Supabase service recovery']}))
+        print(json.dumps({'synthetic_independent_restore':'PASS','project_target':os.environ.get('BACKUP_TARGET','core'),'tables':len(verification['tables']),'storage_objects':result['storage_objects_verified'],'storage_buckets':result['storage_buckets_verified'],'storage_service_restore_verified':False,'production_access':False,'metadata_render_context':result['metadata_render_context'],'provider_schema_acls_restored':result['schema_acls_restored'],'checks':['encrypted dump and roles via mocked Drive round-trip','owners, RLS and ACL','app_state JSON and relational customers, bookings, payments, expenses, maintenance, subscriptions, installments, commissions; empty and non-public tables','all row fingerprints and sequences equal; source unchanged','encrypted Storage contents reconstructed into isolated tmpfs and SHA-256 matched; mocked source HTTP and Drive, not live Supabase service recovery']}))
 finally:b.docker(['rm','-f',name])

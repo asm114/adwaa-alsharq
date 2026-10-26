@@ -33,7 +33,7 @@ from source_diagnostics import GateError, SourceError, need as source_need, vali
 
 class RestoreError(GateError):
     def __init__(self,code):
-        self.code=code if code in {'RESTORE_ACL_PARSE_FAILED','RESTORE_EXTENSION_METADATA_FAILED','RESTORE_ROLES_FAILED','RESTORE_DATABASE_FAILED','RESTORE_SUPERUSER_VERIFIER_UNAVAILABLE','RESTORE_STAGING_PROCESS_FAILED','RESTORE_STAGING_TIMEOUT','RESTORE_STAGING_TRANSPORT_FAILED','RESTORE_SCHEMA_MISMATCH','RESTORE_CATALOG_MISMATCH','RESTORE_POLICIES_MISMATCH','RESTORE_ROLES_MISMATCH','RESTORE_MEMBERSHIPS_MISMATCH','RESTORE_INSPECTION_ROLE_INVALID','RESTORE_METADATA_QUERY_FAILED'} else 'RESTORE_FAILED'
+        self.code=code if code in {'RESTORE_GRANT_CHAIN_UNRESOLVED','RESTORE_METADATA_PERMISSION_DENIED','RESTORE_METADATA_REPLAY_FAILED','RESTORE_ACL_PARSE_FAILED','RESTORE_EXTENSION_METADATA_FAILED','RESTORE_ROLES_FAILED','RESTORE_DATABASE_FAILED','RESTORE_SUPERUSER_VERIFIER_UNAVAILABLE','RESTORE_STAGING_PROCESS_FAILED','RESTORE_STAGING_TIMEOUT','RESTORE_STAGING_TRANSPORT_FAILED','RESTORE_SCHEMA_MISMATCH','RESTORE_CATALOG_MISMATCH','RESTORE_POLICIES_MISMATCH','RESTORE_ROLES_MISMATCH','RESTORE_MEMBERSHIPS_MISMATCH','RESTORE_INSPECTION_ROLE_INVALID','RESTORE_METADATA_QUERY_FAILED'} else 'RESTORE_FAILED'
         super().__init__(self.code)
 
 def require(condition,message):
@@ -403,8 +403,11 @@ def isolated_restore(directory,manifest):
         except subprocess.CalledProcessError:raise RestoreError('RESTORE_ROLES_FAILED') from None
         try:docker(['exec',name,'pg_restore','-h','127.0.0.1','-U',reader_user,'--exit-on-error','-d','postgres','/tmp/database'])
         except subprocess.CalledProcessError:raise RestoreError('RESTORE_DATABASE_FAILED') from None
-        from restore_metadata import restore_extension_metadata,normalized_metadata
+        from restore_metadata import restore_extension_metadata,normalized_metadata,MetadataRestoreError
         try:extension_metadata=restore_extension_metadata(__import__('types').SimpleNamespace(application_schema_metadata=application_schema_metadata,quote=quote,stage_file=stage_file,docker=docker),name,verification,sql,reader_user)
+        except MetadataRestoreError as error:
+            failure=RestoreError(error.code);failure.replayed_metadata={'planned_schema_acl_diagnostics':error.diagnostics}
+            raise failure from None
         except Exception:raise RestoreError('RESTORE_EXTENSION_METADATA_FAILED') from None
         bootstrap_user=reader_user
         declared=os.environ.get('BACKUP_INSPECTION_ROLE') or os.environ.get('PGUSER','')
@@ -442,6 +445,7 @@ def isolated_restore(directory,manifest):
             if last_error is None:break
         if last_error is not None:
             last_error.diagnostics=comparison_diagnostics
+            last_error.replayed_metadata=extension_metadata
             # pg_restore header is inspected in memory only; never emit the
             # table-of-contents body (it can contain sensitive identifiers).
             header=docker(['exec',name,'pg_restore','--list','/tmp/database']).stdout.decode()
