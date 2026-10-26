@@ -8,6 +8,7 @@ import backup as engine
 from drive_store import authenticate, inspection_report, DriveStore, DriveError, safe_diagnostic
 from first_capture import PLANS
 from targets import TARGET
+from verify_portal_partial import PartialVerificationError
 
 
 def audit(report):
@@ -37,6 +38,10 @@ def audit(report):
         report['drive_preflight_code'] = 'DRIVE_PREFLIGHT_OK'
     except DriveError as error:
         report['drive_preflight_code'] = safe_diagnostic(error)
+    if TARGET == 'portal' and os.environ.get('BACKUP_VERIFY_OBSERVED_PARTS') == 'true':
+        report['stage'] = 'portal_partial_authentication'
+        from verify_portal_partial import verify
+        report['portal_partial_verification'] = verify(store, report['drive_inventory'])
     report.update(stage='finished', code='READ_ONLY_FAILURE_AUDIT_COMPLETE')
 
 
@@ -47,6 +52,8 @@ def main():
         audit(report)
     except DriveError as error:
         report['code'] = safe_diagnostic(error)
+    except PartialVerificationError as error:
+        report['code'] = error.code
     except Exception:
         pass
     print(json.dumps(report), flush=True)

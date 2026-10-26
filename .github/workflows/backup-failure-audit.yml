@@ -8,6 +8,7 @@ on:
     paths:
       - .github/workflows/backup-failure-audit.yml
       - tools/backup/failure_audit.py
+      - tools/backup/verify_portal_partial.py
 permissions:
   contents: read
 concurrency:
@@ -55,6 +56,7 @@ jobs:
           BACKUP_DRIVE_REFRESH_TOKEN: ${{ secrets.BACKUP_DRIVE_REFRESH_TOKEN }}
           BACKUP_DRIVE_ACCOUNT: ${{ vars.BACKUP_DRIVE_ACCOUNT }}
           BACKUP_COST_APPROVED: ${{ vars.BACKUP_COST_APPROVED }}
+          BACKUP_VERIFY_OBSERVED_PARTS: 'true'
           BACKUP_EXECUTION_APPROVED: 'false'
           BACKUP_RESTORE_APPROVED: 'false'
           BACKUP_DRIVE_RETENTION_APPROVED: 'false'

@@ -49,6 +49,31 @@ class Service:
         return Request(delete)
 class DriveTests(unittest.TestCase):
     def setUp(self):self.service=Service();self.store=d.DriveStore(self.service,FOLDER,EMAIL,100000)
+    def test_confirmed_upload_readback_survives_delayed_list_index(self):
+        key=d.PREFIX+CURRENT+'/verification.enc'
+        self.store.put_object(Bucket=FOLDER,Key=key,Body=b'synthetic-ciphertext')
+        with patch.object(self.service,'list',return_value=Request(lambda:{'files':[]})),patch.object(self.service,'create') as create:
+            self.assertEqual(self.store.head_object(Bucket=FOLDER,Key=key)['ContentLength'],20)
+            self.store.put_object(Bucket=FOLDER,Key=key,Body=b'synthetic-ciphertext')
+            create.assert_not_called()
+        self.assertEqual(self.service.uploaded,1)
+    def test_upload_error_diagnostics_never_return_google_payload(self):
+        from googleapiclient.errors import HttpError
+        from httplib2 import Response
+        error=HttpError(Response({'status':'403'}),b'{"error":{"message":"SENSITIVE-TOKEN","errors":[{"reason":"storageQuotaExceeded"}]}}')
+        self.assertEqual(d.upload_diagnostic(error),'DRIVE_SPACE_INSUFFICIENT')
+        self.assertEqual(d.upload_diagnostic(TimeoutError('SENSITIVE-TOKEN')),'DRIVE_UPLOAD_TIMEOUT')
+    def test_cached_identity_still_rejects_duplicates_and_namespace_changes(self):
+        key=d.PREFIX+CURRENT+'/roles.enc'
+        self.store.put_object(Bucket=FOLDER,Key=key,Body=b'cipher')
+        self.service.rows['duplicate-id']=metadata('duplicate-id',key,b'cipher')
+        with self.assertRaises(d.DriveError) as error:self.store.head_object(Bucket=FOLDER,Key=key)
+        self.assertEqual(d.safe_diagnostic(error.exception),'DRIVE_DUPLICATE_OBJECT')
+        self.service.rows.pop('duplicate-id')
+        self.service.rows[self.store.ids[key]]['parents']=[OLD]
+        with self.assertRaises(d.DriveError) as error:self.store.head_object(Bucket=FOLDER,Key=key)
+        self.assertEqual(d.safe_diagnostic(error.exception),'DRIVE_FILE_NAMESPACE_MISMATCH')
+        self.assertEqual(self.service.uploaded,1)
     def test_private_account_namespace_and_quota(self):
         self.store.preflight();self.assertTrue(all(FOLDER in q and OLD not in q for q in self.service.queries))
         self.service.email='wrong@example.invalid'

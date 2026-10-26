@@ -30,7 +30,10 @@ SAFE_CODES=frozenset({
     'DRIVE_SHARING_NOT_OWNER_ONLY','DRIVE_FOLDER_NAMESPACE_MISMATCH','DRIVE_FOLDER_NOT_WRITABLE',
     'DRIVE_FILE_NAMESPACE_MISMATCH','DRIVE_DUPLICATE_OBJECT','DRIVE_EXISTING_OBJECT_CONFLICT',
     'DRIVE_UPLOAD_UNCONFIRMED','DRIVE_METADATA_READ_FAILED','DRIVE_AUDIT_FAILED',
-    'DRIVE_AUDIT_METADATA_INVALID','DRIVE_PAGINATION_INVALID'})
+    'DRIVE_AUDIT_METADATA_INVALID','DRIVE_PAGINATION_INVALID',
+    'DRIVE_OBJECT_LOOKUP_UNCONFIRMED','DRIVE_OBJECT_KEY_MISMATCH',
+    'DRIVE_UPLOAD_TIMEOUT','DRIVE_UPLOAD_REQUEST_REJECTED','DRIVE_UPLOAD_SERVER_ERROR',
+    'DRIVE_API_QUOTA_REJECTED','DRIVE_RATE_LIMITED','DRIVE_WRITE_FORBIDDEN'})
 class DriveError(Exception):
     def __init__(self,message,code='DRIVE_GATE_FAILED'):
         super().__init__(message)
@@ -62,6 +65,25 @@ def authenticate():
     if set(creds.granted_scopes)!={SCOPE}:raise DriveError('Granted scope is not exclusively drive.file','OAUTH_SCOPE_REJECTED')
     try:return build('drive','v3',http=AuthorizedHttp(creds,http=httplib2.Http(timeout=60)),cache_discovery=False)
     except Exception:raise DriveError('Drive client initialization failed','DRIVE_CLIENT_INIT_FAILED') from None
+
+def upload_diagnostic(error):
+    if isinstance(error,TimeoutError):return 'DRIVE_UPLOAD_TIMEOUT'
+    status=getattr(getattr(error,'resp',None),'status',None)
+    reasons=[]
+    try:
+        body=json.loads(getattr(error,'content',b'{}'))
+        reasons=[row.get('reason') for row in body.get('error',{}).get('errors',[]) if isinstance(row,dict)]
+    except Exception:pass
+    mapping={'storageQuotaExceeded':'DRIVE_SPACE_INSUFFICIENT',
+             'dailyLimitExceeded':'DRIVE_API_QUOTA_REJECTED','quotaExceeded':'DRIVE_API_QUOTA_REJECTED',
+             'rateLimitExceeded':'DRIVE_RATE_LIMITED','userRateLimitExceeded':'DRIVE_RATE_LIMITED',
+             'insufficientFilePermissions':'DRIVE_WRITE_FORBIDDEN'}
+    for reason in reasons:
+        if isinstance(reason,str) and reason in mapping:return mapping[reason]
+    if status==400:return 'DRIVE_UPLOAD_REQUEST_REJECTED'
+    if status==403:return 'DRIVE_WRITE_FORBIDDEN'
+    if type(status) is int and status>=500:return 'DRIVE_UPLOAD_SERVER_ERROR'
+    return 'DRIVE_UPLOAD_UNCONFIRMED'
 
 def escaped(value):return value.replace('\\','\\\\').replace("'","\\'")
 def stamp(value):return datetime.fromisoformat(value.replace('Z','+00:00'))
@@ -168,11 +190,24 @@ class DriveStore:
         require(size<=self.daily_bytes,'encrypted bundle exceeds approved daily estimate','DRIVE_BUNDLE_LIMIT_EXCEEDED')
         require(self._identity()>=size,'Drive free space insufficient','DRIVE_SPACE_INSUFFICIENT')
     def _find(self,key):
-        split_key(key);files=self._list(key)
-        files=[f for f in files if f.get('appProperties',{}).get('objectKey')==key]
+        split_key(key)
+        cached=self.ids.get(key)
+        # A reserved/confirmed ID is authoritative for our own upload. List
+        # indexing can lag behind files.get; never allocate a new ID on ambiguity.
+        if cached:
+            try:file=self._metadata(cached)
+            except DriveError:raise
+            except Exception:raise DriveError('known object lookup unconfirmed','DRIVE_OBJECT_LOOKUP_UNCONFIRMED') from None
+            require(file['appProperties'].get('objectKey')==key,'Drive key mismatch','DRIVE_OBJECT_KEY_MISMATCH')
+            matches=[f for f in self._list(key) if f.get('appProperties',{}).get('objectKey')==key]
+            require(all(f['id']==cached for f in matches),'duplicate Drive object key','DRIVE_DUPLICATE_OBJECT')
+            return file
+        files=[f for f in self._list(key) if f.get('appProperties',{}).get('objectKey')==key]
         require(len(files)<=1,'duplicate Drive object key; manual review required','DRIVE_DUPLICATE_OBJECT')
         if not files:return None
-        file=self._metadata(files[0]['id']);require(file['appProperties'].get('objectKey')==key,'Drive key mismatch')
+        file=self._metadata(files[0]['id'])
+        require(file['appProperties'].get('objectKey')==key,'Drive key mismatch','DRIVE_OBJECT_KEY_MISMATCH')
+        self.ids[key]=file['id']
         return file
     def _put(self,key,media,size,sha):
         backup_id,part=split_key(key)
@@ -192,14 +227,15 @@ class DriveStore:
         file_id=self.service.files().generateIds(count=1,space='drive',type='files').execute(num_retries=3)['ids'][0];self.ids[key]=file_id
         body={'id':file_id,'name':backup_id+'--'+part,'parents':[self.folder],'appProperties':{'adwaaPgBackup':PROJECT,'objectKey':key,'backupId':backup_id}}
         request=self.service.files().create(body=body,media_body=media,fields='id',supportsAllDrives=False)
+        upload_code=None
         try:
             response=None;steps=0;limit=(size+media.chunksize()-1)//media.chunksize()+5
             while response is None:
                 steps+=1;require(steps<=limit,'Drive upload made no bounded progress')
                 _,response=request.next_chunk(num_retries=3)
-        except Exception:
-            # A lost final reply is not failure proof. Confirm the reserved file ID.
-            pass
+        except Exception as error:
+            # A lost final reply is not failure proof. Confirm the same ID.
+            upload_code=upload_diagnostic(error)
         last_code='DRIVE_UPLOAD_UNCONFIRMED'
         for attempt in range(3):
             try:
@@ -210,7 +246,8 @@ class DriveStore:
                 last_code=safe_diagnostic(error) if isinstance(error,DriveError) else 'DRIVE_METADATA_READ_FAILED'
                 if last_code=='DRIVE_GATE_FAILED':last_code='DRIVE_UPLOAD_UNCONFIRMED'
                 if attempt<2:time.sleep(attempt+1)
-        raise DriveError('Drive upload not confirmed; reserved ID retained, no duplicate retry',last_code)
+        code=upload_code if upload_code and last_code in ('DRIVE_METADATA_READ_FAILED','DRIVE_UPLOAD_UNCONFIRMED') else last_code
+        raise DriveError('Drive upload not confirmed; reserved ID retained, no duplicate retry',code)
     # Compatibility adapter: the encrypted backup engine is unchanged.
     def upload_file(self,path,bucket,key,ExtraArgs=None):
         require(bucket==self.folder,'wrong folder')
