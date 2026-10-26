@@ -127,7 +127,7 @@ class DriveTests(unittest.TestCase):
             build.assert_not_called()
     def test_oauth_errors_are_fixed_codes_not_exception_payloads(self):
         from google.auth.exceptions import RefreshError
-        cases=[('invalid_grant','OAUTH_INVALID_GRANT'),('invalid_client','OAUTH_INVALID_CLIENT'),('access_denied','OAUTH_ACCESS_DENIED'),('invalid_scope','OAUTH_INVALID_SCOPE'),('unknown-sensitive-value','OAUTH_REFRESH_FAILED')]
+        cases=[('unauthorized_client','OAUTH_UNAUTHORIZED_CLIENT'),('invalid_grant','OAUTH_INVALID_GRANT'),('invalid_client','OAUTH_INVALID_CLIENT'),('access_denied','OAUTH_ACCESS_DENIED'),('invalid_scope','OAUTH_INVALID_SCOPE'),('unknown-sensitive-value','OAUTH_REFRESH_FAILED')]
         for reason,expected in cases:
             creds=type('C',(),{'refresh':lambda self,*a:None})()
             with self.subTest(reason=expected),patch.dict(os.environ,{'BACKUP_DRIVE_REFRESH_TOKEN':'synthetic','BACKUP_DRIVE_CLIENT_ID':'synthetic','BACKUP_DRIVE_CLIENT_SECRET':'synthetic'}),patch.object(d,'Credentials',return_value=creds),patch.object(creds,'refresh',side_effect=RefreshError('SYNTHETIC-DO-NOT-LOG',{'error':reason,'error_description':'SYNTHETIC-DO-NOT-LOG'})),patch.object(d,'build') as build:

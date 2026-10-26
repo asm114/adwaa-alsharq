@@ -20,7 +20,7 @@ OBJECTS=('database.enc','roles.enc','verification.enc','storage.enc','complete.j
 FIELDS='id,name,mimeType,size,sha256Checksum,createdTime,appProperties,parents,shared,trashed,owners(emailAddress),permissions(type,role,deleted),driveId,capabilities(canAddChildren,canListChildren)'
 SAFE_CODES=frozenset({
     'DRIVE_GATE_FAILED','DRIVE_CONFIG_MISSING','OAUTH_INVALID_GRANT','OAUTH_INVALID_CLIENT',
-    'OAUTH_ACCESS_DENIED','OAUTH_INVALID_SCOPE','OAUTH_REFRESH_FAILED','OAUTH_SCOPE_UNCONFIRMED',
+    'OAUTH_UNAUTHORIZED_CLIENT','OAUTH_ACCESS_DENIED','OAUTH_INVALID_SCOPE','OAUTH_REFRESH_FAILED','OAUTH_SCOPE_UNCONFIRMED',
     'OAUTH_SCOPE_REJECTED','DRIVE_CLIENT_INIT_FAILED','DRIVE_ACCOUNT_READ_FAILED',
     'DRIVE_ACCOUNT_MISMATCH','DRIVE_FOLDER_LOOKUP_FAILED','DRIVE_FOLDER_LOOKUP_AMBIGUOUS',
     'DRIVE_FOLDER_CREATE_UNCONFIRMED','DRIVE_NEW_FOLDER_VALIDATION_FAILED',
@@ -49,7 +49,7 @@ def authenticate():
     except RefreshError as error:
         reason=next((x.get('error') for x in error.args if isinstance(x,dict)),None)
         if not isinstance(reason,str):reason=None
-        code={'invalid_grant':'OAUTH_INVALID_GRANT','invalid_client':'OAUTH_INVALID_CLIENT','unauthorized_client':'OAUTH_INVALID_CLIENT','access_denied':'OAUTH_ACCESS_DENIED','invalid_scope':'OAUTH_INVALID_SCOPE'}.get(reason,'OAUTH_REFRESH_FAILED')
+        code={'invalid_grant':'OAUTH_INVALID_GRANT','invalid_client':'OAUTH_INVALID_CLIENT','unauthorized_client':'OAUTH_UNAUTHORIZED_CLIENT','access_denied':'OAUTH_ACCESS_DENIED','invalid_scope':'OAUTH_INVALID_SCOPE'}.get(reason,'OAUTH_REFRESH_FAILED')
         raise DriveError('Google refresh rejected; details suppressed',code) from None
     except Exception:raise DriveError('Google refresh failed; details suppressed','OAUTH_REFRESH_FAILED') from None
     if creds.granted_scopes is None:raise DriveError('Google did not confirm granted scopes','OAUTH_SCOPE_UNCONFIRMED')
