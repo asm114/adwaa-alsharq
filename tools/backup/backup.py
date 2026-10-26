@@ -342,13 +342,17 @@ def latest(s3,bucket,owner,directory):
 
 def main():
     os.umask(0o077)
-    require(len(sys.argv)==2 and sys.argv[1] in ['preflight','backup','restore','init-drive','retention-plan','health'],'invalid mode')
+    require(len(sys.argv)==2 and sys.argv[1] in ['preflight','backup','restore','init-drive','inspect-drive','retention-plan','health'],'invalid mode')
     require(os.environ.get('GITHUB_REF','').startswith('refs/heads/'),'branch ref required')
     mode=sys.argv[1]
     require(os.environ.get('BACKUP_DRIVE_RETENTION_APPROVED')!='true','retention is disabled for comprehensive backups')
     if os.environ.get('GITHUB_EVENT_NAME')=='schedule':
         require(os.environ.get('BACKUP_SCHEDULE_APPROVED')=='true' and os.environ.get('BACKUP_PRODUCTION_RESTORE_VERIFIED')=='true','scheduled execution awaits production restore and owner approval')
         if os.environ.get('BACKUP_STORAGE_PROVIDER','drive')=='drive':require(os.environ.get('BACKUP_DRIVE_RETENTION_APPROVED')=='true','Drive retention activation not approved')
+    if mode=='inspect-drive':
+        require(env('BACKUP_COST_APPROVED')=='true','Drive inspection cost not approved')
+        from drive_store import authenticate,inspection_report
+        print(json.dumps(inspection_report(authenticate(),env('BACKUP_DRIVE_ACCOUNT'))));return
     if mode=='init-drive':
         require(env('BACKUP_COST_APPROVED')=='true' and env('BACKUP_DRIVE_SETUP_APPROVED')=='true','Drive setup not approved')
         from drive_store import authenticate,initialize_folder

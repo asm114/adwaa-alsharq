@@ -182,4 +182,34 @@ class DriveTests(unittest.TestCase):
         with patch.object(self.service,'list',side_effect=TimeoutError('SYNTHETIC-DO-NOT-LOG')),patch.object(self.service,'create') as create:
             with self.assertRaises(d.DriveError) as error:d.initialize_folder(self.service,EMAIL)
             self.assertEqual(d.safe_diagnostic(error.exception),'DRIVE_FOLDER_LOOKUP_FAILED');create.assert_not_called()
+    def test_inspection_report_checks_existing_folder_without_writes(self):
+        with patch.object(self.service,'list',return_value=Request(lambda:{'files':[self.service.rows[FOLDER]]})),patch.object(self.service,'create') as create,patch.object(self.service,'delete') as delete:
+            report=d.inspection_report(self.service,EMAIL)
+            self.assertEqual(report['folder_count'],1);self.assertEqual(report['folder_ids'],[FOLDER]);self.assertTrue(report['read_only'])
+            self.assertNotIn(EMAIL,str(report));create.assert_not_called();delete.assert_not_called()
+    def test_inspection_missing_duplicates_private_and_invalid_metadata(self):
+        with patch.object(self.service,'list',return_value=Request(lambda:{'files':[]})),patch.object(self.service,'create') as create:
+            self.assertEqual(d.inspection_report(self.service,EMAIL)['folder_count'],0);create.assert_not_called()
+        duplicate=dict(self.service.rows[FOLDER],id='second-folder')
+        with patch.object(self.service,'list',return_value=Request(lambda:{'files':[self.service.rows[FOLDER],duplicate]})),patch.object(self.service,'create') as create,self.assertRaises(d.DriveError) as error:d.inspection_report(self.service,EMAIL)
+        self.assertEqual(error.exception.code,'DRIVE_FOLDER_LOOKUP_AMBIGUOUS');create.assert_not_called()
+        self.service.rows[FOLDER]['shared']=True
+        with patch.object(self.service,'list',return_value=Request(lambda:{'files':[self.service.rows[FOLDER]]})),self.assertRaises(d.DriveError) as error:d.inspection_report(self.service,EMAIL)
+        self.assertEqual(error.exception.code,'DRIVE_EXISTING_FOLDER_VALIDATION_FAILED')
+        with patch.object(self.service,'list',return_value=Request(lambda:{'files':[dict(duplicate,id='bad\nmetadata')]})),self.assertRaises(d.DriveError) as error:d.inspection_report(self.service,EMAIL)
+        self.assertEqual(error.exception.code,'DRIVE_FOLDER_METADATA_INVALID')
+    def test_read_only_cli_cannot_create_folder_or_access_database(self):
+        import contextlib,runpy
+        out=io.StringIO();config={'GITHUB_REF':'refs/heads/ops/encrypted-daily-backup-20261024','BACKUP_COST_APPROVED':'true','BACKUP_DRIVE_ACCOUNT':EMAIL,'BACKUP_EXECUTION_APPROVED':'false','BACKUP_DRIVE_SETUP_APPROVED':'false','BACKUP_RESTORE_APPROVED':'false'}
+        path=Path(__file__).resolve().parents[2]/'tools/backup/backup.py'
+        with patch.dict(os.environ,config,clear=True),patch.object(sys,'argv',['backup.py','inspect-drive']),patch.object(d,'authenticate',return_value=self.service),patch.object(self.service,'list',return_value=Request(lambda:{'files':[self.service.rows[FOLDER]]})),patch.object(self.service,'create') as create,patch.object(self.service,'delete') as delete,patch.object(d,'initialize_folder') as initialize,patch('psycopg.connect') as connect,contextlib.redirect_stdout(out):
+            runpy.run_path(str(path),run_name='__main__')
+        self.assertTrue(__import__('json').loads(out.getvalue())['read_only'])
+        for call in [create,delete,initialize,connect]:call.assert_not_called()
+    def test_inspection_cli_preserves_safe_auth_error_code(self):
+        import contextlib,runpy
+        err=io.StringIO();config={'GITHUB_REF':'refs/heads/ops/encrypted-daily-backup-20261024','BACKUP_COST_APPROVED':'true','BACKUP_DRIVE_ACCOUNT':EMAIL}
+        path=Path(__file__).resolve().parents[2]/'tools/backup/backup.py'
+        with patch.dict(os.environ,config,clear=True),patch.object(sys,'argv',['backup.py','inspect-drive']),patch.object(d,'authenticate',side_effect=d.DriveError('SYNTHETIC-SECRET','OAUTH_INVALID_CLIENT')),patch.object(d,'initialize_folder') as initialize,contextlib.redirect_stderr(err),self.assertRaises(SystemExit):runpy.run_path(str(path),run_name='__main__')
+        self.assertIn('OAUTH_INVALID_CLIENT',err.getvalue());self.assertNotIn('SYNTHETIC-SECRET',err.getvalue());initialize.assert_not_called()
 if __name__=='__main__':unittest.main()

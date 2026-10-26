@@ -167,14 +167,16 @@ class BackupTests(unittest.TestCase):
     def test_protected_setup_has_exact_sha_review_and_fixed_operations(self):
         import re
         text=(ROOT/'.github/workflows/backup-protected-setup.yml').read_text()
-        self.assertNotIn('BACKUP_EXECUTION_APPROVED',text)
+        init=text.split('  initialize-drive:',1)[1].split('  inspect-drive:',1)[0]
+        self.assertNotIn('BACKUP_EXECUTION_APPROVED',init)
         for flag in ['BACKUP_DRIVE_SETUP_APPROVED','BACKUP_COST_APPROVED']:self.assertIn(flag,text)
-        self.assertEqual(text.count('vars.BACKUP_SETUP_APPROVED_SHA == github.sha'),1)
+        self.assertEqual(text.count('vars.BACKUP_SETUP_APPROVED_SHA == github.sha'),2)
         self.assertIn('inputs.approved_sha == github.sha',text)
-        self.assertEqual(text.count('environment: production-backup'),1)
-        self.assertEqual(text.count('ref: ${{ github.sha }}'),1)
-        self.assertEqual(set(re.findall(r'backup\.py ([a-z-]+)',text)),{'init-drive'})
-        self.assertIn('options: [init-drive]',text)
+        self.assertEqual(text.count('environment: production-backup'),2)
+        self.assertEqual(text.count('ref: ${{ github.sha }}'),2)
+        self.assertEqual(set(re.findall(r'backup\.py ([a-z-]+)',text)),{'init-drive','inspect-drive'})
+        self.assertIn('options: [inspect-drive, init-drive]',text)
+        self.assertIn('default: inspect-drive',text)
         for event in ['push:','pull_request:','schedule:']:self.assertNotIn(event,text)
         self.assertNotIn('PGPASSWORD',text)
         self.assertNotIn('BACKUP_STORAGE_API_KEY',text)
@@ -192,6 +194,22 @@ class BackupTests(unittest.TestCase):
         self.assertTrue(permits())
         for override in [{'event':'push'},{'event':'schedule'},{'operation':'backup'},{'operation':'restore'},{'operation':'preflight'},{'operation':''},{'requested':''},{'requested':'b'*40},{'approved':''},{'approved':'b'*40},{'mode':'preflight'},{'repo':'other/repo'},{'ref':'refs/heads/main'},{'ref':'refs/pull/165/merge'}]:
             with self.subTest(override=override):self.assertFalse(permits(**override))
+
+    def test_inspection_job_rejects_operation_mode_sha_and_branch_mismatches(self):
+        from types import SimpleNamespace
+        text=(ROOT/'.github/workflows/backup-protected-setup.yml').read_text().split('  inspect-drive:',1)[1]
+        condition=text.split('    if: >-',1)[1].split('    environment:',1)[0].strip().replace('&&',' and ')
+        defaults={'event':'workflow_dispatch','operation':'inspect-drive','requested':'a'*40,'sha':'a'*40,'approved':'a'*40,'mode':'inspect-drive','repo':'asm114/adwaa-alsharq','ref':'refs/heads/ops/encrypted-daily-backup-20261024'}
+        def permits(**overrides):
+            v={**defaults,**overrides}
+            context={'github':SimpleNamespace(event_name=v['event'],repository=v['repo'],ref=v['ref'],sha=v['sha']),'inputs':SimpleNamespace(operation=v['operation'],approved_sha=v['requested']),'vars':SimpleNamespace(BACKUP_SETUP_MODE=v['mode'],BACKUP_SETUP_APPROVED_SHA=v['approved'])}
+            return eval('('+condition+')',{'__builtins__':{}},context)
+        self.assertTrue(permits())
+        for change in [{'event':'push'},{'event':'schedule'},{'operation':'init-drive'},{'operation':'backup'},{'operation':'restore'},{'operation':'preflight'},{'mode':'init-drive'},{'approved':''},{'approved':'b'*40},{'requested':'b'*40},{'repo':'other/repo'},{'ref':'refs/heads/main'}]:
+            with self.subTest(change=change):self.assertFalse(permits(**change))
+        self.assertIn("BACKUP_DRIVE_SETUP_APPROVED: 'false'",text)
+        self.assertIn("BACKUP_EXECUTION_APPROVED: 'false'",text)
+        self.assertIn("BACKUP_RESTORE_APPROVED: 'false'",text)
 
     def test_quote_untrusted_identifier(self):self.assertEqual(b.quote('x";DROP'),'"x"";DROP"')
 if __name__=='__main__':unittest.main()

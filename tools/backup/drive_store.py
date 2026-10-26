@@ -24,7 +24,7 @@ SAFE_CODES=frozenset({
     'OAUTH_SCOPE_REJECTED','DRIVE_CLIENT_INIT_FAILED','DRIVE_ACCOUNT_READ_FAILED',
     'DRIVE_ACCOUNT_MISMATCH','DRIVE_FOLDER_LOOKUP_FAILED','DRIVE_FOLDER_LOOKUP_AMBIGUOUS',
     'DRIVE_FOLDER_CREATE_UNCONFIRMED','DRIVE_NEW_FOLDER_VALIDATION_FAILED',
-    'DRIVE_EXISTING_FOLDER_VALIDATION_FAILED'})
+    'DRIVE_EXISTING_FOLDER_VALIDATION_FAILED','DRIVE_FOLDER_METADATA_INVALID'})
 class DriveError(Exception):
     def __init__(self,message,code='DRIVE_GATE_FAILED'):
         super().__init__(message)
@@ -234,6 +234,19 @@ def inspect_folders(service,email):
     rows=[r for r in folders.get('files',[]) if r.get('appProperties',{}).get('adwaaPgBackupTarget')==PROJECT]
     if folders.get('nextPageToken') or len(rows)>1:raise DriveError('ambiguous dedicated folder','DRIVE_FOLDER_LOOKUP_AMBIGUOUS')
     return rows
+
+def inspection_report(service,email):
+    rows=inspect_folders(service,email)
+    ids=[]
+    for row in rows:
+        folder_id=row.get('id','')
+        if not isinstance(folder_id,str) or not re.fullmatch(r'[A-Za-z0-9_-]{8,200}',folder_id):
+            raise DriveError('invalid folder metadata','DRIVE_FOLDER_METADATA_INVALID')
+        try:DriveStore(service,folder_id,email,1)._metadata(folder_id,True)
+        except Exception:raise DriveError('existing folder validation failed','DRIVE_EXISTING_FOLDER_VALIDATION_FAILED') from None
+        ids.append(folder_id)
+    # IDs are non-secret metadata; do not print email, token or arbitrary API fields.
+    return {'project':PROJECT,'read_only':True,'account_verified':True,'folder_count':len(ids),'folder_ids':ids}
 
 def initialize_folder(service,email):
     rows=inspect_folders(service,email)

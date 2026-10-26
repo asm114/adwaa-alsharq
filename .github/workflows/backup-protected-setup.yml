@@ -1,16 +1,16 @@
 name: Protected backup setup (no production backup)
 # BACKUP_SETUP_MODE and BACKUP_SETUP_APPROVED_SHA are REPOSITORY variables:
 # environment variables are unavailable while job-level if is evaluated.
-# Manual init-drive only. Inputs, selected ref and repository approval must agree.
+# Manual inspect/init only. Inputs, selected ref and repository approval must agree.
 # Environment review and scoped setup/cost approvals remain mandatory.
 on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Only initialize dedicated Drive folders; no database access
+        description: Inspect marked folders read-only, or separately approve initialization
         type: choice
-        options: [init-drive]
-        default: init-drive
+        options: [inspect-drive, init-drive]
+        default: inspect-drive
         required: true
       approved_sha:
         description: Full reviewed 40-character commit SHA, equal to the selected ref
@@ -67,3 +67,50 @@ jobs:
           set -euo pipefail
           umask 077
           "$RUNNER_TEMP/backup-setup-venv/bin/python" tools/backup/backup.py init-drive
+  inspect-drive:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.operation == 'inspect-drive' &&
+      inputs.approved_sha == github.sha &&
+      github.repository == 'asm114/adwaa-alsharq' &&
+      github.ref == 'refs/heads/ops/encrypted-daily-backup-20261024' &&
+      vars.BACKUP_SETUP_MODE == 'inspect-drive' &&
+      vars.BACKUP_SETUP_APPROVED_SHA == github.sha
+    environment: production-backup
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: core
+            secret_prefix: CORE
+          - target: portal
+            secret_prefix: PORTAL
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Install pinned dependencies
+        run: |
+          python3 -m venv "$RUNNER_TEMP/backup-setup-venv"
+          "$RUNNER_TEMP/backup-setup-venv/bin/pip" install -r tools/backup/requirements.txt
+      - name: Read-only OAuth, account and marked-folder inspection; never create
+        env:
+          BACKUP_TARGET: ${{ matrix.target }}
+          BACKUP_DRIVE_CLIENT_ID: ${{ secrets.BACKUP_DRIVE_CLIENT_ID }}
+          BACKUP_DRIVE_CLIENT_SECRET: ${{ secrets.BACKUP_DRIVE_CLIENT_SECRET }}
+          BACKUP_DRIVE_REFRESH_TOKEN: ${{ secrets.BACKUP_DRIVE_REFRESH_TOKEN }}
+          BACKUP_DRIVE_ACCOUNT: ${{ vars.BACKUP_DRIVE_ACCOUNT }}
+          BACKUP_COST_APPROVED: ${{ vars.BACKUP_COST_APPROVED }}
+          BACKUP_DRIVE_SETUP_APPROVED: 'false'
+          BACKUP_EXECUTION_APPROVED: 'false'
+          BACKUP_RESTORE_APPROVED: 'false'
+          BACKUP_DRIVE_RETENTION_APPROVED: 'false'
+          BACKUP_SCHEDULE_APPROVED: 'false'
+          BACKUP_PRODUCTION_RESTORE_VERIFIED: 'false'
+        run: |
+          set -euo pipefail
+          umask 077
+          "$RUNNER_TEMP/backup-setup-venv/bin/python" tools/backup/backup.py inspect-drive
