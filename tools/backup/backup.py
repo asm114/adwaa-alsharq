@@ -136,6 +136,56 @@ def application_schema_metadata(value):
             data[field]=[row for row in data[field] if row.get('schema')!='information_schema']
     return data
 
+# Diagnostics are deliberately one-way: never return object names, SQL text,
+# ACL values, owner names, or arbitrary JSON keys from an archive.
+_SCHEMA_KEYS={
+    'schemas':('name',), 'defaults':('schema','owner','type'),
+    'extensions':('name',), 'constraints':('schema','table','name'),
+    'routines':('schema','name','args'), 'views':('schema','name'),
+    'triggers':('schema','table','name'),
+}
+_SCHEMA_ATTRIBUTES=frozenset(('name','schema','table','owner','acl','type','version',
+    'definition','valid','args','enabled'))
+
+def schema_differences(expected,actual):
+    """Bounded structural differences; does NOT change comparison acceptance."""
+    result={}
+    def encoded(value):return json.dumps(value,sort_keys=True,separators=(',',':'))
+    for section,identity in _SCHEMA_KEYS.items():
+        left=expected.get(section);right=actual.get(section)
+        if left==right:continue
+        if not isinstance(left,list) or not isinstance(right,list):
+            result[section]={'source_type':type(left).__name__,'restored_type':type(right).__name__}
+            continue
+        from collections import Counter
+        a=Counter(encoded(row) for row in left);b=Counter(encoded(row) for row in right)
+        summary={'source_objects':len(left),'restored_objects':len(right),
+                 'identical_objects':sum((a&b).values()),'list_order_only':a==b}
+        def index(rows):
+            indexed={}
+            for ordinal,row in enumerate(rows):
+                key=encoded([row.get(k) for k in identity])
+                indexed.setdefault(key,[]).append((ordinal,row))
+            return indexed
+        x=index(left);y=index(right)
+        summary.update(source_only_identities=len(x.keys()-y.keys()),
+                       restored_only_identities=len(y.keys()-x.keys()),
+                       duplicate_source_identities=sum(len(v)-1 for v in x.values()),
+                       duplicate_restored_identities=sum(len(v)-1 for v in y.values()))
+        changed=Counter();samples=[]
+        for key in sorted(x.keys()&y.keys()):
+            if len(x[key])!=1 or len(y[key])!=1:continue
+            ordinal,before=x[key][0];after=y[key][0][1]
+            fields=sorted(k for k in _SCHEMA_ATTRIBUTES if (k in before)!=(k in after) or before.get(k)!=after.get(k))
+            if any(before.get(k)!=after.get(k) for k in (before.keys()|after.keys())-_SCHEMA_ATTRIBUTES):fields.append('unrecognized_attribute')
+            if fields:
+                changed.update(fields)
+                if len(samples)<20:samples.append({'source_ordinal':ordinal,'changed_attributes':fields})
+        summary['changed_attributes']=dict(sorted(changed.items()))
+        summary['changed_object_samples']=samples
+        result[section]=summary
+    return result
+
 CANONICAL="SET timezone='UTC';SET datestyle='ISO,YMD';SET extra_float_digits=3;"
 
 def source_connection():
@@ -365,6 +415,7 @@ def isolated_restore(directory,manifest):
         # must match in ONE consistent context; no ACL/data differences waived.
         contexts=[('ROLE_DEFAULT',''),('SUPABASE_PATH','SET search_path TO "$user", public, extensions;'),('PUBLIC_EXTENSIONS','SET search_path TO public, extensions;'),('CATALOG_ONLY','SET search_path TO pg_catalog;')]
         last_error=None
+        comparison_diagnostics=[]
         for render_context,setting in contexts:
             sql_prefix=CANONICAL+setting
             last_error=None
@@ -376,10 +427,24 @@ def isolated_restore(directory,manifest):
                 if field=='schema':actual=application_schema_metadata(actual);expected=application_schema_metadata(expected)
                 if actual!=expected:
                     last_error=RestoreError('RESTORE_'+field.upper()+'_MISMATCH')
-                    if field=='schema':last_error.fields=[k for k in ['schemas','defaults','extensions','constraints','routines','views','triggers'] if actual.get(k)!=expected.get(k)]
+                    if field=='schema':
+                        last_error.fields=[k for k in _SCHEMA_KEYS if actual.get(k)!=expected.get(k)]
+                        comparison_diagnostics.append({'render_context':render_context,'sections':schema_differences(expected,actual)})
                     break
             if last_error is None:break
-        if last_error is not None:raise last_error
+        if last_error is not None:
+            last_error.diagnostics=comparison_diagnostics
+            # pg_restore header is inspected in memory only; never emit the
+            # table-of-contents body (it can contain sensitive identifiers).
+            header=docker(['exec',name,'pg_restore','--list','/tmp/database']).stdout.decode()
+            versions={}
+            for version_key,label in [('source','Dumped from database version'),('dump_client','Dumped by pg_dump version')]:
+                match=re.search(re.escape(label)+r': (17\.[0-9]+)',header)
+                versions[version_key]=match.group(1) if match else 'UNKNOWN'
+            version=sql('SHOW server_version_num')
+            versions['restored']=version if re.fullmatch(r'17[0-9]{4}',version) else 'UNKNOWN'
+            last_error.versions=versions
+            raise last_error
         reader_user=bootstrap_user;sql_prefix=CANONICAL
         for table in verification['tables']:
             query=table_copy(table['schema'],table['name'])

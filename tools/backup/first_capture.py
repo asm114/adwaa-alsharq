@@ -82,6 +82,8 @@ def main():
     except engine.RestoreError as error:
         report['code'] = error.code
         if hasattr(error,'fields'):report['comparison_fields'] = error.fields
+        if hasattr(error,'diagnostics'):report['schema_diagnostics'] = error.diagnostics
+        if hasattr(error,'versions'):report['postgres_versions'] = error.versions
     except engine.EncryptionKeyError as error:
         report['code'] = error.code
     except engine.SourceError as error:

@@ -65,16 +65,19 @@ class ExistingRecoveryTests(unittest.TestCase):
         for term in ['PGHOST:','PGPASSWORD:','BACKUP_STORAGE_API_KEY:','schedule:','backup.py backup','first_capture.py']:
             self.assertNotIn(term,text)
 
-    def test_final_retry_exports_portal_only_and_keeps_core_source_secrets_absent(self):
+    def test_final_retry_restores_both_committed_without_source_credentials(self):
         text=(ROOT/'.github/workflows/backup-final-retry.yml').read_text()
-        core=text.split('      - name: Restore existing Core only;',1)[1].split('      - name: New Portal',1)[0]
-        self.assertIn("if: matrix.target == 'core'",core)
-        self.assertIn('tools/backup/recover_existing.py',core)
-        for forbidden in ['PGHOST:','PGPASSWORD:','BACKUP_STORAGE_API_KEY:','first_capture.py']:
-            self.assertNotIn(forbidden,core)
-        self.assertIn("if: matrix.target == 'portal'",text)
-        self.assertIn('tools/backup/first_capture.py',text)
-        self.assertIn('environment: production-backup',text)
-        self.assertIn('github.event.after == github.sha',text)
-        self.assertIn("BACKUP_DRIVE_RETENTION_APPROVED: 'false'",text)
-        self.assertNotIn('schedule:',text)
+        self.assertIn('tools/backup/recover_existing.py',text)
+        for forbidden in ['PGHOST:','PGPASSWORD:','BACKUP_STORAGE_API_KEY:','first_capture.py','schedule:', 'init-drive']:
+            self.assertNotIn(forbidden,text)
+        for required in ['environment: production-backup','github.event.after == github.sha',
+                         'ref: ${{ github.sha }}',"BACKUP_DRIVE_RETENTION_APPROVED: 'false'",
+                         "BACKUP_SCHEDULE_APPROVED: 'false'",'BACKUP_INSPECTION_ROLE:']:
+            self.assertIn(required,text)
+
+    def test_both_targets_use_committed_only_not_partial_reconstruction(self):
+        source=(ROOT/'tools/backup/recover_existing.py').read_text()
+        entry=source.split('def recover(report):',1)[1].split('def main():',1)[0]
+        self.assertIn("sys.argv = ['backup.py', 'restore']",entry)
+        self.assertNotIn('recover_portal(',entry)
+        self.assertNotIn('select_new_portal_group(',entry)

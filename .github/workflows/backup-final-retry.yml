@@ -1,9 +1,8 @@
-name: Restore Core existing and capture Portal after protocol fix
+name: Diagnose and restore existing committed Core and Portal captures
 # Reviewer approval is bound to this exact push SHA. Fixed operation only.
 # No schedule, retention, folder creation, merge or deployment.
-# Core restores its existing committed archive; never exports Core again.
-# Portal creates a new full group after the reproduced HTTP 308 fix.
-# Both older three-part Portal groups remain untouched and uncommitted.
+# Both targets restore committed four-part captures only. No production
+# credentials are provided; partial groups and old files remain untouched.
 on:
   push:
     branches: [ops/encrypted-daily-backup-20261024]
@@ -64,12 +63,12 @@ jobs:
           set -euo pipefail
           "$RUNNER_TEMP/first-capture-venv/bin/python" -m unittest discover -s tests/backup -p 'test_*.py'
           "$RUNNER_TEMP/first-capture-venv/bin/python" tests/backup/restore_integration.py
-      - name: Restore existing Core only; no source credentials
-        if: matrix.target == 'core'
+          BACKUP_TEST_EXPECT_SCHEMA_MISMATCH=true "$RUNNER_TEMP/first-capture-venv/bin/python" tests/backup/restore_integration.py
+      - name: Restore existing committed capture only; no source credentials
         env:
-          BACKUP_TARGET: core
-          BACKUP_INSPECTION_ROLE: ${{ secrets.BACKUP_CORE_PGUSER }}
-          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_CORE_ENCRYPTION_KEY }}
+          BACKUP_TARGET: ${{ matrix.target }}
+          BACKUP_INSPECTION_ROLE: ${{ secrets[format('BACKUP_{0}_PGUSER', matrix.secret_prefix)] }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets[format('BACKUP_{0}_ENCRYPTION_KEY', matrix.secret_prefix)] }}
           BACKUP_DRIVE_CLIENT_ID: ${{ secrets.BACKUP_DRIVE_CLIENT_ID }}
           BACKUP_DRIVE_CLIENT_SECRET: ${{ secrets.BACKUP_DRIVE_CLIENT_SECRET }}
           BACKUP_DRIVE_REFRESH_TOKEN: ${{ secrets.BACKUP_DRIVE_REFRESH_TOKEN }}
@@ -83,41 +82,6 @@ jobs:
           set -euo pipefail
           umask 077
           "$RUNNER_TEMP/first-capture-venv/bin/python" tools/backup/recover_existing.py
-      - name: New Portal full capture after fixed multi-chunk transport
-        if: matrix.target == 'portal'
-        env:
-          BACKUP_TARGET: ${{ matrix.target }}
-          BACKUP_CONFIRMED_PROJECT_REF: ${{ vars[format('BACKUP_{0}_CONFIRMED_PROJECT_REF', matrix.secret_prefix)] }}
-          BACKUP_STORAGE_API_KEY: ${{ secrets[format('BACKUP_{0}_STORAGE_API_KEY', matrix.secret_prefix)] }}
-          PGHOST: ${{ secrets[format('BACKUP_{0}_PGHOST', matrix.secret_prefix)] }}
-          PGPORT: '5432'
-          PGUSER: ${{ secrets[format('BACKUP_{0}_PGUSER', matrix.secret_prefix)] }}
-          PGDATABASE: postgres
-          PGPASSWORD: ${{ secrets[format('BACKUP_{0}_PGPASSWORD', matrix.secret_prefix)] }}
-          PGSSLMODE: verify-full
-          BACKUP_CA_PEM: ${{ secrets[format('BACKUP_{0}_CA_PEM', matrix.secret_prefix)] }}
-          BACKUP_ENCRYPTION_KEY: ${{ secrets[format('BACKUP_{0}_ENCRYPTION_KEY', matrix.secret_prefix)] }}
-          BACKUP_STORAGE_PROVIDER: drive
-          BACKUP_DRIVE_CLIENT_ID: ${{ secrets.BACKUP_DRIVE_CLIENT_ID }}
-          BACKUP_DRIVE_CLIENT_SECRET: ${{ secrets.BACKUP_DRIVE_CLIENT_SECRET }}
-          BACKUP_DRIVE_REFRESH_TOKEN: ${{ secrets.BACKUP_DRIVE_REFRESH_TOKEN }}
-          BACKUP_DRIVE_ACCOUNT: ${{ vars.BACKUP_DRIVE_ACCOUNT }}
-          BACKUP_DRIVE_SETUP_APPROVED: ${{ vars.BACKUP_DRIVE_SETUP_APPROVED }}
-          BACKUP_DRIVE_RETENTION_APPROVED: 'false'
-          BACKUP_PRODUCTION_RESTORE_VERIFIED: 'false'
-          BACKUP_SCHEDULE_APPROVED: 'false'
-          BACKUP_MAX_STORAGE_BYTES: ${{ vars[format('BACKUP_{0}_MAX_STORAGE_BYTES', matrix.secret_prefix)] || '1073741824' }}
-          BACKUP_MAX_DATABASE_BYTES: ${{ vars[format('BACKUP_{0}_MAX_DATABASE_BYTES', matrix.secret_prefix)] || '1073741824' }}
-          BACKUP_EXECUTION_APPROVED: 'true'
-          BACKUP_RESTORE_APPROVED: 'true'
-          BACKUP_COST_APPROVED: ${{ vars.BACKUP_COST_APPROVED }}
-        run: |
-          set -euo pipefail
-          umask 077
-          export PGSSLROOTCERT="$RUNNER_TEMP/adwaa-postgres-ca.pem"
-          trap 'rm -f "$PGSSLROOTCERT"' EXIT
-          printf '%s' "$BACKUP_CA_PEM" > "$PGSSLROOTCERT"
-          "$RUNNER_TEMP/first-capture-venv/bin/python" tools/backup/first_capture.py
       - name: Remove only isolated export and restore containers
         if: always()
         run: |

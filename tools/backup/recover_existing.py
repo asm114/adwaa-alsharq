@@ -1,8 +1,7 @@
 """Recover only the NEW already-exported captures. Never export source data.
 
-Core: restore its committed archive. Portal: authenticate all FOUR parts of the
-single new group and restore before writing missing completion/evidence markers.
-The original three-part group is excluded and never completed or modified.
+Both targets restore ONLY an existing committed four-part archive. Partial
+groups are preserved and never selected, completed, or modified by this entrypoint.
 """
 import io
 import json
@@ -86,17 +85,14 @@ def recover(report):
     folders = inspection_report(service, email)
     engine.require(folders['folder_count'] == 1 and folders['folder_ids'] == [plan['folder']], 'RECOVERY_FOLDER_MISMATCH')
     store = DriveStore(service, plan['folder'], email, plan['daily']);store.preflight()
-    if TARGET == 'portal':
-        result = recover_portal(store, report)
-    else:
-        report['observed_groups_before_recovery'] = store.audit_existing()['groups']
-        report['stage'] = 'isolated_restore_existing_committed'
-        original = sys.argv
-        try:
-            sys.argv = ['backup.py', 'restore']
-            result = engine.main()
-        finally:
-            sys.argv = original
+    report['observed_groups_before_recovery'] = store.audit_existing()['groups']
+    report['stage'] = 'isolated_restore_existing_committed'
+    original = sys.argv
+    try:
+        sys.argv = ['backup.py', 'restore']
+        result = engine.main()
+    finally:
+        sys.argv = original
     engine.require(result.get('restore_verified') is True and result.get('storage_files_verified') is True, 'RECOVERY_RESTORE_NOT_VERIFIED')
     report.update(result)
     report.update(stage='finished', code='EXISTING_CAPTURE_RESTORE_VERIFIED', folder_id=plan['folder'],
@@ -113,6 +109,8 @@ def main():
     except (engine.RestoreError, engine.EncryptionKeyError, engine.SourceError) as error:
         report['code'] = error.code
         if isinstance(error,engine.RestoreError) and hasattr(error,'fields'):report['comparison_fields'] = error.fields
+        if hasattr(error,'diagnostics'):report['schema_diagnostics'] = error.diagnostics
+        if hasattr(error,'versions'):report['postgres_versions'] = error.versions
     except DriveError as error:
         report['code'] = safe_diagnostic(error)
     except engine.GateError as error:

@@ -31,7 +31,7 @@ class FixtureConnection:
         return Result([tuple(row.values()) for row in rows])
     def cursor(self):return self
     def copy(self,query):return Copy(query)
-b.docker(['run','--rm','-d','--network','none','--tmpfs','/var/lib/postgresql/data','-e','POSTGRES_HOST_AUTH_METHOD=trust','-e','POSTGRES_USER='+source_user,'-e','POSTGRES_DB=postgres','--name',name,fixture_image])
+b.docker(['run','--rm','-d','--network','none','--tmpfs','/var/lib/postgresql/data','-e','POSTGRES_HOST_AUTH_METHOD=trust','-e','POSTGRES_INITDB_ARGS=--locale=C.UTF-8','-e','POSTGRES_USER='+source_user,'-e','POSTGRES_DB=postgres','--name',name,fixture_image])
 try:
     for _ in range(60):
         ready=subprocess.run(['docker','--host=unix:///var/run/docker.sock','exec',name,'pg_isready','-h','127.0.0.1','-U',source_user],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0
@@ -65,9 +65,15 @@ try:
         sql("INSERT INTO storage.objects VALUES("+','.join(literal(x) for x in [str(i),bucket,path,'v1','2026-10-25T00:00:00Z',json.dumps({'size':len(payload)})])+"::jsonb);")
     if os.environ.get('BACKUP_TEST_RENDER_CONTEXT')=='true':
         sql("CREATE DOMAIN extensions.synthetic_identifier AS text;CREATE FUNCTION public.synthetic_echo(value extensions.synthetic_identifier) RETURNS extensions.synthetic_identifier LANGUAGE SQL AS 'SELECT value';")
+    # Source C.UTF-8 vs restore image en_US.utf8: catalog lists must not depend
+    # on locale. Exercise mixed-case and underscore identifiers in every section.
+    for namespace in ['Z_order','a_order','a_order_more']:
+        ns=b.quote(namespace)
+        sql(f"CREATE SCHEMA {ns};CREATE TABLE {ns}.sample(id integer PRIMARY KEY);CREATE VIEW {ns}.sample_view AS SELECT id FROM {ns}.sample;CREATE FUNCTION {ns}.sample_trigger() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END';CREATE TRIGGER sample_trigger BEFORE INSERT ON {ns}.sample FOR EACH ROW EXECUTE FUNCTION {ns}.sample_trigger();ALTER DEFAULT PRIVILEGES IN SCHEMA {ns} GRANT SELECT ON TABLES TO anon;")
     conn=FixtureConnection();verification=b.snapshot(conn)
     expected={('public',n) for n in ['app_state','reservations','payments','expenses','maintenance','commissions','customers','subscriptions','installments','empty_history']}|{('private_finance','ledger')}
     expected|={('storage','buckets'),('storage','objects')}
+    expected|={(n,'sample') for n in ['Z_order','a_order','a_order_more']}
     if b.PROJECT=='ztqqdjryvecscidxxbfe':expected|={('public',t) for t in ['customer_portal_resort_info','customer_portal_unavailable_periods','customer_portal_admins']}
     if os.environ.get('BACKUP_TEST_RESTORE_IMAGE'):expected.add(('vault','secrets'))
     assert {(t['schema'],t['name']) for t in verification['tables']}==expected
@@ -90,6 +96,9 @@ try:
             return Response(json.dumps(buckets).encode() if url==origin+'bucket' else responses[url])
         with patch.object(storage_source.requests.Session,'get',side_effect=get),patch.object(b,'source_connection',return_value=conn):
             verification['storage']=storage_source.capture(b,conn,Path(d)/'storage.enc',b.key(),b.PROJECT+'/'+backup_id+'/storage')
+        if os.environ.get('BACKUP_TEST_EXPECT_SCHEMA_MISMATCH')=='true':
+            altered=json.loads(verification['schema']);altered['schemas'][0]['owner']='invented-owner-must-not-be-logged'
+            verification['schema']=json.dumps(altered)
         b.seal(io.BytesIO(json.dumps(verification).encode()),Path(d)/'verification.enc',b.key(),b.PROJECT+'/'+backup_id+'/verification')
         manifest={'project':b.PROJECT,'format':2,'backup_id':backup_id,'files':{p:b.digest(Path(d)/(p+'.enc')) for p in b.FULL_PARTS}}
         # Round-trip the actual encrypted fixture through the Drive transport
@@ -100,6 +109,18 @@ try:
         for part in b.FULL_PARTS:Path(d,part+'.enc').unlink()
         with patch.object(drive_store,'MediaIoBaseDownload',Download):b.fetch_committed(store,FOLDER,EMAIL,manifest,d)
         assert service.payloads['legacy']==b'previous JSON' and service.deleted==[]
+        if os.environ.get('BACKUP_TEST_EXPECT_SCHEMA_MISMATCH')=='true':
+            try:b.isolated_restore(d,manifest)
+            except b.RestoreError as error:
+                assert error.code=='RESTORE_SCHEMA_MISMATCH'
+                assert 'schemas' in error.fields
+                assert len(error.diagnostics)==4
+                assert all(row['sections']['schemas']['changed_attributes']=={'owner':1} for row in error.diagnostics)
+                assert 'invented-owner-must-not-be-logged' not in json.dumps(error.diagnostics)
+                assert error.versions['source'].startswith('17.')
+                print(json.dumps({'synthetic_schema_mismatch_rejected':True,'diagnostics_redacted':True,'production_access':False}))
+                raise SystemExit(0)
+            raise AssertionError('Changed schema owner was incorrectly accepted')
         result=b.isolated_restore(d,manifest);assert result['restore_verified'] is True
         if os.environ.get('BACKUP_TEST_RENDER_CONTEXT')=='true':assert result['metadata_render_context']!='ROLE_DEFAULT'
         assert result['storage_files_verified'] is True and result['storage_objects_verified']==3 and result['storage_buckets_verified']==3
