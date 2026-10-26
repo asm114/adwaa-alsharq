@@ -33,7 +33,7 @@ from source_diagnostics import GateError, SourceError, need as source_need, vali
 
 class RestoreError(GateError):
     def __init__(self,code):
-        self.code=code if code in {'RESTORE_ROLES_FAILED','RESTORE_DATABASE_FAILED','RESTORE_SUPERUSER_VERIFIER_UNAVAILABLE','RESTORE_STAGING_PROCESS_FAILED','RESTORE_STAGING_TIMEOUT','RESTORE_STAGING_TRANSPORT_FAILED','RESTORE_SCHEMA_MISMATCH','RESTORE_CATALOG_MISMATCH','RESTORE_POLICIES_MISMATCH','RESTORE_ROLES_MISMATCH','RESTORE_MEMBERSHIPS_MISMATCH','RESTORE_INSPECTION_ROLE_INVALID','RESTORE_METADATA_QUERY_FAILED'} else 'RESTORE_FAILED'
+        self.code=code if code in {'RESTORE_ACL_PARSE_FAILED','RESTORE_EXTENSION_METADATA_FAILED','RESTORE_ROLES_FAILED','RESTORE_DATABASE_FAILED','RESTORE_SUPERUSER_VERIFIER_UNAVAILABLE','RESTORE_STAGING_PROCESS_FAILED','RESTORE_STAGING_TIMEOUT','RESTORE_STAGING_TRANSPORT_FAILED','RESTORE_SCHEMA_MISMATCH','RESTORE_CATALOG_MISMATCH','RESTORE_POLICIES_MISMATCH','RESTORE_ROLES_MISMATCH','RESTORE_MEMBERSHIPS_MISMATCH','RESTORE_INSPECTION_ROLE_INVALID','RESTORE_METADATA_QUERY_FAILED'} else 'RESTORE_FAILED'
         super().__init__(self.code)
 
 def require(condition,message):
@@ -329,7 +329,7 @@ def stage_file(container,target,size,producer):
     # Decrypt/validate into an anonymous RAM file, not a host disk or an exec
     # stdin pipe. A finite read-only FD provides reliable EOF to Docker's client.
     require(bool(re.fullmatch(r'adwaa-backup-restore-[a-f0-9]{12}',container)),'isolated target required')
-    require(bool(re.fullmatch(r'/tmp/(?:roles|database|storage|restored-storage/object-[0-9]{8})',target)),'invalid isolated staging path')
+    require(bool(re.fullmatch(r'/tmp/(?:roles|database|storage|extension-metadata|restored-storage/object-[0-9]{8})',target)),'invalid isolated staging path')
     require(type(size) is int and 0<=size<=2147483648,'invalid isolated staging size')
     require(hasattr(os,'memfd_create'),'anonymous RAM staging unsupported')
     import fcntl
@@ -403,6 +403,9 @@ def isolated_restore(directory,manifest):
         except subprocess.CalledProcessError:raise RestoreError('RESTORE_ROLES_FAILED') from None
         try:docker(['exec',name,'pg_restore','-h','127.0.0.1','-U',reader_user,'--exit-on-error','-d','postgres','/tmp/database'])
         except subprocess.CalledProcessError:raise RestoreError('RESTORE_DATABASE_FAILED') from None
+        from restore_metadata import restore_extension_metadata,normalized_metadata
+        try:extension_metadata=restore_extension_metadata(__import__('types').SimpleNamespace(application_schema_metadata=application_schema_metadata,quote=quote,stage_file=stage_file,docker=docker),name,verification,sql,reader_user)
+        except Exception:raise RestoreError('RESTORE_EXTENSION_METADATA_FAILED') from None
         bootstrap_user=reader_user
         declared=os.environ.get('BACKUP_INSPECTION_ROLE') or os.environ.get('PGUSER','')
         if declared:
@@ -425,6 +428,11 @@ def isolated_restore(directory,manifest):
                 except subprocess.CalledProcessError:raise RestoreError('RESTORE_METADATA_QUERY_FAILED') from None
                 expected=verification[field]
                 if field=='schema':actual=application_schema_metadata(actual);expected=application_schema_metadata(expected)
+                if field in ('schema','catalog'):
+                    try:
+                        actual=normalized_metadata(actual,field,sql)
+                        expected=normalized_metadata(expected,field,sql)
+                    except Exception:raise RestoreError('RESTORE_ACL_PARSE_FAILED') from None
                 if actual!=expected:
                     last_error=RestoreError('RESTORE_'+field.upper()+'_MISMATCH')
                     if field=='schema':
@@ -469,7 +477,7 @@ def isolated_restore(directory,manifest):
             from storage_source import restore
             require(verification.get('storage_files_included') is True,'Storage verification absent')
             storage_result=restore(engine(),name,verification['storage'])
-        return {'restore_verified':True,'backup_id':backup_id,'project':PROJECT,'tables_verified':len(verification['tables']),'rows_verified':sum(t['rows'] for t in verification['tables']),'sequences_verified':len(verification['sequences']),'large_objects_verified':len(verification['large_objects']),'metadata_render_context':render_context,**storage_result}
+        return {'restore_verified':True,'backup_id':backup_id,'project':PROJECT,'tables_verified':len(verification['tables']),'rows_verified':sum(t['rows'] for t in verification['tables']),'sequences_verified':len(verification['sequences']),'large_objects_verified':len(verification['large_objects']),'metadata_render_context':render_context,'acl_comparison':'postgresql_effective_grants',**extension_metadata,**storage_result}
     finally:docker(['rm','-f',name])
 
 def fetch_committed(s3,bucket,owner,manifest,directory):

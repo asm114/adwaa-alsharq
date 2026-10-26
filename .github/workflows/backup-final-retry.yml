@@ -1,6 +1,7 @@
-name: Diagnose and restore existing committed Core and Portal captures
+name: Restore existing captures with exact extension ownership and ACL verification
 # Reviewer approval is bound to this exact push SHA. Fixed operation only.
 # No schedule, retention, folder creation, merge or deployment.
+# Extension member owners and grants are restored in isolation before strict checks.
 # Both targets restore committed four-part captures only. No production
 # credentials are provided; partial groups and old files remain untouched.
 on:

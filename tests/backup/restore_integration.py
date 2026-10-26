@@ -40,7 +40,7 @@ try:
     assert ready
     if source_user=='supabase_admin':sql('CREATE ROLE postgres LOGIN NOSUPERUSER BYPASSRLS;')
     if os.environ.get('BACKUP_TEST_RESTORE_IMAGE'):
-        sql("CREATE SCHEMA extensions;CREATE EXTENSION pg_stat_statements WITH SCHEMA extensions VERSION '1.11';CREATE EXTENSION pgcrypto WITH SCHEMA extensions VERSION '1.3';CREATE EXTENSION \"uuid-ossp\" WITH SCHEMA extensions VERSION '1.1';CREATE EXTENSION supabase_vault VERSION '0.3.1';INSERT INTO vault.secrets(secret) VALUES('synthetic-opaque-ciphertext');")
+        sql(("ALTER ROLE postgres SUPERUSER;" if source_user=="supabase_admin" else "")+"CREATE SCHEMA extensions;GRANT USAGE ON SCHEMA extensions TO postgres;SET ROLE postgres;CREATE EXTENSION pg_stat_statements WITH SCHEMA extensions VERSION '1.11';CREATE EXTENSION pgcrypto WITH SCHEMA extensions VERSION '1.3';CREATE EXTENSION \"uuid-ossp\" WITH SCHEMA extensions VERSION '1.1';CREATE EXTENSION supabase_vault VERSION '0.3.1';INSERT INTO vault.secrets(secret) VALUES('synthetic-opaque-ciphertext');RESET ROLE;"+("ALTER ROLE postgres NOSUPERUSER;" if source_user=="supabase_admin" else ""))
     sql('''CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN;
     CREATE TABLE app_state(id text primary key,data jsonb);INSERT INTO app_state VALUES('main','{"seq":131,"bookings":[{"id":"old","total":1200,"paid":500}],"expenses":[{"id":"json-expense","amount":50}],"maintenance":[{"id":"json-maintenance","total":200}],"subscriptions":[{"id":"json-sub","total":800}],"installmentPurchases":[{"id":"json-plan","total":600}],"customers":[{"id":"json-customer","name":"synthetic"}],"commissions":[{"id":"json-commission","amount":30}]}');
     CREATE TABLE reservations(id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,total numeric,paid numeric); INSERT INTO reservations(total,paid) VALUES(1200,500),(900,900);
@@ -70,6 +70,21 @@ try:
     for namespace in ['Z_order','a_order','a_order_more']:
         ns=b.quote(namespace)
         sql(f"CREATE SCHEMA {ns};CREATE TABLE {ns}.sample(id integer PRIMARY KEY);CREATE VIEW {ns}.sample_view AS SELECT id FROM {ns}.sample;CREATE FUNCTION {ns}.sample_trigger() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END';CREATE TRIGGER sample_trigger BEFORE INSERT ON {ns}.sample FOR EACH ROW EXECUTE FUNCTION {ns}.sample_trigger();ALTER DEFAULT PRIVILEGES IN SCHEMA {ns} GRANT SELECT ON TABLES TO anon;")
+    sql('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO authenticated;ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO anon;GRANT USAGE ON SCHEMA private_finance TO authenticated WITH GRANT OPTION;GRANT USAGE ON SCHEMA private_finance TO anon;')
+    from restore_metadata import acl_values,literal
+    def parse_acl(acl):
+        return acl_values([{'acl':acl,'owner':source_user,'kind':'r'}],lambda query:sql(query).decode())[0]
+    acl='{anon=r/'+source_user+',authenticated=r/'+source_user+'}'
+    reordered='{authenticated=r/'+source_user+',anon=r/'+source_user+'}'
+    assert parse_acl(acl)==parse_acl(reordered)
+    assert parse_acl(acl)!=parse_acl('{anon=r*/'+source_user+',authenticated=r/'+source_user+'}')
+    assert parse_acl(acl)!=parse_acl('{anon=r/'+source_user+'}')
+    if source_user=='supabase_admin':
+        assert parse_acl(acl)!=parse_acl('{anon=r/postgres,authenticated=r/postgres}')
+    # PUBLIC is grantee OID zero, distinct from a role literally named PUBLIC.
+    sql('CREATE ROLE "PUBLIC" NOLOGIN;')
+    named_public_acl=sql('SELECT ARRAY['+literal('"PUBLIC"=r/'+source_user)+'::aclitem]::text').decode().strip()
+    assert parse_acl('{=r/'+source_user+'}')!=parse_acl(named_public_acl)
     conn=FixtureConnection();verification=b.snapshot(conn)
     expected={('public',n) for n in ['app_state','reservations','payments','expenses','maintenance','commissions','customers','subscriptions','installments','empty_history']}|{('private_finance','ledger')}
     expected|={('storage','buckets'),('storage','objects')}
@@ -115,7 +130,7 @@ try:
                 assert error.code=='RESTORE_SCHEMA_MISMATCH'
                 assert 'schemas' in error.fields
                 assert len(error.diagnostics)==4
-                assert all(row['sections']['schemas']['changed_attributes']=={'owner':1} for row in error.diagnostics)
+                assert all(row['sections']['schemas']['changed_attributes'].get('owner')==1 for row in error.diagnostics)
                 assert 'invented-owner-must-not-be-logged' not in json.dumps(error.diagnostics)
                 assert error.versions['source'].startswith('17.')
                 print(json.dumps({'synthetic_schema_mismatch_rejected':True,'diagnostics_redacted':True,'production_access':False}))
