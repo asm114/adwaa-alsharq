@@ -9,7 +9,7 @@ logging.disable(logging.CRITICAL)
 warnings.filterwarnings('ignore')
 
 
-def run(root):
+def run(root, on_success=None):
     import check_oauth_local as checker
     import httplib2
     from google_auth_httplib2 import Request
@@ -47,7 +47,10 @@ def run(root):
     transport = httplib2.Http(timeout=60)
     # Do not forward any OAuth request body through a redirect.
     transport.follow_redirects = False
-    return checker.check(config, refresh, Request(transport))
+    result = checker.check(config, refresh, Request(transport))
+    if result == 'OAUTH_LOCAL_OK' and on_success is not None:
+        return on_success(client, refresh)
+    return result
 
 
 if __name__ == '__main__':
