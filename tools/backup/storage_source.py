@@ -109,6 +109,7 @@ def restore(engine,container,verification):
     expected={f'object-{i:08d}':(obj,item) for i,(obj,item) in enumerate(zip(objects,index))}
     for member,(obj,item) in expected.items():
         require(item['member']==member and item['bucket']==obj['bucket_id'] and item['name']==obj['name'] and item['bytes']==obj['metadata']['size'],'Storage index identity differs')
+        require(type(item['bytes']) is int and item['bytes']>=0,'Storage size invalid')
     engine.docker(['exec',container,'mkdir','-m','700','/tmp/restored-storage'])
     import subprocess
     process=subprocess.Popen(['docker','--host=unix:///var/run/docker.sock','exec',container,'cat','/tmp/storage'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
@@ -121,13 +122,14 @@ def restore(engine,container,verification):
                 require(member.size==item['bytes'],'Storage archive member size differs')
                 source=HashedReader(archive.extractfile(member))
                 target='/tmp/restored-storage/'+member.name
-                sink=subprocess.Popen(['docker','--host=unix:///var/run/docker.sock','exec','-i',container,'sh','-c','umask 077; cat > '+target],stdin=subprocess.PIPE,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-                try:
-                    while chunk:=source.read(1024*1024):sink.stdin.write(chunk)
-                finally:sink.stdin.close();code=sink.wait(timeout=120)
-                require(code==0 and source.size==item['bytes'] and source.h.hexdigest()==item['sha256'],'restored Storage bytes differ')
+                def produce(sink):
+                    while chunk:=source.read(1024*1024):sink.write(chunk)
+                engine.stage_file(container,target,item['bytes'],produce)
+                require(source.size==item['bytes'] and source.h.hexdigest()==item['sha256'],'restored Storage bytes differ')
                 actual=engine.docker(['exec',container,'sha256sum',target]).stdout.decode().split()[0]
                 require(actual==item['sha256'],'persisted Storage hash differs')
+        # Drain TAR padding so the Docker reader cannot block on a full stdout pipe.
+        while process.stdout.read(1024*1024):pass
         require(process.wait(timeout=120)==0 and seen==set(expected),'Storage archive incomplete')
     finally:
         process.stdout.close()

@@ -31,6 +31,38 @@ class API:
     def object(self,bucket,name):return Response(self.objects[bucket,name])
     def close(self):self.closed=True
 class StorageTests(unittest.TestCase):
+    def test_ram_stage_does_not_send_unvalidated_or_oversized_plaintext(self):
+        from cryptography.exceptions import InvalidTag
+        def invalid(sink):
+            sink.write(b'abc')
+            raise InvalidTag()
+        with patch.object(b.subprocess,'run') as run:
+            with self.assertRaises(InvalidTag):b.stage_file('adwaa-backup-restore-aaaaaaaaaaaa','/tmp/database',3,invalid)
+            with self.assertRaises(b.GateError):b.stage_file('adwaa-backup-restore-aaaaaaaaaaaa','/tmp/database',3,lambda sink:sink.write(b'abcd'))
+            run.assert_not_called()
+    def test_restore_uses_sealed_ram_fd_including_empty_file(self):
+        import hashlib,tarfile,fcntl
+        from types import SimpleNamespace
+        for payload in [b'',b'abc']:
+            archive_bytes=io.BytesIO()
+            with tarfile.open(fileobj=archive_bytes,mode='w') as archive:
+                member=tarfile.TarInfo('object-00000000');member.size=len(payload)
+                archive.addfile(member,io.BytesIO(payload))
+            conn=Conn(objects=[dict(Conn().objects[0],metadata={'size':len(payload)})])
+            verification={'inventory':s.inventory(conn),'files':[{'member':'object-00000000','bucket':'private','name':conn.objects[0]['name'],'bytes':len(payload),'sha256':hashlib.sha256(payload).hexdigest()}]}
+            class Reader:
+                stdout=io.BytesIO(archive_bytes.getvalue())
+                def wait(self,**kwargs):return 0
+                def poll(self):return 0
+            def run(command,stdin,**kwargs):
+                self.assertIn('head -c '+str(len(payload))+' > /tmp/restored-storage/object-00000000',command[-1])
+                self.assertEqual(stdin.read(),payload)
+                self.assertTrue(fcntl.fcntl(stdin.fileno(),getattr(fcntl,'F_GET_SEALS',1034))&0x08)
+                return SimpleNamespace(returncode=0)
+            fake_engine=SimpleNamespace(stage_file=b.stage_file,docker=lambda *args,**kwargs:SimpleNamespace(stdout=(hashlib.sha256(payload).hexdigest()+'  file').encode()))
+            with patch('subprocess.Popen',return_value=Reader()),patch('subprocess.run',side_effect=run):
+                result=s.restore(fake_engine,'adwaa-backup-restore-aaaaaaaaaaaa',verification)
+            self.assertTrue(result['storage_files_verified'])
     def test_read_only_http_fixed_origin_redirects_and_redaction(self):
         with patch.dict(os.environ,{'BACKUP_CONFIRMED_PROJECT_REF':PROJECT,'BACKUP_STORAGE_API_KEY':'sb_secret_synthetic-only'}),patch.object(s.requests,'Session') as factory:
             session=factory.return_value;session.get.return_value=Response(b'error containing a synthetic token',403)

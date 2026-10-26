@@ -67,7 +67,7 @@ class SealedWriter:
 
 def engine():
     from types import SimpleNamespace
-    return SimpleNamespace(SealedWriter=SealedWriter,source_connection=source_connection,docker=docker)
+    return SimpleNamespace(SealedWriter=SealedWriter,source_connection=source_connection,docker=docker,stage_file=stage_file)
 
 def seal(source,destination,secret,aad):
     with SealedWriter(destination,secret,aad) as out:
@@ -259,6 +259,30 @@ def backup(s3,bucket,owner,directory):
 def docker(command,**kwargs):
     return subprocess.run(['docker','--host=unix:///var/run/docker.sock']+command,check=True,capture_output=True,timeout=1800,**kwargs)
 
+def stage_file(container,target,size,producer):
+    # Decrypt/validate into an anonymous RAM file, not a host disk or an exec
+    # stdin pipe. A finite read-only FD provides reliable EOF to Docker's client.
+    require(bool(re.fullmatch(r'adwaa-backup-restore-[a-f0-9]{12}',container)),'isolated target required')
+    require(bool(re.fullmatch(r'/tmp/(?:roles|database|storage|restored-storage/object-[0-9]{8})',target)),'invalid isolated staging path')
+    require(type(size) is int and 0<=size<=2147483648,'invalid isolated staging size')
+    require(hasattr(os,'memfd_create'),'anonymous RAM staging unsupported')
+    import fcntl
+    fd=os.memfd_create('adwaa-isolated-stage',os.MFD_CLOEXEC|os.MFD_ALLOW_SEALING)
+    with os.fdopen(fd,'w+b') as stream:
+        class SizedWriter:
+            count=0
+            def write(self,data):
+                require(self.count+len(data)<=size,'isolated staging overflow')
+                stream.write(data);self.count+=len(data)
+                return len(data)
+        writer=SizedWriter();producer(writer)
+        require(writer.count==size,'isolated staging truncated')
+        stream.flush();stream.seek(0)
+        # Linux UAPI constants are absent from some Python fcntl builds.
+        fcntl.fcntl(fd,getattr(fcntl,'F_ADD_SEALS',1033),0x0f)
+        result=subprocess.run(['docker','--host=unix:///var/run/docker.sock','exec','-i',container,'sh','-c','umask 077; head -c '+str(size)+' > '+target],stdin=stream,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=120)
+        require(result.returncode==0,'isolated RAM staging failed')
+
 def isolated_restore(directory,manifest):
     require(manifest.get('project')==PROJECT and manifest.get('format') in (1,2),'wrong archive project/format')
     backup_id=manifest['backup_id'];require(bool(re.fullmatch(r'\d{8}T\d{6}Z-[a-f0-9]{32}',backup_id)),'invalid backup id')
@@ -278,10 +302,9 @@ def isolated_restore(directory,manifest):
         def sql(query):return docker(['exec','-i',name,'psql','-h','127.0.0.1','-X','-qAt','-v','ON_ERROR_STOP=1','-U','postgres','-d','postgres'],input=(CANONICAL+query).encode()).stdout.decode().strip()
         for part in (['roles','database','storage'] if manifest['format']==2 else ['roles','database']):
             target='/tmp/'+part
-            process=subprocess.Popen(['docker','--host=unix:///var/run/docker.sock','exec','-i',name,'sh','-c','umask 077; cat > '+target],stdin=subprocess.PIPE,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-            try:unseal(Path(directory)/(part+'.enc'),process.stdin,secret,PROJECT+'/'+backup_id+'/'+part)
-            finally:process.stdin.close();code=process.wait(timeout=60)
-            require(code==0,'restore staging failed')
+            # GCM framing is 8-byte magic + 12-byte nonce + 16-byte tag.
+            plain_size=int(manifest['files'][part]['bytes'])-36
+            stage_file(name,target,plain_size,lambda sink:unseal(Path(directory)/(part+'.enc'),sink,secret,PROJECT+'/'+backup_id+'/'+part))
         # The only rewrite is the existing initdb bootstrap CREATE, never grants.
         docker(['exec',name,'sh','-c',"sed 's/^CREATE ROLE postgres;$/-- initdb already created postgres/' /tmp/roles > /tmp/roles-restore; psql -h 127.0.0.1 -X -v ON_ERROR_STOP=1 -U postgres -d postgres -f /tmp/roles-restore"])
         docker(['exec',name,'pg_restore','-h','127.0.0.1','-U','postgres','--exit-on-error','-d','postgres','/tmp/database'])
