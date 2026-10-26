@@ -4,9 +4,8 @@ on:
     paths:
       - tools/backup/**
       - tests/backup/**
-      - .github/workflows/backup-protected-setup.yml
+      - .github/workflows/backup-*.yml
       - .github/workflows/database-backup.yml
-      - .github/workflows/backup-isolated-tests.yml
 permissions:
   contents: read
 jobs:

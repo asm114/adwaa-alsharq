@@ -1,6 +1,9 @@
-name: First encrypted capture and isolated restore (review required)
+name: Protected full backup retry and isolated restore
 # Reviewer approval is bound to this exact push SHA. Fixed operation only.
 # No schedule, retention, folder creation, merge or deployment.
+# Retry prerequisite: run 40346048497 at 8c8d577 validated both keys and
+# authenticated the three OLD Portal parts, which remain incomplete and untouched.
+# This run exports NEW snapshots with new UUIDs and never resumes that old group.
 on:
   push:
     branches: [ops/encrypted-daily-backup-20261024]
