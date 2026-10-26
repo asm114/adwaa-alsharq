@@ -31,6 +31,11 @@ def identity_query():
     return 'SELECT '+ ' AND '.join("to_regclass('public."+name+"') IS NOT NULL" for name in REQUIRED_TABLES)
 from source_diagnostics import GateError, SourceError, need as source_need, validate_config, probe_tcp, verify_client_tls, classify as source_code
 
+class RestoreError(GateError):
+    def __init__(self,code):
+        self.code=code if code in {'RESTORE_ROLES_FAILED','RESTORE_DATABASE_FAILED','RESTORE_SUPERUSER_VERIFIER_UNAVAILABLE','RESTORE_STAGING_PROCESS_FAILED','RESTORE_STAGING_TIMEOUT','RESTORE_STAGING_TRANSPORT_FAILED'} else 'RESTORE_FAILED'
+        super().__init__(self.code)
+
 def require(condition,message):
     if not condition:raise GateError(message)
 
@@ -280,8 +285,28 @@ def stage_file(container,target,size,producer):
         stream.flush();stream.seek(0)
         # Linux UAPI constants are absent from some Python fcntl builds.
         fcntl.fcntl(fd,getattr(fcntl,'F_ADD_SEALS',1033),0x0f)
-        result=subprocess.run(['docker','--host=unix:///var/run/docker.sock','exec','-i',container,'sh','-c','umask 077; head -c '+str(size)+' > '+target],stdin=stream,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=120)
-        require(result.returncode==0,'isolated RAM staging failed')
+        import docker as docker_sdk
+        api=docker_sdk.APIClient(base_url='unix:///var/run/docker.sock',version='1.47',timeout=120)
+        channel=None
+        try:
+            command=['sh','-c','umask 077; head -c '+str(size)+' > '+target]
+            exec_id=api.exec_create(container,command,stdin=True,stdout=False,stderr=False)['Id']
+            channel=api.exec_start(exec_id,socket=True)
+            channel._sock.settimeout(120)
+            while chunk:=stream.read(1024*1024):channel._sock.sendall(chunk)
+            deadline=time.monotonic()+120
+            while time.monotonic()<deadline:
+                state=api.exec_inspect(exec_id)
+                if not state['Running'] and type(state.get('ExitCode')) is int:
+                    if state['ExitCode']!=0:raise RestoreError('RESTORE_STAGING_PROCESS_FAILED')
+                    break
+                time.sleep(.1)
+            else:raise RestoreError('RESTORE_STAGING_TIMEOUT')
+        except GateError:raise
+        except Exception:raise RestoreError('RESTORE_STAGING_TRANSPORT_FAILED') from None
+        finally:
+            if channel is not None:channel.close()
+            api.close()
 
 def isolated_restore(directory,manifest):
     require(manifest.get('project')==PROJECT and manifest.get('format') in (1,2),'wrong archive project/format')
@@ -291,28 +316,36 @@ def isolated_restore(directory,manifest):
     data=io.BytesIO();unseal(Path(directory)/'verification.enc',data,secret,PROJECT+'/'+backup_id+'/verification')
     verification=json.loads(data.getvalue());require(verification['project']==PROJECT and verification['backup_id']==backup_id,'verification identity mismatch')
     image=env('BACKUP_RESTORE_IMAGE');require(bool(re.fullmatch(r'(?:[a-zA-Z0-9./:_-]+@)?sha256:[a-f0-9]{64}',image)),'restore image must be approved and digest pinned')
+    roles=json.loads(verification['roles'])
+    eligible={r['name'] for r in roles if r['superuser'] and r['login']}
+    reader_user=next((n for n in ['postgres','supabase_admin'] if n in eligible),None)
+    if reader_user is None:raise RestoreError('RESTORE_SUPERUSER_VERIFIER_UNAVAILABLE')
     name='adwaa-backup-restore-'+uuid.uuid4().hex[:12]
-    docker(['run','--rm','-d','--network','none','--memory','4g','--cpus','2','--pids-limit','256','--tmpfs','/var/lib/postgresql/data:rw,noexec,nosuid,size=4g','--tmpfs','/tmp:rw,noexec,nosuid,size=4g','-e','POSTGRES_HOST_AUTH_METHOD=trust','--name',name,image])
+    docker(['run','--rm','-d','--network','none','--memory','4g','--cpus','2','--pids-limit','256','--tmpfs','/var/lib/postgresql/data:rw,noexec,nosuid,size=4g','--tmpfs','/tmp:rw,noexec,nosuid,size=4g','-e','POSTGRES_HOST_AUTH_METHOD=trust','-e','POSTGRES_USER='+reader_user,'-e','POSTGRES_DB=postgres','--name',name,image])
     try:
         for _ in range(120):
-            ready=subprocess.run(['docker','--host=unix:///var/run/docker.sock','exec',name,'pg_isready','-h','127.0.0.1','-U','postgres'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0
+            ready=subprocess.run(['docker','--host=unix:///var/run/docker.sock','exec',name,'pg_isready','-h','127.0.0.1','-U',reader_user],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0
             if ready:break
             time.sleep(.5)
         require(ready,'restore server not ready')
-        def sql(query):return docker(['exec','-i',name,'psql','-h','127.0.0.1','-X','-qAt','-v','ON_ERROR_STOP=1','-U','postgres','-d','postgres'],input=(CANONICAL+query).encode()).stdout.decode().strip()
+        def sql(query):return docker(['exec',name,'psql','-h','127.0.0.1','-X','-qAt','-v','ON_ERROR_STOP=1','-U',reader_user,'-d','postgres','-c',CANONICAL+query]).stdout.decode().strip()
         for part in (['roles','database','storage'] if manifest['format']==2 else ['roles','database']):
             target='/tmp/'+part
             # GCM framing is 8-byte magic + 12-byte nonce + 16-byte tag.
             plain_size=int(manifest['files'][part]['bytes'])-36
             stage_file(name,target,plain_size,lambda sink:unseal(Path(directory)/(part+'.enc'),sink,secret,PROJECT+'/'+backup_id+'/'+part))
-        # The only rewrite is the existing initdb bootstrap CREATE, never grants.
-        docker(['exec',name,'sh','-c',"sed 's/^CREATE ROLE postgres;$/-- initdb already created postgres/' /tmp/roles > /tmp/roles-restore; psql -h 127.0.0.1 -X -v ON_ERROR_STOP=1 -U postgres -d postgres -f /tmp/roles-restore"])
-        docker(['exec',name,'pg_restore','-h','127.0.0.1','-U','postgres','--exit-on-error','-d','postgres','/tmp/database'])
+        # Supabase's postgres may be NOSUPERUSER. Bootstrap as a source superuser
+        # instead of trying to remove SUPERUSER from PostgreSQL's protected OID 10.
+        roles_script="set -e; sed 's/^CREATE ROLE "+reader_user+";$/-- initdb already created bootstrap role/' /tmp/roles > /tmp/roles-restore; psql -h 127.0.0.1 -X -v ON_ERROR_STOP=1 -U "+reader_user+" -d postgres -f /tmp/roles-restore"
+        try:docker(['exec',name,'sh','-c',roles_script])
+        except subprocess.CalledProcessError:raise RestoreError('RESTORE_ROLES_FAILED') from None
+        try:docker(['exec',name,'pg_restore','-h','127.0.0.1','-U',reader_user,'--exit-on-error','-d','postgres','/tmp/database'])
+        except subprocess.CalledProcessError:raise RestoreError('RESTORE_DATABASE_FAILED') from None
         for field,query in [('schema',schema_query()),('catalog',catalog_query()),('policies',policies_query()),('roles',role_query()),('memberships',membership_query())]:require(sql(query)==verification[field],'restored '+field+' mismatch')
         for table in verification['tables']:
             query=table_copy(table['schema'],table['name'])
             # Stream plaintext only inside the isolated target; no data in logs.
-            process=subprocess.Popen(['docker','--host=unix:///var/run/docker.sock','exec',name,'psql','-h','127.0.0.1','-X','-qAt','-v','ON_ERROR_STOP=1','-U','postgres','-d','postgres','-c',CANONICAL+query],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
+            process=subprocess.Popen(['docker','--host=unix:///var/run/docker.sock','exec',name,'psql','-h','127.0.0.1','-X','-qAt','-v','ON_ERROR_STOP=1','-U',reader_user,'-d','postgres','-c',CANONICAL+query],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
             h=hashlib.sha256()
             while chunk:=process.stdout.read(1024*1024):h.update(chunk)
             require(process.wait(timeout=1800)==0 and h.hexdigest()==table['sha256'],'restored table fingerprint mismatch')

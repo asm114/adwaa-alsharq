@@ -16,6 +16,7 @@ jobs:
         target: [core, portal]
     env:
       BACKUP_TARGET: ${{ matrix.target }}
+      BACKUP_TEST_RESTRICTED_POSTGRES: 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:

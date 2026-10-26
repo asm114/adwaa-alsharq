@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import sys
+from cryptography.exceptions import InvalidTag
 
 import backup as engine
 from drive_store import authenticate, inspection_report, DriveError, safe_diagnostic
@@ -76,6 +77,10 @@ def main():
               'production_modified': False}
     try:
         capture(report)
+    except InvalidTag:
+        report['code'] = 'RESTORE_GCM_AUTHENTICATION_FAILED'
+    except engine.RestoreError as error:
+        report['code'] = error.code
     except engine.EncryptionKeyError as error:
         report['code'] = error.code
     except engine.SourceError as error:

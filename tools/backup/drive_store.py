@@ -33,7 +33,9 @@ SAFE_CODES=frozenset({
     'DRIVE_AUDIT_METADATA_INVALID','DRIVE_PAGINATION_INVALID',
     'DRIVE_OBJECT_LOOKUP_UNCONFIRMED','DRIVE_OBJECT_KEY_MISMATCH',
     'DRIVE_UPLOAD_TIMEOUT','DRIVE_UPLOAD_REQUEST_REJECTED','DRIVE_UPLOAD_SERVER_ERROR',
-    'DRIVE_API_QUOTA_REJECTED','DRIVE_RATE_LIMITED','DRIVE_WRITE_FORBIDDEN'})
+    'DRIVE_API_QUOTA_REJECTED','DRIVE_RATE_LIMITED','DRIVE_WRITE_FORBIDDEN',
+    'DRIVE_UPLOAD_SIZE_MISMATCH','DRIVE_UPLOAD_CHECKSUM_UNAVAILABLE',
+    'DRIVE_UPLOAD_CHECKSUM_MISMATCH','DRIVE_UPLOAD_KEY_MISMATCH'})
 class DriveError(Exception):
     def __init__(self,message,code='DRIVE_GATE_FAILED'):
         super().__init__(message)
@@ -240,7 +242,10 @@ class DriveStore:
         for attempt in range(3):
             try:
                 file=self._metadata(file_id)
-                require(file.get('sha256Checksum')==sha and int(file.get('size',-1))==size and file['appProperties'].get('objectKey')==key,'Drive checksum/size/key not confirmed')
+                require(int(file.get('size',-1))==size,'Drive uploaded size mismatch','DRIVE_UPLOAD_SIZE_MISMATCH')
+                require(file['appProperties'].get('objectKey')==key,'Drive uploaded key mismatch','DRIVE_UPLOAD_KEY_MISMATCH')
+                require(isinstance(file.get('sha256Checksum'),str) and bool(re.fullmatch(r'[a-f0-9]{64}',file['sha256Checksum'])),'Drive uploaded checksum unavailable','DRIVE_UPLOAD_CHECKSUM_UNAVAILABLE')
+                require(file['sha256Checksum']==sha,'Drive uploaded checksum mismatch','DRIVE_UPLOAD_CHECKSUM_MISMATCH')
                 return file
             except Exception as error:
                 last_code=safe_diagnostic(error) if isinstance(error,DriveError) else 'DRIVE_METADATA_READ_FAILED'

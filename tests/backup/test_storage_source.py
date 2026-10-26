@@ -1,7 +1,7 @@
 """Synthetic objects and HTTP doubles only; never customer data or live APIs."""
 import copy,io,json,os,tempfile,unittest,sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch,MagicMock
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'tools/backup'))
 import backup as b
 import storage_source as s
@@ -36,7 +36,7 @@ class StorageTests(unittest.TestCase):
         def invalid(sink):
             sink.write(b'abc')
             raise InvalidTag()
-        with patch.object(b.subprocess,'run') as run:
+        with patch('docker.APIClient') as run:
             with self.assertRaises(InvalidTag):b.stage_file('adwaa-backup-restore-aaaaaaaaaaaa','/tmp/database',3,invalid)
             with self.assertRaises(b.GateError):b.stage_file('adwaa-backup-restore-aaaaaaaaaaaa','/tmp/database',3,lambda sink:sink.write(b'abcd'))
             run.assert_not_called()
@@ -54,14 +54,17 @@ class StorageTests(unittest.TestCase):
                 stdout=io.BytesIO(archive_bytes.getvalue())
                 def wait(self,**kwargs):return 0
                 def poll(self):return 0
-            def run(command,stdin,**kwargs):
-                self.assertIn('head -c '+str(len(payload))+' > /tmp/restored-storage/object-00000000',command[-1])
-                self.assertEqual(stdin.read(),payload)
-                self.assertTrue(fcntl.fcntl(stdin.fileno(),getattr(fcntl,'F_GET_SEALS',1034))&0x08)
-                return SimpleNamespace(returncode=0)
+            api=MagicMock();channel=MagicMock()
+            api.exec_create.return_value={'Id':'synthetic-exec'}
+            api.exec_start.return_value=channel
+            api.exec_inspect.return_value={'Running':False,'ExitCode':0}
             fake_engine=SimpleNamespace(stage_file=b.stage_file,docker=lambda *args,**kwargs:SimpleNamespace(stdout=(hashlib.sha256(payload).hexdigest()+'  file').encode()))
-            with patch('subprocess.Popen',return_value=Reader()),patch('subprocess.run',side_effect=run):
+            with patch('subprocess.Popen',return_value=Reader()),patch('docker.APIClient',return_value=api):
                 result=s.restore(fake_engine,'adwaa-backup-restore-aaaaaaaaaaaa',verification)
+            self.assertEqual(b''.join(c.args[0] for c in channel._sock.sendall.call_args_list),payload)
+            self.assertIn('head -c '+str(len(payload))+' > /tmp/restored-storage/object-00000000',api.exec_create.call_args.args[1][-1])
+            self.assertFalse(api.exec_create.call_args.kwargs['stdout'])
+            channel.close.assert_called_once();api.close.assert_called_once()
             self.assertTrue(result['storage_files_verified'])
     def test_read_only_http_fixed_origin_redirects_and_redaction(self):
         with patch.dict(os.environ,{'BACKUP_CONFIRMED_PROJECT_REF':PROJECT,'BACKUP_STORAGE_API_KEY':'sb_secret_synthetic-only'}),patch.object(s.requests,'Session') as factory:

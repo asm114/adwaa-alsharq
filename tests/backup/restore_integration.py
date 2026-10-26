@@ -9,8 +9,9 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 spec=importlib.util.spec_from_file_location('backup',ROOT/'tools/backup/backup.py');b=importlib.util.module_from_spec(spec);spec.loader.exec_module(b)
 fixture_image=os.environ.get('BACKUP_TEST_RESTORE_IMAGE',b.IMAGE)
+source_user='supabase_admin' if os.environ.get('BACKUP_TEST_RESTRICTED_POSTGRES')=='true' else 'postgres'
 name='adwaa-backup-source-'+uuid.uuid4().hex[:12]
-def sql(query):return b.docker(['exec','-i',name,'psql','-h','127.0.0.1','-X','-qAt','-v','ON_ERROR_STOP=1','-U','postgres','-d','postgres'],input=query.encode()).stdout
+def sql(query):return b.docker(['exec',name,'psql','-h','127.0.0.1','-X','-qAt','-v','ON_ERROR_STOP=1','-U',source_user,'-d','postgres','-c',query]).stdout
 class Result:
     def __init__(self,rows):self.rows=rows
     def fetchone(self):return self.rows[0]
@@ -30,13 +31,14 @@ class FixtureConnection:
         return Result([tuple(row.values()) for row in rows])
     def cursor(self):return self
     def copy(self,query):return Copy(query)
-b.docker(['run','--rm','-d','--network','none','--tmpfs','/var/lib/postgresql/data','-e','POSTGRES_HOST_AUTH_METHOD=trust','--name',name,fixture_image])
+b.docker(['run','--rm','-d','--network','none','--tmpfs','/var/lib/postgresql/data','-e','POSTGRES_HOST_AUTH_METHOD=trust','-e','POSTGRES_USER='+source_user,'-e','POSTGRES_DB=postgres','--name',name,fixture_image])
 try:
     for _ in range(60):
-        ready=subprocess.run(['docker','--host=unix:///var/run/docker.sock','exec',name,'pg_isready','-h','127.0.0.1','-U','postgres'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0
+        ready=subprocess.run(['docker','--host=unix:///var/run/docker.sock','exec',name,'pg_isready','-h','127.0.0.1','-U',source_user],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0
         if ready:break
         time.sleep(.5)
     assert ready
+    if source_user=='supabase_admin':sql('CREATE ROLE postgres LOGIN NOSUPERUSER BYPASSRLS;')
     if os.environ.get('BACKUP_TEST_RESTORE_IMAGE'):
         sql("CREATE SCHEMA extensions;CREATE EXTENSION pg_stat_statements WITH SCHEMA extensions VERSION '1.11';CREATE EXTENSION pgcrypto WITH SCHEMA extensions VERSION '1.3';CREATE EXTENSION \"uuid-ossp\" WITH SCHEMA extensions VERSION '1.1';CREATE EXTENSION supabase_vault VERSION '0.3.1';INSERT INTO vault.secrets(secret) VALUES('synthetic-opaque-ciphertext');")
     sql('''CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN;
@@ -74,7 +76,7 @@ try:
     os.environ['BACKUP_ENCRYPTION_KEY']=base64.b64encode(os.urandom(32)).decode();os.environ['BACKUP_RESTORE_IMAGE']=fixture_image
     os.environ['BACKUP_CONFIRMED_PROJECT_REF']=b.PROJECT;os.environ['BACKUP_STORAGE_API_KEY']='sb_secret_synthetic-integration-only'
     with tempfile.TemporaryDirectory() as d:
-        for part,command in [('database',['pg_dump','-U','postgres','-Fc','postgres']),('roles',['pg_dumpall','-U','postgres','--roles-only','--no-role-passwords'])]:
+        for part,command in [('database',['pg_dump','-U',source_user,'-Fc','postgres']),('roles',['pg_dumpall','-U',source_user,'--roles-only','--no-role-passwords'])]:
             dump=b.docker(['exec',name]+command).stdout
             b.seal(io.BytesIO(dump),Path(d)/(part+'.enc'),b.key(),b.PROJECT+'/'+backup_id+'/'+part)
         from urllib.parse import quote
