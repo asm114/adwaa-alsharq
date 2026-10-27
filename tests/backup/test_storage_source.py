@@ -1,5 +1,5 @@
 """Synthetic objects and HTTP doubles only; never customer data or live APIs."""
-import copy,io,json,os,tempfile,unittest,sys
+import copy,io,json,os,tempfile,unittest,sys,subprocess
 from pathlib import Path
 from unittest.mock import patch,MagicMock
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'tools/backup'))
@@ -60,7 +60,7 @@ class StorageTests(unittest.TestCase):
                     copied.append(kwargs['stdin'].read())
                     return subprocess.CompletedProcess(args,0,b'',b'')
                 copied.append(('size',len(payload)))
-                return subprocess.CompletedProcess(args,0,(str(len(payload))+'\\n').encode(),b'')
+                return subprocess.CompletedProcess(args,0,(str(len(payload))+'\n').encode(),b'')
             fake_engine=SimpleNamespace(stage_file=b.stage_file,docker=lambda *args,**kwargs:SimpleNamespace(stdout=(hashlib.sha256(payload).hexdigest()+'  file').encode()))
             with patch('subprocess.Popen',return_value=Reader()),patch.object(b.subprocess,'run',side_effect=fake_run):
                 result=s.restore(fake_engine,'adwaa-backup-restore-aaaaaaaaaaaa',verification)
