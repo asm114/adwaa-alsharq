@@ -1,0 +1,59 @@
+name: Pinned read-only Drive inspection (PR branch only)
+# Separate identities: github.sha is this controller's reviewed commit;
+# checkout is the fixed data-free inspection code at a6b4881.
+# Missing/mismatched repository approvals skip the job before secrets are available.
+on:
+  push:
+    branches: [ops/encrypted-daily-backup-20261024]
+permissions:
+  contents: read
+concurrency:
+  group: production-backup-inspect-once
+  cancel-in-progress: false
+jobs:
+  inspect-only:
+    if: >-
+      github.event_name == 'push' &&
+      github.repository == 'asm114/adwaa-alsharq' &&
+      github.ref == 'refs/heads/ops/encrypted-daily-backup-20261024' &&
+      vars.BACKUP_SETUP_MODE == 'inspect-drive' &&
+      vars.BACKUP_SETUP_APPROVED_SHA == 'a6b488132a203c45ca27c5f6d4f6f7b0f1a14d4e' &&
+      vars.BACKUP_INSPECT_RUNNER_APPROVED_SHA == github.sha
+    environment: production-backup
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [core, portal]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: a6b488132a203c45ca27c5f6d4f6f7b0f1a14d4e
+          persist-credentials: false
+      - name: Verify exact inspection code SHA
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 'a6b488132a203c45ca27c5f6d4f6f7b0f1a14d4e'
+      - name: Install pinned inspection dependencies
+        run: |
+          python3 -m venv "$RUNNER_TEMP/drive-inspect-venv"
+          "$RUNNER_TEMP/drive-inspect-venv/bin/pip" install -r tools/backup/requirements.txt
+      - name: Read-only OAuth, account and project-folder inspection
+        env:
+          BACKUP_TARGET: ${{ matrix.target }}
+          BACKUP_DRIVE_CLIENT_ID: ${{ secrets.BACKUP_DRIVE_CLIENT_ID }}
+          BACKUP_DRIVE_CLIENT_SECRET: ${{ secrets.BACKUP_DRIVE_CLIENT_SECRET }}
+          BACKUP_DRIVE_REFRESH_TOKEN: ${{ secrets.BACKUP_DRIVE_REFRESH_TOKEN }}
+          BACKUP_DRIVE_ACCOUNT: ${{ vars.BACKUP_DRIVE_ACCOUNT }}
+          BACKUP_COST_APPROVED: ${{ vars.BACKUP_COST_APPROVED }}
+          BACKUP_DRIVE_SETUP_APPROVED: 'false'
+          BACKUP_EXECUTION_APPROVED: 'false'
+          BACKUP_RESTORE_APPROVED: 'false'
+          BACKUP_DRIVE_RETENTION_APPROVED: 'false'
+          BACKUP_SCHEDULE_APPROVED: 'false'
+          BACKUP_PRODUCTION_RESTORE_VERIFIED: 'false'
+        run: |
+          set -euo pipefail
+          umask 077
+          "$RUNNER_TEMP/drive-inspect-venv/bin/python" tools/backup/backup.py inspect-drive

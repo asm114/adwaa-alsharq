@@ -1,0 +1,65 @@
+name: Protected one-time live backup health gate (no schedule)
+on:
+  workflow_dispatch:
+  push:
+    branches: [ops/encrypted-daily-backup-20261024]
+    paths: [.github/workflows/backup-health-protected-once.yml]
+# Read-only, single review; no scheduled event or backup writing.
+permissions:
+  contents: read
+jobs:
+  health:
+    if: github.repository == 'asm114/adwaa-alsharq' && github.ref == 'refs/heads/ops/encrypted-daily-backup-20261024'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: core
+            secret_prefix: CORE
+          - target: portal
+            secret_prefix: PORTAL
+    environment: production-backup
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Verify reviewed SHA
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - run: |
+          python3 -m venv "$RUNNER_TEMP/backup-health-venv"
+          "$RUNNER_TEMP/backup-health-venv/bin/pip" install -r tools/backup/requirements.txt
+      - name: Read existing markers and remote checksums only
+        env:
+          BACKUP_TARGET: ${{ matrix.target }}
+          BACKUP_MODE: health
+          BACKUP_STORAGE_PROVIDER: drive
+          BACKUP_DRIVE_CLIENT_ID: ${{ secrets.BACKUP_DRIVE_CLIENT_ID }}
+          BACKUP_DRIVE_CLIENT_SECRET: ${{ secrets.BACKUP_DRIVE_CLIENT_SECRET }}
+          BACKUP_DRIVE_REFRESH_TOKEN: ${{ secrets.BACKUP_DRIVE_REFRESH_TOKEN }}
+          BACKUP_DRIVE_ACCOUNT: ${{ vars.BACKUP_DRIVE_ACCOUNT }}
+          BACKUP_COST_APPROVED: ${{ vars.BACKUP_COST_APPROVED }}
+          BACKUP_DRIVE_FOLDER_ID: ${{ vars[format('BACKUP_{0}_DRIVE_FOLDER_ID', matrix.secret_prefix)] }}
+          BACKUP_EXECUTION_APPROVED: 'true'
+          BACKUP_DRIVE_RETENTION_APPROVED: 'false'
+          BACKUP_SCHEDULE_APPROVED: 'false'
+          BACKUP_HEALTH_MAX_AGE_HOURS: '30'
+        run: |
+          "$RUNNER_TEMP/backup-health-venv/bin/python" tools/backup/runtime.py
+  alert:
+    needs: health
+    if: always() && (needs.health.result == 'failure' || needs.health.result == 'cancelled')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          BACKUP_ALERT_CODE: BACKUP_HEALTH_FAILED
+        run: python3 tools/backup/notify.py

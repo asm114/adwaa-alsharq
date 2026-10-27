@@ -1,0 +1,51 @@
+name: Protected official Storage API restore in isolated Docker
+on:
+  workflow_dispatch:
+  push:
+    branches: [ops/encrypted-daily-backup-20261024]
+    paths: [.github/workflows/backup-storage-api-test.yml]
+permissions:
+  contents: read
+concurrency:
+  group: isolated-storage-api-restore
+  cancel-in-progress: false
+jobs:
+  storage-api-test:
+    if: >-
+      github.repository == 'asm114/adwaa-alsharq' &&
+      github.ref == 'refs/heads/ops/encrypted-daily-backup-20261024' &&
+      (github.event_name == 'workflow_dispatch' || github.event.after == github.sha)
+    environment: production-backup
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify reviewed SHA
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Install pinned dependencies and test safety gates
+        run: |
+          python3 -m venv "$RUNNER_TEMP/storage-api-venv"
+          "$RUNNER_TEMP/storage-api-venv/bin/pip" install -r tools/backup/requirements.txt
+          "$RUNNER_TEMP/storage-api-venv/bin/python" -m unittest discover -s tests/backup -p 'test_*.py'
+      - name: Restore existing authenticated Storage bytes into official isolated Docker service
+        env:
+          BACKUP_TARGET: portal
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_PORTAL_ENCRYPTION_KEY }}
+          BACKUP_DRIVE_CLIENT_ID: ${{ secrets.BACKUP_DRIVE_CLIENT_ID }}
+          BACKUP_DRIVE_CLIENT_SECRET: ${{ secrets.BACKUP_DRIVE_CLIENT_SECRET }}
+          BACKUP_DRIVE_REFRESH_TOKEN: ${{ secrets.BACKUP_DRIVE_REFRESH_TOKEN }}
+          BACKUP_DRIVE_ACCOUNT: ${{ vars.BACKUP_DRIVE_ACCOUNT }}
+          BACKUP_COST_APPROVED: ${{ vars.BACKUP_COST_APPROVED }}
+          BACKUP_STORAGE_API_TEST_MODE: docker
+          BACKUP_STORAGE_API_RESTORE_APPROVED: 'true'
+          BACKUP_DRIVE_RETENTION_APPROVED: 'false'
+          BACKUP_SCHEDULE_APPROVED: 'false'
+        run: |
+          set -euo pipefail
+          umask 077
+          "$RUNNER_TEMP/storage-api-venv/bin/python" tools/backup/storage_api_check.py

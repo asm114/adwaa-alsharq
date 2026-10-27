@@ -1,7 +1,8 @@
 {
   "git": {
     "deploymentEnabled": {
-      "docs/privacy-policy-20261025": false
+      "docs/privacy-policy-20261025": false,
+      "ops/encrypted-daily-backup-20261024": false
     }
   }
 }

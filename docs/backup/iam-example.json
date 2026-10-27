@@ -1,0 +1,24 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "InspectApprovedBucketOnly",
+      "Effect": "Allow",
+      "Action": ["s3:GetBucketPublicAccessBlock", "s3:GetBucketPolicyStatus", "s3:GetBucketVersioning", "s3:GetLifecycleConfiguration", "s3:GetEncryptionConfiguration", "s3:GetBucketOwnershipControls", "s3:GetBucketObjectLockConfiguration"],
+      "Resource": "arn:aws:s3:::REPLACE_APPROVED_BUCKET"
+    },
+    {
+      "Sid": "ListOnlyAdwaaBackups",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::REPLACE_APPROVED_BUCKET",
+      "Condition": {"StringLike": {"s3:prefix": ["adwaa/pgdvlklpyrvmwzitsmbw/*"]}}
+    },
+    {
+      "Sid": "EncryptedBackupObjectsOnly",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:AbortMultipartUpload"],
+      "Resource": "arn:aws:s3:::REPLACE_APPROVED_BUCKET/adwaa/pgdvlklpyrvmwzitsmbw/*"
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+name: Restore existing Portal capture with complete metadata diagnostics
+# Reviewer approval is bound to this exact push SHA. Fixed operation only.
+# No schedule, retention, folder creation, merge or deployment.
+# Extension ownership and full recorded schema grants are restored in isolation.
+# pg_dump ACL deltas alone do not replay provider-initial schema privileges.
+# Core restore was verified by run 40398433591 and is not repeated.
+# Portal restores its committed four-part capture only. No production
+# credentials are provided; partial groups and old files remain untouched.
+on:
+  push:
+    branches: [ops/encrypted-daily-backup-20261024]
+    paths:
+      - .github/workflows/backup-final-retry.yml
+permissions:
+  contents: read
+concurrency:
+  group: production-backup-final-retry
+  cancel-in-progress: false
+jobs:
+  capture:
+    if: >-
+      github.event_name == 'push' &&
+      github.repository == 'asm114/adwaa-alsharq' &&
+      github.ref == 'refs/heads/ops/encrypted-daily-backup-20261024' &&
+      github.event.after == github.sha
+    environment: production-backup
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: portal
+            secret_prefix: PORTAL
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify reviewed push commit
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Install pinned dependencies
+        run: |
+          python3 -m venv "$RUNNER_TEMP/first-capture-venv"
+          "$RUNNER_TEMP/first-capture-venv/bin/pip" install -r tools/backup/requirements.txt
+      - name: Build immutable restore image with required extension versions
+        run: |
+          set -euo pipefail
+          docker build -f tools/backup/restore-image.Dockerfile -t adwaa-first-restore:tested tools/backup
+          image=$(docker image inspect adwaa-first-restore:tested --format '{{.Id}}')
+          test "${#image}" -eq 71
+          echo "BACKUP_RESTORE_IMAGE=$image" >> "$GITHUB_ENV"
+          echo "BACKUP_TEST_RESTORE_IMAGE=$image" >> "$GITHUB_ENV"
+      - name: Test encryption and restore using synthetic data before source access
+        env:
+          BACKUP_TARGET: ${{ matrix.target }}
+          BACKUP_TEST_RESTRICTED_POSTGRES: 'true'
+          BACKUP_TEST_RENDER_CONTEXT: 'true'
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/first-capture-venv/bin/python" -m unittest discover -s tests/backup -p 'test_*.py'
+          "$RUNNER_TEMP/first-capture-venv/bin/python" tests/backup/restore_integration.py
+          BACKUP_TEST_EXPECT_SCHEMA_MISMATCH=true "$RUNNER_TEMP/first-capture-venv/bin/python" tests/backup/restore_integration.py
+          BACKUP_TEST_EXPECT_MEMBERSHIP_MISMATCH=true "$RUNNER_TEMP/first-capture-venv/bin/python" tests/backup/restore_integration.py
+      - name: Restore existing committed capture only; no source credentials
+        env:
+          BACKUP_TARGET: ${{ matrix.target }}
+          BACKUP_INSPECTION_ROLE: ${{ secrets[format('BACKUP_{0}_PGUSER', matrix.secret_prefix)] }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets[format('BACKUP_{0}_ENCRYPTION_KEY', matrix.secret_prefix)] }}
+          BACKUP_DRIVE_CLIENT_ID: ${{ secrets.BACKUP_DRIVE_CLIENT_ID }}
+          BACKUP_DRIVE_CLIENT_SECRET: ${{ secrets.BACKUP_DRIVE_CLIENT_SECRET }}
+          BACKUP_DRIVE_REFRESH_TOKEN: ${{ secrets.BACKUP_DRIVE_REFRESH_TOKEN }}
+          BACKUP_DRIVE_ACCOUNT: ${{ vars.BACKUP_DRIVE_ACCOUNT }}
+          BACKUP_COST_APPROVED: ${{ vars.BACKUP_COST_APPROVED }}
+          BACKUP_EXECUTION_APPROVED: 'true'
+          BACKUP_RESTORE_APPROVED: 'true'
+          BACKUP_DRIVE_RETENTION_APPROVED: 'false'
+          BACKUP_SCHEDULE_APPROVED: 'false'
+        run: |
+          set -euo pipefail
+          umask 077
+          "$RUNNER_TEMP/first-capture-venv/bin/python" tools/backup/recover_existing.py
+      - name: Remove only isolated export and restore containers
+        if: always()
+        run: |
+          for kind in source export restore; do
+            docker ps -aq --filter "name=adwaa-backup-$kind-" | xargs -r docker rm -f
+          done

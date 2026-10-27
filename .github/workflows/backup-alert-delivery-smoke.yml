@@ -1,0 +1,31 @@
+name: Backup alert notifier live smoke test (TEST ONLY)
+on:
+  push:
+    branches: [ops/encrypted-daily-backup-20261024]
+    paths: [.github/workflows/backup-alert-delivery-smoke.yml]
+permissions:
+  contents: read
+  issues: write
+jobs:
+  notify-smoke:
+    if: github.repository == 'asm114/adwaa-alsharq' && github.ref == 'refs/heads/ops/encrypted-daily-backup-20261024'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      # Real GitHub Issues delivery, TEST ONLY; no secrets, no production access.
+      - name: Deliver synthetic Issue and verify deduplication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BACKUP_ALERT_CODE: BACKUP_ALERT_DELIVERY_TEST
+        run: |
+          set -euo pipefail
+          first=$(python3 tools/backup/notify.py)
+          printf '%s\n' "$first"
+          test "$first" = '{"code": "BACKUP_ALERT_DELIVERED"}'
+          second=$(python3 tools/backup/notify.py)
+          printf '%s\n' "$second"
+          test "$second" = '{"code": "BACKUP_ALERT_ALREADY_RECORDED"}'
+          echo 'BACKUP_ALERT_LIVE_SMOKE_VERIFIED'

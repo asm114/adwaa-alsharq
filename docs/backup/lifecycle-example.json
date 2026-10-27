@@ -1,0 +1,18 @@
+{
+  "Rules": [
+    {
+      "ID": "adwaa-encrypted-30-days",
+      "Status": "Enabled",
+      "Filter": {"Prefix": "adwaa/pgdvlklpyrvmwzitsmbw/"},
+      "Expiration": {"Days": 30},
+      "NoncurrentVersionExpiration": {"NoncurrentDays": 1},
+      "AbortIncompleteMultipartUpload": {"DaysAfterInitiation": 1}
+    },
+    {
+      "ID": "adwaa-expired-delete-markers",
+      "Status": "Enabled",
+      "Filter": {"Prefix": "adwaa/pgdvlklpyrvmwzitsmbw/"},
+      "Expiration": {"ExpiredObjectDeleteMarker": true}
+    }
+  ]
+}
