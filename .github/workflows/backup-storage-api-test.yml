@@ -1,4 +1,4 @@
-name: Protected Storage API restore to confirmed empty sandbox
+name: Protected official Storage API restore in isolated Docker
 on:
   workflow_dispatch:
   push:
@@ -32,7 +32,7 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/storage-api-venv"
           "$RUNNER_TEMP/storage-api-venv/bin/pip" install -r tools/backup/requirements.txt
           "$RUNNER_TEMP/storage-api-venv/bin/python" -m unittest discover -s tests/backup -p 'test_*.py'
-      - name: Restore existing authenticated Storage bytes using official API only
+      - name: Restore existing authenticated Storage bytes into official isolated Docker service
         env:
           BACKUP_TARGET: portal
           BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_PORTAL_ENCRYPTION_KEY }}
@@ -41,9 +41,7 @@ jobs:
           BACKUP_DRIVE_REFRESH_TOKEN: ${{ secrets.BACKUP_DRIVE_REFRESH_TOKEN }}
           BACKUP_DRIVE_ACCOUNT: ${{ vars.BACKUP_DRIVE_ACCOUNT }}
           BACKUP_COST_APPROVED: ${{ vars.BACKUP_COST_APPROVED }}
-          BACKUP_STORAGE_RESTORE_PROJECT_REF: ${{ vars.BACKUP_STORAGE_RESTORE_PROJECT_REF }}
-          BACKUP_STORAGE_RESTORE_CONFIRMED_PROJECT_REF: ${{ vars.BACKUP_STORAGE_RESTORE_CONFIRMED_PROJECT_REF }}
-          BACKUP_STORAGE_RESTORE_API_KEY: ${{ secrets.BACKUP_STORAGE_RESTORE_API_KEY }}
+          BACKUP_STORAGE_API_TEST_MODE: docker
           BACKUP_STORAGE_API_RESTORE_APPROVED: 'true'
           BACKUP_DRIVE_RETENTION_APPROVED: 'false'
           BACKUP_SCHEDULE_APPROVED: 'false'

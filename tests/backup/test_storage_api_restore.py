@@ -64,6 +64,40 @@ def fixture():
         {'id':'bucket-two','public':False},{'id':'empty-bucket','public':False}],'objects':objects}}
 
 class StorageApiRestoreTests(unittest.TestCase):
+    def test_cleanup_error_cannot_retain_a_success_report_or_expose_exception(self):
+        import storage_api_check as check
+        from contextlib import redirect_stdout
+        def execute(report):
+            report.update(code='STORAGE_API_RESTORE_VERIFIED',storage_service_restore_verified=True)
+            raise RuntimeError('synthetic-sensitive-exception-must-not-appear')
+        output=io.StringIO()
+        with patch.object(check,'execute',side_effect=execute),patch.dict(os.environ,{},clear=True),redirect_stdout(output):
+            self.assertEqual(check.main(),1)
+        report=json.loads(output.getvalue())
+        self.assertEqual(report['code'],'STORAGE_API_TEST_FAILED')
+        self.assertFalse(report['storage_service_restore_verified'])
+        self.assertNotIn('synthetic-sensitive',output.getvalue())
+
+    def test_local_service_requires_internal_network_no_ports_or_volumes(self):
+        from types import SimpleNamespace
+        from local_storage_service import LocalSandbox
+        from copy import deepcopy
+        attrs={'HostConfig':{'PortBindings':{},'Binds':None,'LogConfig':{'Type':'none'}},
+               'NetworkSettings':{'Networks':{'isolated':{'IPAddress':'172.29.0.2'}}}}
+        network=SimpleNamespace(name='isolated',attrs={'Internal':True},reload=lambda:None)
+        container=SimpleNamespace(attrs=attrs,reload=lambda:None)
+        sandbox=LocalSandbox(container,network,'synthetic-test-token')
+        self.assertFalse(sandbox.session.trust_env)
+        self.assertEqual(sandbox.base,'http://172.29.0.2:5000/');sandbox.close()
+        for delta in ['external','ports','volumes','logs','public-address']:
+            container.attrs=deepcopy(attrs);network.attrs={'Internal':True}
+            if delta=='external':network.attrs['Internal']=False
+            elif delta=='ports':container.attrs['HostConfig']['PortBindings']={'5000/tcp':[{'HostPort':'5000'}]}
+            elif delta=='volumes':container.attrs['HostConfig']['Binds']=['/host:/data']
+            elif delta=='logs':container.attrs['HostConfig']['LogConfig']['Type']='json-file'
+            else:container.attrs['NetworkSettings']['Networks']['isolated']['IPAddress']='8.8.8.8'
+            with self.assertRaises(a.ApiRestoreError):LocalSandbox(container,network,'synthetic-test-token')
+
     def sandbox(self,session):return a.Sandbox(REF,REF,'sb_secret_synthetic-target-key','true',session)
     def test_official_routes_readback_inventory_and_private_buckets(self):
         session=Session();stream,verification=fixture();report={}

@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import tempfile
+from contextlib import ExitStack,closing
 import backup as engine
 from drive_store import authenticate,DriveStore,inspection_report,DriveError,safe_diagnostic
 from first_capture import PLANS
@@ -23,11 +24,19 @@ def execute(report):
     need(os.environ.get('BACKUP_COST_APPROVED')=='true','API_RESTORE_COST_APPROVAL_REQUIRED')
     need(os.environ.get('BACKUP_DRIVE_RETENTION_APPROVED')=='false' and
          os.environ.get('BACKUP_SCHEDULE_APPROVED')=='false','API_RESTORE_DELETION_SCHEDULE_PROHIBITED')
-    sandbox=Sandbox(os.environ.get('BACKUP_STORAGE_RESTORE_PROJECT_REF',''),
-        os.environ.get('BACKUP_STORAGE_RESTORE_CONFIRMED_PROJECT_REF',''),
-        os.environ.get('BACKUP_STORAGE_RESTORE_API_KEY',''),
-        os.environ.get('BACKUP_STORAGE_API_RESTORE_APPROVED',''))
-    try:
+    need(os.environ.get('BACKUP_STORAGE_API_RESTORE_APPROVED')=='true','API_RESTORE_APPROVAL_REQUIRED')
+    mode=os.environ.get('BACKUP_STORAGE_API_TEST_MODE','hosted')
+    need(mode in ('docker','hosted'),'API_RESTORE_MODE_INVALID')
+    with ExitStack() as resources:
+        if mode=='docker':
+            from local_storage_service import service as isolated_storage
+            sandbox=resources.enter_context(isolated_storage())
+        else:
+            sandbox=resources.enter_context(closing(Sandbox(os.environ.get('BACKUP_STORAGE_RESTORE_PROJECT_REF',''),
+                os.environ.get('BACKUP_STORAGE_RESTORE_CONFIRMED_PROJECT_REF',''),
+                os.environ.get('BACKUP_STORAGE_RESTORE_API_KEY',''),
+                os.environ.get('BACKUP_STORAGE_API_RESTORE_APPROVED',''))))
+        report.update(service_target=mode,hosted_supabase_restore_verified=False)
         plan=PLANS['portal'];service=authenticate();email=engine.env('BACKUP_DRIVE_ACCOUNT')
         observed=inspection_report(service,email)
         need(observed['folder_ids']==[plan['folder']],'API_RESTORE_SOURCE_FOLDER_MISMATCH')
@@ -48,9 +57,12 @@ def execute(report):
             engine.fetch_committed(store,store.folder,email,manifest,directory)
             with authenticated_archive(engine,directory,manifest) as (stream,verification):
                 report['stage']='official_api_sandbox_restore'
+                need(len(verification['files'])==31 and
+                     sum(item['bytes'] for item in verification['files'])==69349839,
+                     'API_RESTORE_PINNED_INVENTORY_MISMATCH')
                 restore(sandbox,stream,verification,report)
+                report['hosted_supabase_restore_verified']=mode=='hosted'
         report['stage']='finished'
-    finally:sandbox.close()
 
 def main():
     os.umask(0o077)
@@ -61,7 +73,11 @@ def main():
     except ApiRestoreError as error:report['code']=error.code
     except InvalidTag:report['code']='API_RESTORE_GCM_AUTHENTICATION_FAILED'
     except DriveError as error:report['code']=safe_diagnostic(error)
-    except Exception:pass # Never emit request URLs with object names, bodies, tokens or exception text.
+    except Exception:report['code']='STORAGE_API_TEST_FAILED'
+    # Cleanup/transport failures after the last object must not retain a success
+    # flag. Never emit URLs, names, response bodies, tokens or exception text.
+    if report['code']!='STORAGE_API_RESTORE_VERIFIED':
+        report.update(storage_service_restore_verified=False,hosted_supabase_restore_verified=False)
     print(json.dumps(report),flush=True)
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a') as out:

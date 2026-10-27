@@ -180,6 +180,7 @@ def restore(sandbox,stream,verification,report):
                 offset+=100;need(offset<=100000,'API_RESTORE_LIST_INVALID')
     need(seen=={(item['bucket'],item['name']) for item,_,_ in entries},'API_RESTORE_FINAL_INVENTORY_MISMATCH')
     report.update(code='STORAGE_API_RESTORE_VERIFIED',storage_service_restore_verified=True,
+                  bytes_verified=sum(item['bytes'] for item,_,_ in entries),
                   source_production_modified=False,original_sql_metadata_preserved_in_backup=True,
                   reupload_metadata_identical=False,test_buckets_private=True,deletion_enabled=False)
     return report
