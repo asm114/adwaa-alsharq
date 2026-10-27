@@ -15,6 +15,9 @@
   "retention_policy": "preserve_all_no_automatic_deletion",
   "retention_days_is_planning_target_only": true,
   "oauth_secret_rotation_verified": false,
-  "storage_official_api_restore_verified": false,
-  "environment_approval_policy_change_requires_owner_approval": true
+  "storage_official_api_restore_verified": true,
+  "environment_approval_policy_change_requires_owner_approval": true,
+  "database_restore_verified": true,
+  "oauth_exposure_risk_accepted": true,
+  "automatic_environment": "production-backup-auto"
 }

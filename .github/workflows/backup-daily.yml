@@ -1,0 +1,111 @@
+name: Daily encrypted backup (prepared, not scheduled)
+on:
+  workflow_dispatch:
+# Approved plan: 00:00 UTC = 03:00 Asia/Riyadh. No scheduled trigger yet.
+permissions:
+  contents: read
+concurrency:
+  group: automatic-production-backup
+  cancel-in-progress: false
+jobs:
+  admission:
+    if: github.repository == 'asm114/adwaa-alsharq' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    outputs:
+      ready: ${{ steps.policy.outputs.ready }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - id: policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BACKUP_AUTO_EXECUTION_APPROVED: ${{ vars.BACKUP_AUTO_EXECUTION_APPROVED }}
+          BACKUP_DRIVE_RETENTION_APPROVED: 'false'
+        run: python3 tools/backup/automation_policy.py
+  backup:
+    needs: admission
+    if: needs.admission.outputs.ready == 'true' && github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: core
+            secret_prefix: CORE
+          - target: portal
+            secret_prefix: PORTAL
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    environment: production-backup-auto
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Install pinned backup dependencies
+        run: |
+          python3 -m venv "$RUNNER_TEMP/backup-venv"
+          "$RUNNER_TEMP/backup-venv/bin/pip" install -r tools/backup/requirements.txt
+      - name: Verify reviewed SHA and build immutable PG17 restore image
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          docker build -f tools/backup/restore-image.Dockerfile -t adwaa-operational-restore:tested tools/backup
+          image=$(docker image inspect adwaa-operational-restore:tested --format '{{.Id}}')
+          echo "BACKUP_RESTORE_IMAGE=$image" >> "$GITHUB_ENV"
+      - name: Read-only export / encrypted private storage / isolated restore
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BACKUP_AUTO_EXECUTION_APPROVED: ${{ vars.BACKUP_AUTO_EXECUTION_APPROVED }}
+          BACKUP_TARGET: ${{ matrix.target }}
+          BACKUP_CONFIRMED_PROJECT_REF: ${{ vars[format('BACKUP_{0}_CONFIRMED_PROJECT_REF', matrix.secret_prefix)] }}
+          BACKUP_STORAGE_API_KEY: ${{ secrets[format('BACKUP_{0}_STORAGE_API_KEY', matrix.secret_prefix)] }}
+          PGHOST: ${{ secrets[format('BACKUP_{0}_PGHOST', matrix.secret_prefix)] }}
+          PGPORT: '5432'
+          PGUSER: ${{ secrets[format('BACKUP_{0}_PGUSER', matrix.secret_prefix)] }}
+          PGDATABASE: postgres
+          PGPASSWORD: ${{ secrets[format('BACKUP_{0}_PGPASSWORD', matrix.secret_prefix)] }}
+          PGSSLMODE: verify-full
+          BACKUP_CA_PEM: ${{ secrets[format('BACKUP_{0}_CA_PEM', matrix.secret_prefix)] }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets[format('BACKUP_{0}_ENCRYPTION_KEY', matrix.secret_prefix)] }}
+          BACKUP_STORAGE_PROVIDER: drive
+          BACKUP_DRIVE_CLIENT_ID: ${{ secrets.BACKUP_DRIVE_CLIENT_ID }}
+          BACKUP_DRIVE_CLIENT_SECRET: ${{ secrets.BACKUP_DRIVE_CLIENT_SECRET }}
+          BACKUP_DRIVE_REFRESH_TOKEN: ${{ secrets.BACKUP_DRIVE_REFRESH_TOKEN }}
+          BACKUP_DRIVE_ACCOUNT: ${{ vars.BACKUP_DRIVE_ACCOUNT }}
+          BACKUP_DRIVE_FOLDER_ID: ${{ vars[format('BACKUP_{0}_DRIVE_FOLDER_ID', matrix.secret_prefix)] }}
+          BACKUP_DRIVE_ESTIMATED_DAILY_BYTES: ${{ vars[format('BACKUP_{0}_DRIVE_ESTIMATED_DAILY_BYTES', matrix.secret_prefix)] }}
+          BACKUP_DRIVE_RETENTION_APPROVED: 'false'
+          BACKUP_MAX_STORAGE_BYTES: ${{ vars[format('BACKUP_{0}_MAX_STORAGE_BYTES', matrix.secret_prefix)] || '1073741824' }}
+          BACKUP_MAX_DATABASE_BYTES: ${{ vars[format('BACKUP_{0}_MAX_DATABASE_BYTES', matrix.secret_prefix)] || '1073741824' }}
+          BACKUP_COST_APPROVED: ${{ vars.BACKUP_COST_APPROVED }}
+        run: |
+          set -euo pipefail
+          umask 077
+          export PGSSLROOTCERT="$RUNNER_TEMP/adwaa-postgres-ca.pem"
+          trap 'rm -f "$PGSSLROOTCERT"' EXIT
+          printf '%s' "$BACKUP_CA_PEM" > "$PGSSLROOTCERT"
+          "$RUNNER_TEMP/backup-venv/bin/python" tools/backup/automatic.py backup
+      - name: Remove isolated target if the job was interrupted
+        if: always()
+        run: |
+          for kind in export restore; do
+            docker ps -aq --filter "name=adwaa-backup-$kind-" | xargs -r docker rm -f
+          done
+  notify-failure:
+    needs: [admission, backup]
+    if: always() && (needs.admission.result == 'failure' || needs.admission.result == 'cancelled' || needs.backup.result == 'failure' || needs.backup.result == 'cancelled')
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Notify owner without database diagnostics
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BACKUP_ALERT_CODE: BACKUP_OPERATION_FAILED
+        run: python3 tools/backup/notify.py

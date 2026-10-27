@@ -69,9 +69,10 @@ class ReadinessMonitoringTests(unittest.TestCase):
 
     def test_activation_and_all_triggers_remain_disabled(self):
         plan=json.loads((ROOT/'docs/backup/activation-plan.json').read_text())
-        for field in ['enabled','monitoring_enabled','deletion_enabled','oauth_secret_rotation_verified','storage_official_api_restore_verified']:
+        for field in ['enabled','monitoring_enabled','deletion_enabled','oauth_secret_rotation_verified']:
             self.assertIs(plan[field],False)
-        for filename in ['database-backup.yml','backup-health.yml','backup-watchdog.yml']:
+        self.assertIs(plan['storage_official_api_restore_verified'],True)
+        for filename in ['database-backup.yml','backup-daily.yml','backup-health.yml','backup-watchdog.yml']:
             text=(ROOT/'.github/workflows'/filename).read_text()
             self.assertNotIn('schedule:',text);self.assertNotIn('pull_request_target',text)
         api=(ROOT/'.github/workflows/backup-storage-api-test.yml').read_text()

@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 from datetime import datetime,timezone
 REPO='asm114/adwaa-alsharq'
-WORKFLOW='database-backup.yml'
+WORKFLOW='backup-daily.yml'
 CODES={'BACKUP_RUN_MISSING','BACKUP_RUN_STALE','BACKUP_RUN_FAILED','BACKUP_RUN_STALLED',
        'BACKUP_RUN_INCOMPLETE','BACKUP_MONITOR_API_FAILED','BACKUP_CLOCK_INVALID'}
 

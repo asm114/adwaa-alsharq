@@ -15,7 +15,7 @@ jobs:
             secret_prefix: CORE
           - target: portal
             secret_prefix: PORTAL
-    environment: production-backup
+    environment: production-backup-auto
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -27,7 +27,8 @@ jobs:
       - name: Read existing markers and remote checksums only
         env:
           BACKUP_TARGET: ${{ matrix.target }}
-          BACKUP_MODE: health
+          GH_TOKEN: ${{ github.token }}
+          BACKUP_AUTO_EXECUTION_APPROVED: ${{ vars.BACKUP_AUTO_EXECUTION_APPROVED }}
           BACKUP_STORAGE_PROVIDER: drive
           BACKUP_DRIVE_CLIENT_ID: ${{ secrets.BACKUP_DRIVE_CLIENT_ID }}
           BACKUP_DRIVE_CLIENT_SECRET: ${{ secrets.BACKUP_DRIVE_CLIENT_SECRET }}
@@ -35,12 +36,10 @@ jobs:
           BACKUP_DRIVE_ACCOUNT: ${{ vars.BACKUP_DRIVE_ACCOUNT }}
           BACKUP_COST_APPROVED: ${{ vars.BACKUP_COST_APPROVED }}
           BACKUP_DRIVE_FOLDER_ID: ${{ vars[format('BACKUP_{0}_DRIVE_FOLDER_ID', matrix.secret_prefix)] }}
-          BACKUP_EXECUTION_APPROVED: 'true'
           BACKUP_DRIVE_RETENTION_APPROVED: 'false'
-          BACKUP_SCHEDULE_APPROVED: 'false'
           BACKUP_HEALTH_MAX_AGE_HOURS: '30'
         run: |
-          "$RUNNER_TEMP/backup-health-venv/bin/python" tools/backup/runtime.py
+          "$RUNNER_TEMP/backup-health-venv/bin/python" tools/backup/automatic.py health
   alert:
     needs: health
     if: always() && (needs.health.result == 'failure' || needs.health.result == 'cancelled')
