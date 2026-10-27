@@ -42,6 +42,26 @@ skip معروفًا، وفشل تحديد النطاق يعيد الاختبار
 
 ## الإعداد داخل GitHub فقط — لا ترسل أي قيمة سرية للمحادثة
 
+محاولة التنفيذ الإداري عبر GitHub API رُفضت بـ403 لإنشاء ruleset ولإنشاء
+production-backup-auto، فتوقف التنفيذ دون تجاوز. جرى التحقق من أسماء checks
+الفعلية على 5041f27 ومن مصدرها GitHub Actions (integration_id=15368).
+قالب الاستيراد: [main-backup-protection.ruleset.json](main-backup-protection.ruleset.json).
+من [صفحة Rulesets](https://github.com/asm114/adwaa-alsharq/settings/rules)
+استخدم Import a ruleset إن ظهر، ثم راجع واحفظ. القالب Active على main فقط،
+ولا يحتوي Bypass أو أسرارًا. إذا بقيت في شاشة New branch ruleset غير المحفوظة،
+استخدم الإعدادات نفسها أدناه بدل إنشاء قاعدتين مكررتين.
+`Daily stability checks` هو اسم workflow؛ اسم الـcheck المطلوب هو **stability**.
+القالب لا يشترط موافقة مراجِع إضافي (required approvals=0)، لكنه يشترط PR
+والفحوص الأربعة الناجحة من GitHub Actions؛ ذلك يمنع قفل مالك وحيد عن دمج PR
+بسبب مراجع غير متاح. ويشترط تحديث الفرع مع main، ما قد يحتاج Update branch
+وإعادة CI قبل الدمج. لا Restrict updates ولا قفل للفرع ولا قواعد على فروع أخرى.
+
+روابط الإدارة المباشرة:
+
+- [إنشاء Branch ruleset](https://github.com/asm114/adwaa-alsharq/settings/rules/new?target=branch)
+- [إنشاء Environment](https://github.com/asm114/adwaa-alsharq/settings/environments/new)
+- [Repository variables](https://github.com/asm114/adwaa-alsharq/settings/variables/actions)
+
 1. Settings → Rules → Rulesets: قاعدة Active تستهدف main؛ منع الحذف وforce
    push، واشتراط PR وفحوص stability وsynthetic-only (core) وsynthetic-only
    (portal) وofficial-storage-service قبل الدمج. البوابة تتحقق من هذه القواعد
