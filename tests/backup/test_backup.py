@@ -1,0 +1,215 @@
+"""No production connections, cloud writes or credentials."""
+import base64,importlib.util,io,json,os,tempfile,unittest
+from pathlib import Path
+from unittest.mock import patch
+ROOT=Path(__file__).resolve().parents[2]
+spec=importlib.util.spec_from_file_location('backup',ROOT/'tools/backup/backup.py');b=importlib.util.module_from_spec(spec);spec.loader.exec_module(b)
+class Storage:
+    def get_object_lock_configuration(self,**kw):return {}
+    def get_public_access_block(self,**kw):return {'PublicAccessBlockConfiguration':dict.fromkeys(['BlockPublicAcls','IgnorePublicAcls','BlockPublicPolicy','RestrictPublicBuckets'],True)}
+    def get_bucket_policy_status(self,**kw):return {'PolicyStatus':{'IsPublic':False}}
+    def get_bucket_versioning(self,**kw):return {'Status':'Enabled'}
+    def get_bucket_lifecycle_configuration(self,**kw):return {'Rules':[{'Status':'Enabled','Filter':{'Prefix':b.PREFIX},'Expiration':{'Days':30},'NoncurrentVersionExpiration':{'NoncurrentDays':1}}]}
+    def get_bucket_encryption(self,**kw):return {'ServerSideEncryptionConfiguration':{'Rules':[{'ApplyServerSideEncryptionByDefault':{'SSEAlgorithm':'AES256'}}]}}
+    def get_bucket_ownership_controls(self,**kw):return {'OwnershipControls':{'Rules':[{'ObjectOwnership':'BucketOwnerEnforced'}]}}
+class BackupTests(unittest.TestCase):
+    def test_authenticated_streaming_and_no_plaintext(self):
+        with tempfile.TemporaryDirectory() as d:
+            p=Path(d)/'archive.enc';secret=os.urandom(32);plain=b'synthetic sensitive row'*100000
+            b.seal(io.BytesIO(plain),p,secret,'project/id/database');out=io.BytesIO();b.unseal(p,out,secret,'project/id/database')
+            self.assertEqual(out.getvalue(),plain);self.assertNotIn(b'synthetic sensitive row',p.read_bytes());self.assertEqual(p.stat().st_mode & 0o777,0o600)
+    def test_tamper_wrong_key_aad_and_truncation_rejected(self):
+        for fault in ['key','aad','ciphertext','tag','truncate']:
+            with self.subTest(fault=fault),tempfile.TemporaryDirectory() as d:
+                p=Path(d)/'a.enc';secret=os.urandom(32);b.seal(io.BytesIO(b'synthetic data'),p,secret,'expected')
+                data=bytearray(p.read_bytes())
+                if fault=='ciphertext':data[22]^=1
+                if fault=='tag':data[-1]^=1
+                if fault=='truncate':data=data[:10]
+                p.write_bytes(data)
+                with self.assertRaises(Exception):b.unseal(p,io.BytesIO(),os.urandom(32) if fault=='key' else secret,'other' if fault=='aad' else 'expected')
+    def test_digest_size_and_changes(self):
+        with tempfile.TemporaryDirectory() as d:
+            p=Path(d)/'x';p.write_bytes(b'one');first=b.digest(p);p.write_bytes(b'two');self.assertNotEqual(first,b.digest(p));self.assertEqual(first['bytes'],3)
+    def test_storage_policy_fails_closed(self):
+        b.check_storage(Storage(),'test','123456789012')
+        for method,response in [('get_public_access_block',{'PublicAccessBlockConfiguration':{}}),('get_bucket_policy_status',{'PolicyStatus':{'IsPublic':True}}),('get_bucket_versioning',{}),('get_bucket_lifecycle_configuration',{'Rules':[]}),('get_bucket_ownership_controls',{'OwnershipControls':{'Rules':[]}})]:
+            with self.subTest(method=method),patch.object(Storage,method,return_value=response),self.assertRaises(b.GateError):b.check_storage(Storage(),'test','123456789012')
+    def test_no_connection_without_tls_or_approved_project(self):
+        for config in [{},{'PGSSLMODE':'require'},{'PGSSLMODE':'verify-full','PGHOST':'other.supabase.co','PGUSER':'postgres','PGPORT':'5432'},{'PGSSLMODE':'verify-full','PGHOST':'db.'+b.PROJECT+'.supabase.co','PGUSER':'postgres','PGPORT':'6543'}]:
+            with patch.dict(os.environ,config,clear=True),patch.object(b.psycopg,'connect') as connect,self.assertRaises(b.GateError):b.source_connection()
+            connect.assert_not_called()
+    def test_no_cloud_without_cost_execution_approval(self):
+        with patch.dict(os.environ,{},clear=True),patch.object(b.boto3,'client') as client,self.assertRaises(b.GateError):b.storage()
+        client.assert_not_called()
+    def test_export_process_receives_no_cloud_keys(self):
+        with patch.dict(os.environ,{'PGPASSWORD':'synthetic-pg','BACKUP_ENCRYPTION_KEY':'synthetic-key','AWS_SECRET_ACCESS_KEY':'synthetic-cloud','BACKUP_DRIVE_CLIENT_SECRET':'synthetic-drive-secret','BACKUP_DRIVE_REFRESH_TOKEN':'synthetic-refresh','BACKUP_STORAGE_API_KEY':'synthetic-storage'}):
+            result=b.pg_env();self.assertNotIn('BACKUP_ENCRYPTION_KEY',result);self.assertNotIn('AWS_SECRET_ACCESS_KEY',result);self.assertNotIn('BACKUP_DRIVE_REFRESH_TOKEN',result);self.assertNotIn('BACKUP_DRIVE_CLIENT_SECRET',result);self.assertNotIn('BACKUP_STORAGE_API_KEY',result);self.assertIn('default_transaction_read_only=on',result['PGOPTIONS'])
+    def test_workflow_has_no_schedule_and_no_artifact_upload(self):
+        text=(ROOT/'.github/workflows/database-backup.yml').read_text()
+        self.assertNotIn('schedule:',text);self.assertNotIn('upload-artifact',text);self.assertNotIn('pull_request_target',text)
+        self.assertIn('workflow_dispatch:',text);self.assertIn('environment: production-backup',text)
+    def test_commit_marker_last_and_not_written_after_upload_failure(self):
+        class Conn:
+            def __enter__(self):return self
+            def __exit__(self,*args):pass
+            def execute(self,q):
+                value='snapshot' if 'pg_export_snapshot' in q else '[]'
+                return type('R',(),{'fetchone':lambda self:(value,)})()
+        class Store:
+            def __init__(self,fail=False):self.events=[];self.fail=fail
+            def upload_file(self,path,bucket,key,ExtraArgs):
+                self.events.append(key)
+                if self.fail:raise OSError('synthetic upload failure')
+            def head_object(self,**kw):return {'ContentLength':3}
+            def put_object(self,**kw):self.events.append(kw['Key'])
+        def export(command,path,*args):path.write_bytes(b'enc')
+        def capture(engine,conn,path,*args):path.write_bytes(b'enc');return {'inventory':{'buckets':[],'objects':[]},'files':[]}
+        verification={'sequences':[],'roles':'[]','memberships':'[]'}
+        for fail in [False,True]:
+            store=Store(fail)
+            with tempfile.TemporaryDirectory() as d,patch.object(b,'source_connection',return_value=Conn()),patch.object(b,'snapshot',return_value=dict(verification)),patch.object(b,'export',side_effect=export),patch('storage_source.capture',side_effect=capture),patch.object(b,'key',return_value=os.urandom(32)):
+                if fail:
+                    with self.assertRaises(OSError):b.backup(store,'bucket','123456789012',d)
+                    self.assertFalse(any(x.endswith('complete.json') for x in store.events))
+                else:
+                    # verification.enc has an authenticated header/payload/tag, not 3 bytes.
+                    store.head_object=lambda **kw:{'ContentLength':Path(d,kw['Key'].split('/')[-1]).stat().st_size}
+                    b.backup(store,'bucket','123456789012',d)
+                    self.assertTrue(store.events[-1].endswith('complete.json'));self.assertEqual(len(store.events),5)
+    def test_restore_fetches_remote_objects_and_rejects_changed_marker(self):
+        backup_id='20261024T000000Z-'+'a'*32
+        manifest={'project':b.PROJECT,'format':1,'backup_id':backup_id,'files':{p:{'bytes':3,'sha256':'x'} for p in b.PARTS}}
+        class Store:
+            def __init__(self):self.downloads=[]
+            def get_object(self,**kw):return {'Body':io.BytesIO(json.dumps(manifest).encode())}
+            def head_object(self,**kw):return {'ContentLength':3}
+            def download_file(self,bucket,key,path,ExtraArgs):self.downloads.append(key);Path(path).write_bytes(b'enc')
+        with tempfile.TemporaryDirectory() as d:
+            store=Store();b.fetch_committed(store,'bucket','123456789012',manifest,d)
+            self.assertEqual(len(store.downloads),3)
+            with patch.object(store,'get_object',return_value={'Body':io.BytesIO(b'{}')}),self.assertRaises(b.GateError):b.fetch_committed(store,'bucket','123456789012',manifest,d)
+    def test_missing_or_stale_remote_backup_is_not_a_success(self):
+        class Pages:
+            def paginate(self,**kw):return [{'Contents':[]}]
+        store=type('S',(),{'get_paginator':lambda self,*args:Pages()})()
+        with tempfile.TemporaryDirectory() as d,self.assertRaises(b.GateError):b.latest(store,'bucket','owner',d)
+    def test_export_uses_pinned_clients_without_password_in_argv(self):
+        class Process:
+            def __init__(self):self.stdout=io.BytesIO(b'synthetic dump')
+            def wait(self,**kw):return 0
+            def poll(self):return 0
+        with tempfile.TemporaryDirectory() as d,patch.dict(os.environ,{'PGSSLROOTCERT':'/tmp/synthetic-ca','PGPASSWORD':'synthetic-password','AWS_SECRET_ACCESS_KEY':'synthetic-cloud'}),patch.object(b.subprocess,'Popen',return_value=Process()) as process,patch.object(b.subprocess,'run'):
+            b.export(['pg_dump','--no-password'],Path(d)/'dump.enc',os.urandom(32),'aad')
+            call=process.call_args;self.assertIn(b.IMAGE,call.args[0]);self.assertIn('pg_dump',call.args[0]);self.assertNotIn('synthetic-password',str(call.args[0]));self.assertNotIn('AWS_SECRET_ACCESS_KEY',call.kwargs['env'])
+    def test_corrupt_archive_cannot_start_restore_container(self):
+        with tempfile.TemporaryDirectory() as d,patch.object(b,'key',return_value=os.urandom(32)),patch.object(b,'docker') as docker:
+            for part in b.PARTS:Path(d,part+'.enc').write_bytes(b'corrupt')
+            manifest={'format':1,'project':b.PROJECT,'backup_id':'20261024T000000Z-'+'a'*32,'files':{p:{'bytes':1,'sha256':'wrong'} for p in b.PARTS}}
+            with self.assertRaises(b.GateError):b.isolated_restore(d,manifest)
+            docker.assert_not_called()
+    def test_accidental_schedule_cannot_connect_without_approval(self):
+        with patch.dict(os.environ,{'GITHUB_REF':'refs/heads/main','GITHUB_EVENT_NAME':'schedule'},clear=True),patch.object(b.sys,'argv',['backup.py','backup']),patch.object(b,'storage') as storage,self.assertRaises(b.GateError):b.main()
+        storage.assert_not_called()
+    def test_health_requires_fresh_matching_restore_and_all_parts(self):
+        now=b.datetime.now(b.timezone.utc)
+        backup_id=now.strftime('%Y%m%dT%H%M%SZ')+'-'+'a'*32
+        manifest={'project':b.PROJECT,'format':2,'backup_id':backup_id,'files':{p:{'bytes':3,'sha256':'unused-metadata-check'} for p in b.FULL_PARTS}}
+        evidence={'project':b.PROJECT,'backup_id':backup_id,'restore_verified':True,'tables_verified':11,'storage_files_verified':True}
+        class Store:
+            def get_paginator(self,*args):return self
+            def paginate(self,**kw):return [{'Contents':[{'Key':b.PREFIX+backup_id+'/complete.json','LastModified':now}]}]
+            def get_object(self,**kw):return {'Body':io.BytesIO(json.dumps(evidence if kw['Key'].endswith('restore-ok.json') else manifest).encode())}
+            def head_object(self,**kw):return {'ContentLength':3}
+        store=Store()
+        self.assertTrue(b.health(store,'bucket','owner')['recent_restored_backup'])
+        for changes in [{'backup_id':'other'},{'project':'other'},{'restore_verified':False},{'tables_verified':0}]:
+            with patch.dict(evidence,changes),self.assertRaises(b.GateError):b.health(store,'bucket','owner')
+        with patch.object(store,'head_object',return_value={'ContentLength':4}),self.assertRaises(b.GateError):b.health(store,'bucket','owner')
+        original_get=store.get_object
+        def missing_restore(**kw):
+            if kw['Key'].endswith('restore-ok.json'):raise FileNotFoundError('synthetic missing restore marker')
+            return original_get(**kw)
+        with patch.object(store,'get_object',side_effect=missing_restore),self.assertRaises(FileNotFoundError):b.health(store,'bucket','owner')
+        from datetime import timedelta
+        for timestamp in [now-timedelta(hours=49),now+timedelta(hours=1)]:
+            with patch.object(store,'paginate',return_value=[{'Contents':[{'Key':b.PREFIX+backup_id+'/complete.json','LastModified':timestamp}]}]),self.assertRaises(b.GateError):b.health(store,'bucket','owner')
+
+    def test_health_mode_never_connects_to_database_or_restores(self):
+        with patch.dict(os.environ,{'GITHUB_REF':'refs/heads/main'},clear=True),patch.object(b.sys,'argv',['backup.py','health']),patch.object(b,'storage',return_value=(object(),'bucket','owner')),patch.object(b,'health',return_value={'recent_restored_backup':True}),patch.object(b,'source_connection') as source,patch.object(b,'isolated_restore') as restore:
+            b.main()
+        source.assert_not_called();restore.assert_not_called()
+
+    def test_drive_setup_needs_no_general_execution_permission(self):
+        from contextlib import redirect_stdout
+        import drive_store
+        for general in [None,'false']:
+            config={'GITHUB_REF':'refs/heads/ops/encrypted-daily-backup-20261024','BACKUP_COST_APPROVED':'true','BACKUP_DRIVE_SETUP_APPROVED':'true','BACKUP_DRIVE_ACCOUNT':'synthetic@example.invalid'}
+            if general is not None:config['BACKUP_EXECUTION_APPROVED']=general
+            with self.subTest(general=general),patch.dict(os.environ,config,clear=True),patch.object(b.sys,'argv',['backup.py','init-drive']),patch.object(drive_store,'authenticate',return_value=object()) as auth,patch.object(drive_store,'initialize_folder',return_value='synthetic-folder') as folder,patch.object(b,'storage') as storage,patch.object(b,'source_connection') as source,redirect_stdout(io.StringIO()):
+                b.main()
+                auth.assert_called_once();folder.assert_called_once();storage.assert_not_called();source.assert_not_called()
+
+    def test_drive_setup_still_requires_both_scoped_approvals(self):
+        import drive_store
+        for flags in [{},{'BACKUP_COST_APPROVED':'true'},{'BACKUP_DRIVE_SETUP_APPROVED':'true'},{'BACKUP_COST_APPROVED':'false','BACKUP_DRIVE_SETUP_APPROVED':'true'},{'BACKUP_COST_APPROVED':'true','BACKUP_DRIVE_SETUP_APPROVED':'false'}]:
+            config={'GITHUB_REF':'refs/heads/ops/encrypted-daily-backup-20261024','BACKUP_EXECUTION_APPROVED':'true',**flags}
+            with self.subTest(flags=flags),patch.dict(os.environ,config,clear=True),patch.object(b.sys,'argv',['backup.py','init-drive']),patch.object(drive_store,'authenticate') as auth,patch.object(drive_store,'initialize_folder') as folder,self.assertRaises(b.GateError):b.main()
+            auth.assert_not_called();folder.assert_not_called()
+
+    def test_setup_approval_never_authorizes_backup_or_restore(self):
+        import drive_store
+        for operation in ['backup','restore']:
+            config={'GITHUB_REF':'refs/heads/main','BACKUP_COST_APPROVED':'true','BACKUP_DRIVE_SETUP_APPROVED':'true','BACKUP_EXECUTION_APPROVED':'false'}
+            with self.subTest(operation=operation),patch.dict(os.environ,config,clear=True),patch.object(b.sys,'argv',['backup.py',operation]),patch.object(drive_store,'authenticate') as auth,patch.object(b,'source_connection') as source,patch.object(b,'backup') as backup,patch.object(b,'isolated_restore') as restore,self.assertRaises(b.GateError):b.main()
+            auth.assert_not_called();source.assert_not_called();backup.assert_not_called();restore.assert_not_called()
+
+    def test_protected_setup_has_exact_sha_review_and_fixed_operations(self):
+        import re
+        text=(ROOT/'.github/workflows/backup-protected-setup.yml').read_text()
+        init=text.split('  initialize-drive:',1)[1].split('  inspect-drive:',1)[0]
+        self.assertNotIn('BACKUP_EXECUTION_APPROVED',init)
+        for flag in ['BACKUP_DRIVE_SETUP_APPROVED','BACKUP_COST_APPROVED']:self.assertIn(flag,text)
+        self.assertEqual(text.count('vars.BACKUP_SETUP_APPROVED_SHA == github.sha'),2)
+        self.assertIn('inputs.approved_sha == github.sha',text)
+        self.assertEqual(text.count('environment: production-backup'),2)
+        self.assertEqual(text.count('ref: ${{ github.sha }}'),2)
+        self.assertEqual(set(re.findall(r'backup\.py ([a-z-]+)',text)),{'init-drive','inspect-drive'})
+        self.assertIn('options: [inspect-drive, init-drive]',text)
+        self.assertIn('default: inspect-drive',text)
+        for event in ['push:','pull_request:','schedule:']:self.assertNotIn(event,text)
+        self.assertNotIn('PGPASSWORD',text)
+        self.assertNotIn('BACKUP_STORAGE_API_KEY',text)
+        self.assertIn('BACKUP_DRIVE_RETENTION_APPROVED: \'false\'',text)
+
+    def test_manual_setup_condition_rejects_wrong_event_operation_ref_or_sha(self):
+        from types import SimpleNamespace
+        text=(ROOT/'.github/workflows/backup-protected-setup.yml').read_text()
+        condition=text.split('    if: >-',1)[1].split('    environment:',1)[0].strip().replace('&&',' and ')
+        defaults={'event':'workflow_dispatch','operation':'init-drive','requested':'a'*40,'sha':'a'*40,'approved':'a'*40,'mode':'init-drive','repo':'asm114/adwaa-alsharq','ref':'refs/heads/ops/encrypted-daily-backup-20261024'}
+        def permits(**overrides):
+            values={**defaults,**overrides}
+            context={'github':SimpleNamespace(event_name=values['event'],repository=values['repo'],ref=values['ref'],sha=values['sha']),'inputs':SimpleNamespace(operation=values['operation'],approved_sha=values['requested']),'vars':SimpleNamespace(BACKUP_SETUP_MODE=values['mode'],BACKUP_SETUP_APPROVED_SHA=values['approved'])}
+            return eval('('+condition+')',{'__builtins__':{}},context)
+        self.assertTrue(permits())
+        for override in [{'event':'push'},{'event':'schedule'},{'operation':'backup'},{'operation':'restore'},{'operation':'preflight'},{'operation':''},{'requested':''},{'requested':'b'*40},{'approved':''},{'approved':'b'*40},{'mode':'preflight'},{'repo':'other/repo'},{'ref':'refs/heads/main'},{'ref':'refs/pull/165/merge'}]:
+            with self.subTest(override=override):self.assertFalse(permits(**override))
+
+    def test_inspection_job_rejects_operation_mode_sha_and_branch_mismatches(self):
+        from types import SimpleNamespace
+        text=(ROOT/'.github/workflows/backup-protected-setup.yml').read_text().split('  inspect-drive:',1)[1]
+        condition=text.split('    if: >-',1)[1].split('    environment:',1)[0].strip().replace('&&',' and ')
+        defaults={'event':'workflow_dispatch','operation':'inspect-drive','requested':'a'*40,'sha':'a'*40,'approved':'a'*40,'mode':'inspect-drive','repo':'asm114/adwaa-alsharq','ref':'refs/heads/ops/encrypted-daily-backup-20261024'}
+        def permits(**overrides):
+            v={**defaults,**overrides}
+            context={'github':SimpleNamespace(event_name=v['event'],repository=v['repo'],ref=v['ref'],sha=v['sha']),'inputs':SimpleNamespace(operation=v['operation'],approved_sha=v['requested']),'vars':SimpleNamespace(BACKUP_SETUP_MODE=v['mode'],BACKUP_SETUP_APPROVED_SHA=v['approved'])}
+            return eval('('+condition+')',{'__builtins__':{}},context)
+        self.assertTrue(permits())
+        for change in [{'event':'push'},{'event':'schedule'},{'operation':'init-drive'},{'operation':'backup'},{'operation':'restore'},{'operation':'preflight'},{'mode':'init-drive'},{'approved':''},{'approved':'b'*40},{'requested':'b'*40},{'repo':'other/repo'},{'ref':'refs/heads/main'}]:
+            with self.subTest(change=change):self.assertFalse(permits(**change))
+        self.assertIn("BACKUP_DRIVE_SETUP_APPROVED: 'false'",text)
+        self.assertIn("BACKUP_EXECUTION_APPROVED: 'false'",text)
+        self.assertIn("BACKUP_RESTORE_APPROVED: 'false'",text)
+
+    def test_quote_untrusted_identifier(self):self.assertEqual(b.quote('x";DROP'),'"x"";DROP"')
+if __name__=='__main__':unittest.main()

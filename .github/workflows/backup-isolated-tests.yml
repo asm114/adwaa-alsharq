@@ -1,0 +1,76 @@
+name: Backup isolated acceptance
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      backup: ${{ steps.scope.outputs.backup }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python3 - <<'PY'
+          import os,re,subprocess
+          base,head=os.environ['BASE_SHA'],os.environ['HEAD_SHA']
+          assert all(re.fullmatch('[a-f0-9]{40}',sha) for sha in (base,head))
+          files=subprocess.check_output(['git','diff','--name-only','-z',base,head]).decode().split('\0')
+          relevant=any(p.startswith(('tools/backup/','tests/backup/','.github/workflows/backup-')) or
+                       p in ('.github/workflows/database-backup.yml','docs/backup/activation-plan.json') for p in files)
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out:out.write('backup='+str(relevant).lower()+'\n')
+          PY
+  official-storage-service:
+    needs: changes
+    if: always() && (needs.changes.result != 'success' || needs.changes.outputs.backup == 'true')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Test official local Storage API with invented files (no credentials)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/storage-service-tests"
+          "$RUNNER_TEMP/storage-service-tests/bin/pip" install -r tools/backup/requirements.txt
+          "$RUNNER_TEMP/storage-service-tests/bin/python" tests/backup/storage_service_integration.py
+  synthetic-only:
+    needs: changes
+    if: always() && (needs.changes.result != 'success' || needs.changes.outputs.backup == 'true')
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [core, portal]
+    env:
+      BACKUP_TARGET: ${{ matrix.target }}
+      BACKUP_TEST_RESTRICTED_POSTGRES: 'true'
+      BACKUP_TEST_RENDER_CONTEXT: 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Build and pin the production-compatible restore image for synthetic tests
+        run: |
+          set -euo pipefail
+          docker build -f tools/backup/restore-image.Dockerfile -t adwaa-ci-restore:tested tools/backup
+          image=$(docker image inspect adwaa-ci-restore:tested --format '{{.Id}}')
+          echo "BACKUP_TEST_RESTORE_IMAGE=$image" >> "$GITHUB_ENV"
+      - run: |
+          python3 -m venv "$RUNNER_TEMP/backup-tests"
+          "$RUNNER_TEMP/backup-tests/bin/pip" install -r tools/backup/requirements.txt
+          "$RUNNER_TEMP/backup-tests/bin/python" tests/backup/manual_suite.py
+          "$RUNNER_TEMP/backup-tests/bin/python" tests/backup/restore_integration.py
+          BACKUP_TEST_EXPECT_SCHEMA_MISMATCH=true "$RUNNER_TEMP/backup-tests/bin/python" tests/backup/restore_integration.py
+          BACKUP_TEST_EXPECT_MEMBERSHIP_MISMATCH=true "$RUNNER_TEMP/backup-tests/bin/python" tests/backup/restore_integration.py
+      - if: always()
+        run: |
+          docker ps -aq --filter 'name=adwaa-backup-source-' --filter 'name=adwaa-backup-restore-' | xargs -r docker rm -f
