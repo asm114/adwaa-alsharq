@@ -546,14 +546,20 @@ def committed_manifest(s3,bucket,owner):
 def health(s3,bucket,owner):
     # Metadata-only liveness check; never decrypts or writes storage or PostgreSQL.
     manifest=committed_manifest(s3,bucket,owner)
+    maximum_age=int(os.environ.get('BACKUP_HEALTH_MAX_AGE_HOURS','30'))
+    require(0<maximum_age<=48,'invalid health freshness limit')
+    created=datetime.strptime(manifest['backup_id'][:16],'%Y%m%dT%H%M%SZ').replace(tzinfo=timezone.utc)
+    require(0<=(datetime.now(timezone.utc)-created).total_seconds()<=maximum_age*3600,'BACKUP_HEALTH_STALE')
     response=s3.get_object(Bucket=bucket,Key=PREFIX+manifest['backup_id']+'/restore-ok.json',ExpectedBucketOwner=owner)
     evidence=json.loads(response['Body'].read(65537))
     require(evidence.get('project')==PROJECT and evidence.get('backup_id')==manifest['backup_id'] and evidence.get('restore_verified') is True,'latest backup has no matching successful restore evidence')
     require(type(evidence.get('tables_verified')) is int and evidence['tables_verified']>0,'restore evidence has no verified tables')
     for part in archive_parts(manifest):
-        require(s3.head_object(Bucket=bucket,Key=PREFIX+manifest['backup_id']+'/'+part+'.enc',ExpectedBucketOwner=owner)['ContentLength']==manifest['files'][part]['bytes'],'backup part missing or size differs')
+        head=s3.head_object(Bucket=bucket,Key=PREFIX+manifest['backup_id']+'/'+part+'.enc',ExpectedBucketOwner=owner)
+        require(head['ContentLength']==manifest['files'][part]['bytes'],'backup part missing or size differs')
+        if getattr(s3,'remote_checksum',False):require(head.get('SHA256')==manifest['files'][part]['sha256'],'BACKUP_HEALTH_CHECKSUM_MISMATCH')
     require(manifest['format']==2 and evidence.get('storage_files_verified') is True,'latest backup is not database plus Storage verified')
-    return {'recent_restored_backup':True,'maximum_age_hours':48,'storage_files_verified':True,'storage_service_restore_verified':False}
+    return {'recent_restored_backup':True,'maximum_age_hours':maximum_age,'storage_files_verified':True,'storage_service_restore_verified':False}
 
 def latest(s3,bucket,owner,directory):
     return fetch_committed(s3,bucket,owner,committed_manifest(s3,bucket,owner),directory)
@@ -565,8 +571,8 @@ def main():
     mode=sys.argv[1]
     require(os.environ.get('BACKUP_DRIVE_RETENTION_APPROVED')!='true','retention is disabled for comprehensive backups')
     if os.environ.get('GITHUB_EVENT_NAME')=='schedule':
+        require(os.environ.get('GITHUB_REF')=='refs/heads/main','scheduled execution is main-only')
         require(os.environ.get('BACKUP_SCHEDULE_APPROVED')=='true' and os.environ.get('BACKUP_PRODUCTION_RESTORE_VERIFIED')=='true','scheduled execution awaits production restore and owner approval')
-        if os.environ.get('BACKUP_STORAGE_PROVIDER','drive')=='drive':require(os.environ.get('BACKUP_DRIVE_RETENTION_APPROVED')=='true','Drive retention activation not approved')
     if mode=='inspect-drive':
         require(env('BACKUP_COST_APPROVED')=='true','Drive inspection cost not approved')
         from drive_store import authenticate,inspection_report

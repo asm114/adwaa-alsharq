@@ -5,7 +5,7 @@ on:
       operation:
         description: Preflight, new backup plus restore, or restore latest backup
         type: choice
-        options: [preflight, backup, restore, init-drive, retention-plan, health]
+        options: [preflight, backup, restore, health]
         default: preflight
         required: true
 # Intentionally NO scheduled event. Activation is a separate approved change.
@@ -36,6 +36,15 @@ jobs:
         run: |
           python3 -m venv "$RUNNER_TEMP/backup-venv"
           "$RUNNER_TEMP/backup-venv/bin/pip" install -r tools/backup/requirements.txt
+      - name: Verify reviewed SHA and build immutable PG17 restore image
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          docker build -f tools/backup/restore-image.Dockerfile -t adwaa-operational-restore:tested tools/backup
+          image=$(docker image inspect adwaa-operational-restore:tested --format '{{.Id}}')
+          echo "BACKUP_RESTORE_IMAGE=$image" >> "$GITHUB_ENV"
       - name: Read-only export / encrypted private storage / isolated restore
         env:
           BACKUP_MODE: ${{ inputs.operation || 'backup' }}
@@ -63,7 +72,6 @@ jobs:
           BACKUP_SCHEDULE_APPROVED: 'false'
           BACKUP_MAX_STORAGE_BYTES: ${{ vars[format('BACKUP_{0}_MAX_STORAGE_BYTES', matrix.secret_prefix)] || '1073741824' }}
           BACKUP_MAX_DATABASE_BYTES: ${{ vars[format('BACKUP_{0}_MAX_DATABASE_BYTES', matrix.secret_prefix)] || '1073741824' }}
-          BACKUP_RESTORE_IMAGE: ${{ vars[format('BACKUP_{0}_RESTORE_IMAGE', matrix.secret_prefix)] }}
           BACKUP_EXECUTION_APPROVED: ${{ vars.BACKUP_EXECUTION_APPROVED }}
           BACKUP_RESTORE_APPROVED: ${{ vars.BACKUP_RESTORE_APPROVED }}
           BACKUP_COST_APPROVED: ${{ vars.BACKUP_COST_APPROVED }}
@@ -73,7 +81,7 @@ jobs:
           export PGSSLROOTCERT="$RUNNER_TEMP/adwaa-postgres-ca.pem"
           trap 'rm -f "$PGSSLROOTCERT"' EXIT
           printf '%s' "$BACKUP_CA_PEM" > "$PGSSLROOTCERT"
-          "$RUNNER_TEMP/backup-venv/bin/python" tools/backup/backup.py "$BACKUP_MODE"
+          "$RUNNER_TEMP/backup-venv/bin/python" tools/backup/runtime.py
       - name: Remove isolated target if the job was interrupted
         if: always()
         run: |
@@ -88,19 +96,11 @@ jobs:
       issues: write
       contents: read
     steps:
-      - name: Notify maintainers without database diagnostics
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Notify owner without database diagnostics
         env:
           GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          ALERT_ASSIGNEE: ${{ vars.BACKUP_ALERT_ASSIGNEE || github.repository_owner }}
-          RUN_LINK: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          set -euo pipefail
-          title='Production backup needs attention'
-          existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
-          body="Backup or restore did not pass. No success is certified. Review the protected run: $RUN_LINK. Do not paste database logs or credentials."
-          if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body "$body"
-          else
-            gh issue create --title "$title" --body "$body" --assignee "$ALERT_ASSIGNEE"
-          fi
+          BACKUP_ALERT_CODE: BACKUP_OPERATION_FAILED
+        run: python3 tools/backup/notify.py

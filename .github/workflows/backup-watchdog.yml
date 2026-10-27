@@ -1,0 +1,37 @@
+name: Independent backup workflow watchdog (not scheduled)
+on:
+  workflow_dispatch:
+# No cron until explicit owner approval. No backup secrets or environment needed.
+permissions:
+  contents: read
+  actions: read
+jobs:
+  watchdog:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    outputs:
+      code: ${{ steps.check.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Check scheduled backup absence, failure, stalled approval and both targets
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/backup/watchdog.py
+  alert:
+    needs: watchdog
+    if: always() && (needs.watchdog.result == 'failure' || needs.watchdog.result == 'cancelled')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          BACKUP_ALERT_CODE: ${{ needs.watchdog.outputs.code || 'BACKUP_MONITOR_FAILED' }}
+        run: python3 tools/backup/notify.py

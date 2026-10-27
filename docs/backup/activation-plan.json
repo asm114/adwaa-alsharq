@@ -7,5 +7,14 @@
   "deletion_enabled": false,
   "requires_real_production_restore": true,
   "requires_explicit_owner_approval": true,
-  "legacy_backup_retention": "never touched"
+  "legacy_backup_retention": "never touched",
+  "monitoring_enabled": false,
+  "monitor_cron_utc": "30 */6 * * *",
+  "maximum_backup_age_hours": 30,
+  "maximum_workflow_duration_hours": 2,
+  "retention_policy": "preserve_all_no_automatic_deletion",
+  "retention_days_is_planning_target_only": true,
+  "oauth_secret_rotation_verified": false,
+  "storage_official_api_restore_verified": false,
+  "environment_approval_policy_change_requires_owner_approval": true
 }

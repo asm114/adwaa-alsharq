@@ -110,6 +110,7 @@ def file_hash(path):
     return h.hexdigest()
 
 class DriveStore:
+    remote_checksum=True
     def __init__(self,service,folder,email,daily_bytes):
         self.service=service;self.folder=folder;self.email=email.lower();self.daily_bytes=int(daily_bytes);self.ids={}
         require(self.daily_bytes>0,'approved daily Drive size estimate required')
@@ -269,7 +270,7 @@ class DriveStore:
         return self._put(Key,MediaIoBaseUpload(io.BytesIO(Body),mimetype='application/octet-stream',chunksize=256*1024,resumable=True),len(Body),hashlib.sha256(Body).hexdigest())
     def head_object(self,Bucket,Key,**kwargs):
         require(Bucket==self.folder,'wrong folder');file=self._find(Key);require(file is not None,'Drive object missing')
-        return {'ContentLength':int(file['size'])}
+        return {'ContentLength':int(file['size']),'SHA256':file.get('sha256Checksum')}
     def _download(self,file,sink):
         request=self.service.files().get_media(fileId=file['id'])
         downloader=MediaIoBaseDownload(sink,request,chunksize=8*1024*1024);done=False
