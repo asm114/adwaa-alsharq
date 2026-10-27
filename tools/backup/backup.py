@@ -363,28 +363,30 @@ def stage_file(container,target,size,producer):
         stream.flush();stream.seek(0)
         # Linux UAPI constants are absent from some Python fcntl builds.
         fcntl.fcntl(fd,getattr(fcntl,'F_ADD_SEALS',1033),0x0f)
-        import docker as docker_sdk
-        api=docker_sdk.APIClient(base_url='unix:///var/run/docker.sock',version='1.47',timeout=120)
-        channel=None
+        # Give Docker CLI the sealed memfd as a finite stdin stream. Unlike an
+        # SDK hijacked socket, the CLI forwards EOF after the file ends; the
+        # target's head process cannot be stranded awaiting a socket shutdown.
+        # No plaintext is persisted on the host or exposed in command arguments.
+        command=['docker','--host=unix:///var/run/docker.sock','exec','-i',
+                 container,'sh','-c','umask 077; head -c '+str(size)+' > '+target]
         try:
-            command=['sh','-c','umask 077; head -c '+str(size)+' > '+target]
-            exec_id=api.exec_create(container,command,stdin=True,stdout=False,stderr=False)['Id']
-            channel=api.exec_start(exec_id,socket=True)
-            channel._sock.settimeout(120)
-            while chunk:=stream.read(1024*1024):channel._sock.sendall(chunk)
-            deadline=time.monotonic()+120
-            while time.monotonic()<deadline:
-                state=api.exec_inspect(exec_id)
-                if not state['Running'] and type(state.get('ExitCode')) is int:
-                    if state['ExitCode']!=0:raise RestoreError('RESTORE_STAGING_PROCESS_FAILED')
-                    break
-                time.sleep(.1)
-            else:raise RestoreError('RESTORE_STAGING_TIMEOUT')
-        except GateError:raise
-        except Exception:raise RestoreError('RESTORE_STAGING_TRANSPORT_FAILED') from None
-        finally:
-            if channel is not None:channel.close()
-            api.close()
+            completed=subprocess.run(command,stdin=stream,stdout=subprocess.DEVNULL,
+                                     stderr=subprocess.PIPE,timeout=180,check=False)
+            if completed.returncode!=0:
+                raise RestoreError('RESTORE_STAGING_PROCESS_FAILED')
+            # Docker exiting successfully must not silently certify truncated data.
+            length=subprocess.run(
+                ['docker','--host=unix:///var/run/docker.sock','exec',container,
+                 'sh','-c','wc -c < '+target],
+                capture_output=True,timeout=60,check=False)
+            if length.returncode!=0 or length.stdout.strip()!=str(size).encode():
+                raise RestoreError('RESTORE_STAGING_PROCESS_FAILED')
+        except subprocess.TimeoutExpired:
+            raise RestoreError('RESTORE_STAGING_TIMEOUT') from None
+        except RestoreError:
+            raise
+        except Exception:
+            raise RestoreError('RESTORE_STAGING_TRANSPORT_FAILED') from None
 
 def isolated_restore(directory,manifest):
     require(manifest.get('project')==PROJECT and manifest.get('format') in (1,2),'wrong archive project/format')
