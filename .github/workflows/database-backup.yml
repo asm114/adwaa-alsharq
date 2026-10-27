@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   backup:
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     strategy:
       fail-fast: false
       matrix:
@@ -47,7 +47,7 @@ jobs:
           echo "BACKUP_RESTORE_IMAGE=$image" >> "$GITHUB_ENV"
       - name: Read-only export / encrypted private storage / isolated restore
         env:
-          BACKUP_MODE: ${{ inputs.operation || 'backup' }}
+          BACKUP_MODE: ${{ inputs.operation }}
           BACKUP_TARGET: ${{ matrix.target }}
           BACKUP_CONFIRMED_PROJECT_REF: ${{ vars[format('BACKUP_{0}_CONFIRMED_PROJECT_REF', matrix.secret_prefix)] }}
           BACKUP_STORAGE_API_KEY: ${{ secrets[format('BACKUP_{0}_STORAGE_API_KEY', matrix.secret_prefix)] }}
@@ -72,8 +72,10 @@ jobs:
           BACKUP_SCHEDULE_APPROVED: 'false'
           BACKUP_MAX_STORAGE_BYTES: ${{ vars[format('BACKUP_{0}_MAX_STORAGE_BYTES', matrix.secret_prefix)] || '1073741824' }}
           BACKUP_MAX_DATABASE_BYTES: ${{ vars[format('BACKUP_{0}_MAX_DATABASE_BYTES', matrix.secret_prefix)] || '1073741824' }}
-          BACKUP_EXECUTION_APPROVED: ${{ vars.BACKUP_EXECUTION_APPROVED }}
-          BACKUP_RESTORE_APPROVED: ${{ vars.BACKUP_RESTORE_APPROVED }}
+          # This step runs only after production-backup environment approval.
+          # backup authorizes export + isolated verification, never another operation.
+          BACKUP_EXECUTION_APPROVED: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.operation == 'backup') && 'true' || (inputs.operation != 'backup' && vars.BACKUP_EXECUTION_APPROVED) || 'false' }}
+          BACKUP_RESTORE_APPROVED: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.operation == 'backup') && 'true' || (inputs.operation != 'backup' && vars.BACKUP_RESTORE_APPROVED) || 'false' }}
           BACKUP_COST_APPROVED: ${{ vars.BACKUP_COST_APPROVED }}
         run: |
           set -euo pipefail
