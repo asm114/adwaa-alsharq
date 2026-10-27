@@ -67,7 +67,7 @@ jobs:
       - run: |
           python3 -m venv "$RUNNER_TEMP/backup-tests"
           "$RUNNER_TEMP/backup-tests/bin/pip" install -r tools/backup/requirements.txt
-          "$RUNNER_TEMP/backup-tests/bin/python" -m unittest discover -s tests/backup -p 'test_*.py' -v
+          "$RUNNER_TEMP/backup-tests/bin/python" tests/backup/manual_suite.py
           "$RUNNER_TEMP/backup-tests/bin/python" tests/backup/restore_integration.py
           BACKUP_TEST_EXPECT_SCHEMA_MISMATCH=true "$RUNNER_TEMP/backup-tests/bin/python" tests/backup/restore_integration.py
           BACKUP_TEST_EXPECT_MEMBERSHIP_MISMATCH=true "$RUNNER_TEMP/backup-tests/bin/python" tests/backup/restore_integration.py
