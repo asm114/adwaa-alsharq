@@ -23,7 +23,9 @@ def send(code,run_id):
     link='https://github.com/'+REPO+'/actions/runs/'+str(run_id)
     tag='<!--adwaa-backup-alert:'+code+':'+str(run_id)+'-->'
     body=tag+'\n'+('TEST ONLY — no production incident. ' if code==TEST_CODE else '')+'Backup readiness requires attention: '+code+'.\nNo backup success is certified by this alert.\nReview: '+link+'\nDo not paste credentials, customer data or database logs.'
-    rows=json.loads(gh(['issue','list','--state','open','--search',title+' in:title',
+    # Avoid eventually-consistent GitHub search indexing: the second send can run
+    # before a newly created Issue is indexed and create a duplicate.
+    rows=json.loads(gh(['issue','list','--state','open','--limit','1000',
                        '--json','number,title,body,comments']))
     existing=next((row for row in rows if row['title']==title),None)
     if existing and any(tag in (value or '') for value in [existing.get('body')]+[c.get('body') for c in existing.get('comments',[])]):
