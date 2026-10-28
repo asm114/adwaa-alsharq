@@ -173,3 +173,57 @@ body.simplified-ui.simple-view-home .home-status :focus-visible{outline-color:rg
 }
 
 @media(prefers-reduced-motion:reduce){body.simplified-ui.simple-view-home *,body.simplified-ui.simple-view-home *::before,body.simplified-ui.simple-view-home *::after{scroll-behavior:auto!important;transition:none!important}}
+
+/* Approved third direction: extend the existing home tokens and components.
+   Every override is confined to Dashboard and reuses the workspace shell. */
+body.admin-workspace.simplified-ui.simple-view-home{--home-radius:22px;--home-shadow:0 6px 24px rgba(22,35,31,.045);background:#f4f6f5!important}
+body.admin-workspace.simplified-ui.simple-view-home .app-header-copy::before{background:var(--home-green)!important;color:#fff!important;box-shadow:none!important}
+body.admin-workspace.simplified-ui.simple-view-home .header-actions .icon-btn{background:#fff!important;color:var(--home-green)!important;border:1px solid var(--home-line)!important}
+body.admin-workspace.simplified-ui.simple-view-home .home-section{background:#fff!important;border:1px solid var(--home-line)!important;border-radius:var(--home-radius)!important;box-shadow:var(--home-shadow)!important}
+body.admin-workspace.simplified-ui.simple-view-home .home-section-head h2{color:var(--home-text)!important;font-size:18px!important}
+body.admin-workspace.simplified-ui.simple-view-home .home-section-head p{color:var(--home-muted)!important;opacity:1!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard.home-status{background:var(--home-soft)!important;border:1px solid #cbded5!important;box-shadow:none!important;color:var(--home-text)!important;border-radius:var(--home-radius)!important}
+body.admin-workspace.simplified-ui.simple-view-home .home-status .resort-status-label,
+body.admin-workspace.simplified-ui.simple-view-home .home-status .meta{color:#4c665c!important}
+body.admin-workspace.simplified-ui.simple-view-home .home-status .resort-status-value{color:var(--home-green-dark)!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard.home-status .secondary{color:var(--home-green)!important;background:#fff!important;border:1px solid #bdd3c8!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard.home-status.stale{background:#fff5df!important;border-color:#e2c788!important}
+body.admin-workspace.simplified-ui.simple-view-home .home-status .resort-status-icon{border-color:rgba(15,91,76,.12)}
+body.admin-workspace.simplified-ui.simple-view-home .home-status :focus-visible{outline-color:var(--home-green)!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid{gap:10px}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid button{min-height:76px!important;flex-direction:column;justify-content:center;gap:8px;padding:14px 8px!important;border:1px solid var(--home-line)!important;border-radius:16px!important;background:#f8faf9!important;color:var(--home-green)!important;text-align:center;font-size:13px!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid button:first-child{background:var(--home-green)!important;color:#fff!important;border-color:var(--home-green)!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid svg{color:currentColor!important;width:24px;height:24px}
+body.admin-workspace.simplified-ui.simple-view-home .home-metrics-grid{gap:12px}
+body.admin-workspace.simplified-ui.simple-view-home .home-metrics .home-metrics-grid .stat{min-height:108px!important;padding:18px!important;border:1px solid var(--home-line)!important;border-radius:16px!important;background:#f8faf9!important;cursor:pointer}
+body.admin-workspace.simplified-ui.simple-view-home .home-metrics .home-metrics-grid .stat .v{font-size:25px!important;color:var(--home-green-dark)!important;overflow-wrap:anywhere}
+body.admin-workspace.simplified-ui.simple-view-home .next-booking-main h3{font-size:22px!important;overflow-wrap:anywhere}
+body.admin-workspace.simplified-ui.simple-view-home .next-booking-meta{flex-wrap:wrap}
+body.admin-workspace.simplified-ui.simple-view-home .home-important-alerts .home-section-head{border-bottom:1px solid #eee7d9}
+body.admin-workspace.simplified-ui.simple-view-home .home-important-alerts .action-alert{border-inline-start:3px solid #c89231!important}
+body.admin-workspace.simplified-ui.simple-view-home nav{background:#fff!important;border:1px solid var(--home-line)!important;box-shadow:0 4px 26px rgba(22,35,31,.09)!important;backdrop-filter:none!important}
+body.admin-workspace.simplified-ui.simple-view-home nav>button{color:#53685f!important}
+body.admin-workspace.simplified-ui.simple-view-home nav>button.active{background:var(--home-soft)!important;color:var(--home-green)!important;box-shadow:none!important}
+@media(min-width:900px){
+ body.admin-workspace.simplified-ui.simple-view-home .home-command-center{gap:20px!important;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);grid-template-areas:'status status' 'today next' 'alerts quick' 'metrics metrics'}
+
+}
+@media(max-width:620px){
+ body.admin-workspace.simplified-ui.simple-view-home main{padding-inline:14px!important}
+ body.admin-workspace.simplified-ui.simple-view-home .app-header{margin-inline:14px!important}
+ body.admin-workspace.simplified-ui.simple-view-home .home-command-center{gap:14px!important}
+ body.admin-workspace.simplified-ui.simple-view-home nav{left:8px!important;right:8px!important;transform:none!important;width:auto!important;bottom:8px!important;padding-bottom:calc(5px + env(safe-area-inset-bottom))!important}
+ body.admin-workspace.simplified-ui.simple-view-home .home-metrics-grid{gap:9px}
+ body.admin-workspace.simplified-ui.simple-view-home .home-metrics .home-metrics-grid .stat{padding:13px!important;min-height:96px!important}
+ body.admin-workspace.simplified-ui.simple-view-home .home-metrics .home-metrics-grid .stat .v{font-size:21px!important}
+ body.admin-workspace.simplified-ui.simple-view-home .home-section-head{padding:18px 16px 13px}
+ body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard.home-status{flex-wrap:wrap;gap:12px}
+}
+@media(hover:hover){
+ body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid button:hover{border-color:#8bab9b!important;background:var(--home-soft)!important;color:var(--home-green-dark)!important}
+ body.admin-workspace.simplified-ui.simple-view-home .home-metrics-grid .stat:hover{border-color:#8bab9b!important}
+}
+
+body.admin-workspace.simplified-ui.simple-view-home .workspace-brand{color:var(--home-text);border-bottom-color:var(--home-line)}
+body.admin-workspace.simplified-ui.simple-view-home .workspace-brand small{color:var(--home-muted)}
+body.admin-workspace.simplified-ui.simple-view-home .workspace-mark{color:var(--home-green);border-color:var(--home-line);background:var(--home-soft)}
