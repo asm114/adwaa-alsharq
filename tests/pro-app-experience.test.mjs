@@ -105,3 +105,11 @@ test('booking modal keeps its header and real save action outside the scrolling 
   const buttonLabels=[...modal.matchAll(/<button\b[^>]*>([^<]*)<\/button>/g)].map(match=>match[1].trim()).filter(Boolean);
   assert.deepEqual(buttonLabels.filter(label=>label.startsWith('حفظ')),['حفظ الحجز']);
 });
+
+
+test('current home assets load directly without relying on the legacy loader chain',()=>{
+  assert.match(index,/<link rel="stylesheet" href="home-dashboard-polish\.css\?v=20261028-3" data-home-dashboard-polish="1">/);
+  assert.match(index,/<script defer src="home-dashboard-polish\.js\?v=20261028-3"><\/script>/);
+  assert.match(loader,/if\(window\.__adwaaHomeDashboardPolishInstalled\)return/);
+  assert.match(loader,/querySelector\('link\[data-home-dashboard-polish\]'\)/);
+});
