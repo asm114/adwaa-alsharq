@@ -40,7 +40,7 @@ test('home is a daily command center in the approved mobile order',()=>{
   const alerts=index.indexOf('id="dashboardAlerts"');
   const quick=index.indexOf('home-quick-actions');
   const metrics=index.indexOf('home-metrics');
-  assert.ok(status<today&&today<next&&next<alerts&&alerts<quick&&quick<metrics);
+  assert.ok(status<quick&&quick<today&&today<next&&next<alerts&&alerts<metrics);
   assert.doesNotMatch(index.slice(status,index.indexOf('</section>',metrics)+10),/أفضل العملاء|التحليلات الشهرية|أقرب الحجوزات/);
   assert.match(index,/لا توجد إجراءات عاجلة الآن/);
 });

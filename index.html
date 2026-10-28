@@ -285,29 +285,15 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 
 <main>
 <section id="dashboard" class="view active">
+  <div class="home-welcome"><div><span class="home-eyebrow">مساحة العمل</span><h2>يومك، بكل وضوح.</h2><p>حجوزاتك ومتابعاتك في مكان واحد</p></div><span class="home-welcome-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20V9l8-5 8 5v11M8 20v-7h8v7M2 20h20M12 1v3"/></svg></span></div>
   <div id="homeCommandCenter" class="home-command-center">
     <section id="resortStatusCard" class="resort-status-card ready home-status" aria-live="polite">
       <div class="resort-status-main"><span id="resortStatusIcon" class="resort-status-icon" aria-hidden="true"></span><div><div class="resort-status-label">حالة المنتجع الآن</div><div id="resortStatusText" class="resort-status-value">جاهز للاستقبال</div><div id="resortStatusUpdated" class="meta"></div></div></div>
       <button class="secondary" type="button" onclick="openResortStatus()">تحديث الحالة</button>
     </section>
 
-    <section id="todayBoard" class="home-section home-today">
-      <div class="home-section-head"><div><h2>ماذا عندي اليوم؟</h2><p id="todayBoardDate">الدخول والخروج والمهام التي تحتاج إجراءً</p></div></div>
-      <div id="todayBoardContent" class="today-action-list"><div class="home-empty">جارٍ تحميل مهام اليوم…</div></div>
-    </section>
-
-    <section id="nextBookingSection" class="home-section home-next-booking">
-      <div class="home-section-head"><div><h2>الحجز القادم</h2><p>المعلومة التالية التي تحتاجها للاستعداد</p></div></div>
-      <div id="nextBookingCard" class="next-booking-card"><div class="home-empty">جارٍ تحميل الحجز القادم…</div></div>
-    </section>
-
-    <section id="dashboardAlerts" class="home-section home-important-alerts" tabindex="-1">
-      <div class="home-section-head"><div><h2>التنبيهات المهمة</h2><p>يظهر هنا ما يحتاج قرارًا أو متابعة فقط</p></div></div>
-      <div id="alertsList" class="alerts-list action-alerts"></div>
-    </section>
-
     <section class="home-section home-quick-actions">
-      <div class="home-section-head"><div><h2>إجراءات سريعة</h2><p>أكثر الأدوات استخدامًا في التشغيل اليومي</p></div></div>
+      <div class="home-section-head"><span class="home-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span><div><h2>إجراءات سريعة</h2><p>ابدأ الإجراء مباشرة</p></div></div>
       <div class="quick-action-grid">
         <button type="button" onclick="openBooking()"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>إضافة حجز</span></button>
         <button type="button" onclick="switchView('calendarView')"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 6h16v14H4zM8 3v6M16 3v6M4 10h16"/></svg><span>التقويم</span></button>
@@ -316,8 +302,25 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
       </div>
     </section>
 
+    <section id="todayBoard" class="home-section home-today">
+      <div class="home-section-head"><span class="home-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v16H4zM8 2v6M16 2v6M4 10h16"/></svg></span><div><h2>جدول اليوم</h2><p id="todayBoardDate">الدخول والخروج والمهام التي تحتاج إجراءً</p></div></div>
+      <div id="todayBoardContent" class="today-action-list"><div class="home-empty">جارٍ تحميل مهام اليوم…</div></div>
+    </section>
+
+    <section id="nextBookingSection" class="home-section home-next-booking">
+      <div class="home-section-head"><span class="home-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12h18M14 5l7 7-7 7"/></svg></span><div><h2>الحجز القادم</h2><p>كل ما تحتاجه للاستعداد للاستقبال</p></div></div>
+      <div id="nextBookingCard" class="next-booking-card"><div class="home-empty">جارٍ تحميل الحجز القادم…</div></div>
+    </section>
+
+    <section id="dashboardAlerts" class="home-section home-important-alerts" tabindex="-1">
+      <div class="home-section-head"><span class="home-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 2 21h20zM12 9v5M12 17v1"/></svg></span><div><h2>التنبيهات المهمة</h2><p>يظهر هنا ما يحتاج قرارًا أو متابعة فقط</p></div></div>
+      <div id="alertsList" class="alerts-list action-alerts"></div>
+    </section>
+
+
+
     <section class="home-section home-metrics">
-      <div class="home-section-head"><div><h2>ملخص الأرقام</h2><p>نظرة مختصرة بعد إنهاء العمل اليومي</p></div></div>
+      <div class="home-section-head"><span class="home-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg></span><div><h2>ملخص الأرقام</h2><p>مؤشرات من بيانات النظام الحالية</p></div></div>
       <div class="home-metrics-grid">
         <div class="stat"><div class="k">حجوزات الشهر</div><div class="v" id="sMonth">0</div></div>
         <div class="stat"><div class="k">الحجوزات القادمة</div><div class="v" id="sUpcoming">0</div></div>
