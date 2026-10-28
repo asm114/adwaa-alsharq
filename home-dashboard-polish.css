@@ -174,123 +174,163 @@ body.simplified-ui.simple-view-home .home-status :focus-visible{outline-color:rg
 
 @media(prefers-reduced-motion:reduce){body.simplified-ui.simple-view-home *,body.simplified-ui.simple-view-home *::before,body.simplified-ui.simple-view-home *::after{scroll-behavior:auto!important;transition:none!important}}
 
-/* Dashboard app composition. Reuses the home palette and existing controls;
-   scoped to this view so legacy themes cannot reshape these components. */
-body.admin-workspace.simplified-ui.simple-view-home{--home-radius:24px;--home-line:#e3ebe7;--home-shadow:0 8px 32px #153a2c06;background:#f2f6f4!important}
-body.admin-workspace.simplified-ui.simple-view-home .app-header{background:#f2f6f4!important;border:0!important;min-height:80px;margin:0!important;padding:18px 28px!important;max-width:none!important}
-body.admin-workspace.simplified-ui.simple-view-home .app-header .title{font-size:20px!important;line-height:1.4!important}
-body.admin-workspace.simplified-ui.simple-view-home .app-header .subtitle{font-size:12px!important;color:var(--home-muted)!important}
-body.admin-workspace.simplified-ui.simple-view-home .header-actions .icon-btn{background:#fff!important;color:var(--home-green)!important;border:1px solid var(--home-line)!important;border-radius:16px!important;box-shadow:none!important}
-body.admin-workspace.simplified-ui.simple-view-home main{max-width:1280px!important;padding:8px 28px 32px!important}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-welcome{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:4px 0 24px}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-eyebrow{font-size:12px;font-weight:750;color:var(--home-green);letter-spacing:.02em}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-welcome h2{margin:5px 0 4px;font-size:clamp(26px,3vw,36px);line-height:1.35;letter-spacing:-.7px;color:var(--home-text)}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-welcome p{margin:0;color:var(--home-muted);font-size:14px}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-welcome-mark{display:grid;place-items:center;width:64px;height:64px;border-radius:22px;background:#e1eee7;color:var(--home-green);transform:rotate(-6deg)}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-welcome-mark svg{width:32px;height:32px;fill:none;stroke:currentColor;stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-command-center{display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-areas:'status' 'quick' 'today' 'next' 'alerts' 'metrics'!important;gap:18px!important;align-items:start}
+/* Reference-led mobile app surface. Tokens are local to Home; existing data,
+   forms and navigation handlers remain the source of behavior. */
+body.admin-workspace.simplified-ui.simple-view-home{--home-green:#2459db;--home-green-dark:#1646b6;--home-green-deep:#123889;--home-soft:#edf2ff;--home-text:#1b2542;--home-muted:#707b94;--home-line:#e5e9f2;--home-bg:#f3f5fa;--home-radius:26px;--home-shadow:0 12px 30px #1c335b09;background:var(--home-bg)!important}
+body.admin-workspace.simplified-ui.simple-view-home .app-header{background:#133889!important;border:0!important;max-width:none!important;margin:0!important;padding:22px 28px 10px!important;min-height:82px;box-shadow:none!important}
+body.admin-workspace.simplified-ui.simple-view-home .app-header .title{font-size:19px!important;color:#fff!important;line-height:1.4!important}
+body.admin-workspace.simplified-ui.simple-view-home .app-header .subtitle{font-size:11px!important;color:#d4dff9!important}
+body.admin-workspace.simplified-ui.simple-view-home .header-actions .icon-btn{border:1px solid #ffffff30!important;background:#ffffff15!important;color:#fff!important;border-radius:18px!important;box-shadow:none!important}
+body.admin-workspace.simplified-ui.simple-view-home main{max-width:none!important;padding:0!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard{padding-bottom:28px}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard #homeCommandCenter{display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-areas:'hero' 'metrics' 'quick' 'today' 'next' 'alerts'!important;gap:20px!important;max-width:1280px;margin:auto;padding:0 24px;align-items:start}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-hero{grid-area:hero;position:relative;margin-inline:-24px;padding:12px 28px 72px;background:radial-gradient(ellipse at 10% 0%,#2356c2 0%,transparent 65%),#133889;border-radius:0 0 38px 38px;color:#fff;overflow:hidden}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-hero::before{content:'';position:absolute;inset:0;pointer-events:none;opacity:.08;background-image:repeating-linear-gradient(45deg,transparent 0 44px,#fff 45px,transparent 46px 90px),repeating-linear-gradient(-45deg,transparent 0 44px,#fff 45px,transparent 46px 90px)}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-welcome{position:relative;display:flex;align-items:center;justify-content:space-between;gap:18px;margin:8px 0 22px}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-eyebrow{font-size:12px;font-weight:600;color:#d4dff9}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-welcome h2{font-size:clamp(24px,3vw,34px);line-height:1.5;margin:3px 0 2px;color:#fff;letter-spacing:-.4px;text-wrap:balance}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-welcome p{margin:0;font-size:13px;color:#d4dff9}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-welcome-mark{display:grid;place-items:center;flex-shrink:0;width:62px;height:62px;border:1px solid #ffffff35;border-radius:22px;background:#ffffff14;color:#fff}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-welcome-mark svg{width:32px;height:32px;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard.home-status{position:relative;display:flex!important;align-items:center!important;justify-content:space-between;gap:14px;min-height:0!important;padding:14px 16px!important;margin:0!important;border:1px solid #ffffff35!important;border-radius:18px!important;background:#ffffff10!important;color:#fff!important;box-shadow:none!important;text-align:start!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard .resort-status-main{display:flex!important;justify-content:flex-start!important;text-align:start!important;gap:10px;width:auto!important;min-width:0}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard .resort-status-label{font-size:10px;color:#d4dff9!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard .resort-status-value{color:#fff!important;font-size:16px!important;line-height:1.5}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard .meta{color:#d4dff9!important;font-size:10px!important;line-height:1.6;max-width:36ch}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard .secondary{width:auto!important;min-height:44px!important;border:0!important;border-radius:12px!important;background:#fff!important;color:#1646b6!important;padding:10px 14px!important;flex-shrink:0;font-size:12px!important;box-shadow:none!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-status .resort-status-icon{width:9px;height:9px;border-width:5px;border-color:#ffffff20;box-sizing:content-box;flex-shrink:0}
 body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-section{background:#fff!important;border:1px solid var(--home-line)!important;border-radius:var(--home-radius)!important;box-shadow:var(--home-shadow)!important;min-width:0}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-section-head{display:flex;align-items:center;justify-content:flex-start;gap:12px;padding:20px 22px 16px!important}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-section-head h2{font-size:17px!important;font-weight:800;line-height:1.5;color:var(--home-text)!important;margin:0}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-section-head p{font-size:12px!important;line-height:1.6;color:var(--home-muted)!important;opacity:1!important;margin:3px 0 0}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-section-icon{display:grid;place-items:center;flex-shrink:0;width:40px;height:40px;border-radius:14px;background:var(--home-soft);color:var(--home-green)}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-section-icon svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard.home-status{grid-area:status;min-height:0!important;display:flex!important;align-items:center!important;justify-content:space-between;gap:12px;padding:16px 20px!important;background:#fff!important;color:var(--home-text)!important;border:1px solid var(--home-line)!important;border-radius:20px!important;box-shadow:none!important;flex-wrap:nowrap}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard .resort-status-main{gap:12px}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard .resort-status-icon{width:10px;height:10px;border-width:6px;border-color:#e6f1eb;background:#309578}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard .resort-status-icon.status-stale{background:#c89231;border-color:#fcf0d8}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard .resort-status-icon.status-occupied{background:#b85656;border-color:#faeaea}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard .resort-status-label{font-size:11px;color:var(--home-muted)!important}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard .resort-status-value{font-size:17px!important;color:var(--home-text)!important;line-height:1.4}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard .meta{font-size:10px!important;color:var(--home-muted)!important;line-height:1.5;max-width:32ch}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard .secondary{min-height:44px!important;flex-shrink:0;background:var(--home-soft)!important;border:0!important;border-radius:12px!important;color:var(--home-green)!important;padding:10px 14px!important;font-size:12px!important;box-shadow:none!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-section-head{display:flex;align-items:center;justify-content:flex-start;gap:12px;padding:21px 22px 16px!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-section-head h2{font-size:17px!important;color:var(--home-text)!important;line-height:1.5;margin:0;font-weight:800}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-section-head p{font-size:12px!important;line-height:1.6;margin:3px 0 0;color:var(--home-muted)!important;opacity:1!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-section-icon{display:grid;place-items:center;width:42px;height:42px;flex-shrink:0;border-radius:15px;background:var(--home-soft);color:var(--home-green)}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-section-icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics{grid-area:metrics;position:relative;margin-top:-68px;z-index:1;box-shadow:0 18px 36px #233c6b12!important;border:0!important;border-radius:30px!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;padding:0 20px 16px}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics .home-metrics-grid .stat{display:flex;flex-direction:column;justify-content:center;min-height:92px!important;padding:14px 12px!important;border:0!important;border-radius:0!important;background:#fff!important;box-shadow:none!important;text-align:center!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics .home-metrics-grid .stat:nth-child(odd){border-inline-end:1px solid var(--home-line)!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics .home-metrics-grid .stat:nth-child(-n+2){border-bottom:1px solid var(--home-line)!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics .home-metrics-grid .stat .k{color:var(--home-muted)!important;font-size:12px!important;order:2;margin-top:4px}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics .home-metrics-grid .stat .v{color:var(--home-text)!important;font-size:27px!important;line-height:1.4;margin:0!important;overflow-wrap:anywhere}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-secondary-details{margin:0 22px 16px;padding-top:8px;border-top:1px solid var(--home-line)}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-secondary-details summary{background:transparent!important;border:0!important;color:var(--home-green)!important;padding:8px 0;min-height:44px;display:flex;justify-content:center;font-size:12px}
 body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-quick-actions{grid-area:quick;border:0!important;background:transparent!important;box-shadow:none!important;overflow:visible}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-quick-actions .home-section-head{padding:4px 0 12px!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-quick-actions .home-section-head{padding:4px 0 14px!important}
 body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-quick-actions .home-section-icon,
 body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-quick-actions .home-section-head p{display:none}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:0!important}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid button{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;min-height:96px!important;margin:0!important;padding:14px 6px!important;background:#fff!important;border:1px solid var(--home-line)!important;border-radius:20px!important;color:var(--home-text)!important;text-align:center;font-size:13px!important;font-weight:750;box-shadow:none!important}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid svg{width:26px;height:26px;color:var(--home-green)!important;fill:none;stroke:currentColor;stroke-width:1.6}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid button:first-child{background:var(--home-green)!important;border-color:var(--home-green)!important;color:#fff!important;box-shadow:0 6px 16px #0f5b4c18!important}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid button:first-child svg{color:#fff!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid button{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:18px;min-height:130px!important;padding:18px!important;margin:0!important;border:1px solid var(--home-line)!important;border-radius:24px!important;background:#fff!important;color:var(--home-text)!important;font-size:14px!important;font-weight:800;text-align:start!important;box-shadow:none!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid svg{width:25px;height:25px;padding:10px;border-radius:16px;box-sizing:content-box;background:#e5f5ed;color:#1c9770!important;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid button:first-child{background:linear-gradient(145deg,#306df6,#184ac6)!important;border:0!important;color:#fff!important;grid-row:span 2;min-height:272px!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid button:first-child svg{background:#ffffff20;color:#fff!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid button:first-child span{font-size:21px}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid button:nth-child(3) svg{background:#f0eaff;color:#8558dc!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid button:nth-child(4){grid-column:1/-1;min-height:78px!important;flex-direction:row;align-items:center}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid button:nth-child(4) svg{background:#fff3dc;color:#a97420!important}
 body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-today{grid-area:today}
 body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-next-booking{grid-area:next}
 body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-important-alerts{grid-area:alerts}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics{grid-area:metrics}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-empty{min-height:0!important;margin:0 20px 20px;padding:18px 16px!important;border:0!important;border-radius:16px!important;background:#f5f9f7!important;line-height:1.7!important;font-size:13px!important}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-empty b{font-size:14px}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-important-alerts .home-section-icon{background:#fff2dc;color:#b0781b}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-empty{min-height:0!important;margin:0 20px 20px;padding:18px 16px!important;border:0!important;border-radius:18px!important;background:#f6f8fc!important;color:var(--home-muted)!important;font-size:13px!important;line-height:1.8!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-empty b{font-size:14px;color:var(--home-text)}
 body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-empty span{font-size:12px;line-height:1.7}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-empty-success{flex-direction:row;flex-wrap:wrap;gap:4px 9px}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-empty-success::before{width:28px;height:28px;margin:0}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-empty-success span{flex-basis:100%}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-empty-success::before{background:#e2f6eb;color:#1c9770;width:32px;height:32px}
 body.admin-workspace.simplified-ui.simple-view-home #dashboard .today-action-card,
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .action-alert{padding:16px 20px;gap:12px;border-top:1px solid #edf1ef;background:#fff!important}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .action-alert h3{font-size:14px}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .action-alert p{font-size:12px}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-important-alerts .home-section-icon{background:#fff3dd;color:#91631b}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .action-alert{padding:16px 20px;gap:12px;background:#fff!important;border-top:1px solid var(--home-line)}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .action-alert h3{font-size:14px;overflow-wrap:anywhere}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .action-alert p{font-size:12px;overflow-wrap:anywhere}
 body.admin-workspace.simplified-ui.simple-view-home #dashboard .next-booking-card{padding:0 22px 22px}
 body.admin-workspace.simplified-ui.simple-view-home #dashboard .next-booking-card .home-empty{margin:0}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .next-booking-main{padding:18px 0;border-top:1px solid var(--home-line);gap:12px}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .next-booking-main h3{font-size:22px!important;line-height:1.5;margin:6px 0;overflow-wrap:anywhere}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .next-booking-code{color:var(--home-muted);font-size:11px;letter-spacing:1px}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .next-booking-meta{background:#f2f6f4;border-radius:12px;padding:12px;flex-wrap:wrap;line-height:1.7}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-primary-action{min-height:48px;border-radius:14px;background:var(--home-green)!important;box-shadow:none!important;color:#fff!important;font-size:14px}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics-grid{gap:12px;padding:0 20px 20px;grid-template-columns:repeat(2,minmax(0,1fr))}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics .home-metrics-grid .stat{min-height:112px!important;padding:18px!important;border:1px solid var(--home-line)!important;border-radius:18px!important;background:#fff!important;box-shadow:none!important;text-align:start!important}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics .home-metrics-grid .stat .k{font-size:12px!important;color:var(--home-muted)!important}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics .home-metrics-grid .stat .v{font-size:28px!important;line-height:1.5;color:var(--home-green-dark)!important;overflow-wrap:anywhere}
-body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-secondary-details summary{background:var(--home-soft)!important;color:var(--home-green)!important;border:0!important;padding:10px 14px}
-body.admin-workspace.simplified-ui.simple-view-home #appRoot>nav{background:#fff!important;border:1px solid var(--home-line)!important;box-shadow:0 8px 32px #16372a0d!important;backdrop-filter:none!important}
-body.admin-workspace.simplified-ui.simple-view-home #appRoot>nav>button{color:var(--home-muted)!important;border-radius:14px!important;box-shadow:none!important}
-body.admin-workspace.simplified-ui.simple-view-home #appRoot>nav>button.active{background:var(--home-soft)!important;color:var(--home-green)!important;box-shadow:none!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .next-booking-main{padding:18px 0;gap:12px;border-top:1px solid var(--home-line)}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .next-booking-main h3{font-size:22px!important;line-height:1.5;overflow-wrap:anywhere;margin:6px 0}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .next-booking-code{color:var(--home-muted);font-size:11px}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .next-booking-meta{flex-wrap:wrap;background:#f1f4fc;border-radius:14px;padding:12px;line-height:1.7}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-primary-action{min-height:50px;border-radius:16px;background:var(--home-green)!important;color:#fff!important;box-shadow:none!important;font-size:14px}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard #todayBoardContent:empty::before{content:'لا توجد إجراءات معروضة اليوم. تابع الحجوزات من التقويم.';display:block;padding:18px;color:var(--home-muted);text-align:center;font-size:13px;line-height:1.8}
+body.admin-workspace.simplified-ui.simple-view-home #appRoot>nav{background:#ffffffed!important;border:1px solid #e3e8f2!important;box-shadow:0 12px 34px #19316313!important;backdrop-filter:blur(16px)!important}
+body.admin-workspace.simplified-ui.simple-view-home #appRoot>nav>button{color:#798299!important;border-radius:18px!important;box-shadow:none!important}
+body.admin-workspace.simplified-ui.simple-view-home #appRoot>nav>button.active{background:#eaf0ff!important;color:#2459db!important;box-shadow:none!important}
 body.admin-workspace.simplified-ui.simple-view-home .workspace-brand{color:var(--home-text);border-bottom-color:var(--home-line)}
 body.admin-workspace.simplified-ui.simple-view-home .workspace-brand small{color:var(--home-muted)}
-body.admin-workspace.simplified-ui.simple-view-home .workspace-mark{background:var(--home-soft);color:var(--home-green);border:0}
+body.admin-workspace.simplified-ui.simple-view-home .workspace-mark{color:#2459db;background:#edf2ff;border:0}
 @media(min-width:760px){
- body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-command-center{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-areas:'status status' 'quick quick' 'today next' 'alerts alerts' 'metrics metrics'!important;gap:20px!important}
+ body.admin-workspace.simplified-ui.simple-view-home #dashboard #homeCommandCenter{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-areas:'hero hero' 'metrics metrics' 'quick next' 'quick today' 'alerts alerts'!important;gap:22px!important}
  body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
- body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid button{flex-direction:row;min-height:76px!important;gap:14px}
+ body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics .home-metrics-grid .stat{border-bottom:0!important;border-inline-end:1px solid var(--home-line)!important}
+ body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics .home-metrics-grid .stat:last-child{border-inline-end:0!important}
 }
 @media(min-width:1100px){
  body.admin-workspace.simplified-ui.simple-view-home #appRoot>nav{width:220px!important;padding:28px 14px!important;border:0!important;border-inline-end:1px solid var(--home-line)!important}
  body.admin-workspace.simplified-ui.simple-view-home .app{padding-inline-start:220px!important}
- body.admin-workspace.simplified-ui.simple-view-home #appRoot>nav>button{min-height:48px!important;margin-bottom:4px!important;font-size:13px!important}
- body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics .home-metrics-grid .stat{background:#f7faf8!important}
+ body.admin-workspace.simplified-ui.simple-view-home #appRoot>nav>button{min-height:48px!important;font-size:13px!important;margin-bottom:4px!important}
+}
+@media(max-width:1099px){
+ body.admin-workspace.simplified-ui.simple-view-home #appRoot>nav{left:12px!important;right:12px!important;inset-inline:12px!important;transform:none!important;width:auto!important;max-width:800px!important;margin-inline:auto!important;bottom:10px!important;border-radius:26px!important}
 }
 @media(max-width:759px){
- body.admin-workspace.simplified-ui.simple-view-home .app-header{padding:16px 20px 10px!important;min-height:76px}
+ body.admin-workspace.simplified-ui.simple-view-home .app-header{padding:18px 20px 4px!important;min-height:78px}
  body.admin-workspace.simplified-ui.simple-view-home .app-header .subtitle{font-size:10px!important}
- body.admin-workspace.simplified-ui.simple-view-home main{padding:8px 16px 24px!important}
- body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-welcome{margin:2px 2px 20px}
- body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-welcome h2{font-size:28px}
+ body.admin-workspace.simplified-ui.simple-view-home #dashboard #homeCommandCenter{padding-inline:16px;gap:18px!important}
+ body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-hero{margin-inline:-16px;padding:10px 20px 72px;border-radius:0 0 32px 32px}
+ body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-welcome h2{font-size:25px}
  body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-welcome p{font-size:12px}
- body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-welcome-mark{width:52px;height:52px;border-radius:18px}
- body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-section-head{padding:18px 18px 14px!important}
- body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid{gap:8px}
- body.admin-workspace.simplified-ui.simple-view-home #dashboard .quick-action-grid button{font-size:11px!important;border-radius:18px!important;min-height:88px!important;gap:9px}
- body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard.home-status{padding:14px!important}
- body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard .resort-status-value{font-size:15px!important}
- body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard .secondary{font-size:11px!important;padding:8px 10px!important}
- body.admin-workspace.simplified-ui.simple-view-home #dashboard .next-booking-main{flex-wrap:wrap;display:flex}
+ body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-welcome-mark{width:50px;height:50px;border-radius:18px}
+ body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard.home-status{padding:12px!important;gap:10px;flex-wrap:nowrap}
+ body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard .resort-status-value{font-size:14px!important}
+ body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard .secondary{font-size:11px!important;padding:9px!important}
+ body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics .home-section-head{padding:18px 20px 10px!important}
+ body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-section-head{padding:18px!important}
+ body.admin-workspace.simplified-ui.simple-view-home #dashboard .next-booking-main{display:flex;flex-wrap:wrap}
  body.admin-workspace.simplified-ui.simple-view-home #dashboard .next-booking-main>div{flex:1;min-width:140px}
- body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics .home-metrics-grid .stat{padding:14px!important;min-height:104px!important}
- body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics .home-metrics-grid .stat .v{font-size:25px!important}
- body.admin-workspace.simplified-ui.simple-view-home #appRoot>nav{inset-inline:8px!important;width:calc(100% - 16px)!important;bottom:8px!important;transform:none!important;border-radius:22px!important;padding:6px 4px calc(6px + env(safe-area-inset-bottom))!important}
- body.admin-workspace.simplified-ui.simple-view-home #appRoot>nav>button{min-height:56px!important;font-size:10px!important;gap:5px}
- body.admin-workspace.simplified-ui.simple-view-home .app{padding-bottom:calc(100px + env(safe-area-inset-bottom))!important}
+ body.admin-workspace.simplified-ui.simple-view-home #appRoot>nav{inset-inline:8px!important;left:8px!important;right:8px!important;bottom:8px!important;padding:7px 4px calc(7px + env(safe-area-inset-bottom))!important}
+ body.admin-workspace.simplified-ui.simple-view-home #appRoot>nav>button{font-size:10px!important;min-height:56px!important;gap:6px}
+ body.admin-workspace.simplified-ui.simple-view-home .app{padding-bottom:calc(104px + env(safe-area-inset-bottom))!important}
+}
+/* The existing booking sheet gets the same app language; field IDs, types,
+   validation, conditional visibility and submit handlers are untouched. */
+body.admin-workspace.simplified-ui #bookingModal{--booking-accent:#2459db;--booking-ink:#1b2542;color:var(--booking-ink)}
+body.admin-workspace.simplified-ui #bookingModal .sheet{background:#f3f5fa!important;border-radius:30px!important;border:0!important;box-shadow:0 24px 100px #10264f33!important}
+body.admin-workspace.simplified-ui #bookingModal .sheet-head{background:#fff!important;border-bottom:1px solid #e5e9f2!important;padding:20px!important}
+body.admin-workspace.simplified-ui #bookingModal .sheet-head h2{font-size:23px!important;color:var(--booking-ink)!important}
+body.admin-workspace.simplified-ui #bookingModal .v92-booking-tools button{border-radius:13px!important;background:#f1f4fc!important;color:#3c527c!important;border:0!important;min-height:44px!important;font-size:12px!important}
+body.admin-workspace.simplified-ui #bookingModal .v92-booking-tools .close{background:#edf2ff!important;color:#2459db!important;font-size:24px!important}
+body.admin-workspace.simplified-ui #bookingModal .booking-modal-scroll{padding:20px!important;overscroll-behavior:contain;scroll-padding-block:20px}
+body.admin-workspace.simplified-ui #bookingModal #bookingForm{gap:20px!important}
+body.admin-workspace.simplified-ui #bookingModal .booking-form-section{min-width:0;margin:0!important;padding:20px!important;border:1px solid #e5e9f2!important;border-radius:22px!important;background:#fff!important;box-shadow:none!important}
+body.admin-workspace.simplified-ui #bookingModal .booking-form-section legend{padding:0 8px!important;font-size:17px!important;font-weight:800;color:var(--booking-ink)!important}
+body.admin-workspace.simplified-ui #bookingModal .booking-section-mark{display:inline-grid;place-items:center;width:36px;height:36px;vertical-align:middle;margin-inline-end:8px;border-radius:12px;background:#edf2ff;color:#2459db}
+body.admin-workspace.simplified-ui #bookingModal .booking-section-mark svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+body.admin-workspace.simplified-ui #bookingModal .booking-section-grid{gap:18px!important}
+body.admin-workspace.simplified-ui #bookingModal .label{display:block;color:#52617e!important;font-size:12px!important;font-weight:750;margin-bottom:8px!important}
+body.admin-workspace.simplified-ui #bookingModal input:not([type=hidden]):not([type=checkbox]):not([type=radio]),
+body.admin-workspace.simplified-ui #bookingModal select,
+body.admin-workspace.simplified-ui #bookingModal textarea{min-height:54px!important;padding:13px 15px!important;border:1px solid #dfe5f0!important;border-radius:14px!important;background:#f6f8fc!important;color:#1b2542!important;font-size:16px!important;box-shadow:none!important;box-sizing:border-box;scroll-margin-block:20px}
+body.admin-workspace.simplified-ui #bookingModal input::placeholder{color:#8b95aa;opacity:1}
+body.admin-workspace.simplified-ui #bookingModal input[readonly]{background:#edf1f8!important;color:#66738e!important;border-style:dashed!important}
+body.admin-workspace.simplified-ui #bookingModal :is(input,select,textarea):focus-visible{outline:3px solid #2459db26!important;outline-offset:2px!important;border-color:#2459db!important;background:#fff!important}
+body.admin-workspace.simplified-ui #bookingModal .booking-required{color:#2459db!important;background:#edf2ff!important;font-size:10px;padding:3px 6px;border-radius:6px}
+body.admin-workspace.simplified-ui #bookingModal .booking-modal-actions{background:#ffffffed!important;border-top:1px solid #e5e9f2!important;padding:14px 20px calc(14px + env(safe-area-inset-bottom))!important}
+body.admin-workspace.simplified-ui #bookingModal button.primary{min-height:52px!important;border-radius:15px!important;background:#2459db!important;color:#fff!important;border:0!important;box-shadow:0 6px 18px #2459db24!important}
+body.admin-workspace.simplified-ui #bookingModal button.secondary{border-radius:13px!important;color:#2459db!important;background:#edf2ff!important;border-color:#dce5ff!important}
+body.admin-workspace.simplified-ui #bookingModal .voice{border:1px solid #dfe5f0!important;border-radius:14px!important;background:#fff!important;color:#2459db!important;min-height:44px!important}
+@media(max-width:620px){
+ body.admin-workspace.simplified-ui #bookingModal .sheet{border-radius:28px 28px 0 0!important}
+ body.admin-workspace.simplified-ui #bookingModal .booking-modal-scroll{padding:18px 14px!important}
+ body.admin-workspace.simplified-ui #bookingModal .booking-form-section{padding:18px 14px!important}
+ body.admin-workspace.simplified-ui #bookingModal .booking-form-section legend{font-size:16px!important}
 }
 @media(hover:hover){
  body.admin-workspace.simplified-ui.simple-view-home #dashboard button:hover{filter:brightness(.97)}
- body.admin-workspace.simplified-ui.simple-view-home #appRoot>nav>button:hover{background:#f3f7f5!important;color:var(--home-green)!important}
+ body.admin-workspace.simplified-ui.simple-view-home #appRoot>nav>button:hover{background:#f0f4ff!important;color:#2459db!important}
+ body.admin-workspace.simplified-ui #bookingModal button.primary:hover{background:#1646b6!important}
 }
-
-@media(max-width:759px){
- body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard.home-status{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;text-align:start!important}
- body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard .resort-status-main{justify-content:flex-start!important;text-align:start!important;min-width:0;width:auto!important}
- body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard .secondary{width:auto!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard #resortStatusCard.home-status{flex-direction:row!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics .home-metrics-grid .stat{min-height:76px!important;padding-block:10px!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-secondary-details{margin-bottom:8px;padding-top:2px}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-secondary-details summary{padding:4px 0}
+body.admin-workspace.simplified-ui #bookingModal :is(button,input,select,textarea){touch-action:manipulation;-webkit-tap-highlight-color:#2459db15}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard :focus-visible{outline:3px solid #8fb3ff!important;outline-offset:3px!important}
+body.admin-workspace.simplified-ui.simple-view-home #dashboard :is(button,[tabindex]){scroll-margin-block:110px}
+@media(min-width:760px){
+ body.admin-workspace.simplified-ui.simple-view-home #dashboard .home-metrics .home-metrics-grid .stat:nth-child(-n+2){border-bottom:0!important}
 }
-@media(min-width:760px) and (max-width:1099px){
- body.admin-workspace.simplified-ui.simple-view-home #appRoot>nav{left:12px!important;right:12px!important;inset-inline:12px!important;transform:none!important;width:auto!important;max-width:800px!important;margin-inline:auto!important;bottom:10px!important;border-radius:22px!important}
-}
-
-body.admin-workspace.simplified-ui.simple-view-home #dashboard #todayBoardContent:empty::before{content:'لا توجد إجراءات معروضة اليوم. يمكنك متابعة الحجوزات من التقويم.';display:block;margin:0 20px 20px;padding:18px 16px;border-radius:16px;background:#f5f9f7;color:var(--home-muted);text-align:center;font-size:13px;line-height:1.8}

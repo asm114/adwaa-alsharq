@@ -40,8 +40,8 @@ test('home is a daily command center in the approved mobile order',()=>{
   const alerts=index.indexOf('id="dashboardAlerts"');
   const quick=index.indexOf('home-quick-actions');
   const metrics=index.indexOf('home-metrics');
-  assert.ok(status<quick&&quick<today&&today<next&&next<alerts&&alerts<metrics);
-  assert.doesNotMatch(index.slice(status,index.indexOf('</section>',metrics)+10),/أفضل العملاء|التحليلات الشهرية|أقرب الحجوزات/);
+  assert.ok(status<metrics&&metrics<quick&&quick<today&&today<next&&next<alerts);
+  assert.doesNotMatch(index.slice(status,index.indexOf('</section>',alerts)+10),/أفضل العملاء|التحليلات الشهرية|أقرب الحجوزات/);
   assert.match(index,/لا توجد إجراءات عاجلة الآن/);
 });
 
@@ -82,7 +82,7 @@ test('booking modal actions name their real behavior and preserve the existing s
 test('booking modal has semantic sections, connected labels, required cues, and scoped readonly styling',()=>{
   const modal=index.slice(index.indexOf('id="bookingModal"'),index.indexOf('id="helpPopover"'));
   for(const heading of ['بيانات العميل','تفاصيل الحجز/الإقامة','الدفع','الملاحظات والصور','الإرسال']){
-    assert.match(modal,new RegExp(`<legend>${heading}<\\/legend>`));
+    assert.match(modal,new RegExp(`<legend>(?:<span class="booking-section-mark"[^>]*>[\\s\\S]*?<\\/span>)?${heading}<\\/legend>`));
   }
   for(const id of ['bRecordType','bName','bPhone','bDate','bType','bStayDays','bStatus','bCode','bPaid','bTotal','bNotes','photoType','photoUploaderName']){
     assert.match(modal,new RegExp(`<label[^>]+for="${id}"`));
