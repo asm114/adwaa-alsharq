@@ -40,8 +40,8 @@ test('home is a daily command center in the approved mobile order',()=>{
   const alerts=index.indexOf('id="dashboardAlerts"');
   const quick=index.indexOf('home-quick-actions');
   const metrics=index.indexOf('home-metrics');
-  assert.ok(status<today&&today<next&&next<alerts&&alerts<quick&&quick<metrics);
-  assert.doesNotMatch(index.slice(status,index.indexOf('</section>',metrics)+10),/أفضل العملاء|التحليلات الشهرية|أقرب الحجوزات/);
+  assert.ok(status<metrics&&metrics<quick&&quick<today&&today<next&&next<alerts);
+  assert.doesNotMatch(index.slice(status,index.indexOf('</section>',alerts)+10),/أفضل العملاء|التحليلات الشهرية|أقرب الحجوزات/);
   assert.match(index,/لا توجد إجراءات عاجلة الآن/);
 });
 
@@ -82,7 +82,7 @@ test('booking modal actions name their real behavior and preserve the existing s
 test('booking modal has semantic sections, connected labels, required cues, and scoped readonly styling',()=>{
   const modal=index.slice(index.indexOf('id="bookingModal"'),index.indexOf('id="helpPopover"'));
   for(const heading of ['بيانات العميل','تفاصيل الحجز/الإقامة','الدفع','الملاحظات والصور','الإرسال']){
-    assert.match(modal,new RegExp(`<legend>${heading}<\\/legend>`));
+    assert.match(modal,new RegExp(`<legend>(?:<span class="booking-section-mark"[^>]*>[\\s\\S]*?<\\/span>)?${heading}<\\/legend>`));
   }
   for(const id of ['bRecordType','bName','bPhone','bDate','bType','bStayDays','bStatus','bCode','bPaid','bTotal','bNotes','photoType','photoUploaderName']){
     assert.match(modal,new RegExp(`<label[^>]+for="${id}"`));
@@ -104,4 +104,12 @@ test('booking modal keeps its header and real save action outside the scrolling 
   assert.match(index,/#bookingModal \.help-icon\{[^}]*width:44px!important;[^}]*height:44px!important/);
   const buttonLabels=[...modal.matchAll(/<button\b[^>]*>([^<]*)<\/button>/g)].map(match=>match[1].trim()).filter(Boolean);
   assert.deepEqual(buttonLabels.filter(label=>label.startsWith('حفظ')),['حفظ الحجز']);
+});
+
+
+test('current home assets load directly without relying on the legacy loader chain',()=>{
+  assert.match(index,/<link rel="stylesheet" href="home-dashboard-polish\.css\?v=20261028-3" data-home-dashboard-polish="1">/);
+  assert.match(index,/<script defer src="home-dashboard-polish\.js\?v=20261028-3"><\/script>/);
+  assert.match(loader,/if\(window\.__adwaaHomeDashboardPolishInstalled\)return/);
+  assert.match(loader,/querySelector\('link\[data-home-dashboard-polish\]'\)/);
 });
