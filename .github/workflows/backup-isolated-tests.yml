@@ -43,7 +43,9 @@ jobs:
           "$RUNNER_TEMP/storage-service-tests/bin/python" tests/backup/storage_service_integration.py
   synthetic-only:
     needs: changes
-    if: always() && (needs.changes.result != 'success' || needs.changes.outputs.backup == 'true')
+    # Required branch checks include each matrix target; skipping the job before
+    # matrix expansion leaves those checks permanently pending on UI-only PRs.
+    if: always()
     strategy:
       fail-fast: false
       matrix:
