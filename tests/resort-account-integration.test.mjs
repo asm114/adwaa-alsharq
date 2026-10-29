@@ -12,12 +12,16 @@ test('app state preserves the resort account and loads the cash ledger core',asy
   assert.match(html,/resort-account-core\.js\?v=20260922-2/);
 });
 
-test('every saved expense is positive and expense categories cover resort operations',async()=>{
+test('expense form uses six approved categories and preserves historical categories',async()=>{
   const html=await read('index.html');
   assert.match(html,/أدخل مبلغ مصروف أكبر من صفر/);
-  for(const category of ['إنترنت واتصالات','رواتب وأجور','وقود ونقل','تسويق وإعلانات','مسبح','حدائق وزراعة','أثاث وتجهيزات','رسوم حكومية وتراخيص','عمولات منصات']){
-    assert.ok(html.includes(category),category);
-  }
+  const selected=html.split('<select id="eCat">')[1]?.split('</select>')[0];
+  assert.ok(selected,'expense category field exists');
+  const categories=selected.split('<option>').slice(1).map(part=>part.split('</option>')[0]);
+  assert.deepEqual(categories,['كهرباء','مياه','رواتب وأجور','صيانة','مشتريات ومستلزمات','أخرى']);
+  assert.ok(html.includes("eCat.value='أخرى'"));
+  assert.ok(html.includes('legacyOption=new Option(x.cat,x.cat)'));
+  assert.ok(html.includes('paymentMethod:ePayment.value'));
 });
 
 test('customer credit and payment history agree on paid = cash + applied credit',async()=>{
