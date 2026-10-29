@@ -417,7 +417,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
   <div class="finance-toolbar">
     <div><label class="label" for="financePeriod">الفترة</label><select id="financePeriod" onchange="renderExpenses()"><option value="month">هذا الشهر</option><option value="year">هذه السنة</option><option value="all">كل الفترات</option></select></div>
     <div><label class="label" for="financeCategory">التصنيف</label><select id="financeCategory" onchange="renderExpenses()"><option value="">جميع التصنيفات</option><option>تنظيف</option><option>صيانة</option><option>كهرباء</option><option>مياه</option><option>إنترنت واتصالات</option><option>منظفات</option><option>مشتريات ومستلزمات</option><option>رواتب وأجور</option><option>وقود ونقل</option><option>تسويق وإعلانات</option><option>مسبح</option><option>حدائق وزراعة</option><option>ضيافة واستهلاك</option><option>أثاث وتجهيزات</option><option>رسوم واشتراكات</option><option>رسوم حكومية وتراخيص</option><option>عمولات منصات</option><option>أخرى</option></select></div>
-    <div><label class="label" for="financePayment">طريقة الدفع</label><select id="financePayment" onchange="renderExpenses()"><option value="">جميع الطرق</option><option>نقد</option><option>تحويل</option><option>بطاقة</option><option>أخرى</option></select></div>
+    <select id="financePayment" hidden aria-hidden="true"><option value="">جميع الطرق</option></select>
     <button class="primary" onclick="openExpense()">+ إضافة مصروف</button>
   </div>
 
@@ -445,9 +445,9 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
   </div>
 
   <div class="section">
-    <div class="section-head"><div><h3>سجل المصروفات</h3><div class="meta">مع المرجع والتصنيف وطريقة الدفع</div></div></div>
+    <div class="section-head"><div><h3>سجل المصروفات</h3><div class="meta">مع المرجع والتصنيف والمبلغ</div></div></div>
     <div class="finance-table"><table>
-      <thead><tr><th>المرجع</th><th>التاريخ</th><th>البيان</th><th>التصنيف</th><th>طريقة الدفع</th><th>المبلغ</th><th>الإجراء</th></tr></thead>
+      <thead><tr><th>المرجع</th><th>التاريخ</th><th>البيان</th><th>التصنيف</th><th>المبلغ</th><th>الإجراء</th></tr></thead>
       <tbody id="expenseTableBody"></tbody>
     </table></div>
   </div>
@@ -1207,7 +1207,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <div class="full"><label class="label" for="eTitle">البيان</label><input id="eTitle" required placeholder="مثال: فاتورة كهرباء شهر يوليو"></div>
 <div><label class="label" for="eAmount">المبلغ</label><input id="eAmount" type="number" min="0.01" step="0.01" required></div>
 <div><label class="label" for="eCat">التصنيف</label><select id="eCat"><option>تنظيف</option><option>صيانة</option><option>كهرباء</option><option>مياه</option><option>إنترنت واتصالات</option><option>منظفات</option><option>مشتريات ومستلزمات</option><option>رواتب وأجور</option><option>وقود ونقل</option><option>تسويق وإعلانات</option><option>مسبح</option><option>حدائق وزراعة</option><option>ضيافة واستهلاك</option><option>أثاث وتجهيزات</option><option>رسوم واشتراكات</option><option>رسوم حكومية وتراخيص</option><option>عمولات منصات</option><option>أخرى</option></select></div>
-<div><label class="label" for="ePayment">طريقة الدفع</label><select id="ePayment"><option>نقد</option><option>تحويل</option><option>بطاقة</option><option>أخرى</option></select></div>
+<select id="ePayment" hidden aria-hidden="true"><option>نقد</option><option>تحويل</option><option>بطاقة</option><option>أخرى</option></select>
 <div><label class="label" for="eExternalRef">رقم الفاتورة/التحويل</label><input id="eExternalRef" placeholder="اختياري"></div>
 <div class="full"><label class="label" for="eNotes">ملاحظات</label><textarea id="eNotes"></textarea></div>
 <div class="full actions"><button class="primary" type="submit">حفظ المصروف</button><button id="deleteExpenseBtn" class="danger" type="button" onclick="deleteCurrentExpense()" style="display:none">حذف</button></div>
@@ -2819,7 +2819,7 @@ function renderExpenses(){
   if(document.getElementById('finCommissionReceived'))finCommissionReceived.textContent=money(commissionReceived);
   commissionTotal.textContent=money(commissionOutstanding);fullyPaidCount.textContent=fullyPaidBookings.length;expenseCount.textContent=filteredExpenses.length;expenseAverage.textContent=money(filteredExpenses.length?filteredExpenses.reduce((sum,e)=>sum+Number(e.amount||0),0)/filteredExpenses.length:0);
 
-  expenseTableBody.innerHTML=[...filteredExpenses].sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(e=>`<tr><td>${escapeHtml(e.ref||'-')}</td><td>${escapeHtml(e.date||'-')}</td><td><b>${escapeHtml(e.title||'')}</b>${e.notes?`<div class="meta">${escapeHtml(e.notes)}</div>`:''}</td><td>${escapeHtml(e.cat||'-')}</td><td>${escapeHtml(e.paymentMethod||'غير محدد')}${e.externalRef?`<div class="meta">${escapeHtml(e.externalRef)}</div>`:''}</td><td><b>${money(e.amount)}</b></td><td><button class="secondary small" onclick="openExpense('${e.id}')">تعديل</button></td></tr>`).join('')||'<tr><td colspan="7" class="empty">لا توجد مصروفات مطابقة</td></tr>';
+  expenseTableBody.innerHTML=[...filteredExpenses].sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(e=>`<tr><td>${escapeHtml(e.ref||'-')}</td><td>${escapeHtml(e.date||'-')}</td><td><b>${escapeHtml(e.title||'')}</b>${e.notes?`<div class="meta">${escapeHtml(e.notes)}</div>`:''}</td><td>${escapeHtml(e.cat||'-')}${e.externalRef?`<div class="meta">التحويل/الفاتورة: ${escapeHtml(e.externalRef)}</div>`:''}</td><td><b>${money(e.amount)}</b></td><td><button class="secondary small" onclick="openExpense('${e.id}')">تعديل</button></td></tr>`).join('')||'<tr><td colspan="6" class="empty">لا توجد مصروفات مطابقة</td></tr>';
 
   const commissionBookings=periodCommissionBookings;
   commissionList.innerHTML=[...commissionBookings].sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(b=>{
