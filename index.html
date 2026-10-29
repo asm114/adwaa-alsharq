@@ -908,23 +908,26 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
     </div>
   </div>
   <div class="section">
-    <div class="section-head"><div><h3>الحماية والنسخ الاحتياطي</h3><div class="meta">نسخة يدوية، نقطة استعادة، وفحص الملف قبل الاسترجاع</div></div></div>
+    <div class="section-head"><div><h3>الحساب والاتصال</h3><div class="meta">إدارة الحساب وحالة المزامنة، وأدوات النسخ المحلية محفوظة عند الحاجة</div></div></div>
     <div style="padding:18px">
       <div id="syncStatus" class="notice">جاري الاتصال بقاعدة البيانات...</div>
       <div class="auth-user-row"><div><b>الحساب المسجل</b><div id="signedInEmail" class="meta">—</div></div><button class="danger" type="button" onclick="logoutManager()">تسجيل الخروج</button></div>
       <label class="auth-save-button" style="margin:12px 0"><input id="helpEnabledToggle" type="checkbox" onchange="setHelpEnabled(this.checked)" style="width:auto"> <span><b>إظهار تعليمات المساعدة</b><small class="meta" style="display:block">تشغيل / إيقاف أيقونات ⓘ على هذا الجهاز.</small></span></label>
+      <details style="margin-top:18px;border:1px solid var(--line);border-radius:12px;padding:14px"><summary style="cursor:pointer;font-weight:700;min-height:44px">الأدوات القديمة للنسخ المحلي والاستعادة (متقدمة)</summary>
+        <p class="meta">هذه أدوات النسخ داخل الموقع وليست النسخ المشفرة الخارجية عبر GitHub وGoogle Drive. احتفظنا بها مؤقتًا لحماية البيانات القديمة.</p>
       <div class="backup-tools">
         <span class="help-action"><button class="primary" type="button" onclick="createManualBackup()">💾 إنشاء نسخة احتياطية</button><span data-help="backup"></span></span>
         <button class="secondary" type="button" onclick="createRestorePoint()">🔒 إنشاء نقطة استعادة</button>
         <span class="help-action"><label class="secondary">📥 استعادة من ملف<input id="restoreFileInput" type="file" accept=".json,application/json" onchange="importData(event)" hidden></label><span data-help="restore"></span></span>
         <label class="secondary">🧪 فحص نسخة<input id="inspectFileInput" type="file" accept=".json,application/json" onchange="inspectBackupFile(event)" hidden></label>
         <button class="secondary" type="button" onclick="exportCSV()">تصدير Excel/CSV</button>
-        <button class="danger" type="button" onclick="resetAll()">مسح جميع البيانات</button>
+        <details style="width:100%;margin-top:10px"><summary style="cursor:pointer;color:#a32a2a">إجراءات خطرة — متقدم</summary><p class="meta">قد يؤدي مسح البيانات إلى فقدان معلومات لا يمكن استعادتها. لا تستخدمه قبل التأكد من نسخة قابلة للاستعادة.</p>        <button class="danger" type="button" onclick="resetAll()">مسح جميع البيانات</button></details>
       </div>
       <div id="backupCheckStatus" class="notice backup-status" style="display:none"></div>
       <div class="meta" style="margin-top:9px;line-height:1.8">عند الاستعادة ينشئ النظام نسخة أمان للحالة الحالية أولًا. الملفات الكاملة تُحفظ على هذا الجهاز ويُسجل تاريخها في النظام.</div>
       <h3 style="margin:22px 0 0">سجل النسخ الاحتياطية</h3>
       <div class="data-table-wrap"><table class="data-table"><thead><tr><th>التاريخ والوقت</th><th>الحجم</th><th>المستخدم</th><th>النوع</th><th>الإجراءات</th></tr></thead><tbody id="backupHistoryBody"></tbody></table></div>
+      </details>
     </div>
   </div>
 
