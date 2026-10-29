@@ -898,6 +898,14 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 </section>
 
 <section id="settings" class="view">
+  <div class="section" aria-label="مركز الإعدادات">
+    <div class="section-head"><div><h3>مركز الإعدادات</h3><div class="meta">أدوات الإدارة والمعلومات في مكان واحد؛ دون حذف أي وظيفة</div></div></div>
+    <div style="padding:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px">
+      <button class="secondary" type="button" onclick="switchView('dataProtection')" style="min-height:66px;text-align:right">🛡️ حماية البيانات والنسخ الاحتياطي</button>
+      <button class="secondary" type="button" onclick="switchView('customerPortalAdmin')" style="min-height:66px;text-align:right">▤ إدارة بوابة العملاء</button>
+      <button class="secondary" type="button" onclick="switchView('about')" style="min-height:66px;text-align:right">ⓘ حول النظام وحالته</button>
+    </div>
+  </div>
   <div class="section">
     <div class="section-head"><div><h3>الحماية والنسخ الاحتياطي</h3><div class="meta">نسخة يدوية، نقطة استعادة، وفحص الملف قبل الاسترجاع</div></div></div>
     <div style="padding:18px">
@@ -950,9 +958,6 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <button data-view="cleaning" onclick="switchView('cleaning',this)"><b>🧹</b>التنظيف</button>
 <button data-view="expenses" onclick="switchView('expenses',this)"><b>◫</b>المصاريف</button>
 <button data-view="cleaning" onclick="switchView('cleaning',this)" title="إدارة مهام جميل"><b>👷</b>بوابة جميل</button>
-<button data-view="dataProtection" onclick="switchView('dataProtection',this)"><b>🛡️</b>حماية البيانات</button>
-<button data-view="customerPortalAdmin" onclick="switchView('customerPortalAdmin',this)"><b>▤</b>بوابة العملاء</button>
-<button data-view="about" onclick="switchView('about',this)"><b>ⓘ</b>حول النظام</button>
 <button data-view="settings" onclick="switchView('settings',this)"><b>⚙</b>الإعدادات</button>
 </nav>
 </div>
