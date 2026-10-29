@@ -2759,10 +2759,10 @@ function openExpense(id){
   eId.value=id||'';
   expenseModalTitle.textContent=id?'تعديل مصروف':'إضافة مصروف';
   deleteExpenseBtn.style.display=id?'inline-flex':'none';
-  eRef.value=expenseReference();eDate.value=isoToday();eTitle.value='';eAmount.value='';eCat.value='تنظيف';ePayment.value='نقد';eExternalRef.value='';eNotes.value='';
+  eRef.value=expenseReference();eDate.value=isoToday();eTitle.value='';eAmount.value='';Array.from(eCat.options).filter(option=>option.dataset.legacy==='true').forEach(option=>option.remove());eCat.value='أخرى';ePayment.value='نقد';eExternalRef.value='';eNotes.value='';
   if(id){
     const x=db.expenses.find(e=>e.id===id);if(!x)return;
-    eRef.value=x.ref||expenseReference();eDate.value=x.date||isoToday();eTitle.value=x.title||'';eAmount.value=x.amount||'';Array.from(eCat.options).filter(option=>option.dataset.legacy==='true').forEach(option=>option.remove());if(x.cat && !Array.from(eCat.options).some(option=>option.value===x.cat)){const legacyOption=new Option(x.cat,x.cat);legacyOption.dataset.legacy='true';eCat.add(legacyOption);}eCat.value=x.cat||'أخرى';ePayment.value=x.paymentMethod||'نقد';eExternalRef.value=x.externalRef||'';eNotes.value=x.notes||'';
+    eRef.value=x.ref||expenseReference();eDate.value=x.date||isoToday();eTitle.value=x.title||'';eAmount.value=x.amount||'';if(x.cat && !Array.from(eCat.options).some(option=>option.value===x.cat)){const legacyOption=new Option(x.cat,x.cat);legacyOption.dataset.legacy='true';eCat.add(legacyOption);}eCat.value=x.cat||'أخرى';ePayment.value=x.paymentMethod||'نقد';eExternalRef.value=x.externalRef||'';eNotes.value=x.notes||'';
   }
   expenseModal.classList.add('open');
 }
