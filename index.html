@@ -416,7 +416,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <section id="expenses" class="view">
   <div class="finance-toolbar">
     <div><label class="label" for="financePeriod">الفترة</label><select id="financePeriod" onchange="renderExpenses()"><option value="month">هذا الشهر</option><option value="year">هذه السنة</option><option value="all">كل الفترات</option></select></div>
-    <div><label class="label" for="financeCategory">التصنيف</label><select id="financeCategory" onchange="renderExpenses()"><option value="">جميع التصنيفات</option><option>تنظيف</option><option>صيانة</option><option>كهرباء</option><option>مياه</option><option>إنترنت واتصالات</option><option>منظفات</option><option>مشتريات ومستلزمات</option><option>رواتب وأجور</option><option>وقود ونقل</option><option>تسويق وإعلانات</option><option>مسبح</option><option>حدائق وزراعة</option><option>ضيافة واستهلاك</option><option>أثاث وتجهيزات</option><option>رسوم واشتراكات</option><option>رسوم حكومية وتراخيص</option><option>عمولات منصات</option><option>أخرى</option></select></div>
+    <div><label class="label" for="financeCategory">التصنيف</label><select id="financeCategory" onchange="renderExpenses()"><option value="">جميع التصنيفات</option><option>تنظيف</option><option>صيانة</option><option>كهرباء</option><option>مياه</option><option>مشتريات ومستلزمات</option><option>رواتب وأجور</option><option>تسويق وإعلانات</option><option>مسبح</option><option>حدائق وزراعة</option><option>ضيافة واستهلاك</option><option>أثاث وتجهيزات</option><option>رسوم واشتراكات</option><option>رسوم حكومية وتراخيص</option><option>عمولات منصات</option><option>أخرى</option></select></div>
     <select id="financePayment" hidden aria-hidden="true"><option value="">جميع الطرق</option></select>
     <button class="primary" onclick="openExpense()">+ إضافة مصروف</button>
   </div>
@@ -1206,7 +1206,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <div><label class="label" for="eDate">التاريخ</label><input id="eDate" type="date" required></div>
 <div class="full"><label class="label" for="eTitle">البيان</label><input id="eTitle" required placeholder="مثال: فاتورة كهرباء شهر يوليو"></div>
 <div><label class="label" for="eAmount">المبلغ</label><input id="eAmount" type="number" min="0.01" step="0.01" required></div>
-<div><label class="label" for="eCat">التصنيف</label><select id="eCat"><option>تنظيف</option><option>صيانة</option><option>كهرباء</option><option>مياه</option><option>إنترنت واتصالات</option><option>منظفات</option><option>مشتريات ومستلزمات</option><option>رواتب وأجور</option><option>وقود ونقل</option><option>تسويق وإعلانات</option><option>مسبح</option><option>حدائق وزراعة</option><option>ضيافة واستهلاك</option><option>أثاث وتجهيزات</option><option>رسوم واشتراكات</option><option>رسوم حكومية وتراخيص</option><option>عمولات منصات</option><option>أخرى</option></select></div>
+<div><label class="label" for="eCat">التصنيف</label><select id="eCat"><option>تنظيف</option><option>صيانة</option><option>كهرباء</option><option>مياه</option><option>مشتريات ومستلزمات</option><option>رواتب وأجور</option><option>تسويق وإعلانات</option><option>مسبح</option><option>حدائق وزراعة</option><option>ضيافة واستهلاك</option><option>أثاث وتجهيزات</option><option>رسوم واشتراكات</option><option>رسوم حكومية وتراخيص</option><option>عمولات منصات</option><option>أخرى</option></select></div>
 <select id="ePayment" hidden aria-hidden="true"><option>نقد</option><option>تحويل</option><option>بطاقة</option><option>أخرى</option></select>
 <div><label class="label" for="eExternalRef">رقم الفاتورة/التحويل</label><input id="eExternalRef" placeholder="اختياري"></div>
 <div class="full"><label class="label" for="eNotes">ملاحظات</label><textarea id="eNotes"></textarea></div>
@@ -2762,7 +2762,7 @@ function openExpense(id){
   eRef.value=expenseReference();eDate.value=isoToday();eTitle.value='';eAmount.value='';eCat.value='تنظيف';ePayment.value='نقد';eExternalRef.value='';eNotes.value='';
   if(id){
     const x=db.expenses.find(e=>e.id===id);if(!x)return;
-    eRef.value=x.ref||expenseReference();eDate.value=x.date||isoToday();eTitle.value=x.title||'';eAmount.value=x.amount||'';eCat.value=x.cat||'أخرى';ePayment.value=x.paymentMethod||'نقد';eExternalRef.value=x.externalRef||'';eNotes.value=x.notes||'';
+    eRef.value=x.ref||expenseReference();eDate.value=x.date||isoToday();eTitle.value=x.title||'';eAmount.value=x.amount||'';Array.from(eCat.options).filter(option=>option.dataset.legacy==='true').forEach(option=>option.remove());if(x.cat && !Array.from(eCat.options).some(option=>option.value===x.cat)){const legacyOption=new Option(x.cat,x.cat);legacyOption.dataset.legacy='true';eCat.add(legacyOption);}eCat.value=x.cat||'أخرى';ePayment.value=x.paymentMethod||'نقد';eExternalRef.value=x.externalRef||'';eNotes.value=x.notes||'';
   }
   expenseModal.classList.add('open');
 }
