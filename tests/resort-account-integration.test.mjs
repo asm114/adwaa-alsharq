@@ -15,13 +15,13 @@ test('app state preserves the resort account and loads the cash ledger core',asy
 test('expense form uses six approved categories and preserves historical categories',async()=>{
   const html=await read('index.html');
   assert.match(html,/أدخل مبلغ مصروف أكبر من صفر/);
-  const selected=html.match(/<select id="eCat">([\\s\\S]*?)<\\/select>/);
+  const selected=html.split('<select id="eCat">')[1]?.split('</select>')[0];
   assert.ok(selected,'expense category field exists');
-  const categories=[...selected[1].matchAll(/<option>(.*?)<\\/option>/g)].map(x=>x[1]);
+  const categories=selected.split('<option>').slice(1).map(part=>part.split('</option>')[0]);
   assert.deepEqual(categories,['كهرباء','مياه','رواتب وأجور','صيانة','مشتريات ومستلزمات','أخرى']);
-  assert.match(html,/eCat\\.value='أخرى'/);
-  assert.match(html,/legacyOption=new Option\\(x\\.cat,x\\.cat\\)/);
-  assert.match(html,/paymentMethod:ePayment\\.value/);
+  assert.ok(html.includes("eCat.value='أخرى'"));
+  assert.ok(html.includes('legacyOption=new Option(x.cat,x.cat)'));
+  assert.ok(html.includes('paymentMethod:ePayment.value'));
 });
 
 test('customer credit and payment history agree on paid = cash + applied credit',async()=>{
