@@ -106,7 +106,7 @@ function installSections(){
   }
   if(!document.getElementById(ADVANCE_SECTION_ID)){
     const section=document.createElement('div');section.className='section';section.id=ADVANCE_SECTION_ID;
-    section.innerHTML=`<div class="section-head"><div><h3>↔️ السلف والذمم</h3><div class="meta">هذه المبالغ ليست مصروفًا ولا تغيّر صافي الربح؛ تخصم من رصيد حساب المنتجع، وكل سداد يعيد المبلغ إلى الرصيد تلقائيًا.</div></div><button class="primary" type="button" onclick="openAccountingNote()">+ سلفة</button></div><div class="fo-summary"><div><span>أصل المبلغ</span><b id="advTotal">0</b></div><div><span>إجمالي ما تم سداده</span><b id="advPaid">0</b></div><div><span>المتبقي لحساب المنتجع</span><b id="advDue">0</b></div></div><div id="accountingNotesList" class="fo-list"></div>`;
+    section.innerHTML=`<div class="section-head"><div><h3>↔️ السلف والذمم</h3><div class="meta">هذه المبالغ ليست مصروفًا ولا تغيّر صافي الربح؛ تخصم من رصيد حساب المنتجع، وكل سداد يعيد المبلغ إلى الرصيد تلقائيًا.</div></div><button class="primary" type="button" onclick="openAccountingNote()">+ سلفة</button></div><div class="fo-summary"><div><span>إجمالي السلف</span><b id="advTotal">0</b></div><div><span>إجمالي ما تم سداده</span><b id="advPaid">0</b></div><div><span>المتبقي لحساب المنتجع</span><b id="advDue">0</b></div></div><div id="accountingNotesList" class="fo-list"></div>`;
     finance.appendChild(section);
   }
 }
