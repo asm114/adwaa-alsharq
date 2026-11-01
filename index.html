@@ -1578,29 +1578,40 @@ async function loadRemoteData(){
 }
 
 async function persist(){
-  if(!currentUser){alert('انتهت جلسة الدخول. سجّل الدخول من جديد.');showLogin();return}
+  if(!currentUser){window.__adwaaLastPersistResult={ok:false,reason:'session'};alert('انتهت جلسة الدخول. سجّل الدخول من جديد.');showLogin();return false}
   db=normalizeDB(db);
   invalidateCaches();
   try{localStorage.setItem('adwaaDB',JSON.stringify(db))}catch(storageErr){console.warn('تعذر حفظ النسخة المحلية',storageErr)}
   scheduleRenderAll();
-
+  const submitted=typeof structuredClone==='function'?structuredClone(db):JSON.parse(JSON.stringify(db));
+  const submittedHash=await dataStateHash(submitted);
   try{
-    const {error}=await supabaseClient
-      .from('app_state')
-      .upsert({id:STATE_ROW_ID,data:db,updated_at:new Date().toISOString()});
-    if(error) throw error;
-    remoteReady=true;
-    lastSuccessfulWriteAt=new Date().toISOString();lastSyncError='';
-    await markRemoteStateConfirmed(db);
-    setSyncStatus('تم الحفظ والمزامنة','ok');
+    const {error}=await supabaseClient.from('app_state').upsert({id:STATE_ROW_ID,data:submitted,updated_at:new Date().toISOString()});
+    if(error)throw error;
+    return await confirmPersistedSnapshot(submittedHash);
   }catch(err){
+    try{
+      const {data,error:readError}=await supabaseClient.from('app_state').select('data').eq('id',STATE_ROW_ID).maybeSingle();
+      if(!readError&&data?.data&&await dataStateHash(data.data)===submittedHash){
+        console.warn('تم تأكيد الحفظ بقراءة لاحقة بعد تعذر تأكيد استجابة الكتابة.');
+        return await confirmPersistedSnapshot(submittedHash);
+      }
+    }catch(readbackError){console.warn('تعذرت قراءة تأكيد الحفظ بعد خطأ الكتابة',readbackError)}
     console.error(err);
-    remoteReady=false;
-    lastSyncError=String(err?.message||err||'تعذر حفظ البيانات في قاعدة البيانات');
+    window.__adwaaLastPersistResult={ok:false,error:String(err?.message||err||'تعذر حفظ البيانات في قاعدة البيانات')};
+    remoteReady=false;lastSyncError=window.__adwaaLastPersistResult.error;
     void renderDataProtectionSyncStatus();
-    setSyncStatus('تعذر رفع آخر تعديل؛ محفوظ مؤقتًا على هذا الجهاز','error');
-    alert('تعذر مزامنة آخر تعديل. تحقق من الاتصال وصلاحيات حساب المدير.');
+    setSyncStatus('تعذر تأكيد رفع آخر تعديل؛ بقي محفوظًا مؤقتًا على هذا الجهاز','error');
+    alert('تعذر تأكيد مزامنة آخر تعديل. لا تعِد إدخال العميل الآن؛ أعد المحاولة بعد التحقق من الاتصال.');
+    return false;
   }
+}
+async function confirmPersistedSnapshot(hash){
+  window.__adwaaLastPersistResult={ok:true,confirmedAt:new Date().toISOString()};
+  remoteReady=true;lastSuccessfulWriteAt=new Date().toISOString();lastSyncError='';lastConfirmedRemoteHash=hash;
+  try{void renderDataProtectionSyncStatus()}catch(statusError){console.warn('تعذر تحديث مؤشر الحماية بعد تأكيد الحفظ',statusError)}
+  setSyncStatus('تم الحفظ والمزامنة','ok');
+  return true;
 }
 window.__adwaaReconciliationContext=()=>({db,currentUser,persist});
 
@@ -2554,7 +2565,8 @@ async function saveBooking(e){
   if(id){let i=db.bookings.findIndex(x=>x.id===id);db.bookings[i]=obj;addAudit('تعديل','حجز',obj.name+' — #'+obj.code,oldBooking,obj)}else{db.bookings.push(obj);db.seq++;addAudit('إضافة','حجز',obj.name+' — #'+obj.code,null,obj)}
   invalidateCaches();
   ensureCleaningTaskForBooking(obj,previousStatus);
-  await persist();
+  const saved=await persist();
+  if(saved!==true)return;
   closeModal('bookingModal');
 }
 async function deleteBooking(){
