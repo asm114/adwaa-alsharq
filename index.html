@@ -1586,7 +1586,8 @@ async function persist(){
   const submitted=typeof structuredClone==='function'?structuredClone(db):JSON.parse(JSON.stringify(db));
   const submittedHash=await dataStateHash(submitted);
   try{
-    const {error}=await supabaseClient.from('app_state').upsert({id:STATE_ROW_ID,data:submitted,updated_at:new Date().toISOString()});
+    const next=submitted;
+    const {error}=await supabaseClient.from('app_state').upsert({id:STATE_ROW_ID,data:next,updated_at:new Date().toISOString()});
     if(error)throw error;
     return await confirmPersistedSnapshot(submittedHash);
   }catch(err){
