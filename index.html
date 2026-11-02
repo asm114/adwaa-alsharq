@@ -391,13 +391,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 </section>
 
 
-<section id="cleaning" class="view">
-  <div class="notice" style="margin-bottom:14px">
-    <b>طريقة استخدام بوابة جميل:</b>
-    افتح الحجز المطلوب، ثم اضغط <b>إنشاء رابط مهمة جميل</b> أو <b>واتساب جميل</b>.
-    لا تفتح صفحة جميل العامة دون رابط مهمة؛ لأن كل رابط مرتبط بحجز محدد.
-  </div>
-  <div id="managerNotifications" class="section" style="margin-bottom:14px">
+<section id="cleaning" class="view"><div id="managerNotifications" class="section" style="margin-bottom:14px">
     <div class="section-head"><div><h3>🔔 تنبيهات جميل</h3><div class="meta">آخر تحديثات الوصول والتنظيف</div></div>
     <button class="secondary small" onclick="markAllNotificationsRead()">تحديد الكل كمقروء</button></div>
     <div id="notificationList" class="list"></div>
@@ -2010,8 +2004,6 @@ function itemHTML(b){
       <h4>${escapeHtml(b.name)} <span class="small">#${b.code}</span></h4>
       <div class="meta">${b.date} • ${b.type}<br>${family?'استخدام داخلي':(b.phone||'')}<br><span class="badge ${family?'family-badge':payment.code==='paid'?'paid-badge':'due-badge'}">${family?'تواجد العائلة':payment.label}</span></div>
       <div class="task-actions" style="margin-top:9px">
-        ${family?'':`<button class="secondary small" type="button" onclick="event.stopPropagation();createCleaningLink('${b.id}',false)">${cleanLabel}</button>`}
-        ${cleaning?`<button class="primary small" type="button" onclick="event.stopPropagation();sendCleaningTaskToJameel('${b.id}')">واتساب جميل</button>`:''}
       </div>
     </div>
     <span class="badge ${statusClass(b.status)}">${b.status}</span>
