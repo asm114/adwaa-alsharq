@@ -6,6 +6,19 @@ window.__adwaaNativeResortUI=true;
 const icon=path=>`<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="${path}"/></svg>`;
 const icons={plus:'M12 5v14M5 12h14',arrow:'M14 6l-6 6 6 6',check:'M5 12l4 4L19 6',spark:'M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5z'};
 let frame=0,step=0,wasOpen=false;
+const viewIntroductions={bookings:['الضيافة تبدأ من هنا','حجوزاتك، بوضوح.','ابحث عن الضيف، وراجع الإقامة والمدفوعات من بطاقة واحدة.'],customers:['علاقات تدوم','كل ضيف، له مكان.','سجل موحد للحجوزات والمدفوعات والملاحظات.'],expenses:['الصورة المالية','أرقام واضحة. قرارات أسهل.','تابع الحركات والمصروفات والسلف من أقسام مستقلة.'],settings:['مساحتك، على طريقتك','إدارة مرتبة.','الحساب والاتصال، حماية البيانات، وبوابة العملاء في مكان واحد.']};
+function workspace(){
+ for(const [id,copy] of Object.entries(viewIntroductions)){
+  const view=query(id);if(!view||view.querySelector('.native-view-intro'))continue;
+  const intro=document.createElement('div');intro.className='native-view-intro';
+  const eyebrow=document.createElement('span');eyebrow.className='native-eyebrow';eyebrow.textContent=copy[0];
+  const heading=document.createElement('h2');heading.textContent=copy[1];
+  const detail=document.createElement('p');detail.textContent=copy[2];intro.append(eyebrow,heading,detail);view.prepend(intro);
+ }
+ const grid=query('settings')?.querySelector('.section>div[style]');
+ if(grid&&!grid.classList.contains('native-settings-destinations'))grid.classList.add('native-settings-destinations');
+}
+
 const labels=['التفاصيل','الدفع','الطلبات والمرفقات','المستندات'];
 const groups=[['booking-customer-section','booking-stay-section'],['booking-payment-section'],['booking-notes-section','booking-special-request-section'],['booking-send-section']];
 const query=id=>document.getElementById(id);
@@ -67,11 +80,11 @@ function apply(){
  // Keep the approved calendar's viewport, controls and internal styles untouched.
  document.body.classList.toggle('native-resort-active',active?.id!=='calendarView');
  if(!document.body.classList.contains('native-resort-shell'))document.body.classList.add('native-resort-shell');
- home();navigation();booking();
+ home();navigation();booking();workspace();
 }
 function schedule(){if(frame)return;frame=requestAnimationFrame(()=>{frame=0;apply()})}
 function init(){
- const css=document.createElement('link');css.rel='stylesheet';css.href='native-resort-ui.css?v=20261102-preview-1';document.head.append(css);
+ const css=document.createElement('link');css.rel='stylesheet';css.href='native-resort-ui.css?v=20261102-preview-2';document.head.append(css);
  apply();new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
  window.addEventListener('adwaa-subscription-updated',schedule);
 }

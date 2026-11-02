@@ -34,3 +34,13 @@ test('preview has no real SDK or persistent browser data and no sharing feature'
  assert.match(build,/design-memory-adapter/);
  assert.doesNotMatch(js,/shareWorkerCheck|createCleaningLink|مشاركة الرابط/);
 });
+
+test('workspace redesign is confined to existing admin sections and preserves finance visibility',()=>{
+ assert.match(js,/const viewIntroductions=\{bookings:/);
+ assert.match(js,/workspace\(\)/);
+ assert.doesNotMatch(js,/window\.(renderBookings|renderExpenses|renderCustomers|switchView)\s*=/);
+ assert.doesNotMatch(css,/workspace-panel-hidden[^}]*display\s*:\s*(block|grid|flex)/);
+ const shell=read('tools/design/preview-shell.html');
+ assert.match(shell,/width="100%"/);
+ assert.match(shell,/data-size="full" aria-pressed="true"/);
+});
