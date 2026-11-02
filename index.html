@@ -2714,43 +2714,6 @@ async function ensureCleanerTask(bookingId){
   await persist();
   return task;
 }
-async function createCleaningLink(bookingId,sendWhatsApp=false){
-  const task=await ensureCleanerTask(bookingId);
-  if(!task)return;
-  const url=cleanerTaskUrl(task);
-  try{await navigator.clipboard.writeText(url)}catch(e){}
-  if(sendWhatsApp){
-    const text=`السلام عليكم جميل، هذه مهمة تنظيف منتجع أضواء الشرق للحجز رقم ${task.bookingCode||''} بتاريخ ${task.bookingDate||''}.\nافتح الرابط وابدأ التصوير:\n${url}`;
-    window.open(`https://wa.me/${JAMEEL_PHONE}?text=${encodeURIComponent(text)}`,'_blank');
-  }else{
-    prompt('تم إنشاء رابط جميل ونسخه. انسخه من هنا عند الحاجة:',url);
-  }
-}
-async function sendCleaningTaskToJameel(bookingId){return createCleaningLink(bookingId,true)}
-async function createCleaningLinkFromModal(){
-  const bookingId=bId.value;
-  if(!bookingId){alert('احفظ الحجز أولًا، ثم افتحه واضغط إنشاء رابط مهمة جميل.');return;}
-  await createCleaningLink(bookingId,false);
-}
-function findCleaningTask(taskId){return (db.cleaningTasks||[]).find(t=>t.id===taskId)}
-async function copyCleaningTaskLink(taskId){
-  const task=findCleaningTask(taskId);if(!task)return;
-  task.token=task.token||randomTaskToken();await persist();
-  const url=cleanerTaskUrl(task);
-  try{await navigator.clipboard.writeText(url);alert('تم نسخ رابط مهمة جميل.')}catch(e){prompt('انسخ الرابط:',url)}
-}
-async function openCleaningTaskLink(taskId){
-  const task=findCleaningTask(taskId);if(!task)return;
-  task.token=task.token||randomTaskToken();await persist();
-  window.open(cleanerTaskUrl(task),'_blank');
-}
-async function sendCleaningTaskById(taskId){
-  const task=findCleaningTask(taskId);if(!task)return;
-  task.token=task.token||randomTaskToken();await persist();
-  const url=cleanerTaskUrl(task);
-  const text=`السلام عليكم جميل، هذه مهمة تنظيف منتجع أضواء الشرق للحجز رقم ${task.bookingCode||''} بتاريخ ${task.bookingDate||''}.\nافتح الرابط وابدأ التصوير:\n${url}`;
-  window.open(`https://wa.me/${JAMEEL_PHONE}?text=${encodeURIComponent(text)}`,'_blank');
-}
 
 
 function expenseReference(){
