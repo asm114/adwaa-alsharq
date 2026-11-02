@@ -1855,14 +1855,10 @@ function renderAlerts(){
   const today=isoToday(),now=new Date(),alerts=[];
   const contractPending=active.filter(b=>b.date>=today&&!b.manualMessages?.contract);
   const movement=active.filter(b=>(b.date===today&&!['تم الدخول','تم الخروج'].includes(b.status)&&now>=new Date(`${today}T15:30:00`))||(bookingExitDate(b)===today&&b.status!=='تم الخروج'&&hasReachedBookingExitTime(b,now)));
-  const cleaning=(db.cleaningTasks||[]).filter(t=>!['approved','done','ملغي'].includes(t.status));
-  const reports=cleaning.filter(t=>t.status==='pending_approval');
   const commissionBookings=active.filter(b=>commissionStatus(b)==='earned');
   const commissionSubscriptions=(db.subscriptions||[]).filter(s=>typeof window.subscriptionCommissionStatus==='function'&&window.subscriptionCommissionStatus(s)==='earned');
   if(contractPending.length)alerts.push({kind:'contract',title:'إرسال العقد للعميل',text:`أنشئ العقد ثم أرسله يدويًا للحجز الأقرب: ${contractPending[0].code||'-'}`,action:'فتح مركز الإرسال',onclick:`openContractSendCenter('${contractPending[0].id}')`});
   if(movement.length)alerts.push({kind:'movement',title:`${movement.length} حركة دخول أو خروج اليوم`,text:'تحتاج تحديث حالة الحجز عند اكتمال الحركة.',action:'فتح الحجوزات',onclick:"switchView('bookings')"});
-  if(reports.length)alerts.push({kind:'cleaning',title:`${reports.length} تقرير تنظيف بانتظار اعتمادك`,text:'راجع صور العامل واعتمد المهمة أو أعدها.',action:'مراجعة التقرير',onclick:"switchView('cleaning')"});
-  else if(cleaning.length)alerts.push({kind:'cleaning',title:`${cleaning.length} مهمة تنظيف قيد المتابعة`,text:'تحتاج متابعة حتى اكتمال التنظيف واعتماده.',action:'فتح التنظيف',onclick:"switchView('cleaning')"});
   const commissionCount=commissionBookings.length+commissionSubscriptions.length;
   if(commissionCount)alerts.push({kind:'commission',title:`${commissionCount} عمولة مستحقة`,text:'استحقت بعد اكتمال السداد وتحتاج تأكيد التحويل.',action:'فتح المالية',onclick:"switchView('expenses')"});
   root.innerHTML=alerts.map(a=>`<article class="action-alert"><span class="action-alert-icon">${homeAlertIcon(a.kind)}</span><div><h3>${escapeHtml(a.title)}</h3><p>${escapeHtml(a.text)}</p></div><button type="button" onclick="${a.onclick}">${escapeHtml(a.action)}</button></article>`).join('')||'<div class="home-empty home-empty-success"><b>لا توجد تنبيهات تحتاج إجراءً</b><span>كل المهام المهمة تحت السيطرة الآن.</span></div>';
@@ -2586,7 +2582,12 @@ function addNotification(type,message,taskId='',bookingId=''){
 }
 function renderNotifications(){
   const el=document.getElementById('notificationList');if(!el)return;
-  const arr=[...(db.notifications||[])].sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,20);
+  // Hide historical worker-check and cleaning notifications without deleting stored records.
+  const arr=[...(db.notifications||[])].filter(n=>{
+    const type=String(n?.type||'').toLowerCase();
+    const message=String(n?.message||'');
+    return !(/clean|worker|checklist|task_share|task-share/.test(type)||/تشيك|العامل|جميل|التنظيف|مهمة تنظيف|مشاركة الرابط/.test(message));
+  }).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,20);
   el.innerHTML=arr.map(n=>`<div class="item ${n.read?'notification-read':'notification-unread'}">
     <div><h4>${escapeHtml(n.message)}</h4><div class="meta">${new Date(n.createdAt).toLocaleString('ar-SA')}</div></div>
     <button class="secondary small" onclick="readNotification('${n.id}')">${n.read?'مقروء':'تم الاطلاع'}</button>
