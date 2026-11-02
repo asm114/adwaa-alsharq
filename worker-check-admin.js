@@ -69,9 +69,9 @@ function retireLegacyCleaningFunctions(){
   const noTask=()=>null;
   try{window.ensureCleaningTaskForBooking=noTask}catch(_){}
   try{window.ensureCleanerTask=noTask}catch(_){}
-  window.createCleaningLink=(bookingId)=>window.shareWorkerCheck?.(bookingId);
-  window.sendCleaningTaskToJameel=(bookingId)=>window.shareWorkerCheck?.(bookingId);
-  window.createCleaningLinkFromModal=()=>{const id=document.getElementById('bId')?.value||'';return id?window.shareWorkerCheck?.(id):alert('افتح الحجز أولًا.');};
+  window.createCleaningLink=noTask;
+  window.sendCleaningTaskToJameel=noTask;
+  window.createCleaningLinkFromModal=noTask;
 }
 function bookingIdFromButton(button){const text=String(button.getAttribute('onclick')||'');const match=text.match(/(?:createCleaningLink|sendCleaningTaskToJameel)\('([^']+)'/);return match?.[1]||''}
 function postProcessLegacyUI(){
@@ -109,13 +109,9 @@ async function renderWorkerPanel(bookingId){
   const booking=bookings().find(row=>row.id===bookingId);if(!booking){body.textContent='الحجز غير موجود.';return}
   if(!backendAvailable){body.textContent='ربط تشييك العامل غير جاهز في قاعدة البوابة بعد.';return}
   const row=latestCheck(bookingId);
-  if(!row){
-    body.innerHTML=booking.status==='تم الخروج'?`لم تتم مشاركة التشييك بعد.<div class="actions"><button class="primary" type="button" data-worker-share>مشاركة ${escapeHtml(workerCheckTitle())}</button></div>`:'يظهر رابط التشييك بعد تسجيل خروج العميل.';
-    body.querySelector('[data-worker-share]')?.addEventListener('click',()=>shareWorkerCheck(bookingId));return;
-  }
-  if(row.status==='ready'){
-    body.innerHTML=`${row.shared_at?'تمت مشاركة الرابط، وبانتظار إرسال العامل.':'الرابط جاهز ولم يتم تأكيد مشاركته بعد.'}<div class="actions"><button class="primary" type="button" data-worker-share>مشاركة الرابط من جديد</button></div>`;
-    body.querySelector('[data-worker-share]')?.addEventListener('click',()=>shareWorkerCheck(bookingId));return;
+  if(!row||row.status==='ready'){
+    body.textContent='مشاركة تشييك العامل متوقفة. التقارير السابقة محفوظة.';
+    return;
   }
   const media=await signedMedia(row),issues=(row.issue_types||[]).map(issueLabel);
   body.innerHTML=`<b>${row.status==='reviewed'?'✅ تمت مراجعة التشييك':'🔔 وصل تشييك العامل'}</b><div class="meta" style="margin-top:7px">${issues.map(escapeHtml).join(' • ')||'بدون تصنيف'}</div>${media.photos.length?`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px">${media.photos.map(url=>`<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="صورة تشييك العامل" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px"></a>`).join('')}</div>`:''}${media.voice?`<audio controls src="${media.voice}" style="width:100%;margin-top:10px"></audio>`:''}${row.status==='submitted'?'<div class="actions"><button class="primary" type="button" data-worker-reviewed>تمت المراجعة</button></div>':''}`;
@@ -130,20 +126,13 @@ function eligibleForMorningShare(booking){
 }
 function renderWorkerAlerts(){
   const root=document.getElementById('alertsList');if(!root)return;
-  root.querySelectorAll('.worker-check-alert').forEach(node=>node.remove());postProcessLegacyUI();if(!backendAvailable)return;
-  const alerts=[];
-  for(const booking of bookings()){
-    if(!eligibleForMorningShare(booking))continue;
-    const row=latestCheck(booking.id);
-    if(row?.status==='reviewed')continue;
-    if(row?.status==='submitted')alerts.push({booking,row,kind:'submitted'});
-    else if(!row||!row.shared_at)alerts.push({booking,row,kind:'share'});
-  }
-  for(const alert of alerts.slice(0,6).reverse()){
+  root.querySelectorAll('.worker-check-alert').forEach(node=>node.remove());
+  postProcessLegacyUI();if(!backendAvailable)return;
+  const alerts=bookings().filter(eligibleForMorningShare).map(booking=>({booking,row:latestCheck(booking.id)})).filter(({row})=>row?.status==='submitted');
+  for(const {booking} of alerts.slice(0,6).reverse()){
     const article=document.createElement('article');article.className='action-alert worker-check-alert';
-    if(alert.kind==='submitted')article.innerHTML=`<span class="action-alert-icon">🔎</span><div><h3>وصل ${escapeHtml(workerCheckTitle())}</h3><p>الحجز #${escapeHtml(alert.booking.code||'')} — الصور والتسجيل جاهزة للمراجعة.</p></div><button type="button">فتح التقرير</button>`;
-    else article.innerHTML=`<span class="action-alert-icon">📤</span><div><h3>مشاركة ${escapeHtml(workerCheckTitle())}</h3><p>خرج العميل من الحجز #${escapeHtml(alert.booking.code||'')}. أرسل رابط التشييك للعامل.</p></div><button type="button">مشاركة الرابط</button>`;
-    article.querySelector('button').addEventListener('click',()=>alert.kind==='submitted'?openWorkerCheckReport(alert.booking.id):shareWorkerCheck(alert.booking.id));root.prepend(article);
+    article.innerHTML=`<span class="action-alert-icon">🔎</span><div><h3>وصل ${escapeHtml(workerCheckTitle())}</h3><p>الحجز #${escapeHtml(booking.code||'')} — الصور والتسجيل جاهزة للمراجعة.</p></div><button type="button">فتح التقرير</button>`;
+    article.querySelector('button').addEventListener('click',()=>openWorkerCheckReport(booking.id));root.prepend(article);
   }
 }
 function showToast(message){let toast=document.getElementById('workerCheckToast');if(!toast){toast=document.createElement('div');toast.id='workerCheckToast';toast.style.cssText='position:fixed;top:max(16px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:9999;background:#17332d;color:#fff;padding:12px 16px;border-radius:16px;box-shadow:0 8px 25px #0003;font-weight:800;max-width:90vw;text-align:center';document.body.appendChild(toast)}toast.textContent=message;toast.hidden=false;clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>{toast.hidden=true},4500)}
@@ -157,26 +146,8 @@ async function refreshChecks(){
     checks=Array.isArray(data)?data:[];checksByBooking=new Map();for(const row of checks){if(!checksByBooking.has(String(row.booking_id||'')))checksByBooking.set(String(row.booking_id||''),row)}backendAvailable=true;renderWorkerAlerts();const current=document.getElementById('bId')?.value;if(current)renderWorkerPanel(current);return true;
   }catch(error){console.warn('تعذر تحميل تشييك العامل.',error);backendAvailable=false;renderWorkerAlerts();return false}
 }
-function shareModal(){
-  let modal=document.getElementById('workerCheckShareModal');if(modal)return modal;
-  modal=document.createElement('div');modal.id='workerCheckShareModal';modal.className='modal';modal.innerHTML='<div class="sheet" style="max-width:560px;margin:auto"><div class="sheet-head"><h2 id="workerShareTitle">مشاركة تشييك العامل</h2><button class="close" type="button" data-close-worker-share>×</button></div><div class="notice">الرابط خاص بهذا الحجز. أرسله للعامل فقط.</div><input id="workerShareUrl" readonly dir="ltr"><div class="actions"><button class="primary" type="button" id="workerNativeShare">مشاركة</button><button class="secondary" type="button" id="workerCopyShare">نسخ الرابط</button></div></div>';document.body.appendChild(modal);modal.querySelector('[data-close-worker-share]').addEventListener('click',()=>modal.classList.remove('open'));return modal
-}
-async function markShared(checkId){if(!portalClient||!checkId)return;const {error}=await portalClient.from(TABLE).update({shared_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',checkId);if(error)console.warn('تعذر تسجيل مشاركة رابط العامل.',error);await refreshChecks()}
-async function openShareDialog(url,checkId,booking){
-  const modal=shareModal();document.getElementById('workerShareTitle').textContent=`مشاركة ${workerCheckTitle()}`;document.getElementById('workerShareUrl').value=url;modal.classList.add('open');
-  document.getElementById('workerNativeShare').onclick=async()=>{try{if(navigator.share){await navigator.share({title:workerCheckTitle(),text:`${workerCheckTitle()} للحجز #${booking.code||''}`,url});await markShared(checkId);modal.classList.remove('open')}else{await navigator.clipboard.writeText(url);await markShared(checkId);showToast('تم نسخ الرابط. أرسله للعامل.')}}catch(error){if(error?.name!=='AbortError')console.warn(error)}};
-  document.getElementById('workerCopyShare').onclick=async()=>{try{await navigator.clipboard.writeText(url);await markShared(checkId);showToast('تم نسخ رابط التشييك.');modal.classList.remove('open')}catch(_){prompt('انسخ رابط التشييك:',url)}};
-}
-async function shareWorkerCheck(bookingId){
-  const booking=bookings().find(row=>row.id===bookingId);if(!booking){alert('الحجز غير موجود.');return}
-  if(booking.status!=='تم الخروج'){alert('يتم إرسال تشييك العامل بعد تسجيل خروج العميل.');return}
-  if(!await ensurePortalAdmin()){alert('جلسة إدارة بوابة العملاء غير جاهزة. حدّث الصفحة ثم حاول مرة أخرى.');return}
-  try{
-    const {data,error}=await portalClient.rpc('create_customer_portal_worker_check',{p_booking_id:booking.id,p_booking_code:String(booking.code||''),p_booking_date:booking.date||null,p_property_name:propertyName(),p_property_type:propertyType()});
-    if(error)throw error;const row=Array.isArray(data)?data[0]:data;if(!row?.check_id||!row?.access_token)throw new Error('لم يتم إنشاء رابط صالح');
-    const url=new URL('worker-check.html',location.href);url.searchParams.set('token',row.access_token);await openShareDialog(url.href,row.check_id,booking);
-  }catch(error){console.error(error);const submitted=String(error?.message||'').includes('already submitted');if(submitted){await refreshChecks();openWorkerCheckReport(bookingId);return}alert('تعذر إنشاء رابط تشييك العامل. تأكد من تجهيز قاعدة بوابة العملاء.')}
-}
+// Retired entry point: old cached buttons cannot create tokens or write shared_at.
+function shareWorkerCheck(){return null}
 async function markWorkerCheckReviewed(checkId,bookingId){if(!await ensurePortalAdmin())return;const {error}=await portalClient.from(TABLE).update({status:'reviewed',reviewed_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',checkId).eq('status','submitted');if(error){alert('تعذر اعتماد مراجعة التشييك.');return}await refreshChecks();renderWorkerPanel(bookingId)}
 function openWorkerCheckReport(bookingId){if(typeof window.openBooking==='function')window.openBooking(bookingId);setTimeout(()=>{renderWorkerPanel(bookingId);document.getElementById('workerCheckBookingPanel')?.scrollIntoView({behavior:'smooth',block:'center'})},180)}
 

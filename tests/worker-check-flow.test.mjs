@@ -26,12 +26,12 @@ test('تشييك العامل مرتبط بالحجز وهوية المنشأة 
   assert.match(admin,/propertyName/);
   assert.match(admin,/propertyType/);
   assert.match(admin,/هوية المنشأة/);
-  assert.match(admin,/create_customer_portal_worker_check/);
-  assert.match(admin,/worker-check\.html/);
+  assert.doesNotMatch(admin,/create_customer_portal_worker_check/);
+  assert.match(admin,/function shareWorkerCheck\(\)\{return null\}/);
   assert.match(admin,/bookingId/);
   assert.match(admin,/window\.ensureCleaningTaskForBooking=noTask/);
   assert.match(admin,/text\.includes\('بوابة جميل'\)/);
-  assert.match(admin,/sendCleaningTaskToJameel=.*shareWorkerCheck/);
+  assert.match(admin,/sendCleaningTaskToJameel=noTask/);
   assert.doesNotMatch(html,/جميل/);
 });
 
@@ -40,7 +40,7 @@ test('بعد خروج العميل لا تُنشأ مهمة تنظيف ولا ي
   assert.doesNotMatch(reminders,/ensureCleaningTaskForBooking/);
   assert.doesNotMatch(reminders,/addReminder\('cleaning'/);
   assert.doesNotMatch(reminders,/مهمة تنظيف/);
-  assert.match(reminders,/worker-check-admin\.js\?v=20260819-2/);
+  assert.match(reminders,/worker-check-admin\.js\?v=20261102-retired-share-1/);
   assert.match(reminders,/worker-check-legacy-cleanup\.js\?v=20260828-2/);
   assert.match(reminders,/if\(item\.operationalType==='cleaning'\)resolveReminder\(item\)/);
 });

@@ -3,8 +3,13 @@
 if(window.__adwaaHeaderAlertsPopupInstalled)return;
 window.__adwaaHeaderAlertsPopupInstalled=true;
 
+// Exclude historical cards too, without changing their stored booking/report data.
+function isRetiredWorkerShare(card){
+  return /مشاركة\s+تشيي?ك\s+(?:عامل|العامل)|أرسل رابط التشييك للعامل/.test(String(card?.textContent||''));
+}
+
 function currentAlertCards(){
-  return [...document.querySelectorAll('#alertsList .action-alert')].filter(card=>!card.hidden&&card.isConnected);
+  return [...document.querySelectorAll('#alertsList .action-alert')].filter(card=>!card.hidden&&card.isConnected&&!isRetiredWorkerShare(card));
 }
 
 function removeContractAlerts(){
