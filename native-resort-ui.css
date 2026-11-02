@@ -1,0 +1,284 @@
+@layer native-resort-preview {
+/* Phase one: scoped to home, navigation and booking. The calendar is excluded. */
+body.native-resort-active{background:#f5f5f1!important;color:#1f302b;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Tahoma,sans-serif!important}
+body.native-resort-active #appRoot{max-width:none!important;background:transparent!important}
+body.native-resort-active #appRoot>header{background:#f5f5f1!important;border:0!important;box-shadow:none!important;padding:26px 32px 12px!important;min-height:84px!important}
+body.native-resort-active #pageTitle{font-size:20px!important;font-weight:750!important;letter-spacing:-.5px}
+body.native-resort-active #headerTodayDate{font-size:12px!important;color:#718078!important;margin-top:5px}
+body.native-resort-active #appRoot>header .icon-btn{border:1px solid #e3e7e1!important;background:white!important;box-shadow:none!important;border-radius:50%!important;width:44px!important;height:44px!important;min-height:44px!important;color:#365c4d!important}
+body.native-resort-active #amountPrivacyToggle span{display:none!important}
+body.native-resort-active #appRoot>main{padding:12px 32px 36px!important;max-width:1500px!important;margin-inline:auto!important}
+body.native-resort-active .native-home-intro{display:flex;align-items:center;justify-content:space-between;gap:20px;grid-column:1/-1;margin-bottom:6px}
+body.native-resort-active .native-eyebrow{display:block;color:#7b857a;font-size:11px;font-weight:650;margin-bottom:9px}
+body.native-resort-active #homeCommandCenter #nativeHomeIntro h2{font-size:32px!important;line-height:1.35!important;letter-spacing:-1.2px!important;color:#193e31!important;margin:0!important;font-weight:750!important}
+body.native-resort-active .native-home-intro p{font-size:13px!important;color:#758078!important;margin:10px 0 0!important}
+body.native-resort-active .native-add-booking{display:flex;align-items:center;justify-content:center;gap:9px;min-height:48px;padding:0 21px!important;border:0!important;border-radius:14px!important;background:#214f3e!important;color:white!important;font-size:13px!important;box-shadow:0 5px 12px #214f3e14!important;white-space:nowrap}
+.native-add-booking svg,#nativeBookingSummary svg,#nativeBookingNext svg{width:20px;height:20px;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+body.native-resort-active #homeCommandCenter{display:grid!important;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)!important;gap:20px!important;max-width:none!important}
+body.native-resort-active #homeCommandCenter .home-section{margin:0!important;min-width:0;padding:22px!important;border:1px solid #e5e8e0!important;border-radius:22px!important;background:white!important;box-shadow:0 3px 12px #172d2005!important}
+body.native-resort-active #homeCommandCenter .home-section-head{margin:0 0 18px!important;padding:0!important;border:0!important}
+body.native-resort-active #homeCommandCenter .home-section h2{font-size:16px!important;line-height:1.5!important;color:#273f31!important;letter-spacing:-.25px}
+body.native-resort-active #homeCommandCenter .home-section-head p{font-size:11px!important;color:#859085!important;line-height:1.7!important;margin:5px 0 0!important}
+body.native-resort-active #resortStatusCard{grid-column:1!important;position:relative;isolation:isolate;overflow:hidden;display:flex!important;align-items:flex-start!important;flex-direction:column!important;justify-content:center!important;min-height:210px!important;background:#214f3e!important;color:#fff!important;border:0!important;border-radius:22px!important;padding:26px!important;gap:22px!important;box-shadow:none!important}
+body.native-resort-active #resortStatusCard .resort-status-main{display:block!important;max-width:72%}
+body.native-resort-active #resortStatusCard .resort-status-icon{display:none!important}
+body.native-resort-active #resortStatusCard .resort-status-label{color:#c0d2c5!important;font-size:12px!important;font-weight:500!important}
+body.native-resort-active #resortStatusCard #resortStatusText{font-size:24px!important;font-weight:650!important;line-height:1.5!important;margin:9px 0 0!important;color:white!important}
+body.native-resort-active #resortStatusUpdated{font-size:10px!important;color:#b9d0bf!important;margin-top:6px!important}
+body.native-resort-active #resortStatusCard>button{width:auto!important;align-self:flex-start!important;min-height:36px!important;border:1px solid #ffffff32!important;background:#ffffff12!important;color:white!important;font-size:11px!important;border-radius:10px!important;padding:7px 12px!important}
+.native-status-art{position:absolute;inset-inline-end:15px;bottom:20px;width:135px;height:115px;z-index:-1;opacity:.3;pointer-events:none}
+.native-status-art svg{stroke:#d9e6cf;stroke-width:1.2;width:100%;height:100%;stroke-linecap:round;stroke-linejoin:round}
+body.native-resort-active #nextBookingSection{grid-column:2!important;grid-row:2!important}
+body.native-resort-active #nextBookingCard{border:0!important;background:#fff!important;box-shadow:none!important;padding:0!important;min-height:0!important}
+body.native-resort-active #nextBookingCard h3{font-size:23px!important;font-weight:650!important;margin:10px 0!important;color:#244632!important}
+body.native-resort-active #nextBookingCard .meta,body.native-resort-active #nextBookingCard p{font-size:12px!important;color:#6b786f!important;line-height:1.9!important}
+body.native-resort-active #nextBookingCard button{min-height:40px!important;border-radius:11px!important;background:#eef3ea!important;color:#33513a!important;border:0!important;padding:9px 16px!important;font-size:12px!important;margin-top:8px!important}
+body.native-resort-active #todayBoard{grid-column:1!important;grid-row:3!important}
+body.native-resort-active #dashboardAlerts{grid-column:2!important;grid-row:3!important}
+body.native-resort-active #todayBoard .today-action-card{background:#f7f8f3!important;border:1px solid #e8ebe3!important;border-radius:14px!important;padding:14px!important;box-shadow:none!important}
+body.native-resort-active .home-empty{background:#fafbf8!important;border:1px dashed #dde4d7!important;border-radius:13px!important;color:#75806e!important;padding:20px!important;font-size:12px!important;line-height:1.9!important}
+body.native-resort-active #dashboardAlerts .action-alert{border:0!important;background:#f6f7f2!important;border-radius:14px!important;padding:15px!important;box-shadow:none!important}
+body.native-resort-active #dashboardAlerts .action-alert h3{font-size:13px!important}
+body.native-resort-active #dashboardAlerts .action-alert p{font-size:11px!important}
+body.native-resort-active #dashboardAlerts .action-alert button{min-height:40px!important;border-radius:10px!important;font-size:11px!important}
+body.native-resort-active #homeCommandCenter .home-quick-actions{grid-column:1/-1!important;padding:20px 22px!important}
+body.native-resort-active #homeCommandCenter .home-quick-actions .home-section-head{display:none!important}
+body.native-resort-active .quick-action-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:0!important}
+body.native-resort-active .quick-action-grid>button{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:center!important;gap:10px!important;border:0!important;border-inline-end:1px solid #e6eade!important;background:transparent!important;color:#36513c!important;box-shadow:none!important;border-radius:0!important;min-height:45px!important;padding:4px 10px!important;font-size:12px!important}
+body.native-resort-active .quick-action-grid>button:last-child{border:0!important}
+body.native-resort-active .quick-action-grid>button svg{background:#f0f3e9!important;border:0!important;border-radius:11px!important;padding:9px!important;width:37px!important;height:37px!important;color:#43623d!important;stroke-width:1.6!important}
+body.native-resort-active #homeCommandCenter .home-metrics{grid-column:1/-1!important;background:transparent!important;border:0!important;padding:4px 0!important}
+body.native-resort-active #homeCommandCenter .home-metrics>.home-section-head{display:none!important}
+body.native-resort-active .home-metrics-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:14px!important}
+body.native-resort-active .home-metrics-grid>.stat{background:white!important;border:1px solid #e5e8e0!important;box-shadow:none!important;border-radius:16px!important;padding:19px!important;text-align:right!important;min-height:98px!important}
+body.native-resort-active .home-metrics-grid .k{color:#7c877b!important;font-size:11px!important}
+body.native-resort-active .home-metrics-grid .v{font-size:23px!important;color:#254d36!important;margin-top:12px!important;line-height:1.4!important;font-weight:650!important;font-variant-numeric:tabular-nums}
+body.native-resort-active .home-secondary-details{margin-top:15px!important;color:#6d7f6b!important;font-size:12px!important}
+body.native-resort-active .home-secondary-details summary{min-height:44px;padding:12px 0}
+/* App shell: only non-calendar views receive the new rail/dock. */
+.native-nav-caption,.native-nav-footer{display:none}
+@media(min-width:761px){
+ body.native-resort-active #appRoot{padding-inline-end:218px!important;margin:0!important}
+ body.native-resort-active #appRoot>nav.native-navigation{position:fixed!important;inset:0 0 0 auto!important;width:218px!important;height:100dvh!important;display:flex!important;flex-direction:column!important;gap:6px!important;padding:32px 16px!important;background:#fff!important;color:#32533f!important;border:0!important;border-inline-start:1px solid #e4e9e0!important;box-shadow:none!important;overflow: auto!important}
+ body.native-resort-active #appRoot>nav.native-navigation .workspace-brand{display:flex!important;gap:11px!important;align-items:center!important;margin:0 4px 25px!important;padding:0!important;border:0!important}
+ body.native-resort-active #appRoot>nav.native-navigation .workspace-mark{display:grid!important;place-items:center;width:42px!important;height:42px!important;background:#214f3e!important;color:white!important;border-radius:14px!important;font-size:23px!important}
+ body.native-resort-active .workspace-brand strong{font-size:15px!important;color:#254b37!important}
+ body.native-resort-active .workspace-brand small{display:block;font-size:10px!important;color:#8b958b!important;margin-top:5px}
+ body.native-resort-active .native-nav-caption{display:block!important;margin:0 14px 11px;color:#9aA394;font-size:10px!important}
+ body.native-resort-active #appRoot>nav.native-navigation>button{display:flex!important;align-items:center!important;justify-content:flex-start!important;flex:0 0 auto!important;gap:13px!important;min-height:48px!important;width:100%!important;padding:12px 15px!important;color:#73806d!important;font-size:12px!important;border:0!important;border-radius:12px!important;background:transparent!important;box-shadow:none!important;text-align:right!important}
+ body.native-resort-active #appRoot>nav.native-navigation>button.active{background:#eaf0e3!important;color:#2f5438!important;font-weight:750!important}
+ body.native-resort-active #appRoot>nav.native-navigation>button b{display:flex!important;align-items:center!important;width:21px!important;margin:0!important;color:inherit!important}
+ body.native-resort-active #appRoot>nav.native-navigation>button b svg{width:21px!important;height:21px!important;stroke-width:1.65!important}
+ body.native-resort-active #appRoot>nav.native-navigation>button.simple-hidden-nav{display:none!important}
+ body.native-resort-active .native-nav-footer{display:flex!important;gap:10px;align-items:center;margin-top:auto;padding:20px 8px 5px;border-top:1px solid #e9ede5}
+ .native-brand-sun{font-size:26px;color:#a58f57}.native-nav-footer strong{font-size:11px;color:#526348}.native-nav-footer small{display:block;font-size:10px;color:#98a18e;margin-top:4px}
+}
+/* Booking: original form is a stepped sheet, with a persistent overview on iPad. */
+body.native-resort-active #bookingModal#bookingModal{padding:28px!important;background:#142d256b!important;backdrop-filter:blur(7px)}
+body.native-resort-active #bookingModal#bookingModal>.sheet{display:grid!important;grid-template-columns:minmax(0,1fr) 245px!important;grid-template-rows:auto auto minmax(0,1fr) auto!important;width:min(1040px,100%)!important;max-width:1040px!important;height:min(810px,92dvh)!important;max-height:92dvh!important;border:0!important;border-radius:24px!important;overflow:hidden!important;background:#fff!important;box-shadow:0 30px 100px #10221930!important;padding:0!important;gap:0!important}
+body.native-resort-active #bookingModal#bookingModal .sheet-head{grid-column:1/-1!important;padding:24px 28px 18px!important;border:0!important;background:white!important;position:static!important}
+body.native-resort-active #bookingModal#bookingModalTitle{font-size:23px!important;color:#274833!important;font-weight:700!important}
+body.native-resort-active #bookingModal#bookingModal .v92-booking-tools>.secondary{display:none!important}
+body.native-resort-active #bookingModal#bookingModal button.close{display:grid!important;place-items:center;width:40px!important;height:40px!important;border:1px solid #e6eade!important;border-radius:50%!important;background:#f7f8f3!important;color:#62715c!important;box-shadow:none!important;font-size:23px!important}
+body.native-resort-active #bookingModal#bookingModal .workspace-booking-nav{display:none!important}
+body.native-resort-active #nativeBookingSteps{grid-column:1/-1;display:flex;gap:8px;padding:0 28px 20px;border-bottom:1px solid #e8ece3;background:#fff}
+body.native-resort-active #nativeBookingSteps>button{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;min-height:45px;border:1px solid transparent;background:#f6f7f2;color:#8b9483;border-radius:12px;padding:8px;font-size:12px;white-space:nowrap;box-shadow:none}
+body.native-resort-active #nativeBookingSteps>button[aria-current=step]{color:#31543a;background:#eaf0e3;border-color:#d7e1ca;font-weight:700}
+.native-step-number{display:grid;place-items:center;flex-shrink:0;border-radius:50%;border:1px solid #dbe2d2;width:22px;height:22px;font-size:11px}
+body.native-resort-active #bookingModal#bookingModal .booking-modal-scroll{grid-column:1;grid-row:3;min-height:0!important;overflow:auto!important;padding:24px 28px!important;scrollbar-width:thin!important;background:#fff!important}
+body.native-resort-active #bookingModal#bookingModal #bookingForm{display:block!important;gap:0!important}
+body.native-resort-active #bookingModal#bookingModal .booking-form-section{border:0!important;box-shadow:none!important;padding:0!important;margin:0 0 26px!important;border-radius:0!important;background:white!important;min-width:0!important}
+body.native-resort-active #bookingModal#bookingModal .booking-form-section.native-section-away{display:none!important}
+body.native-resort-active #bookingModal#bookingModal .booking-form-section legend{padding:0!important;font-size:13px!important;font-weight:700!important;color:#365039!important;margin:0 0 18px!important;width:100%!important;float:none!important}
+body.native-resort-active #bookingModal#bookingModal .booking-section-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:18px 15px!important;padding:0!important}
+body.native-resort-active #bookingModal#bookingModal .booking-section-grid>.full{grid-column:1/-1!important}
+body.native-resort-active #bookingModal#bookingModal .label{font-size:11px!important;font-weight:600!important;color:#75816d!important;margin-bottom:8px!important}
+body.native-resort-active #bookingModal#bookingModal input:not([type=checkbox]):not([type=hidden]),body.native-resort-active #bookingModal#bookingModal select,body.native-resort-active #bookingModal#bookingModal textarea{border:1px solid #dfe5d7!important;box-shadow:none!important;background:#fafbf7!important;border-radius:11px!important;min-height:48px!important;padding:11px 13px!important;font-size:14px!important;color:#2a4030!important;max-width:100%!important;width:100%!important;box-sizing:border-box!important}
+body.native-resort-active #bookingModal#bookingModal input:focus,body.native-resort-active #bookingModal#bookingModal select:focus,body.native-resort-active #bookingModal#bookingModal textarea:focus{outline:2px solid #86a578!important;outline-offset:2px!important;border-color:#6d8b60!important}
+body.native-resort-active #bookingModal#bookingModal .booking-required{font-size:9px!important;border:0!important;background:transparent!important;color:#9ba48f!important;padding:0!important}
+body.native-resort-active #nativeBookingSummary{grid-column:2;grid-row:3;background:#f4f6ee;border-inline-start:1px solid #e4e9db;padding:27px 23px;min-width:0}
+.native-summary-heading{display:flex;align-items:center;gap:8px;color:#829271;font-size:11px}.native-summary-heading svg{width:17px}
+#nativeBookingSummary h3{font-size:21px;color:#355237;margin:24px 0;overflow-wrap:anywhere}
+.native-summary-line{display:grid;gap:9px;margin:23px 0;font-size:11px;color:#8c9781}.native-summary-line strong{font-size:13px;font-weight:550;color:#526649;font-variant-numeric:tabular-nums}
+.native-summary-price{border-top:1px solid #dce4d2;padding-top:24px;margin-top:26px;display:grid;gap:12px;font-size:11px;color:#899579}.native-summary-price strong{font-size:27px;font-weight:650;color:#335737}
+#nativeBookingSummary p{font-size:10px;color:#8b967d;line-height:1.9;margin-top:25px}
+body.native-resort-active #bookingModal#bookingModal .booking-modal-actions{grid-column:1/-1!important;grid-row:4;display:flex!important;align-items:center!important;gap:10px!important;border:0!important;border-top:1px solid #e6eade!important;padding:16px 28px!important;background:#fff!important;position:static!important}
+body.native-resort-active #bookingModal#bookingModal .booking-modal-actions button{min-height:46px!important;min-width:100px!important;border-radius:12px!important;font-size:13px!important;padding:11px 18px!important;box-shadow:none!important}
+body.native-resort-active #bookingModal#bookingModal .booking-modal-actions>.primary{background:#254f3a!important;color:#fff!important;border:0!important;margin-inline-start:auto!important}
+body.native-resort-active #bookingModal#bookingModal .booking-modal-actions>.secondary{border:1px solid #dce4d1!important;color:#4d6843!important;background:#f5f7ef!important}
+body.native-resort-active #nativeBookingNext{display:flex;align-items:center;justify-content:center;gap:8px}
+body.native-resort-active #bookingModal#bookingModal [hidden]{display:none!important}
+body.native-resort-active #bookingModal#bookingModal .booking-photo-control{min-width:0!important}
+body.native-resort-active #bookingModal#bookingModal .photo-center{grid-column:1/-1}
+body.native-resort-active #bookingModal#bookingModal .photo-toolbar{grid-template-columns:1fr 1fr!important}
+body.native-resort-active #bookingModal#bookingModal .booking-modal-scroll .meta{font-size:10px!important;line-height:1.7!important}
+body.native-resort-active #bookingModal#bookingModal .booking-deposit-controls{display:grid!important;grid-template-columns:1fr!important}
+body.native-resort-active #bookingModal#bookingModal button:focus-visible,body.native-resort-active .native-navigation button:focus-visible,body.native-resort-active #homeCommandCenter button:focus-visible{outline:3px solid #b5a465!important;outline-offset:3px!important}
+@media(max-width:1000px) and (min-width:761px){body.native-resort-active #appRoot>header{padding:24px 22px 10px!important}body.native-resort-active #appRoot>main{padding:12px 22px 30px!important}body.native-resort-active #homeCommandCenter{gap:15px!important}body.native-resort-active #homeCommandCenter .home-section{padding:19px!important}body.native-resort-active #bookingModal#bookingModal>.sheet{grid-template-columns:minmax(0,1fr) 205px!important}}
+@media(max-width:760px){
+ body.native-resort-active #appRoot{padding:0 0 calc(88px + env(safe-area-inset-bottom))!important;margin:0!important}
+ body.native-resort-active #appRoot>header{padding:22px 20px 12px!important;min-height:75px!important}
+ body.native-resort-active #pageTitle{font-size:18px!important}
+ body.native-resort-active #headerTodayDate{font-size:10px!important}
+ body.native-resort-active #appRoot>main{padding:12px 18px 25px!important;max-width:none!important}
+ body.native-resort-active #homeCommandCenter{grid-template-columns:minmax(0,1fr)!important;gap:15px!important}
+ body.native-resort-active .native-home-intro{display:block;margin:4px 0 5px!important}
+ body.native-resort-active #homeCommandCenter #nativeHomeIntro h2{font-size:29px!important}
+ body.native-resort-active .native-home-intro p{font-size:11px!important;margin-top:8px!important}
+ body.native-resort-active .native-home-intro>.native-add-booking{margin-top:20px!important;width:100%;min-height:48px!important;border-radius:13px!important}
+ body.native-resort-active #resortStatusCard{grid-column:1!important;grid-row:auto!important;min-height:185px!important;padding:24px!important;gap:18px!important}
+ body.native-resort-active #resortStatusCard #resortStatusText{font-size:23px!important}
+ body.native-resort-active #nextBookingSection,body.native-resort-active #todayBoard,body.native-resort-active #dashboardAlerts{grid-column:1!important;grid-row:auto!important}
+ body.native-resort-active #homeCommandCenter .home-section{padding:20px!important;border-radius:19px!important}
+ body.native-resort-active .home-metrics-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important}
+ body.native-resort-active .home-metrics-grid>.stat{padding:17px!important;min-height:98px!important}
+ body.native-resort-active .home-metrics-grid .v{font-size:23px!important}
+ body.native-resort-active .quick-action-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important}
+ body.native-resort-active .quick-action-grid>button{justify-content:flex-start!important;border:0!important;background:#f8faf5!important;border-radius:12px!important;padding:11px!important;font-size:11px!important}
+ body.native-resort-active #appRoot>nav.native-navigation{display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;position:fixed!important;inset:auto 0 0!important;width:100%!important;height:auto!important;min-height:74px!important;gap:0!important;background:#fffffff5!important;backdrop-filter:blur(16px);border:0!important;border-top:1px solid #e0e6d9!important;box-shadow:0 -8px 20px #23332205!important;padding:8px 7px calc(10px + env(safe-area-inset-bottom))!important;overflow:visible!important;border-radius:20px 20px 0 0!important}
+ body.native-resort-active #appRoot>nav.native-navigation>button{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;min-width:0!important;min-height:50px!important;padding:6px 1px!important;gap:5px!important;font-size:9px!important;font-weight:550!important;color:#8c9684!important;background:transparent!important;box-shadow:none!important;border:0!important;border-radius:11px!important}
+ body.native-resort-active #appRoot>nav.native-navigation>button.active{background:#edf2e6!important;color:#365b3b!important}
+ body.native-resort-active #appRoot>nav.native-navigation>button b{display:flex!important;justify-content:center!important;width:21px!important;height:21px!important;margin:0!important;font-size:19px!important}
+ body.native-resort-active #appRoot>nav.native-navigation>button b svg{width:21px!important;height:21px!important}
+ body.native-resort-active #appRoot>nav.native-navigation .workspace-brand,body.native-resort-active #appRoot>nav.native-navigation .native-nav-caption,body.native-resort-active #appRoot>nav.native-navigation .native-nav-footer{display:none!important}
+ body.native-resort-active #appRoot>nav.native-navigation>button.simple-hidden-nav{display:none!important}
+ body.native-resort-active #bookingModal#bookingModal{padding:10px 0 0!important;align-items:flex-end!important}
+ body.native-resort-active #bookingModal#bookingModal>.sheet{grid-template-columns:1fr!important;width:100%!important;height:calc(100dvh - max(12px,env(safe-area-inset-top)))!important;max-height:calc(100dvh - 12px)!important;border-radius:23px 23px 0 0!important;grid-template-rows:auto auto minmax(0,1fr) auto!important}
+ body.native-resort-active #bookingModal#bookingModal .sheet-head{padding:20px 20px 16px!important}
+ body.native-resort-active #bookingModal#bookingModalTitle{font-size:21px!important}
+ body.native-resort-active #nativeBookingSteps{padding:0 16px 15px;gap:5px}
+ body.native-resort-active #nativeBookingSteps>button{flex-direction:column;gap:6px;min-height:64px;font-size:9px;padding:8px 3px;white-space:normal}
+ body.native-resort-active #nativeBookingSummary{display:none!important}
+ body.native-resort-active #bookingModal#bookingModal .booking-modal-scroll{padding:22px 20px!important;grid-column:1!important}
+ body.native-resort-active #bookingModal#bookingModal .booking-section-grid{grid-template-columns:1fr!important;gap:17px!important}
+ body.native-resort-active #bookingModal#bookingModal .booking-form-section{margin-bottom:25px!important}
+ body.native-resort-active #bookingModal#bookingModal input:not([type=checkbox]):not([type=hidden]),body.native-resort-active #bookingModal#bookingModal select,body.native-resort-active #bookingModal#bookingModal textarea{font-size:16px!important;min-height:50px!important}
+ body.native-resort-active #bookingModal#bookingModal .booking-modal-actions{padding:13px 18px calc(13px + env(safe-area-inset-bottom))!important;gap:8px!important}
+ body.native-resort-active #bookingModal#bookingModal .booking-modal-actions button{min-width:0!important;flex:1!important;font-size:12px!important;padding:11px 12px!important}
+ body.native-resort-active #bookingModal#bookingModal .booking-modal-actions .help-action{flex:0}
+}
+@media(prefers-reduced-motion:reduce){body.native-resort-active #homeCommandCenter *,body.native-resort-active #bookingModal#bookingModal *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+
+/* Clear legacy layout areas and centered-dock transforms before assigning the new grid. */
+body.native-resort-active #homeCommandCenter{grid-template-areas:none!important;grid-template-rows:none!important}
+body.native-resort-active #homeCommandCenter>section{grid-area:auto!important}
+body.native-resort-active #homeCommandCenter>#nativeHomeIntro{grid-column:1/-1!important;grid-row:1!important}
+body.native-resort-active #homeCommandCenter>#resortStatusCard{grid-column:1!important;grid-row:2!important}
+body.native-resort-active #homeCommandCenter>#nextBookingSection{grid-column:2!important;grid-row:2!important}
+body.native-resort-active #homeCommandCenter>#todayBoard{grid-column:1!important;grid-row:3!important}
+body.native-resort-active #homeCommandCenter>#dashboardAlerts{grid-column:2!important;grid-row:3!important}
+body.native-resort-active #homeCommandCenter>.home-quick-actions{grid-column:1/-1!important;grid-row:4!important}
+body.native-resort-active #homeCommandCenter>.home-metrics{grid-column:1/-1!important;grid-row:5!important}
+body.native-resort-active #appRoot>nav.native-navigation{transform:none!important;max-width:none!important}
+@media(min-width:761px){
+ body.native-resort-active #appRoot{padding:0 218px 0 0!important}
+ body.native-resort-active #appRoot>nav.native-navigation>button{flex-direction:row!important}
+}
+@media(max-width:760px){
+ body.native-resort-active #homeCommandCenter>section{grid-column:1!important;grid-row:auto!important}
+ body.native-resort-active #homeCommandCenter>#nativeHomeIntro,body.native-resort-active #homeCommandCenter>#resortStatusCard,body.native-resort-active #homeCommandCenter>#nextBookingSection,body.native-resort-active #homeCommandCenter>#todayBoard,body.native-resort-active #homeCommandCenter>#dashboardAlerts,body.native-resort-active #homeCommandCenter>.home-quick-actions,body.native-resort-active #homeCommandCenter>.home-metrics{grid-column:1!important;grid-row:auto!important}
+}
+
+body.native-resort-shell:not(.native-resort-active) #nativeBookingSteps,body.native-resort-shell:not(.native-resort-active) #nativeBookingSummary,body.native-resort-shell:not(.native-resort-active) #nativeBookingPrevious,body.native-resort-shell:not(.native-resort-active) #nativeBookingNext{display:none!important}
+body.native-resort-active #bookingModal#bookingModal .booking-modal-actions>button{width:auto!important;flex:0 1 auto!important}
+@media(max-width:760px){body.native-resort-active #bookingModal#bookingModal .booking-modal-actions>button{flex:1!important}}
+
+body.native-resort-active #bookingModal#bookingModal #workerCheckBookingPanel{display:none!important}
+
+
+/* Workspace redesign: original cards, forms and finance visibility rules are retained. */
+body.native-resort-active .native-view-intro{padding:12px 0 26px!important}
+body.native-resort-active .native-view-intro h2{font-size:30px!important;line-height:1.4!important;letter-spacing:-.8px;color:#1e4936!important;margin:0!important}
+body.native-resort-active .native-view-intro p{font-size:13px!important;line-height:1.9;color:#788576!important;margin:10px 0 0!important}
+body.native-resort-active :is(#bookings,#customers,#expenses,#settings) .section{border:1px solid #e2e8dd!important;border-radius:20px!important;background:white!important;box-shadow:0 4px 18px #213a2605!important;margin-bottom:20px!important;overflow:hidden}
+body.native-resort-active :is(#bookings,#customers,#expenses,#settings) .section-head{padding:20px!important;background:#fff!important;border-bottom:1px solid #edf0e8!important;gap:14px!important;flex-wrap:wrap!important}
+body.native-resort-active :is(#bookings,#customers,#expenses,#settings) h3{font-size:16px!important;color:#304d36!important}
+body.native-resort-active :is(#bookings,#customers,#expenses,#settings) .meta{color:#7e8978!important;font-size:11px!important;line-height:1.9!important}
+body.native-resort-active :is(#bookings,#customers,#expenses,#settings) :is(input:not([type=checkbox]):not([type=hidden]):not([type=file]),select,textarea){background:#fff!important;border:1px solid #dce5d5!important;border-radius:12px!important;min-height:46px!important;padding:11px 14px!important;font-size:14px!important;color:#31472e!important;box-sizing:border-box!important;min-width:0!important;max-width:100%!important}
+body.native-resort-active :is(#bookings,#customers,#expenses,#settings) button{min-height:44px!important;border-radius:11px!important;box-shadow:none!important;font-size:12px!important}
+body.native-resort-active :is(#bookings,#customers,#expenses,#settings) button.primary{background:#27533b!important;border-color:#27533b!important;color:white!important}
+body.native-resort-active :is(#bookings,#customers,#expenses,#settings) button.secondary{background:#f3f6ee!important;border:1px solid #e1e8d8!important;color:#536a43!important}
+body.native-resort-active :is(#bookings,#customers,#expenses,#settings) :is(button,input,select,summary):focus-visible{outline:3px solid #ac9b59!important;outline-offset:3px!important}
+/* A compact search station, segmented periods, and expandable guest cards. */
+body.native-resort-active #bookings>.toolbar{display:grid!important;grid-template-columns:minmax(0,1fr) 200px!important;gap:12px!important;background:transparent!important;padding:0!important;margin-bottom:20px!important;border:0!important}
+body.native-resort-active #bookings>.section{background:transparent!important;border:0!important;overflow:visible!important}
+body.native-resort-active #bookings>.section>.section-head{background:transparent!important;border:0!important;padding:0 0 18px!important}
+body.native-resort-active .booking-period-tabs{display:flex!important;flex-wrap:wrap!important;gap:6px!important;padding:6px!important;background:#e9eee2!important;border:0!important;border-radius:14px!important;margin-bottom:22px!important}
+body.native-resort-active .booking-period-tabs>button{flex:1!important;white-space:nowrap!important;border:0!important;background:transparent!important;color:#768367!important;padding:10px 14px!important}
+body.native-resort-active .booking-period-tabs>button.primary{background:white!important;color:#335438!important;box-shadow:0 2px 6px #24452510!important}
+body.native-resort-active #bookingList{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:start!important;gap:18px!important;padding:0!important}
+body.native-resort-active .customer-booking-group{border:1px solid #dfe7d7!important;border-radius:19px!important;background:white!important;box-shadow:none!important;overflow:hidden!important;margin:0!important;min-width:0!important}
+body.native-resort-active .customer-booking-group>summary{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:16px!important;min-height:104px!important;padding:22px!important;cursor:pointer;list-style:none!important;background:#fff!important}
+body.native-resort-active .customer-booking-group>summary:after{content:'+';font-size:22px;color:#7e9570}
+body.native-resort-active .customer-booking-group[open]>summary:after{content:'−'}
+body.native-resort-active .customer-booking-group-title b{font-size:17px!important;color:#2c4b32!important}
+body.native-resort-active .customer-booking-group-title small{font-size:12px!important;color:#8c9684!important;margin-top:8px!important;direction:ltr}
+body.native-resort-active .customer-booking-group-stats{margin-inline-start:auto!important;white-space:normal!important;font-size:12px!important}
+body.native-resort-active .customer-booking-group-stats small{color:#9b8053!important;font-size:11px!important}
+body.native-resort-active .customer-booking-group-list{padding:0 16px 16px!important;background:white!important}
+body.native-resort-active .customer-group-booking{background:#f6f8f0!important;border:1px solid #e6ecdf!important;border-radius:14px!important;margin-top:10px!important;padding:12px!important;display:flex!important;flex-direction:column!important;gap:12px!important}
+body.native-resort-active .customer-group-booking-open{width:100%!important;padding:0!important;border:0!important;display:flex!important;justify-content:space-between!important;text-align:right!important;gap:12px!important;background:transparent!important;color:#3a553a!important}
+body.native-resort-active .customer-group-booking-main{display:grid!important;gap:8px!important}
+body.native-resort-active .customer-group-booking-main>span{font-size:11px!important;color:#829074!important;line-height:1.8!important}
+body.native-resort-active .customer-group-booking-side{font-size:11px!important;display:grid!important;gap:8px!important;text-align:end!important}
+body.native-resort-active .customer-group-edit{align-self:flex-start!important;min-height:40px!important;font-size:11px!important}
+/* Guest directory remains connected to the original customer record. */
+body.native-resort-active #customerList{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:16px!important;padding:20px!important}
+body.native-resort-active #customerList>.card{min-width:0!important;border:1px solid #e2e9db!important;border-radius:17px!important;background:#fafbf7!important;box-shadow:none!important;padding:22px!important;min-height:130px!important}
+body.native-resort-active #customerList h4{color:#304e32!important;font-size:17px!important;margin-bottom:10px!important}
+body.native-resort-active #customerList .customer-directory-arrow{color:#8d9f77!important;background:#edf2e5!important;border-radius:50%!important;width:30px!important;height:30px!important}
+/* Finance grouping and all calculated amounts still come from the existing workspace. */
+body.native-resort-active #workspaceFinanceNav{display:flex!important;gap:8px!important;flex-wrap:wrap!important;background:transparent!important;padding:0 0 20px!important;border:0!important}
+body.native-resort-active #workspaceFinanceNav>button{background:white!important;border:1px solid #dfe6d6!important;color:#6c7e5a!important;min-height:44px!important;padding:10px 16px!important}
+body.native-resort-active #workspaceFinanceNav>button:is(.active,[aria-pressed=true]){background:#284f37!important;color:white!important;border-color:#284f37!important}
+body.native-resort-active #expenses .finance-toolbar{display:flex!important;flex-wrap:wrap!important;gap:14px!important;padding:18px!important;border:1px solid #e1e8d8!important;border-radius:16px!important;background:white!important;margin-bottom:20px!important;align-items:end!important}
+body.native-resort-active #expenses .finance-summary{gap:14px!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;margin-bottom:24px!important}
+body.native-resort-active #expenses .finance-card{background:white!important;border:1px solid #e3e8dc!important;box-shadow:none!important;border-radius:17px!important;padding:22px!important;min-height:115px!important}
+body.native-resort-active #expenses .finance-card small{font-size:11px!important;color:#849074!important}
+body.native-resort-active #expenses .finance-card .amount{font-size:23px!important;margin-top:16px!important;font-variant-numeric:tabular-nums!important}
+body.native-resort-active #expenses .data-table-wrap{overflow-x:auto!important}
+body.native-resort-active #expenses .data-table th{background:#f5f7f0!important;font-size:11px!important;padding:16px!important;color:#7a876a!important}
+body.native-resort-active #expenses .data-table td{padding:16px!important;font-size:12px!important;border-color:#edf0e7!important}
+body.native-resort-active #settings .native-settings-destinations{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:14px!important;padding:20px!important}
+body.native-resort-active #settings .native-settings-destinations>button{min-height:96px!important;text-align:right!important;background:#f7f9f2!important;border:1px solid #e1e9d7!important;padding:22px!important;line-height:1.8!important;font-size:14px!important;border-radius:16px!important}
+body.native-resort-active #settings .auth-user-row{background:#f6f8f1!important;border-radius:14px!important;padding:20px!important;gap:12px!important;flex-wrap:wrap!important}
+/* Dialogs other than booking use a consistent accessible sheet; calendar route is excluded. */
+body.native-resort-active :is(#expenseModal,#customerModal,#headerAlertsModal)>.sheet{border:0!important;border-radius:23px!important;background:#fff!important;box-shadow:0 25px 90px #1635252b!important;max-height:90dvh!important;overflow:auto!important}
+body.native-resort-active :is(#expenseModal,#customerModal,#headerAlertsModal) .sheet-head{padding:22px!important;border-bottom:1px solid #e8eddf!important;background:#fff!important}
+body.native-resort-active :is(#expenseModal,#customerModal,#headerAlertsModal) h2{color:#2c5035!important;font-size:21px!important}
+body.native-resort-active #headerAlertsModalList{padding:20px!important;gap:14px!important}
+body.native-resort-active #headerAlertsModalList>.card{background:#f8faf3!important;border:1px solid #e3ead9!important;box-shadow:none!important;border-radius:15px!important;padding:18px!important}
+body.native-resort-active #expenseModal :is(input:not([type=hidden]),select,textarea){border:1px solid #dfe6d5!important;background:#fafbf7!important;border-radius:12px!important;padding:13px!important;min-height:48px!important;font-size:16px!important;max-width:100%!important;box-sizing:border-box!important}
+/* Put key numbers before operational detail without moving or recreating original nodes. */
+body.native-resort-active #homeCommandCenter>.home-metrics{grid-row:2!important}
+body.native-resort-active #homeCommandCenter>#resortStatusCard,body.native-resort-active #homeCommandCenter>#nextBookingSection{grid-row:3!important}
+body.native-resort-active #homeCommandCenter>#todayBoard,body.native-resort-active #homeCommandCenter>#dashboardAlerts{grid-row:4!important}
+body.native-resort-active #homeCommandCenter>.home-quick-actions{grid-row:5!important}
+@media(max-width:1100px){body.native-resort-active #bookingList{grid-template-columns:minmax(0,1fr)!important}}
+@media(max-width:760px){
+ body.native-resort-active .native-view-intro h2{font-size:27px!important}
+ body.native-resort-active .native-view-intro p{font-size:12px!important}
+ body.native-resort-active #bookings>.toolbar{grid-template-columns:minmax(0,1fr)!important}
+ body.native-resort-active .booking-period-tabs{display:grid!important;grid-template-columns:1fr 1fr!important}
+ body.native-resort-active :is(#customerList,#settings .native-settings-destinations){grid-template-columns:minmax(0,1fr)!important;padding:15px!important}
+ body.native-resort-active #customers .section-head{align-items:stretch!important;flex-direction:column!important}
+ body.native-resort-active #customerSearch{width:100%!important;max-width:none!important;font-size:16px!important}
+ body.native-resort-active #expenses .finance-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+ body.native-resort-active #expenses .finance-card{padding:16px!important;min-height:100px!important}
+ body.native-resort-active #expenses .finance-card .amount{font-size:20px!important}
+ body.native-resort-active #homeCommandCenter{display:flex!important;flex-direction:column!important}
+ body.native-resort-active #homeCommandCenter>#nativeHomeIntro{order:0!important}
+ body.native-resort-active #homeCommandCenter>.home-metrics{order:1!important}
+ body.native-resort-active #homeCommandCenter>#resortStatusCard{order:2!important}
+ body.native-resort-active #homeCommandCenter>#nextBookingSection{order:3!important}
+ body.native-resort-active #homeCommandCenter>#todayBoard{order:4!important}
+ body.native-resort-active #homeCommandCenter>#dashboardAlerts{order:5!important}
+ body.native-resort-active #homeCommandCenter>.home-quick-actions{order:6!important}
+ body.native-resort-active :is(#expenseModal,#customerModal,#headerAlertsModal){padding:10px 0 0!important}
+ body.native-resort-active :is(#expenseModal,#customerModal,#headerAlertsModal)>.sheet{width:100%!important;border-radius:22px 22px 0 0!important;max-height:94dvh!important}
+}
+body.native-resort-active #homeCommandCenter>.home-metrics{padding:0!important;width:100%!important}
+body.native-resort-active .home-metrics-grid{padding:0!important}
+body.native-resort-active .home-secondary-details{margin:10px 0 0!important;padding-top:10px!important}
+@media(max-width:760px){body.native-resort-active .home-metrics-grid .v{font-size:21px!important;white-space:nowrap!important}}
+}
