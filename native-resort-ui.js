@@ -84,7 +84,7 @@ function apply(){
 }
 function schedule(){if(frame)return;frame=requestAnimationFrame(()=>{frame=0;apply()})}
 function init(){
- const css=document.createElement('link');css.rel='stylesheet';css.href='native-resort-ui.css?v=20261102-preview-2';document.head.append(css);
+ const css=document.createElement('link');css.rel='stylesheet';css.href='native-resort-ui.css?v=20261102-native-1';document.head.append(css);
  apply();new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
  window.addEventListener('adwaa-subscription-updated',schedule);
 }

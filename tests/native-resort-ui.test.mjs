@@ -44,3 +44,13 @@ test('workspace redesign is confined to existing admin sections and preserves fi
  assert.match(shell,/width="100%"/);
  assert.match(shell,/data-size="full" aria-pressed="true"/);
 });
+
+test('production offline shell includes the matching versioned design assets',()=>{
+ const sw=read('sw.js');
+ const script=read('index.html').match(/native-resort-ui\.js\?v=([^"']+)/)[1];
+ const style=js.match(/native-resort-ui\.css\?v=([^"']+)/)[1];
+ assert.equal(script,style);
+ assert.ok(sw.includes('./native-resort-ui.js?v='+script));
+ assert.ok(sw.includes('./native-resort-ui.css?v='+style));
+ assert.match(sw,/retired-share-1-native-1/);
+});
