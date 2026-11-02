@@ -39,7 +39,7 @@ test('تنبيه العقد لا يظهر في جرس التنبيهات ولا 
 test('تنظيف الواجهة يعيد مزامنة الجرس ويحمل نسخة popup الجديدة',async()=>{
   const cleanup=await read('worker-check-legacy-cleanup.js');
   assert.match(cleanup,/window\.syncHeaderAlertCount\?\.\(\)/);
-  assert.match(cleanup,/header-alerts-popup\.js\?v=20260819-5/);
+  assert.match(cleanup,/header-alerts-popup\.js\?v=20261102-retired-share-1/);
 });
 
 test('مركز التنبيهات يحمل نسخة محدثة من تنظيف الواجهة',async()=>{
