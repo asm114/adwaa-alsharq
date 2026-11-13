@@ -2058,8 +2058,33 @@ function bookingPeriodFor(b){
 }
 function setBookingPeriod(period){
   if(!['upcoming','finished','other','all'].includes(period))return;
-  bookingPeriod=period;renderBookings();
+  bookingPeriod=period;
+  document.querySelectorAll('#bookings [data-booking-period]').forEach(button=>{
+    const selected=button.dataset.bookingPeriod===period;
+    button.classList.toggle('primary',selected);
+    button.classList.toggle('secondary',!selected);
+    button.setAttribute('aria-pressed',String(selected));
+  });
+  renderBookings();
 }
+// Bind actual touch/click controls, independently of inline onclick handling.
+function initializeBookingPeriodTabs(){
+  const tabs=document.querySelector('#bookings .booking-period-tabs');
+  if(!tabs||tabs.dataset.periodBound==='true')return;
+  tabs.dataset.periodBound='true';
+  tabs.addEventListener('click',event=>{
+    const button=event.target.closest('[data-booking-period]');
+    if(!button||!tabs.contains(button))return;
+    event.preventDefault();
+    setBookingPeriod(button.dataset.bookingPeriod);
+  });
+  tabs.querySelectorAll('[data-booking-period]').forEach(button=>{
+    button.removeAttribute('onclick');
+    button.setAttribute('aria-pressed',String(button.dataset.bookingPeriod===bookingPeriod));
+  });
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initializeBookingPeriodTabs,{once:true});
+else initializeBookingPeriodTabs();
 function renderBookings(){
   const q=(search?.value||'').trim().toLowerCase(),s=statusFilter?.value||'';
   const counts={upcoming:0,finished:0,other:0};
