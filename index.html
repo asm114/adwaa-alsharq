@@ -230,6 +230,11 @@ header{background:rgba(244,242,236,.92);backdrop-filter:blur(12px);-webkit-backd
 @media print{.help-icon,.help-popover,.help-inline,.help-action>.help-icon{display:none!important}}
 @media(min-width:621px){.protection-stats{grid-template-columns:repeat(6,minmax(0,1fr))}}
 .booking-period-tabs{display:flex;gap:8px;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--line)}.booking-period-tabs button{flex:1 1 150px;min-height:45px}
+
+/* Independent general side notes */
+.side-notes-toggle{position:fixed;left:18px;bottom:calc(92px + env(safe-area-inset-bottom));z-index:65;border-radius:28px;background:#07594b;color:#fff;border:0;padding:13px 17px;box-shadow:0 6px 20px #0003;font-weight:800;cursor:pointer}
+.side-notes-panel{position:fixed;left:12px;bottom:calc(150px + env(safe-area-inset-bottom));z-index:66;width:min(390px,calc(100vw - 24px));max-height:min(72dvh,680px);overflow:auto;background:var(--card,#fff);color:var(--text,#172b26);border:1px solid #cbd8d2;border-radius:18px;box-shadow:0 12px 45px #0004;padding:16px}
+.side-notes-panel[hidden]{display:none!important}.side-notes-panel textarea{width:100%;min-height:95px;box-sizing:border-box}.side-notes-entry{border:1px solid #dce6e1;border-radius:12px;padding:10px;margin-top:10px;overflow-wrap:anywhere;white-space:pre-wrap}.side-notes-entry time{font-size:11px;opacity:.7}.side-notes-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.side-notes-actions button{font-size:13px}
 </style>
 </head>
 <body>
@@ -948,6 +953,16 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 </section>
 </main>
 
+
+<button id="sideNotesToggle" class="side-notes-toggle" type="button" onclick="toggleSideNotes()" aria-controls="sideNotesPanel" aria-expanded="false">📝 ملاحظات جانبية</button>
+<aside id="sideNotesPanel" class="side-notes-panel" hidden aria-label="ملاحظات جانبية عامة">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h3 style="margin:0">ملاحظات جانبية</h3><button class="secondary small" type="button" onclick="toggleSideNotes(false)">إغلاق</button></div>
+  <p class="meta">ملاحظات عامة مستقلة عن الحجوزات، تُحفظ في بيانات النظام.</p>
+  <label for="sideNotesText">ملاحظة جديدة</label>
+  <textarea id="sideNotesText" maxlength="5000" placeholder="اكتب ملاحظتك هنا..."></textarea>
+  <div class="side-notes-actions"><button type="button" onclick="saveSideNote()">حفظ الملاحظة</button><span id="sideNotesStatus" role="status" class="meta"></span></div>
+  <div id="sideNotesList" aria-live="polite"></div>
+</aside>
 <nav>
 <button class="active" data-view="dashboard" onclick="switchView('dashboard',this)"><b>أ</b>الرئيسية</button>
 <button data-view="bookings" onclick="switchView('bookings',this)"><b>▣</b>الحجوزات</button>
@@ -1505,6 +1520,7 @@ function normalizeDB(value){
     cleaningTasks:Array.isArray(x.cleaningTasks)?x.cleaningTasks:[],
     notifications:Array.isArray(x.notifications)?x.notifications:[],
     customerNotes:x.customerNotes&&typeof x.customerNotes==='object'?x.customerNotes:{},
+    generalNotes:Array.isArray(x.generalNotes)?x.generalNotes:[],
     customerCredits:window.CustomerCreditCore?.recalculateBalances(Array.isArray(x.customerCredits)?x.customerCredits:[])||(Array.isArray(x.customerCredits)?x.customerCredits:[]),
     accountingNotes:Array.isArray(x.accountingNotes)?x.accountingNotes:[],
     resortAccount:window.ResortAccountCore?.normalizeAccount(x.resortAccount)||{calibration:null,financialRepairVersion:0,manualMovements:[]},
@@ -1686,6 +1702,33 @@ function openResortStatus(){const current=db.settings?.resortStatus||'ready';doc
 async function setResortStatus(key){if(!RESORT_STATUSES[key])return;const before=db.settings.resortStatus||'ready';db.settings.resortStatus=key;db.settings.resortStatusUpdated=new Date().toISOString();addAudit('تعديل','حالة المنتجع',`${RESORT_STATUSES[before]?.label||before} ← ${RESORT_STATUSES[key]?.label||key}`,{status:before},{status:key});closeModal('resortStatusModal');await persist();}
 function switchView(id,btn){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));const target=document.getElementById(id);if(!target)return;target.classList.add('active');document.querySelectorAll('nav button').forEach(x=>{x.classList.remove('active');x.removeAttribute('aria-current')});const activeButton=btn||document.querySelector(`nav button[data-view="${id}"]`);activeButton?.classList.add('active');activeButton?.setAttribute('aria-current','page');const t={dashboard:['أضواء الشرق','مركز القيادة اليومي'],bookings:['إدارة الحجوزات','إضافة وتعديل ومتابعة جميع الحجوزات'],customers:['سجل العملاء','عدد الزيارات والمدفوعات وآخر حجز'],calendarView:['تقويم الحجوزات','عرض الأيام المحجوزة ومنع التداخل'],cleaning:['مركز التنظيف','متابعة مهام التنظيف بعد مغادرة العملاء'],expenses:['المصاريف والدخل','متابعة المصروفات وصافي الدخل'],dataProtection:['مركز حماية البيانات','النسخ المحلية والسحابية وفحص السلامة وخطة التعافي'],customerPortalAdmin:['إدارة بوابة العملاء','الصور والأسعار وروابط التواصل والبيانات المتغيرة'],about:['حول النظام','معلومات الإصدار والحماية وحالة البيانات'],settings:['الإعدادات','النسخ الاحتياطي وبيانات واتساب']}[id]||['نظام أضواء الشرق',''];pageTitle.textContent=t[0];pageSub.textContent=t[1];window.scrollTo(0,0);renderCurrentView(id)}
 function renderCurrentView(id){if(id==='dashboard')renderDashboard();else if(id==='bookings')renderBookings();else if(id==='customers')renderCustomers();else if(id==='calendarView')renderCalendar();else if(id==='cleaning')renderCleaning();else if(id==='expenses')renderExpenses();else if(id==='dataProtection')renderDataProtectionCenter();else if(id==='customerPortalAdmin'){}else if(id==='about')renderAbout();else if(id==='settings'){const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay'),enabledEl=document.getElementById('commissionEnabled'),methodEl=document.getElementById('commissionMethod'),rateEl=document.getElementById('commissionRate');if(waEl)waEl.value=db.settings.waNumber||'';if(dailyEl)dailyEl.value=db.settings.welcomeMsgDaily||DEFAULT_WELCOME_DAILY;if(stayEl)stayEl.value=db.settings.welcomeMsgStay||DEFAULT_WELCOME_STAY;if(enabledEl)enabledEl.checked=db.settings.commissionEnabled!==false;if(methodEl)methodEl.value=db.settings.commissionMethod||'per_day';if(rateEl)rateEl.value=Number(db.settings.commissionRate??100);renderBackupHistory();renderAuditLog()}}
+function toggleSideNotes(force){
+  const panel=document.getElementById('sideNotesPanel'),toggle=document.getElementById('sideNotesToggle');
+  const open=typeof force==='boolean'?force:panel.hidden;
+  panel.hidden=!open;toggle.setAttribute('aria-expanded',String(open));if(open)renderSideNotes();
+}
+function renderSideNotes(){
+  const root=document.getElementById('sideNotesList');if(!root)return;
+  const notes=[...(db.generalNotes||[])].sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+  root.replaceChildren();
+  if(!notes.length){const empty=document.createElement('p');empty.className='meta';empty.textContent='لا توجد ملاحظات حتى الآن.';root.append(empty);return;}
+  for(const note of notes){
+    const card=document.createElement('div');card.className='side-notes-entry';
+    const body=document.createElement('div');body.textContent=note.text||'';card.append(body);
+    const time=document.createElement('time');time.textContent=new Date(note.updatedAt||note.createdAt).toLocaleString('ar-SA');card.append(time);
+    const actions=document.createElement('div');actions.className='side-notes-actions';
+    const edit=document.createElement('button');edit.className='secondary small';edit.type='button';edit.textContent='تعديل';edit.onclick=()=>editSideNote(note.id);
+    const del=document.createElement('button');del.className='danger small';del.type='button';del.textContent='حذف';del.onclick=()=>deleteSideNote(note.id);
+    actions.append(edit,del);card.append(actions);root.append(card);
+  }
+}
+async function saveSideNote(){
+  const field=document.getElementById('sideNotesText'),status=document.getElementById('sideNotesStatus');const text=field.value.trim();if(!text){status.textContent='اكتب ملاحظة أولًا';return;}
+  const note={id:crypto.randomUUID(),text,createdAt:new Date().toISOString()};db.generalNotes=db.generalNotes||[];db.generalNotes.push(note);
+  const ok=await persist();status.textContent=ok?'تم حفظ الملاحظة':'تعذر تأكيد الحفظ السحابي';if(ok)field.value='';renderSideNotes();
+}
+async function editSideNote(id){const note=(db.generalNotes||[]).find(n=>n.id===id);if(!note)return;const text=prompt('تعديل الملاحظة:',note.text);if(text===null)return;if(!text.trim())return alert('لا يمكن حفظ ملاحظة فارغة');note.text=text.trim().slice(0,5000);note.updatedAt=new Date().toISOString();const ok=await persist();document.getElementById('sideNotesStatus').textContent=ok?'تم التعديل':'تعذر تأكيد الحفظ السحابي';renderSideNotes()}
+async function deleteSideNote(id){if(!confirm('حذف هذه الملاحظة؟'))return;db.generalNotes=(db.generalNotes||[]).filter(n=>n.id!==id);const ok=await persist();document.getElementById('sideNotesStatus').textContent=ok?'تم الحذف':'تعذر تأكيد الحفظ السحابي';renderSideNotes()}
 function renderAll(){renderDashboard();renderBookings();renderCustomers();renderCleaning();renderExpenses();renderCalendar();renderResortStatus();renderAbout();const waEl=document.getElementById('waNumber'),dailyEl=document.getElementById('welcomeMsgDaily'),stayEl=document.getElementById('welcomeMsgStay'),calMode=document.getElementById('calendarMode');if(waEl)waEl.value=db.settings.waNumber||'';if(dailyEl)dailyEl.value=db.settings.welcomeMsgDaily||DEFAULT_WELCOME_DAILY;if(stayEl)stayEl.value=db.settings.welcomeMsgStay||DEFAULT_WELCOME_STAY;if(calMode)calMode.value=db.settings.calendarMode||'both';renderSendStatus()}
 
 function setAboutText(id,value){const el=document.getElementById(id);if(el)el.textContent=String(value??'—')}
