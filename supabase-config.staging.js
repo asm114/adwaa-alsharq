@@ -66,6 +66,15 @@ function formatSupabaseError(prefix,error){
   return new Error(`${prefix}: ${message}${code?` [${code}]`:''}`);
 }
 
+function paymentLedgerSignature(rows){
+  const payments=window.BookingFinancialCore.normalizePaymentRows(rows);
+  // PostgreSQL jsonb can reorder object keys while preserving array order.
+  return JSON.stringify(payments,(_key,value)=>{
+    if(!value||typeof value!=='object'||Array.isArray(value))return value;
+    return Object.fromEntries(Object.keys(value).sort().map(key=>[key,value[key]]));
+  });
+}
+
 async function writeStateAndVerifyBooking(booking){
   const client=window.supabaseClient;
   if(!client)throw new Error('اتصال Supabase غير جاهز. سجّل الدخول من جديد ثم حاول الحفظ.');
@@ -73,11 +82,11 @@ async function writeStateAndVerifyBooking(booking){
     throw new Error('تم منع الحفظ لأن الموقع غير متصل بمشروع Production المعتمد.');
   }
 
-  const expectedPayments=window.BookingFinancialCore?.normalizePaymentRows(booking?.payments)||[];
+  const expectedPayments=paymentLedgerSignature(booking?.payments);
   db=normalizeDB(db);
   const normalizedLocal=(db.bookings||[]).find(item=>String(item?.id||'')===String(booking.id)||String(item?.code||'')===String(booking.code));
-  const normalizedPayments=window.BookingFinancialCore?.normalizePaymentRows(normalizedLocal?.payments)||[];
-  if(JSON.stringify(normalizedPayments)!==JSON.stringify(expectedPayments))throw new Error('تم إيقاف الحفظ لأن التطبيع غيّر سجل الدفعات قبل الكتابة.');
+  const normalizedPayments=paymentLedgerSignature(normalizedLocal?.payments);
+  if(normalizedPayments!==expectedPayments)throw new Error('تم إيقاف الحفظ لأن التطبيع غيّر سجل الدفعات قبل الكتابة.');
   const payload={data:db,updated_at:new Date().toISOString()};
   const updateResult=await client
     .from('app_state')
@@ -113,8 +122,8 @@ async function writeStateAndVerifyBooking(booking){
   }
   if(Math.abs(Number(remote.total||0)-Number(booking.total||0))>0.009)throw new Error('إجمالي الحجز لم يتطابق بعد الحفظ.');
   if(Math.abs(Number(remote.paid||0)-Number(booking.paid||0))>0.009)throw new Error('المدفوع لم يتطابق بعد الحفظ.');
-  const remotePayments=window.BookingFinancialCore?.normalizePaymentRows(remote?.payments)||[];
-  if(JSON.stringify(remotePayments)!==JSON.stringify(expectedPayments))throw new Error('سجل الدفعات في Supabase لا يطابق السجل المحفوظ محليًا.');
+  const remotePayments=paymentLedgerSignature(remote?.payments);
+  if(remotePayments!==expectedPayments)throw new Error('سجل الدفعات في Supabase لا يطابق السجل المحفوظ محليًا.');
   return remote;
 }
 
