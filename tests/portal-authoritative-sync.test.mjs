@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const source=fs.readFileSync(new URL('../supabase-config.staging.js',import.meta.url),'utf8');
+const financialCore=fs.readFileSync(new URL('../booking-financial-core.js',import.meta.url),'utf8');
 
 async function submit({portalResult=true,portalThrows=false,coreFails=false,recordType='family',days=1,status='مؤكد',existing=false,conflict=null}={}){
   const fields={bId:existing?'new-id':'',bCode:'100',bRecordType:recordType,bName:'PRIVATE',bPhone:'PRIVATE',bDate:'2026-10-18',bType:days>1?'مبيت':'يومي',bStayDays:String(days),bPaid:recordType==='family'?'0':'100',bTotal:recordType==='family'?'0':'500',bStatus:status,bNotes:''};
@@ -26,6 +27,7 @@ async function submit({portalResult=true,portalThrows=false,coreFails=false,reco
     normalizeDB:value=>value,normalizeBookingCommission:value=>value,findBookingConflict:()=>conflict,nextAvailableDate:()=>null,
     addAudit(){},invalidateCaches(){},ensureCleaningTaskForBooking(){},markRemoteStateConfirmed:async()=>{},scheduleRenderAll(){},
     setSyncStatus(){},closeModal:()=>events.push('close'),alert:message=>events.push('alert:'+message)});
+  vm.runInContext(financialCore,context);
   vm.runInContext(source,context);
   await new Promise(resolve=>setImmediate(resolve));
   listeners.submit({target:{id:'bookingForm'},preventDefault(){},stopImmediatePropagation(){}});
