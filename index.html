@@ -2058,16 +2058,25 @@ function bookingPeriodFor(b){
 }
 function setBookingPeriod(period){
   if(!['upcoming','finished','other','all'].includes(period))return;
-  bookingPeriod=period;renderBookings();
+  bookingPeriod=period;
+  // A status filter from a previous tab must not hide the newly selected period.
+  const statusSelect=document.getElementById('statusFilter');
+  if(statusSelect)statusSelect.value='';
+  renderBookings();
 }
 function renderBookings(){
-  const q=(search?.value||'').trim().toLowerCase(),s=statusFilter?.value||'';
+  // Resolve elements explicitly: named window properties are unreliable on Safari/iPadOS.
+  const searchInput=document.getElementById('search');
+  const statusSelect=document.getElementById('statusFilter');
+  const list=document.getElementById('bookingList');
+  if(!list)return;
+  const q=(searchInput?.value||'').trim().toLowerCase(),s=statusSelect?.value||'';
   const counts={upcoming:0,finished:0,other:0};
   (db.bookings||[]).forEach(b=>{counts[bookingPeriodFor(b)]++});
   [['upcoming','upcomingBookingCount'],['finished','finishedBookingCount'],['other','otherBookingCount']].forEach(([period,id])=>{const el=document.getElementById(id);if(el)el.textContent='('+counts[period]+')'});
   document.querySelectorAll('[data-booking-period]').forEach(btn=>{const active=btn.dataset.bookingPeriod===bookingPeriod;btn.classList.toggle('primary',active);btn.classList.toggle('secondary',!active);btn.setAttribute('aria-pressed',String(active))});
   const arr=[...(db.bookings||[])].filter(b=>(bookingPeriod==='all'||bookingPeriodFor(b)===bookingPeriod)&&(!q||String(b.name||'').toLowerCase().includes(q)||String(b.phone||'').includes(q)||String(b.code||'').toLowerCase().includes(q))&&(!s||b.status===s)).sort((a,b)=>bookingPeriod==='upcoming'?String(a.date||'').localeCompare(String(b.date||'')):String(b.date||'').localeCompare(String(a.date||'')));
-  bookingList.innerHTML=arr.map(itemHTML).join('')||'<div class="empty">لا توجد حجوزات في هذا القسم</div>';
+  list.innerHTML=arr.map(itemHTML).join('')||'<div class="empty">لا توجد حجوزات في هذا القسم</div>';
 }
 
 function addDaysISO(dateStr,days){

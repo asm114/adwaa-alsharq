@@ -12,6 +12,7 @@ function functionSource(name){
 }
 function harness(bookings=[],now='2026-10-13T12:00:00Z'){
   const elements=Object.fromEntries(['upcomingBookingCount','finishedBookingCount','otherBookingCount'].map(id=>[id,{textContent:''}]));
+  elements.search={value:''};elements.statusFilter={value:''};elements.bookingList={innerHTML:''};
   const buttons=['upcoming','finished','other','all'].map(period=>({dataset:{bookingPeriod:period},classes:{},attributes:{},classList:{toggle(name,value){this.owner.classes[name]=value}},setAttribute(name,value){this.attributes[name]=value}}));
   buttons.forEach(button=>{button.classList.owner=button});
   class FixedDate extends Date{constructor(...args){super(...(args.length?args:[now]))}}
@@ -51,14 +52,14 @@ test('tabs, counters, ordering, search and status filters preserve booking data'
   const before=JSON.stringify(bookings);
   const {context,elements,buttons}=harness(bookings);
   context.renderBookings();
-  assert.equal(context.bookingList.innerHTML,'early|late|');
-  assert.deepEqual(Object.values(elements).map(el=>el.textContent),['(2)','(1)','(2)']);
+  assert.equal(elements.bookingList.innerHTML,'early|late|');
+  assert.deepEqual(['upcomingBookingCount','finishedBookingCount','otherBookingCount'].map(id=>elements[id].textContent),['(2)','(1)','(2)']);
   assert.equal(buttons[0].attributes['aria-pressed'],'true');
   context.setBookingPeriod('finished');assert.equal(context.bookingList.innerHTML,'past|');
   context.setBookingPeriod('other');assert.equal(context.bookingList.innerHTML,'cancelled|postponed|');
   context.setBookingPeriod('all');assert.equal(context.bookingList.innerHTML,'cancelled|late|early|past|postponed|');
-  context.search.value='EARLY';context.renderBookings();assert.equal(context.bookingList.innerHTML,'early|');
-  context.search.value='050123';context.statusFilter.value='مؤجل';context.renderBookings();assert.equal(context.bookingList.innerHTML,'postponed|');
+  elements.search.value='EARLY';context.renderBookings();assert.equal(context.bookingList.innerHTML,'early|');
+  context.search.value='050123';elements.statusFilter.value='مؤجل';context.renderBookings();assert.equal(context.bookingList.innerHTML,'postponed|');
   context.setBookingPeriod('invalid');assert.equal(context.bookingList.innerHTML,'postponed|');
   context.setBookingPeriod('upcoming');assert.match(context.bookingList.innerHTML,/لا توجد حجوزات/);
   assert.deepEqual(Object.values(elements).map(el=>el.textContent),['(2)','(1)','(2)']);
